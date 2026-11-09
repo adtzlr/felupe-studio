@@ -1,0 +1,433 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/adtzlr/felupe-studio/commands.schema.json",
+  "title": "CommandList",
+  "description": "A list of FElupe Studio commands. Objects are created by commands and referenced by their names.",
+  "type": "object",
+  "required": ["schema_version", "commands"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "description": "Version of this schema.",
+      "const": 1
+    },
+    "commands": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Command"
+      }
+    }
+  },
+  "$defs": {
+    "Name": {
+      "description": "Name of an object, unique within the command list. Used as a Python identifier in the generated script.",
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+      "maxLength": 64
+    },
+    "Axis": {
+      "type": "string",
+      "enum": ["x", "y", "z"]
+    },
+    "Command": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/MeshImport"
+        },
+        {
+          "$ref": "#/$defs/CellSetFromTag"
+        },
+        {
+          "$ref": "#/$defs/CellSetFromFile"
+        },
+        {
+          "$ref": "#/$defs/MaterialAdd"
+        },
+        {
+          "$ref": "#/$defs/SectionAdd"
+        },
+        {
+          "$ref": "#/$defs/PointSetAdd"
+        },
+        {
+          "$ref": "#/$defs/BoundaryAdd"
+        },
+        {
+          "$ref": "#/$defs/StepAdd"
+        },
+        {
+          "$ref": "#/$defs/JobAdd"
+        }
+      ]
+    },
+    "MeshImport": {
+      "description": "Import a mesh file (read with meshio).",
+      "type": "object",
+      "required": ["command", "name", "file"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "mesh.import"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "file": {
+          "description": "File name of the mesh, e.g. specimen.vtu.",
+          "type": "string",
+          "minLength": 1
+        },
+        "tag": {
+          "description": "Name of an integer cell data array used to split the mesh into cell sets, e.g. material or gmsh:physical.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "CellSetFromTag": {
+      "description": "Cell set of all cells of a mesh with the given tag value.",
+      "type": "object",
+      "required": ["command", "name", "mesh", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "cellset.from_tag"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "mesh": {
+          "$ref": "#/$defs/Name"
+        },
+        "value": {
+          "type": "integer"
+        }
+      }
+    },
+    "CellSetFromFile": {
+      "description": "Cell set of all cells of a mesh.",
+      "type": "object",
+      "required": ["command", "name", "mesh"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "cellset.from_file"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "mesh": {
+          "$ref": "#/$defs/Name"
+        }
+      }
+    },
+    "MaterialAdd": {
+      "description": "Add a material to the material library.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/MaterialNeoHooke"
+        },
+        {
+          "$ref": "#/$defs/MaterialNeoHookeCompressible"
+        },
+        {
+          "$ref": "#/$defs/MaterialLinearElasticLargeStrain"
+        }
+      ]
+    },
+    "MaterialNeoHooke": {
+      "description": "Isotropic hyperelastic Neo-Hookean material (fem.NeoHooke). Without a bulk modulus it needs the u-p-J formulation.",
+      "type": "object",
+      "required": ["command", "name", "model", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "material.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "model": {
+          "const": "NeoHooke"
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["mu"],
+          "additionalProperties": false,
+          "properties": {
+            "mu": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "bulk": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          }
+        }
+      }
+    },
+    "MaterialNeoHookeCompressible": {
+      "description": "Compressible isotropic hyperelastic Neo-Hookean material (fem.NeoHookeCompressible).",
+      "type": "object",
+      "required": ["command", "name", "model", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "material.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "model": {
+          "const": "NeoHookeCompressible"
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["mu", "lmbda"],
+          "additionalProperties": false,
+          "properties": {
+            "mu": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "lmbda": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        }
+      }
+    },
+    "MaterialLinearElasticLargeStrain": {
+      "description": "Linear-elastic material formulated for large deformations (fem.LinearElasticLargeStrain).",
+      "type": "object",
+      "required": ["command", "name", "model", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "material.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "model": {
+          "const": "LinearElasticLargeStrain"
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["E", "nu"],
+          "additionalProperties": false,
+          "properties": {
+            "E": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "nu": {
+              "type": "number",
+              "minimum": -1,
+              "exclusiveMaximum": 0.5
+            }
+          }
+        }
+      }
+    },
+    "SectionAdd": {
+      "description": "Assign a material and a formulation to a cell set. Each section becomes a solid body.",
+      "type": "object",
+      "required": ["command", "name", "cellset", "material", "formulation"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "section.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "cellset": {
+          "$ref": "#/$defs/Name"
+        },
+        "material": {
+          "$ref": "#/$defs/Name"
+        },
+        "formulation": {
+          "description": "u: displacement field only. u-p-J: mixed fields (fem.FieldsMixed) for nearly incompressible materials.",
+          "enum": ["u", "u-p-J"]
+        },
+        "bulk": {
+          "description": "Bulk modulus of the nearly incompressible formulation (required for u-p-J).",
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "if": {
+        "properties": {
+          "formulation": {
+            "const": "u-p-J"
+          }
+        }
+      },
+      "then": {
+        "required": ["bulk"]
+      },
+      "else": {
+        "not": {
+          "required": ["bulk"]
+        }
+      }
+    },
+    "PointSetAdd": {
+      "description": "Points of the merged mesh selected by a coordinate or by point ids.",
+      "type": "object",
+      "required": ["command", "name", "select"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "pointset.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "select": {
+          "oneOf": [
+            {
+              "description": "Points with the given coordinate, e.g. x == 0.",
+              "type": "object",
+              "required": ["axis", "value"],
+              "additionalProperties": false,
+              "properties": {
+                "axis": {
+                  "$ref": "#/$defs/Axis"
+                },
+                "value": {
+                  "type": "number"
+                },
+                "atol": {
+                  "description": "Absolute tolerance (default 1e-8).",
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              }
+            },
+            {
+              "description": "Points given by their ids, e.g. picked in the viewer.",
+              "type": "object",
+              "required": ["ids"],
+              "additionalProperties": false,
+              "properties": {
+                "ids": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "BoundaryAdd": {
+      "description": "Prescribe displacement components of a point set (fem.Boundary).",
+      "type": "object",
+      "required": ["command", "name", "pointset", "constrained"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "boundary.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "pointset": {
+          "$ref": "#/$defs/Name"
+        },
+        "constrained": {
+          "description": "Constrained displacement components; all others are free.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Axis"
+          }
+        },
+        "value": {
+          "description": "Prescribed displacement of the constrained components (default 0).",
+          "type": "number"
+        }
+      }
+    },
+    "StepAdd": {
+      "description": "A step with all boundaries, optionally ramping one boundary (fem.Step).",
+      "type": "object",
+      "required": ["command", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "step.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "sections": {
+          "description": "Sections whose solid bodies are items of the step (default: all).",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Name"
+          }
+        },
+        "ramp": {
+          "description": "Ramp the value of a boundary with fem.math.linsteps([start, end], num).",
+          "type": "object",
+          "required": ["boundary", "end", "num"],
+          "additionalProperties": false,
+          "properties": {
+            "boundary": {
+              "$ref": "#/$defs/Name"
+            },
+            "start": {
+              "type": "number"
+            },
+            "end": {
+              "type": "number"
+            },
+            "num": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    "JobAdd": {
+      "description": "A job evaluating steps (fem.Job). With a curve boundary, the reaction force of this boundary is recorded over its displacement (fem.CharacteristicCurve).",
+      "type": "object",
+      "required": ["command", "name", "steps"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "job.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Name"
+          }
+        },
+        "curve": {
+          "$ref": "#/$defs/Name"
+        }
+      }
+    }
+  }
+}
