@@ -40,4 +40,4 @@ ruff check . && ruff format --check .
 
 ## License
 
-felupe-studio is licensed under the MIT license. [FElupe](https://github.com/adtzlr/felupe), which is loaded at runtime, is licensed under GPL-3.0-or-later.
+felupe-studio is licensed under GPL-3.0-or-later, the same license as [FElupe](https://github.com/adtzlr/felupe).
