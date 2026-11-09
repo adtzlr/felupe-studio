@@ -3,7 +3,7 @@ import type { CheckReport } from "./checks";
 import type { Command, CommandList } from "./commands";
 import { SCHEMA_VERSION } from "./schema";
 import { type TreeNode, deriveTree } from "./tree";
-import { type Issue, references, validate } from "./validate";
+import { type Issue, references, renameReferences, validate } from "./validate";
 
 export type Edit =
   | { type: "add"; command: Command; index?: number }
@@ -91,6 +91,26 @@ export class ModelStore {
     if (this.past.length > HISTORY_LIMIT) this.past.shift();
     this.future = [];
     this.set(freeze(list), undefined);
+  }
+
+  /**
+   * Change a command as one undo step. If the command is renamed, the references
+   * of the other commands follow.
+   */
+  update(name: string, command: Command): void {
+    const edits: Edit[] = [{ type: "update", name, command }];
+    if (command.name !== name) {
+      for (const other of this.list) {
+        if (
+          other.name !== name &&
+          references(other).some((r) => r.name === name)
+        ) {
+          const renamed = renameReferences(other, name, command.name);
+          edits.push({ type: "update", name: other.name, command: renamed });
+        }
+      }
+    }
+    this.apply(edits);
   }
 
   undo(): void {
