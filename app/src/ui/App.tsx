@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { SUFFIX } from "../core/files";
+import type { RibbonItem } from "../core/ribbon";
 import type { ModelStore } from "../core/store";
 import type { PyodideClient } from "../worker/client";
+import { CreateDialog } from "./CreateDialog";
 import { Footer } from "./Footer";
 import { Header } from "./Header";
 import { useRuntime, useStore } from "./hooks";
@@ -43,6 +45,7 @@ export function App({ store, client, download = downloadFile }: Props) {
   const [saved, setSaved] = useState(store.commands);
   const [error, setError] = useState<string[]>([]);
   const [selection, setSelection] = useState<string | undefined>();
+  const [creating, setCreating] = useState<RibbonItem | undefined>();
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
   // a selection that was removed (or renamed) is gone
   const selected = selection && store.get(selection) ? selection : undefined;
@@ -57,6 +60,7 @@ export function App({ store, client, download = downloadFile }: Props) {
   // undo and redo with the keyboard, except while typing
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (creating) return;
       if (!(event.ctrlKey || event.metaKey) || isEditable(event.target)) return;
       const key = event.key.toLowerCase();
       if (key === "z" && !event.shiftKey) store.undo();
@@ -66,7 +70,7 @@ export function App({ store, client, download = downloadFile }: Props) {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [store]);
+  }, [store, creating]);
 
   // the project module (with the schema validator) is loaded on first use
   const open = useCallback(
@@ -140,10 +144,12 @@ export function App({ store, client, download = downloadFile }: Props) {
         </div>
       )}
       <Ribbon
+        store={store}
         workspace={workspace}
         tab={tab}
         onWorkspace={setWorkspace}
         onTab={setTab}
+        onCreate={setCreating}
       />
       <div class="body">
         <Sidebar
@@ -156,6 +162,17 @@ export function App({ store, client, download = downloadFile }: Props) {
         <Viewport />
       </div>
       <Footer store={store} runtime={runtime} />
+      {creating && (
+        <CreateDialog
+          item={creating}
+          store={store}
+          onClose={() => setCreating(undefined)}
+          onCreated={(name) => {
+            setCreating(undefined);
+            setSelection(name);
+          }}
+        />
+      )}
     </div>
   );
 }

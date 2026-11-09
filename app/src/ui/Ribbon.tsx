@@ -1,5 +1,9 @@
 import { useEffect } from "preact/hooks";
-import { Icon } from "./icons";
+import type { Tab } from "../core/registry";
+import { type RibbonItem, ribbonGroups, unavailable } from "../core/ribbon";
+import type { ModelStore } from "../core/store";
+import { KINDS } from "../core/validate";
+import { Icon, type IconName } from "./icons";
 
 export type Workspace = "model" | "results";
 
@@ -15,14 +19,77 @@ export const TABS: Record<Workspace, { id: string; label: string }[]> = {
   results: [{ id: "results", label: "Results" }],
 };
 
+const COMMAND_TABS = new Set<string>([
+  "mesh",
+  "materials",
+  "sections",
+  "loads",
+  "steps",
+]);
+
 interface Props {
+  store: ModelStore;
   workspace: Workspace;
   tab: string;
   onWorkspace: (workspace: Workspace) => void;
   onTab: (tab: string) => void;
+  onCreate: (item: RibbonItem) => void;
 }
 
-export function Ribbon({ workspace, tab, onWorkspace, onTab }: Props) {
+function Commands({
+  store,
+  tab,
+  onCreate,
+}: {
+  store: ModelStore;
+  tab: Tab;
+  onCreate: Props["onCreate"];
+}) {
+  const context = { commands: store.commands };
+  return (
+    <div class="ribbon-commands">
+      {ribbonGroups(tab).map((group, index) => (
+        <div key={group[0].type} class="ribbon-group">
+          {index > 0 && <span class="ribbon-separator" aria-hidden="true" />}
+          {group.map((item) => {
+            const reason = unavailable(item.type, context);
+            const describedBy = reason
+              ? `reason-${item.id.replace(/[^A-Za-z0-9]/g, "-")}`
+              : undefined;
+            return [
+              <button
+                key={item.id}
+                type="button"
+                class="ribbon-button"
+                aria-disabled={reason ? true : undefined}
+                aria-describedby={describedBy}
+                title={reason}
+                onClick={() => !reason && onCreate(item)}
+              >
+                <Icon name={KINDS[item.type] as IconName} size={22} />
+                <span>{item.label}</span>
+              </button>,
+              reason && (
+                <span key={`${item.id}-reason`} id={describedBy} hidden>
+                  {reason}
+                </span>
+              ),
+            ];
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function Ribbon({
+  store,
+  workspace,
+  tab,
+  onWorkspace,
+  onTab,
+  onCreate,
+}: Props) {
   const tabs = TABS[workspace];
   const active = tabs.find((t) => t.id === tab) ?? tabs[0];
 
@@ -81,11 +148,17 @@ export function Ribbon({ workspace, tab, onWorkspace, onTab }: Props) {
           aria-labelledby={`tab-${active.id}`}
           class="ribbon-panel"
         >
-          {active.id === "tools" ? (
+          {COMMAND_TABS.has(active.id) ? (
+            <Commands
+              store={store}
+              tab={active.id as Tab}
+              onCreate={onCreate}
+            />
+          ) : active.id === "tools" ? (
             <a href="./spike.html">Pyodide benchmark</a>
           ) : (
             <span class="muted">
-              The commands of “{active.label}” will appear here.
+              Results will appear here after a job has run.
             </span>
           )}
         </div>

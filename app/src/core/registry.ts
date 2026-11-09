@@ -26,6 +26,8 @@ export interface CommandInfo {
   fields: Record<string, FieldInfo>;
   /** Labels of the options of a field: enum values, material models, variants. */
   options?: Record<string, Record<string, string>>;
+  /** At most one object of this command per model. */
+  single?: boolean;
 }
 
 export const KIND_LABELS: Record<Kind, string> = {
@@ -60,6 +62,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     label: "Merge points",
     tab: "mesh",
     prefix: "merge",
+    single: true,
     fields: {
       decimals: {
         label: "Decimals",
