@@ -3,7 +3,8 @@
 - **Cell assignment:** every solid cell of an imported mesh belongs to exactly one
   section. Unassigned cells are not part of the model, cells in two sections are
   counted twice.
-- **Interfaces:** the meshes of the sections are merged on identical points, like
+- **Interfaces:** the meshes of the sections are merged on identical points (or on
+  points that agree to the decimals of ``mesh.merge``), like
   :func:`felupe.field.merge` does it in the generated script. Points of one section
   that lie on the surface of another section without being one of its points are
   *hanging*: they are not connected, e.g. at a non-conforming interface or if the
@@ -184,7 +185,10 @@ def check(document, directory="."):
             mesh, ids = cellsets[sec["cellset"]]
             m = meshes[mesh]
             section_meshes.append(fem.Mesh(m.points, m.cells[ids], m.cell_type))
-        container = fem.MeshContainer(section_meshes, merge=True)
+        decimals = next(
+            (c["decimals"] for c in commands if c["command"] == "mesh.merge"), None
+        )
+        container = fem.MeshContainer(section_meshes, merge=True, decimals=decimals)
         points = container.points
         diagonal = np.linalg.norm(points.max(axis=0) - points.min(axis=0))
         tol = TOLERANCE * diagonal

@@ -54,6 +54,14 @@ def main():
     write_vtu(files / "left.vtu", bar(b=(1.5, 1, 1), n=(7, 5, 5)))
     write_vtu(files / "right.vtu", bar(a=(1.5, 0, 0), n=(7, 5, 5)))
 
+    # like before, but the coordinates of the right file differ by 1e-9 (as with
+    # files of different mesh generators); merged with mesh.merge (decimals=6)
+    shifted = HERE / "bar_sections_files_merged"
+    right = bar(a=(1.5, 0, 0), n=(7, 5, 5))
+    right.points[:, 0] += 1e-9
+    write_vtu(shifted / "left.vtu", bar(b=(1.5, 1, 1), n=(7, 5, 5)))
+    write_vtu(shifted / "right.vtu", right)
+
 
 if __name__ == "__main__":
     main()

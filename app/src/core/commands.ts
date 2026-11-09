@@ -7,6 +7,7 @@
  */
 export type Command =
   | MeshImport
+  | MeshMerge
   | CellSetFromTag
   | CellSetFromFile
   | MaterialAdd
@@ -65,6 +66,20 @@ export interface MeshImport {
    * Name of an integer cell data array used to split the mesh into cell sets, e.g. material or gmsh:physical.
    */
   tag?: string;
+}
+/**
+ * Merge points of the sections whose coordinates agree to the given number of decimals (fem.field.merge(..., decimals)). Without this command, only identical points are merged. Merged points take the rounded coordinates.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MeshMerge".
+ */
+export interface MeshMerge {
+  command: "mesh.merge";
+  name: Name;
+  /**
+   * Number of decimals of the point coordinates compared for merging, e.g. 6.
+   */
+  decimals: number;
 }
 /**
  * Cell set of all cells of a mesh with the given tag value.

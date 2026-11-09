@@ -178,7 +178,9 @@ def codegen(document, evaluate=True):
         out.append(
             "\n# merge the displacements of all sections into the top-level field"
         )
-        out.append(_call("field", "fem.field.merge", [fields]))
+        merge = get("mesh.merge")
+        args = [fields] + [f"decimals={m['decimals']!r}" for m in merge]
+        out.append(_call("field", "fem.field.merge", args))
 
         # 4. solid bodies, after the merge
         out.append("\n# solid bodies")

@@ -65,6 +65,10 @@ def test_valid_document(document):
         lambda d: find(d, "fixed").update(constrained=["x", "x"]),
         lambda d: find(d, "step_1")["ramp"].update(num=0),
         lambda d: find(d, "job_1").update(steps=[]),
+        lambda d: d["commands"].insert(1, {"command": "mesh.merge", "name": "m"}),
+        lambda d: d["commands"].insert(
+            1, {"command": "mesh.merge", "name": "m", "decimals": 16}
+        ),
     ],
 )
 def test_schema_errors(document, change):
@@ -120,6 +124,14 @@ def test_neohooke_with_bulk_in_displacement_formulation(document):
     section["formulation"] = "u"
     section.pop("bulk")
     assert commands.errors(document) == []
+
+
+def test_one_merge(document):
+    merge = {"command": "mesh.merge", "name": "merge", "decimals": 6}
+    document["commands"].insert(1, merge)
+    assert commands.errors(document) == []
+    document["commands"].insert(2, {**merge, "name": "merge_2"})
+    assert any("only one mesh.merge" in m for m in commands.errors(document))
 
 
 def test_document_is_not_modified(document):
