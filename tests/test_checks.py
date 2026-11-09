@@ -95,6 +95,23 @@ def test_slightly_different_coordinates(tmp_path):
     assert interface["hanging"] == 2 * 25
 
 
+def test_slightly_different_coordinates_merged(tmp_path):
+    write(tmp_path / "left.vtu", fem.Cube(b=(1.5, 1, 1), n=(7, 5, 5)))
+    right = fem.Cube(a=(1.5, 0, 0), b=(3, 1, 1), n=(7, 5, 5))
+    right.points[:, 0] += 1e-9
+    write(tmp_path / "right.vtu", right)
+    document = two_files()
+    document["commands"].insert(
+        2, {"command": "mesh.merge", "name": "m", "decimals": 6}
+    )
+    report = check(document, tmp_path)
+
+    assert report["ok"]
+    (interface,) = report["interfaces"]
+    assert interface["shared"] == 25
+    assert interface["hanging"] == 0
+
+
 def test_separate_bodies_have_no_interface(tmp_path):
     write(tmp_path / "left.vtu", fem.Cube(b=(1.5, 1, 1), n=(7, 5, 5)))
     write(tmp_path / "right.vtu", fem.Cube(a=(2, 0, 0), b=(3, 1, 1), n=(7, 5, 5)))

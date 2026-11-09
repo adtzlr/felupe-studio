@@ -35,6 +35,9 @@
           "$ref": "#/$defs/MeshImport"
         },
         {
+          "$ref": "#/$defs/MeshMerge"
+        },
+        {
           "$ref": "#/$defs/CellSetFromTag"
         },
         {
@@ -81,6 +84,26 @@
           "description": "Name of an integer cell data array used to split the mesh into cell sets, e.g. material or gmsh:physical.",
           "type": "string",
           "minLength": 1
+        }
+      }
+    },
+    "MeshMerge": {
+      "description": "Merge points of the sections whose coordinates agree to the given number of decimals (fem.field.merge(..., decimals)). Without this command, only identical points are merged. Merged points take the rounded coordinates.",
+      "type": "object",
+      "required": ["command", "name", "decimals"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "mesh.merge"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "decimals": {
+          "description": "Number of decimals of the point coordinates compared for merging, e.g. 6.",
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15
         }
       }
     },

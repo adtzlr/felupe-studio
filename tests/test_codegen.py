@@ -256,6 +256,17 @@ def test_point_ids_and_job_without_curve(two_sections, tmp_path, monkeypatch):
     assert not isinstance(namespace["job_1"], fem.CharacteristicCurve)
 
 
+def test_merge_decimals(two_sections):
+    assert "fem.field.merge([field_section_hard, field_section_soft])" in codegen(
+        two_sections
+    )
+    two_sections["commands"].insert(
+        1, {"command": "mesh.merge", "name": "merge", "decimals": 6}
+    )
+    script = codegen(two_sections)
+    assert "[field_section_hard, field_section_soft], decimals=6" in script
+
+
 def test_evaluate_false(two_sections):
     script = codegen(two_sections, evaluate=False)
     assert ".evaluate(" not in script

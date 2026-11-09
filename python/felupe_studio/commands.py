@@ -15,6 +15,7 @@ SCHEMA_VERSION = 1
 # kind of object created by each command
 KINDS = {
     "mesh.import": "mesh",
+    "mesh.merge": "merge",
     "cellset.from_tag": "cellset",
     "cellset.from_file": "cellset",
     "material.add": "material",
@@ -133,6 +134,11 @@ def _reference_errors(commands):
                     f"formulation with NeoHooke '{material['name']}' without a bulk "
                     "modulus. Add 'bulk' to the material or use 'u-p-J'."
                 )
+
+        if cmd["command"] == "mesh.merge" and any(
+            c["command"] == "mesh.merge" for _, c in defined.values()
+        ):
+            messages.append(f"commands/{i}: only one mesh.merge is allowed.")
 
         if (
             keyword.iskeyword(name)

@@ -32,6 +32,7 @@ SAME_BODY = [
     "bar_sections_tag",
     "bar_sections_gmsh",
     "bar_sections_files",
+    "bar_sections_files_merged",
 ]
 
 RTOL, ATOL = 1e-8, 1e-12
