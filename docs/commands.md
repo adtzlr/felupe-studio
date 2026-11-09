@@ -26,17 +26,18 @@ The JSON schema [`python/felupe_studio/commands.schema.json`](../python/felupe_s
 
 ## Commands of schema version 1
 
-| Command             | Creates   | References                               | FElupe                                                                                     |
-| ------------------- | --------- | ---------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `mesh.import`       | mesh      |                                          | meshio, optional integer cell data `tag`                                                   |
-| `cellset.from_tag`  | cell set  | mesh (imported with a tag)               | `fem.Mesh(points, cells[tag == value], cell_type)`                                         |
-| `cellset.from_file` | cell set  | mesh                                     | all cells of the mesh                                                                      |
-| `material.add`      | material  |                                          | `NeoHooke`, `NeoHookeCompressible`, `LinearElasticLargeStrain`                             |
-| `section.add`       | section   | cell set, material                       | `u`: `FieldContainer` + `SolidBody`; `u-p-J`: `FieldsMixed` + `NearlyIncompressible(bulk)` |
-| `pointset.add`      | point set |                                          | coordinate (`x == 0`, with `atol`) or point ids                                            |
-| `boundary.add`      | boundary  | point set                                | `fem.Boundary` on the merged field, `constrained` components                               |
-| `step.add`          | step      | sections (default: all), ramped boundary | `fem.Step`, `fem.math.linsteps([start, end], num)`                                         |
-| `job.add`           | job       | steps, curve boundary                    | `fem.Job` or `fem.CharacteristicCurve`                                                     |
+| Command             | Creates                     | References                               | FElupe                                                                                                                                                               |
+| ------------------- | --------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mesh.import`       | mesh                        |                                          | meshio, optional integer cell data `tag`                                                                                                                             |
+| `mesh.merge`        | merge setting (at most one) |                                          | `fem.field.merge([...], decimals=...)`: merges points that agree to `decimals`, e.g. files of different mesh generators; without it only identical points are merged |
+| `cellset.from_tag`  | cell set                    | mesh (imported with a tag)               | `fem.Mesh(points, cells[tag == value], cell_type)`                                                                                                                   |
+| `cellset.from_file` | cell set                    | mesh                                     | all cells of the mesh                                                                                                                                                |
+| `material.add`      | material                    |                                          | `NeoHooke`, `NeoHookeCompressible`, `LinearElasticLargeStrain`                                                                                                       |
+| `section.add`       | section                     | cell set, material                       | `u`: `FieldContainer` + `SolidBody`; `u-p-J`: `FieldsMixed` + `NearlyIncompressible(bulk)`                                                                           |
+| `pointset.add`      | point set                   |                                          | coordinate (`x == 0`, with `atol`) or point ids                                                                                                                      |
+| `boundary.add`      | boundary                    | point set                                | `fem.Boundary` on the merged field, `constrained` components                                                                                                         |
+| `step.add`          | step                        | sections (default: all), ramped boundary | `fem.Step`, `fem.math.linsteps([start, end], num)`                                                                                                                   |
+| `job.add`           | job                         | steps, curve boundary                    | `fem.Job` or `fem.CharacteristicCurve`                                                                                                                               |
 
 ## Validation
 
@@ -52,7 +53,7 @@ The JSON schema [`python/felupe_studio/commands.schema.json`](../python/felupe_s
 `felupe_studio.checks.check(document, directory)` reads the mesh files and returns a JSON report (`ok`, `messages`, `cells`, `interfaces`):
 
 - **Cell assignment:** every solid cell of an imported mesh belongs to exactly one section; unassigned cells and cells in more than one section are reported per mesh.
-- **Interfaces:** the section meshes are merged on identical points, like `fem.field.merge` in the generated script. For every pair of sections that touch, the report counts the shared points and the *hanging* points: points on the surface of one section that lie on a face of the other one without being one of its points (tolerance 1e-6 of the model diagonal). Hanging points are not connected, e.g. at a non-conforming interface or if the coordinates of two files differ slightly.
+- **Interfaces:** the section meshes are merged on identical points (or with the `decimals` of `mesh.merge`), like `fem.field.merge` in the generated script. For every pair of sections that touch, the report counts the shared points and the _hanging_ points: points on the surface of one section that lie on a face of the other one without being one of its points (tolerance 1e-6 of the model diagonal). Hanging points are not connected, e.g. at a non-conforming interface or if the coordinates of two files differ slightly.
 
 Example messages: `192 / 192 cells assigned once.` and `Interface left_body / right_body: 25 shared points, 0 hanging.`
 
