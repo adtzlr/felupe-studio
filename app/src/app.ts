@@ -21,3 +21,12 @@ export function renderStart(root: HTMLElement, version: string): void {
 export function formatVersion(version: string, commit?: string): string {
   return commit ? `${version} (${commit.slice(0, 7)})` : version;
 }
+
+/** Append a status line for the Python runtime and return it. */
+export function renderRuntime(root: HTMLElement, text: string): HTMLElement {
+  const status = document.createElement("p");
+  status.setAttribute("role", "status");
+  status.textContent = text;
+  root.append(status);
+  return status;
+}

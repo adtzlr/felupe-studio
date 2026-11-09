@@ -15,3 +15,6 @@ build/
 .vscode/
 .idea/
 .DS_Store
+
+# Downloaded by app/scripts/fetch-wheels.js
+app/public/wheels/

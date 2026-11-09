@@ -58,6 +58,7 @@ describe("toMarkdown", () => {
     expect(md).toContain("| 3 | 81 | 8 | 0.010 | 0.100 | 1.8216 |");
     expect(md).toContain("| 5 | 375 | 64 | 0.020 | 0.300 | 1.8007 |");
     expect(md).toContain("**Memory:** unknown");
+    expect(md).toContain("**Service worker cache:** not active");
   });
 
   it("formats seconds", () => {

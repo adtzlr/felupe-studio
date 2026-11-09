@@ -4,15 +4,22 @@
   "version": "0.0.0",
   "type": "module",
   "license": "GPL-3.0-or-later",
+  "config": {
+    "felupe": "12.0.0",
+    "felupeWheelSha256": "2cf0e2a9eeb3bc73c5d203e87c8d9699fd00308c97cf42c3e8663a1fc14480ce"
+  },
   "scripts": {
     "dev": "vite",
+    "predev": "node scripts/fetch-wheels.js",
     "build": "tsc --noEmit && vite build",
+    "prebuild": "node scripts/fetch-wheels.js",
     "preview": "vite preview",
     "test": "vitest run",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "schema:types": "node scripts/generate-types.js && prettier --write src/core/commands.ts"
+    "schema:types": "node scripts/generate-types.js && prettier --write src/core/commands.ts",
+    "wheels": "node scripts/fetch-wheels.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

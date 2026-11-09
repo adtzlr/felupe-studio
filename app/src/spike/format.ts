@@ -32,6 +32,8 @@ export interface Environment {
   userAgent: string;
   cores?: number;
   memory?: number;
+  /** Whether the page was controlled by the service worker (cache). */
+  serviceWorker?: boolean;
 }
 
 /** Markdown summary of a benchmark run, ready to paste into docs/benchmarks.md. */
@@ -44,13 +46,14 @@ export function toMarkdown(
   const lines = [
     `**Device:** ${env.userAgent}`,
     `**Cores:** ${env.cores ?? "unknown"} · **Memory:** ${env.memory ? `${env.memory} GB` : "unknown"}`,
+    `**Service worker cache:** ${env.serviceWorker ? "active" : "not active"}`,
     `**Versions:** Pyodide ${versions.pyodide}, Python ${versions.python}, FElupe ${versions.felupe}, NumPy ${versions.numpy}, SciPy ${versions.scipy}`,
     "",
     "| Load step | Time in s |",
     "| --- | ---: |",
     `| Pyodide | ${seconds(timings.pyodide / 1000)} |`,
-    `| NumPy, SciPy, micropip | ${seconds(timings.packages / 1000)} |`,
-    `| FElupe (micropip) | ${seconds(timings.felupe / 1000)} |`,
+    `| NumPy, SciPy | ${seconds(timings.packages / 1000)} |`,
+    `| FElupe (wheel of the app) | ${seconds(timings.felupe / 1000)} |`,
     `| **Total** | **${seconds(timings.total / 1000)}** |`,
     "",
     "| n | DOF | Cells | Setup in s | Solve in s | Force |",
