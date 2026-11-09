@@ -1,0 +1,59 @@
+"""Create the mesh files of the golden test cases.
+
+The meshes are committed; this script documents how they were made. Run it from the
+repository root with ``python tests/golden/make_meshes.py``.
+"""
+
+from pathlib import Path
+
+import felupe as fem
+import meshio
+import numpy as np
+
+HERE = Path(__file__).parent
+
+
+def bar(a=(0, 0, 0), b=(3, 1, 1), n=(13, 5, 5)):
+    """Bar of hexahedrons, by default 3 x 1 x 1 with 12 x 4 x 4 cells."""
+    return fem.Cube(a=a, b=b, n=n)
+
+
+def material_tag(mesh):
+    """Tag 1 for cells with x < 1.5 and tag 2 for all others."""
+    centers = mesh.points[mesh.cells].mean(axis=1)
+    return np.where(centers[:, 0] < 1.5, 1, 2)
+
+
+def write_vtu(path, mesh, cell_data=None):
+    meshio.Mesh(
+        mesh.points, [(mesh.cell_type, mesh.cells)], cell_data=cell_data or {}
+    ).write(path, binary=False)
+
+
+def main():
+    mesh = bar()
+    tag = material_tag(mesh)
+
+    write_vtu(HERE / "bar_single_body" / "bar.vtu", mesh)
+    write_vtu(HERE / "bar_sections_tag" / "bar.vtu", mesh, {"material": [tag]})
+    write_vtu(HERE / "bar_two_materials" / "bar.vtu", mesh, {"material": [tag]})
+
+    # Gmsh: one block per physical group, tags in "gmsh:physical"
+    cells = [mesh.cells[tag == 1], mesh.cells[tag == 2]]
+    meshio.Mesh(
+        mesh.points,
+        [("hexahedron", c) for c in cells],
+        cell_data={
+            "gmsh:physical": [np.full(len(c), i + 1) for i, c in enumerate(cells)],
+            "gmsh:geometrical": [np.full(len(c), i + 1) for i, c in enumerate(cells)],
+        },
+    ).write(HERE / "bar_sections_gmsh" / "bar.msh", file_format="gmsh22", binary=False)
+
+    # two files with separate points arrays, conforming at x = 1.5
+    files = HERE / "bar_sections_files"
+    write_vtu(files / "left.vtu", bar(b=(1.5, 1, 1), n=(7, 5, 5)))
+    write_vtu(files / "right.vtu", bar(a=(1.5, 0, 0), n=(7, 5, 5)))
+
+
+if __name__ == "__main__":
+    main()

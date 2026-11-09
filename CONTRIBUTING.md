@@ -18,6 +18,16 @@ cd app && npm run lint && npm test && npm run build
 cd .. && ruff check . && ruff format --check . && pytest
 ```
 
+## Golden tests
+
+`tests/golden` holds complete cases: a command list, its mesh files, the expected generated script and the expected force-displacement curves. CI runs every case with FElupe and compares both. If a change of the generated script or of the results is intended, update the references and review the diff in the PR:
+
+```bash
+pytest tests/golden --update-golden
+```
+
+A new case is a new folder with a `commands.json` and its mesh files; run the command above once to create `script.py` and `results.json`.
+
 ## License
 
 By contributing, you agree that your contributions are licensed under GPL-3.0-or-later.
