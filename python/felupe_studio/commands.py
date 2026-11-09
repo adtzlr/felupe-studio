@@ -6,7 +6,6 @@ validation first checks the JSON schema and then the references between commands
 """
 
 import json
-import keyword
 from functools import cache
 from importlib.resources import files
 
@@ -37,22 +36,6 @@ REFERENCES = {
 }
 
 
-# names used by the generated script, see felupe_studio.codegen
-RESERVED_NAMES = {
-    "fem",
-    "np",
-    "meshio",
-    "field",
-    "points",
-    "boundaries",
-    "REGIONS",
-    "DIMENSIONS",
-    "volume_cells",
-    "SimpleNamespace",
-}
-RESERVED_PREFIXES = ("field_", "solid_", "region_", "ramp_")
-
-
 class ValidationError(ValueError):
     """A command list is not valid. The messages are stored in ``errors``."""
 
@@ -68,6 +51,12 @@ def schema():
     return json.loads(source.read_text(encoding="utf-8"))
 
 
+def reserved():
+    """Return the reserved keywords, names and prefixes of names (from the schema)."""
+    names = schema()["$defs"]["Name"]["x-reserved"]
+    return set(names["keywords"]), set(names["names"]), tuple(names["prefixes"])
+
+
 def _schema_errors(document):
     from jsonschema import Draft202012Validator
 
@@ -81,6 +70,7 @@ def _schema_errors(document):
 
 
 def _reference_errors(commands):
+    keywords, reserved_names, reserved_prefixes = reserved()
     messages = []
     defined = {}  # name -> (index, command)
 
@@ -141,9 +131,9 @@ def _reference_errors(commands):
             messages.append(f"commands/{i}: only one mesh.merge is allowed.")
 
         if (
-            keyword.iskeyword(name)
-            or name in RESERVED_NAMES
-            or name.startswith(RESERVED_PREFIXES)
+            name in keywords
+            or name in reserved_names
+            or name.startswith(reserved_prefixes)
         ):
             messages.append(
                 f"commands/{i}: name '{name}' is reserved for the generated script."

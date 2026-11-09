@@ -69,3 +69,14 @@ Example messages: `192 / 192 cells assigned once.` and `Interface left_body / ri
 6. steps and jobs, evaluated with `job.evaluate(x0=field)` (skip with `evaluate=False`)
 
 Generated scripts pass `ruff check` and `ruff format --check`. The tests run them with FElupe and compare with hand-written FElupe models.
+
+## Model store (app)
+
+`app/src/core/store.ts` holds the command list in the browser:
+
+- `apply(edit)` with `add` (optionally at an index), `update` (also renames) and `remove`; an array of edits is one undo step and is applied completely or not at all
+- `undo()`, `redo()` with up to 100 steps; `load(document)` replaces the model and clears the history
+- derived state: `issues` (validation, `app/src/core/validate.ts`), `tree` (browser tree, `app/src/core/tree.ts`) and `dependents(name)`; `setReport(report)` adds the check report of the worker until the commands change
+- `subscribe(listener)` for the UI
+
+The TypeScript validation mirrors the Python validation. Both run the shared cases in `tests/data/validation_cases.json`, so their messages are identical; after changing a message, run `python tests/data/make_validation_cases.py`. Reserved names are part of the schema (`x-reserved`).
