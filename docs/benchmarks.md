@@ -35,7 +35,24 @@ The browser results must reproduce the force column.
 
 ### Desktop
 
-_to be measured_
+Windows 10/11, Chrome 156, 16 cores, 32 GB. Times in seconds.
+
+| Load step | Time |
+| --- | ---: |
+| Pyodide | 2.821 |
+| NumPy, SciPy, micropip | 1.952 |
+| FElupe (micropip) | 2.900 |
+| **Total** | **7.672** |
+
+| n | DOF | Cells | Setup | Solve | Force |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 3 | 81 | 8 | 0.004 | 0.071 | 1.8216 |
+| 5 | 375 | 64 | 0.002 | 0.106 | 1.8007 |
+| 7 | 1029 | 216 | 0.003 | 0.285 | 1.7959 |
+| 9 | 2187 | 512 | 0.005 | 0.922 | 1.7940 |
+| 11 | 3993 | 1000 | 0.007 | 2.583 | 1.7930 |
+
+The forces agree with the native reference to all four decimals. Whether the load was cold or warm was not recorded.
 
 ### Phone
 
@@ -43,4 +60,7 @@ _to be measured_
 
 ## Recommendation
 
-_After the measurements: maximum model size (DOF) for an interactive response, and whether the load time needs caching (service worker) before M2._
+Preliminary, from the desktop measurement only (the phone is still missing):
+
+- **Model size:** solves stay below 1 s up to about 2,000 DOF and take about 2.6 s at 4,000 DOF. The GUI should target models up to a few thousand DOF in v0.1, always show progress for a running job (ADR 0005) and allow cancelling it.
+- **Load time:** about 7.7 s in total, and installing FElupe with micropip is the largest single step (2.9 s). Candidates before M2: ship the FElupe wheel with the app instead of resolving it on PyPI, start loading Pyodide while the user builds the model, and cache with a service worker.
