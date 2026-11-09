@@ -42,6 +42,16 @@ export function App({ store, client, download = downloadFile }: Props) {
   const [fileName, setFileName] = useState(`untitled${SUFFIX}`);
   const [saved, setSaved] = useState(store.commands);
   const [error, setError] = useState<string[]>([]);
+  const [selection, setSelection] = useState<string | undefined>();
+  const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
+  // a selection that was removed (or renamed) is gone
+  const selected = selection && store.get(selection) ? selection : undefined;
+  const toggleVisible = (id: string) =>
+    setHidden((current) => {
+      const next = new Set(current);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
   const fileInput = useRef<HTMLInputElement>(null);
 
   // undo and redo with the keyboard, except while typing
@@ -64,6 +74,8 @@ export function App({ store, client, download = downloadFile }: Props) {
       const { parse, ProjectError } = await import("../core/project");
       try {
         store.load(parse(await file.text()));
+        setSelection(undefined);
+        setHidden(new Set());
         setFileName(file.name);
         setSaved(store.commands);
         setError([]);
@@ -134,7 +146,13 @@ export function App({ store, client, download = downloadFile }: Props) {
         onTab={setTab}
       />
       <div class="body">
-        <Sidebar store={store} />
+        <Sidebar
+          store={store}
+          selected={selected}
+          hidden={hidden}
+          onSelect={setSelection}
+          onToggleVisible={toggleVisible}
+        />
         <Viewport />
       </div>
       <Footer store={store} runtime={runtime} />
