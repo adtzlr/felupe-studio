@@ -405,7 +405,7 @@ export function initialDraft(
   preset: Draft = {},
 ): Draft {
   const name = suggestName(type, context.commands);
-  return normalize(type, { ...preset, command: type, name }, context);
+  return normalize(type, { name, ...preset, command: type }, context);
 }
 
 /** Value of a draft at a path. */
@@ -493,6 +493,14 @@ function fieldError(
         : "Choose an option.";
     case "multichoice": {
       const items = Array.isArray(value) ? value : [];
+      const unknown = items.find(
+        (item) => !input.options.some((o) => o.value === item),
+      );
+      if (unknown !== undefined) {
+        return `Unknown value '${String(unknown)}'; choose from ${input.options.map((o) => o.value).join(", ")}.`;
+      }
+      if (new Set(items).size < items.length)
+        return "Each value may appear only once.";
       return items.length < Math.max(input.minItems, required ? 1 : 0)
         ? "Select at least one."
         : undefined;
@@ -525,8 +533,10 @@ function fieldError(
             : `Create ${article(kind)} ${kind} first.`;
         }
         const unknown = items.find((item) => !names.includes(item));
-        return unknown
-          ? `There is no ${kind} '${unknown}' before this object.`
+        if (unknown)
+          return `There is no ${kind} '${unknown}' before this object.`;
+        return new Set(items).size < items.length
+          ? "Each object may appear only once."
           : undefined;
       }
       if (missing) {

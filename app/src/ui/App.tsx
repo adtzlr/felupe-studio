@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { SUFFIX } from "../core/files";
+import { REGISTRY } from "../core/registry";
 import type { RibbonItem } from "../core/ribbon";
 import type { ModelStore } from "../core/store";
 import type { PyodideClient } from "../worker/client";
@@ -161,7 +162,20 @@ export function App({ store, client, download = downloadFile }: Props) {
         />
         <Viewport />
       </div>
-      <Footer store={store} runtime={runtime} />
+      <Footer
+        store={store}
+        runtime={runtime}
+        selected={selected}
+        onSelect={setSelection}
+        onOpen={(type) =>
+          setCreating({
+            id: type,
+            type,
+            label: REGISTRY[type].label,
+            preset: {},
+          })
+        }
+      />
       {creating && (
         <CreateDialog
           item={creating}

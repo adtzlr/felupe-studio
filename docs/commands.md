@@ -121,3 +121,21 @@ Changes are applied with the model store: `store.update(name, command)` is one u
 4. Tests: a golden case or a code generation test that runs the model with FElupe.
 
 The form appears without further code.
+
+## Command line (app)
+
+The command line below the viewport accepts the same JSON as the project file (`app/src/core/commandline.ts`):
+
+| Input                                                                           | Action                                                                                         |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `material.add {"name": "rubber", "model": "NeoHooke", "parameters": {"mu": 1}}` | create an object; a missing name is suggested, missing values get the defaults of the registry |
+| `{"command": "material.add", ...}`                                              | the same, as one JSON object                                                                   |
+| `section.add`                                                                   | open the dialog of a new section                                                               |
+| `delete <name>`, `select <name>`                                                | delete (if unused) or select an object                                                         |
+| `undo`, `redo`, `help`                                                          |                                                                                                |
+
+A created command is checked like a form (`draftErrors`), keys that are not part of the command are reported instead of being dropped, and finally the command is validated against its own schema definition (`commandErrors` in `project.ts`, Ajv). On an error the line stays for correction.
+
+Tab or Enter accepts a suggestion: command names and keywords for the first word, object names after `delete` and `select`, and after a command a JSON template with the defaults (one per material model). ↑/↓ move through the suggestions, or through the entered lines if no suggestions are shown; Escape closes the suggestions, a second Escape clears the line.
+
+The history bar below shows the command list in order: a click selects the object, objects with issues are marked, and the arrows step back and forward (undo, redo).
