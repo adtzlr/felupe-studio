@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "felupe-studio"
 description = "Command interpretation and code generation for FElupe Studio"
 readme = "README.md"
-license = "MIT"
+license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 authors = [{ name = "Andreas Dutzler" }]
 requires-python = ">=3.11"

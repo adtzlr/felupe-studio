@@ -20,4 +20,4 @@ cd .. && ruff check . && ruff format --check . && pytest
 
 ## License
 
-By contributing, you agree that your contributions are licensed under the MIT license.
+By contributing, you agree that your contributions are licensed under GPL-3.0-or-later.
