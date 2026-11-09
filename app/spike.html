@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>FElupe Studio – Pyodide benchmark</title>
+  </head>
+  <body>
+    <main id="spike">
+      <h1>Pyodide benchmark</h1>
+      <p>
+        Loads Pyodide, NumPy, SciPy and FElupe in a Web Worker and solves a
+        uniaxial tension test of a hyperelastic cube for several mesh sizes (<a
+          href="https://github.com/adtzlr/felupe-studio/issues/9"
+          >#9</a
+        >).
+      </p>
+
+      <section aria-labelledby="load-heading">
+        <h2 id="load-heading">Load</h2>
+        <p id="status" role="status">Loading Pyodide …</p>
+        <table id="load" hidden>
+          <thead>
+            <tr>
+              <th scope="col">Load step</th>
+              <th scope="col">Time in s</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="run-heading">
+        <h2 id="run-heading">Solve</h2>
+        <form id="form">
+          <label for="sizes">Points per edge (comma-separated)</label>
+          <input id="sizes" name="sizes" inputmode="numeric" />
+          <button id="run" type="submit" disabled>Run benchmark</button>
+        </form>
+        <p id="error" role="alert"></p>
+        <table id="results" hidden>
+          <thead>
+            <tr>
+              <th scope="col">n</th>
+              <th scope="col">DOF</th>
+              <th scope="col">Cells</th>
+              <th scope="col">Setup in s</th>
+              <th scope="col">Solve in s</th>
+              <th scope="col">Force</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="share-heading">
+        <h2 id="share-heading">Share</h2>
+        <button id="copy" type="button" disabled>
+          Copy results as Markdown
+        </button>
+        <pre id="markdown"></pre>
+      </section>
+    </main>
+    <script type="module" src="/src/spike/main.ts"></script>
+  </body>
+</html>
