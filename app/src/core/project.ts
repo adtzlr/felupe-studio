@@ -5,7 +5,7 @@ import Ajv2020 from "ajv/dist/2020";
 import type { CommandList } from "./commands";
 import { schema, SCHEMA_VERSION } from "./schema";
 
-export const SUFFIX = ".felupe.json";
+export { SUFFIX } from "./files";
 
 export class ProjectError extends Error {
   constructor(readonly errors: string[]) {
