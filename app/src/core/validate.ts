@@ -76,6 +76,27 @@ export function references(
   return result;
 }
 
+/** A copy of the command in which references to one name point to another. */
+export function renameReferences(
+  command: Command,
+  from: string,
+  to: string,
+): Command {
+  const copy = structuredClone(command) as unknown as Record<string, unknown>;
+  for (const [field, [, isList]] of Object.entries(
+    REFERENCES[command.command] ?? {},
+  )) {
+    const value = copy[field];
+    if (isList && Array.isArray(value))
+      copy[field] = value.map((n) => (n === from ? to : n));
+    else if (value === from) copy[field] = to;
+  }
+  const ramp = copy.ramp as { boundary: string } | undefined;
+  if (command.command === "step.add" && ramp?.boundary === from)
+    ramp.boundary = to;
+  return copy as unknown as Command;
+}
+
 /** Reason why a name is not allowed, or undefined if it is allowed. */
 export function nameProblem(name: string): string | undefined {
   if (!NAME_PATTERN.test(name)) {

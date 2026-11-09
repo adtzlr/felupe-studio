@@ -92,3 +92,30 @@ A project is saved as `<name>.felupe.json`, the command list with a stable layou
 The app (`app/src/core/project.ts`: `serialize`, `parse`) and Python (`felupe_studio.project`: `dumps`, `loads`) write byte-identical files; both are tested with `tests/data/*.felupe.json`. Loading checks the JSON schema (Ajv in the app, jsonschema in Python) but not the references between commands, so a file with a broken reference still opens and shows its issues in the browser.
 
 Older files are brought to the current schema with `MIGRATIONS[version]`, one step per schema version; a file of a newer schema version is rejected with a hint to update FElupe Studio.
+
+## Forms (app)
+
+The forms of the app are not written per command. `app/src/core/form.ts` derives them from the schema:
+
+| Schema                                                                    | Field                                                                        |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `name`                                                                    | name field, checked for the pattern, reserved names and duplicates           |
+| reference to a `Name` (single or array)                                   | selection of the objects of that kind that are defined before the edited one |
+| `string`, `number`, `integer`                                             | text and number fields with the ranges of the schema                         |
+| `enum`, array of an `enum`                                                | selection, checkboxes                                                        |
+| `oneOf` of definitions with a constant (`model`) or of objects (`select`) | variant selection that switches the fields below                             |
+| optional object (`ramp`)                                                  | checkbox that switches a group of fields on and off                          |
+| `if` / `then` / `else` (`bulk` of a section)                              | field that is only shown and required for a condition                        |
+
+`app/src/core/registry.ts` adds what the schema does not know: labels, hints, placeholders, defaults of new objects, the ribbon tab of a command and the prefix of suggested names (`material_1`). A test checks that every field of every variant has a registry entry, and that the form validation rejects what the schema rejects.
+
+Changes are applied with the model store: `store.update(name, command)` is one undo step, and if an object is renamed, the references of the other commands follow.
+
+### Adding a material model
+
+1. Schema: a definition `Material<Model>` with `model` as a constant and its `parameters`, added to `MaterialAdd.oneOf` (`python/felupe_studio/commands.schema.json`); run `npm run schema:types`.
+2. Code generation: an entry in `MATERIALS` (`python/felupe_studio/codegen.py`) with the FElupe class and the order of its arguments.
+3. Registry: the label of the model and labels, hints and defaults of new parameters (`app/src/core/registry.ts`).
+4. Tests: a golden case or a code generation test that runs the model with FElupe.
+
+The form appears without further code.

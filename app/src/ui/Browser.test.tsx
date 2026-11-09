@@ -101,18 +101,18 @@ describe("Browser", () => {
       "Select an object in the browser.",
     );
     fireEvent.click(item("umat_hard"));
-    expect(properties.textContent).toContain("umat_hard");
-    expect(properties.textContent).toContain("LinearElasticLargeStrain");
-    expect(
-      within(properties).getByText("E").nextElementSibling?.textContent,
-    ).toBe("10");
+    const field = (label: string) =>
+      within(properties).getByLabelText(label) as HTMLInputElement;
+    expect(field("Name").value).toBe("umat_hard");
+    expect(field("Model").value).toBe("LinearElasticLargeStrain");
+    expect(field("E").value).toBe("10");
     expect(properties.textContent).toContain("Used by section_hard");
 
     fireEvent.click(
       within(properties).getByRole("button", { name: "section_hard" }),
     );
     expect(item("section_hard").getAttribute("aria-selected")).toBe("true");
-    expect(properties.textContent).toContain("Displacement (u)");
+    expect(field("Formulation").value).toBe("u");
   });
 
   it("deletes unused objects only, with undo", () => {

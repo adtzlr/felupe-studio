@@ -257,11 +257,15 @@ button {
 }
 
 .browser {
-  flex: 1 1 auto;
+  flex: 1 1 0;
+  min-height: 140px;
   overflow: auto;
 }
 
 .properties {
+  flex: 0 0 auto;
+  max-height: 60%;
+  overflow: auto;
   border-top: 1px solid var(--border);
   background: var(--panel-2);
 }
@@ -386,24 +390,89 @@ button {
   font-size: 11px;
 }
 
-.fields {
+/* forms */
+.command-form {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 4px 12px;
-  margin: 0;
+  grid-template-columns: minmax(72px, auto) minmax(0, 1fr);
+  gap: 8px 10px;
+  align-items: start;
 }
 
-.field {
+.form-row {
   display: contents;
 }
 
-.field dt {
+.form-label {
+  padding-top: 6px;
   color: var(--muted);
 }
 
-.field dd {
-  margin: 0;
-  overflow-wrap: anywhere;
+.form-row.nested .form-label {
+  padding-left: 10px;
+}
+
+.form-control {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.form-control small {
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+.command-form input[type="text"],
+.command-form select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--bar);
+  color: var(--text);
+  font: inherit;
+}
+
+.command-form input[type="text"]:focus-visible,
+.command-form select:focus-visible {
+  border-color: var(--accent);
+  outline: 1px solid var(--accent);
+}
+
+.command-form [aria-invalid="true"] {
+  border-color: var(--error);
+}
+
+.field-error {
+  color: var(--error);
+}
+
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  padding-top: 5px;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.form-toggle,
+.command-form .actions {
+  grid-column: 1 / -1;
+}
+
+.button.primary:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #0b1220;
 }
 
 .issues {
@@ -440,7 +509,9 @@ button {
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  margin-top: 4px;
 }
 
 .viewport {
@@ -511,6 +582,10 @@ button {
   .shell > .body {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(280px, 50vh) auto;
+  }
+
+  .properties {
+    max-height: none;
   }
 
   .sidebar {
