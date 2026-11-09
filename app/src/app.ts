@@ -8,7 +8,13 @@ export function renderStart(root: HTMLElement, version: string): void {
   const info = document.createElement("p");
   info.textContent = `Version ${version} – work in progress.`;
 
-  root.replaceChildren(heading, info);
+  const spike = document.createElement("p");
+  const link = document.createElement("a");
+  link.href = "./spike.html";
+  link.textContent = "Pyodide benchmark";
+  spike.append(link);
+
+  root.replaceChildren(heading, info, spike);
 }
 
 /** Return the version string shown in the UI. */

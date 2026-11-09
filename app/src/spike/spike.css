@@ -1,0 +1,63 @@
+#spike {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 24px 16px;
+  line-height: 1.5;
+}
+
+#spike a {
+  color: #5aa9ff;
+}
+
+#spike table {
+  border-collapse: collapse;
+  margin: 8px 0 16px;
+  font-variant-numeric: tabular-nums;
+}
+
+#spike th,
+#spike td {
+  padding: 4px 12px;
+  border-bottom: 1px solid #3a4250;
+  text-align: right;
+}
+
+#spike th:first-child,
+#spike td:first-child {
+  text-align: left;
+}
+
+#spike form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+#spike input,
+#spike button {
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid #3a4250;
+  background: #20252f;
+  color: inherit;
+  font: inherit;
+}
+
+#spike button:not(:disabled) {
+  cursor: pointer;
+  background: #5aa9ff;
+  border-color: #5aa9ff;
+  color: #0b1220;
+  font-weight: 600;
+}
+
+#spike pre {
+  white-space: pre-wrap;
+  font-size: 12px;
+}
+
+#error {
+  color: #ff8f8f;
+}
