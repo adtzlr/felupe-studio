@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "felupe-studio"
+description = "Command interpretation and code generation for FElupe Studio"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Andreas Dutzler" }]
+requires-python = ">=3.11"
+dynamic = ["version"]
+dependencies = ["felupe>=12.0.0", "meshio"]
+
+[project.optional-dependencies]
+test = ["pytest", "ruff"]
+
+[project.urls]
+Homepage = "https://github.com/adtzlr/felupe-studio"
+
+[tool.hatch.version]
+path = "python/felupe_studio/__about__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["python/felupe_studio"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
+src = ["python", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
