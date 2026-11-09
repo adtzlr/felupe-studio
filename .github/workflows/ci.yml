@@ -50,4 +50,6 @@ jobs:
       - run: pip install -e ".[test]" "felupe==${FELUPE_VERSION}"
       - run: ruff check .
       - run: ruff format --check .
-      - run: pytest
+      - run: pytest -m "not golden"
+      - name: Golden tests
+        run: pytest -m golden -v
