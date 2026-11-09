@@ -47,7 +47,14 @@ The JSON schema [`python/felupe_studio/commands.schema.json`](../python/felupe_s
 - `cellset.from_tag` refers to a mesh imported with a `tag`,
 - a `NeoHooke` material without `bulk` is only used in a `u-p-J` section.
 
-Checks that need the mesh data (unassigned cells, hanging interface points) follow in #14.
+## Checks with the mesh data
+
+`felupe_studio.checks.check(document, directory)` reads the mesh files and returns a JSON report (`ok`, `messages`, `cells`, `interfaces`):
+
+- **Cell assignment:** every solid cell of an imported mesh belongs to exactly one section; unassigned cells and cells in more than one section are reported per mesh.
+- **Interfaces:** the section meshes are merged on identical points, like `fem.field.merge` in the generated script. For every pair of sections that touch, the report counts the shared points and the *hanging* points: points on the surface of one section that lie on a face of the other one without being one of its points (tolerance 1e-6 of the model diagonal). Hanging points are not connected, e.g. at a non-conforming interface or if the coordinates of two files differ slightly.
+
+Example messages: `192 / 192 cells assigned once.` and `Interface left_body / right_body: 25 shared points, 0 hanging.`
 
 ## Generated script
 
