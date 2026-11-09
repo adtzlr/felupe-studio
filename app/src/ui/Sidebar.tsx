@@ -1,7 +1,22 @@
 import type { ModelStore } from "../core/store";
+import { Browser } from "./Browser";
+import { Properties } from "./Properties";
 
-export function Sidebar({ store }: { store: ModelStore }) {
-  const groups = store.tree;
+interface Props {
+  store: ModelStore;
+  selected?: string;
+  hidden: ReadonlySet<string>;
+  onSelect: (id: string | undefined) => void;
+  onToggleVisible: (id: string) => void;
+}
+
+export function Sidebar({
+  store,
+  selected,
+  hidden,
+  onSelect,
+  onToggleVisible,
+}: Props) {
   const empty = store.commands.length === 0;
   return (
     <aside class="sidebar">
@@ -10,19 +25,18 @@ export function Sidebar({ store }: { store: ModelStore }) {
         {empty ? (
           <p class="muted">No model yet. Open a project file to start.</p>
         ) : (
-          <ul class="groups">
-            {groups.map((g) => (
-              <li key={g.id}>
-                <span>{g.label}</span>
-                <span class="muted">{g.count}</span>
-              </li>
-            ))}
-          </ul>
+          <Browser
+            nodes={store.tree}
+            selected={selected}
+            hidden={hidden}
+            onSelect={onSelect}
+            onToggleVisible={onToggleVisible}
+          />
         )}
       </nav>
       <section class="panel properties" aria-label="Properties">
         <h2 class="panel-title">Properties</h2>
-        <p class="muted">Select an object in the browser.</p>
+        <Properties store={store} selected={selected} onSelect={onSelect} />
       </section>
     </aside>
   );
