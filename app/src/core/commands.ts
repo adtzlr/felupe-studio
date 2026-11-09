@@ -16,7 +16,7 @@ export type Command =
   | StepAdd
   | JobAdd;
 /**
- * Name of an object, unique within the command list. Used as a Python identifier in the generated script.
+ * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "Name".

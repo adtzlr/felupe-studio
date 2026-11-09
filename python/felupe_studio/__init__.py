@@ -5,8 +5,9 @@ package. It runs unchanged in Pyodide (browser) and in CPython (tests).
 """
 
 from .__about__ import __version__
+from .codegen import codegen
 
-__all__ = ["__version__", "versions"]
+__all__ = ["__version__", "codegen", "versions"]
 
 
 def versions():

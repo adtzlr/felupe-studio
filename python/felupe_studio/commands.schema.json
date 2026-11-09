@@ -20,10 +20,10 @@
   },
   "$defs": {
     "Name": {
-      "description": "Name of an object, unique within the command list. Used as a Python identifier in the generated script.",
+      "description": "Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.",
       "type": "string",
       "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
-      "maxLength": 64
+      "maxLength": 24
     },
     "Axis": {
       "type": "string",

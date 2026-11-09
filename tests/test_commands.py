@@ -51,6 +51,7 @@ def test_valid_document(document):
         lambda d: d.update(schema_version=2),
         lambda d: d["commands"].append({"command": "mesh.delete", "name": "a"}),
         lambda d: find(d, "hard").update(name="1hard"),
+        lambda d: find(d, "hard").update(name="h" * 25),
         lambda d: find(d, "hard").pop("value"),
         lambda d: find(d, "umat_hard")["parameters"].update(nu=0.5),
         lambda d: find(d, "umat_hard")["parameters"].update(mu=1),
@@ -86,6 +87,11 @@ def test_schema_errors(document, change):
         (lambda d: find(d, "step_1")["ramp"].update(boundary="left"), "ramps unknown"),
         (lambda d: find(d, "job_1").update(curve="fixed2"), "unknown boundary"),
         (lambda d: find(d, "soft").update(name="hard"), "already used"),
+        (lambda d: find(d, "job_1").update(name="lambda"), "reserved"),
+        (lambda d: find(d, "job_1").update(name="field"), "reserved"),
+        (lambda d: find(d, "job_1").update(name="solid_a"), "reserved"),
+        (lambda d: find(d, "job_1").update(name="region_a"), "reserved"),
+        (lambda d: find(d, "job_1").update(name="ramp_a"), "reserved"),
         (lambda d: find(d, "specimen").pop("tag"), "imported without a tag"),
         (
             lambda d: (
