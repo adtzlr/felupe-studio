@@ -84,18 +84,31 @@ Measure on each device
 1. **cold:** clear the site data of the page (browser settings), open `spike.html`, copy the results,
 2. **warm:** reload the page; the line _Service worker cache_ should say _active_, copy the results again.
 
-### Desktop
-
-_to be measured_
-
 ### Phone
 
-_to be measured_
+Android 10, Chrome 156 (mobile), 10 cores, 8 GB. Times in seconds.
+
+| Load step    | Cold (no cache) | Warm (service worker) | Before #40 |
+| ------------ | --------------: | --------------------: | ---------: |
+| Pyodide      |           3.598 |                 1.796 |      2.142 |
+| NumPy, SciPy |           2.550 |                 1.472 |      1.372 |
+| FElupe       |           3.052 |                 2.520 |      4.100 |
+| **Total**    |       **9.201** |             **5.789** |  **7.614** |
+
+Solve times are unchanged (e.g. 2,187 DOF: 0.99 s cold, 1.03 s warm, 1.23 s before), the forces agree with the native reference.
+
+- With the cache, the start takes 5.8 s instead of 7.6 s, and it runs in the background while the model is built.
+- The cold load is slower than the measurement of #9. Whether that one was cold was not recorded; the browser's HTTP cache probably helped.
+- The FElupe step still takes 2.5 s from the cache, so it is not the download but loading the wheel and `import felupe` (Python bytecode compilation, SciPy modules). A follow-up is to measure both parts and to ship a wheel with precompiled bytecode.
+
+### Desktop
+
+Not measured again; the phone is the limiting device.
 
 ## Recommendation
 
 - **Model size:** on both devices a solve stays at about 1 s up to 2,000 DOF (desktop 0.92 s, phone 1.23 s) and takes 2.6 to 3.6 s at 4,000 DOF. v0.1 targets models up to about 4,000 DOF. A running job always shows its progress and can be cancelled (ADR 0005); the GUI warns above about 4,000 DOF instead of refusing.
-- **Load time:** about 7.6 s in total on both devices. Installing FElupe with micropip is the largest single step (2.9 s on the desktop, 4.1 s on the phone), because micropip resolves it on PyPI first. Before M2:
+- **Load time** (before #40, see above for the current state): about 7.6 s in total on both devices. Installing FElupe with micropip is the largest single step (2.9 s on the desktop, 4.1 s on the phone), because micropip resolves it on PyPI first. Before M2:
   - ship the FElupe wheel with the app and install it from the same origin,
   - start loading Pyodide in the background as soon as the app opens, while the user builds the model,
   - cache Pyodide, the packages and the wheel with a service worker.
