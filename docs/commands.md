@@ -109,6 +109,8 @@ The forms of the app are not written per command. `app/src/core/form.ts` derives
 
 `app/src/core/registry.ts` adds what the schema does not know: labels, hints, placeholders, defaults of new objects, the ribbon tab of a command and the prefix of suggested names (`material_1`). A test checks that every field of every variant has a registry entry, and that the form validation rejects what the schema rejects.
 
+The ribbon (`app/src/core/ribbon.ts`) shows one button per command of a tab (the `tab` of the registry), or one button per variant if the variant selects a schema definition, e.g. one button per material model. A button opens a dialog with the form of a new object: a suggested name, the defaults of the registry and the latest object of the right kind for references. A command whose required references do not exist yet is disabled with the reason ("Create a cell set and a material first."); commands marked `single` (the merge setting) are disabled once the model has one.
+
 Changes are applied with the model store: `store.update(name, command)` is one undo step, and if an object is renamed, the references of the other commands follow.
 
 ### Adding a material model

@@ -395,10 +395,17 @@ export function suggestName(
   }
 }
 
-/** Draft of a new command with a suggested name and the defaults. */
-export function initialDraft(type: CommandType, context: Context): Draft {
+/**
+ * Draft of a new command with a suggested name and the defaults. A preset sets
+ * values first, e.g. the model of a material.
+ */
+export function initialDraft(
+  type: CommandType,
+  context: Context,
+  preset: Draft = {},
+): Draft {
   const name = suggestName(type, context.commands);
-  return normalize(type, { command: type, name }, context);
+  return normalize(type, { ...preset, command: type, name }, context);
 }
 
 /** Value of a draft at a path. */

@@ -52,7 +52,9 @@ describe("App shell", () => {
     expect(screen.getByRole("main", { name: "Viewport" })).toBeTruthy();
     expect(screen.getByRole("contentinfo")).toBeTruthy();
     expect(
-      screen.getByText("No model yet. Open a project file to start."),
+      screen.getByText(
+        "No model yet. Import a mesh with the ribbon or open a project file.",
+      ),
     ).toBeTruthy();
     expect(screen.getByText("untitled.felupe.json")).toBeTruthy();
   });

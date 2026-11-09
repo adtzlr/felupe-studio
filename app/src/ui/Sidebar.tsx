@@ -23,7 +23,9 @@ export function Sidebar({
       <nav class="panel browser" aria-label="Model browser">
         <h2 class="panel-title">Browser</h2>
         {empty ? (
-          <p class="muted">No model yet. Open a project file to start.</p>
+          <p class="muted">
+            No model yet. Import a mesh with the ribbon or open a project file.
+          </p>
         ) : (
           <Browser
             nodes={store.tree}
