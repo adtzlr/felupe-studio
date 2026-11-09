@@ -13,7 +13,7 @@ FElupe ships a dependency-free WebGL2 viewer (`felupe/view/_backends/_webgl/view
 
 ## Consequences
 
-- The copy needs an MIT grant by its copyright holder before it is added (see [0001](0001-license.md)).
+- The copy keeps FElupe's license header (GPL-3.0-or-later, same as felupe-studio, see [0001](0001-license.md)).
 - Updating the viewer means replacing the copy and adjusting the adapter.
 - Later, the viewer may move to an ES module in the FElupe repository; only the adapter changes then.
 
