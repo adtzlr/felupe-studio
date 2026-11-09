@@ -1,4 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
+import type { MeshFiles } from "../core/meshfiles";
 import type { ModelStore } from "../core/store";
 import type { PyodideClient, Ready } from "../worker/client";
 
@@ -7,6 +8,13 @@ export function useStore(store: ModelStore): ModelStore {
   const [, setVersion] = useState(0);
   useEffect(() => store.subscribe(() => setVersion((n) => n + 1)), [store]);
   return store;
+}
+
+/** Re-render the component after every change of the mesh files. */
+export function useMeshFiles(files: MeshFiles): MeshFiles {
+  const [, setVersion] = useState(0);
+  useEffect(() => files.subscribe(() => setVersion((n) => n + 1)), [files]);
+  return files;
 }
 
 export type Runtime =

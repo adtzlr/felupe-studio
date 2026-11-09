@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { PyodideClient } from "./client";
+import { safeName } from "./files";
 import type { FromWorker, ToWorker } from "./protocol";
 
 class FakeWorker extends EventTarget {
@@ -38,13 +39,16 @@ const start = () => {
 };
 
 describe("PyodideClient", () => {
-  it("starts loading with the pinned versions and the wheel of the app", () => {
+  it("starts loading with the pinned versions and the wheels of the app", () => {
     const { worker } = start();
     expect(worker.sent).toEqual([
       {
         type: "init",
         pyodideVersion: __PYODIDE_VERSION__,
-        felupeWheel: `https://example.org/app/wheels/felupe-${__FELUPE_VERSION__}-py3-none-any.whl`,
+        wheels: [
+          `https://example.org/app/wheels/felupe-${__FELUPE_VERSION__}-py3-none-any.whl`,
+          "https://example.org/app/wheels/meshio-5.3.5-py3-none-any.whl",
+        ],
       },
     ]);
   });
@@ -94,5 +98,42 @@ describe("PyodideClient", () => {
     await expect(other.client.ready).rejects.toThrow("CDN not reachable");
     other.client.terminate();
     expect(other.worker.terminated).toBe(true);
+  });
+});
+
+describe("files", () => {
+  it("writes a copy of a file and inspects a mesh", async () => {
+    const { worker, client } = start();
+    worker.reply(ready);
+    const data = new Uint8Array([1, 2, 3]);
+    const written = client.writeFile("bar.vtu", data);
+    await vi.waitFor(() => expect(worker.sent).toHaveLength(2));
+    const message = worker.sent[1] as Extract<ToWorker, { type: "write-file" }>;
+    expect(message).toMatchObject({
+      type: "write-file",
+      id: 1,
+      name: "bar.vtu",
+    });
+    expect([...new Uint8Array(message.data)]).toEqual([1, 2, 3]);
+    expect(message.data).not.toBe(data.buffer);
+    worker.reply({ type: "done", id: 1 });
+    await written;
+
+    const inspected = client.inspectMesh("bar.vtu");
+    await vi.waitFor(() => expect(worker.sent).toHaveLength(3));
+    worker.reply({
+      type: "mesh-info",
+      id: 2,
+      info: { file: "bar.vtu", points: 8 },
+    });
+    await expect(inspected).resolves.toEqual({ file: "bar.vtu", points: 8 });
+  });
+
+  it("allows plain file names only", () => {
+    expect(safeName("bar.vtu")).toBe("bar.vtu");
+    expect(safeName("C:\\meshes\\bar.vtu")).toBe("bar.vtu");
+    expect(safeName("../../etc/passwd")).toBe("passwd");
+    expect(() => safeName("..")).toThrow("Invalid file name");
+    expect(() => safeName("dir/")).toThrow("Invalid file name");
   });
 });
