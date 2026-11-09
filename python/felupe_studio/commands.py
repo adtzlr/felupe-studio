@@ -6,6 +6,7 @@ validation first checks the JSON schema and then the references between commands
 """
 
 import json
+import keyword
 from functools import cache
 from importlib.resources import files
 
@@ -33,6 +34,22 @@ REFERENCES = {
     "step.add": {"sections": ("section", True)},
     "job.add": {"steps": ("step", True), "curve": ("boundary", False)},
 }
+
+
+# names used by the generated script, see felupe_studio.codegen
+RESERVED_NAMES = {
+    "fem",
+    "np",
+    "meshio",
+    "field",
+    "points",
+    "boundaries",
+    "REGIONS",
+    "DIMENSIONS",
+    "volume_cells",
+    "SimpleNamespace",
+}
+RESERVED_PREFIXES = ("field_", "solid_", "region_", "ramp_")
 
 
 class ValidationError(ValueError):
@@ -116,6 +133,15 @@ def _reference_errors(commands):
                     f"formulation with NeoHooke '{material['name']}' without a bulk "
                     "modulus. Add 'bulk' to the material or use 'u-p-J'."
                 )
+
+        if (
+            keyword.iskeyword(name)
+            or name in RESERVED_NAMES
+            or name.startswith(RESERVED_PREFIXES)
+        ):
+            messages.append(
+                f"commands/{i}: name '{name}' is reserved for the generated script."
+            )
 
         if name in defined:
             messages.append(

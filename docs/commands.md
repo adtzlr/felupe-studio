@@ -42,9 +42,22 @@ The JSON schema [`python/felupe_studio/commands.schema.json`](../python/felupe_s
 
 `felupe_studio.commands.validate(document)` raises a `ValidationError` with all messages, `errors(document)` returns them as a list. Besides the schema, it checks:
 
-- names are unique within the command list,
+- names are unique within the command list, at most 24 characters, no Python keywords and not reserved for the generated script (`field`, `points`, `boundaries`, … and the prefixes `field_`, `solid_`, `region_`, `ramp_`),
 - references point to an object of the right kind that was created before,
 - `cellset.from_tag` refers to a mesh imported with a `tag`,
 - a `NeoHooke` material without `bulk` is only used in a `u-p-J` section.
 
 Checks that need the mesh data (unassigned cells, hanging interface points) follow in #14.
+
+## Generated script
+
+`felupe_studio.codegen(document)` validates the command list and returns a FElupe script that only needs FElupe, NumPy and meshio. Its structure does not depend on the order of the commands:
+
+1. meshes (`volume_cells()` keeps the solid cells of a meshio file and ignores lower-dimensional blocks) and cell sets
+2. materials
+3. a region and a field container per section, merged with `fem.field.merge([...])` into the top-level `field`
+4. solid bodies, created after the merge (required for items with an internal state)
+5. point sets on `field.mesh_container.points` and `boundaries` on `field[0]`
+6. steps and jobs, evaluated with `job.evaluate(x0=field)` (skip with `evaluate=False`)
+
+Generated scripts pass `ruff check` and `ruff format --check`. The tests run them with FElupe and compare with hand-written FElupe models.
