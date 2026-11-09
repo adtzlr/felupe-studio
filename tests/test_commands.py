@@ -40,6 +40,14 @@ def test_every_command_has_a_kind():
     assert set(consts(defs["Command"])) == set(commands.KINDS)
 
 
+def test_reserved_keywords_are_python_keywords():
+    import keyword
+
+    keywords, names, prefixes = commands.reserved()
+    assert keywords == set(keyword.kwlist)
+    assert "field" in names and "field_" in prefixes
+
+
 def test_valid_document(document):
     assert commands.errors(document) == []
     assert commands.validate(document) is document
