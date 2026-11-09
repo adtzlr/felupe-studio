@@ -1,8 +1,9 @@
 import { defineConfig } from "vitest/config";
 import pkg from "./package.json" with { type: "json" };
 
-// FElupe version installed in the browser, keep in sync with FELUPE_VERSION in CI
-const FELUPE_VERSION = "12.0.0";
+// FElupe version installed in the browser (wheel from public/wheels, #40),
+// keep in sync with FELUPE_VERSION in .github/workflows/ci.yml
+const FELUPE_VERSION = pkg.config.felupe;
 
 export default defineConfig({
   // Relative base: works on GitHub Pages below /felupe-studio/ and locally
@@ -11,6 +12,9 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(pkg.version),
     __PYODIDE_VERSION__: JSON.stringify(pkg.devDependencies.pyodide),
     __FELUPE_VERSION__: JSON.stringify(FELUPE_VERSION),
+    __FELUPE_WHEEL__: JSON.stringify(
+      `wheels/felupe-${FELUPE_VERSION}-py3-none-any.whl`,
+    ),
   },
   build: {
     rollupOptions: {

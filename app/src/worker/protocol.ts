@@ -9,7 +9,7 @@ export interface Versions {
   scipy: string;
 }
 
-/** Load times in milliseconds. */
+/** Load times in milliseconds: Pyodide, NumPy and SciPy, the FElupe wheel. */
 export interface LoadTimings {
   pyodide: number;
   packages: number;
@@ -30,7 +30,7 @@ export interface BenchmarkResult {
 }
 
 export type ToWorker =
-  | { type: "init"; pyodideVersion: string; felupeVersion: string }
+  | { type: "init"; pyodideVersion: string; felupeWheel: string }
   | { type: "benchmark"; id: number; sizes: number[] };
 
 export type FromWorker =

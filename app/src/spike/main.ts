@@ -1,10 +1,10 @@
 import "../style.css";
 import "./spike.css";
+import { registerServiceWorker } from "../service-worker";
+import { PyodideClient } from "../worker/client";
 import type {
   BenchmarkResult,
-  FromWorker,
   LoadTimings,
-  ToWorker,
   Versions,
 } from "../worker/protocol";
 import { DEFAULT_SIZES, parseSizes, seconds, toMarkdown } from "./format";
@@ -27,12 +27,12 @@ sizesInput.value = DEFAULT_SIZES;
 let versions: Versions | undefined;
 let timings: LoadTimings | undefined;
 let results: BenchmarkResult[] = [];
-let runId = 0;
 
 const environment = {
   userAgent: navigator.userAgent,
   cores: navigator.hardwareConcurrency,
   memory: (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
+  serviceWorker: false,
 };
 
 function row(table: HTMLTableElement, cells: string[]): void {
@@ -51,64 +51,37 @@ function updateMarkdown(): void {
   copyButton.disabled = false;
 }
 
-const worker = new Worker(
-  new URL("../worker/pyodide.worker.ts", import.meta.url),
-  {
-    type: "module",
+const client = new PyodideClient();
+environment.serviceWorker = await registerServiceWorker();
+
+client.ready.then(
+  (ready) => {
+    versions = ready.versions;
+    timings = ready.timings;
+    status.textContent =
+      `Ready: Pyodide ${versions.pyodide}, Python ${versions.python}, ` +
+      `FElupe ${versions.felupe}, NumPy ${versions.numpy}, SciPy ${versions.scipy}. ` +
+      (environment.serviceWorker
+        ? "Loaded through the service worker cache."
+        : "Service worker not active yet: reload to measure with the cache.");
+    row(loadTable, ["Pyodide", seconds(timings.pyodide / 1000)]);
+    row(loadTable, ["NumPy, SciPy", seconds(timings.packages / 1000)]);
+    row(loadTable, [
+      "FElupe (wheel of the app)",
+      seconds(timings.felupe / 1000),
+    ]);
+    row(loadTable, ["Total", seconds(timings.total / 1000)]);
+    loadTable.hidden = false;
+    runButton.disabled = false;
+    updateMarkdown();
+  },
+  (error: Error) => {
+    errorBox.textContent = error.message;
+    status.textContent = "Failed.";
   },
 );
 
-worker.onmessage = (event: MessageEvent<FromWorker>) => {
-  const message = event.data;
-  switch (message.type) {
-    case "ready":
-      versions = message.versions;
-      timings = message.timings;
-      status.textContent =
-        `Ready: Pyodide ${versions.pyodide}, Python ${versions.python}, ` +
-        `FElupe ${versions.felupe}, NumPy ${versions.numpy}, SciPy ${versions.scipy}.`;
-      row(loadTable, ["Pyodide", seconds(timings.pyodide / 1000)]);
-      row(loadTable, [
-        "NumPy, SciPy, micropip",
-        seconds(timings.packages / 1000),
-      ]);
-      row(loadTable, ["FElupe (micropip)", seconds(timings.felupe / 1000)]);
-      row(loadTable, ["Total", seconds(timings.total / 1000)]);
-      loadTable.hidden = false;
-      runButton.disabled = false;
-      updateMarkdown();
-      break;
-    case "progress":
-      status.textContent = message.message;
-      break;
-    case "benchmark-result": {
-      const r = message.result;
-      results.push(r);
-      row(resultsTable, [
-        String(r.n),
-        String(r.dofs),
-        String(r.cells),
-        seconds(r.setup),
-        seconds(r.solve),
-        r.force.toFixed(4),
-      ]);
-      resultsTable.hidden = false;
-      updateMarkdown();
-      break;
-    }
-    case "done":
-      status.textContent = "Done.";
-      runButton.disabled = false;
-      break;
-    case "error":
-      errorBox.textContent = message.message;
-      status.textContent = "Failed.";
-      runButton.disabled = versions === undefined;
-      break;
-  }
-};
-
-form.addEventListener("submit", (event) => {
+form.addEventListener("submit", async (event) => {
   event.preventDefault();
   errorBox.textContent = "";
   let sizes: number[];
@@ -121,19 +94,34 @@ form.addEventListener("submit", (event) => {
   results = [];
   resultsTable.tBodies[0].replaceChildren();
   runButton.disabled = true;
-  runId += 1;
-  const message: ToWorker = { type: "benchmark", id: runId, sizes };
-  worker.postMessage(message);
+  try {
+    await client.benchmark(
+      sizes,
+      (r) => {
+        results.push(r);
+        row(resultsTable, [
+          String(r.n),
+          String(r.dofs),
+          String(r.cells),
+          seconds(r.setup),
+          seconds(r.solve),
+          r.force.toFixed(4),
+        ]);
+        resultsTable.hidden = false;
+        updateMarkdown();
+      },
+      (message) => (status.textContent = message),
+    );
+    status.textContent = "Done.";
+  } catch (error) {
+    errorBox.textContent = (error as Error).message;
+    status.textContent = "Failed.";
+  } finally {
+    runButton.disabled = false;
+  }
 });
 
 copyButton.addEventListener("click", async () => {
   await navigator.clipboard.writeText(markdownBox.textContent ?? "");
   copyButton.textContent = "Copied";
 });
-
-const init: ToWorker = {
-  type: "init",
-  pyodideVersion: __PYODIDE_VERSION__,
-  felupeVersion: __FELUPE_VERSION__,
-};
-worker.postMessage(init);

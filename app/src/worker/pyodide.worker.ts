@@ -15,7 +15,7 @@ function post(message: FromWorker): void {
   ctx.postMessage(message);
 }
 
-async function init(pyodideVersion: string, felupeVersion: string) {
+async function init(pyodideVersion: string, felupeWheel: string) {
   const t0 = performance.now();
   const indexURL = `https://cdn.jsdelivr.net/pyodide/v${pyodideVersion}/full/`;
   const { loadPyodide } = (await import(
@@ -24,12 +24,11 @@ async function init(pyodideVersion: string, felupeVersion: string) {
   const py = await loadPyodide({ indexURL });
 
   const t1 = performance.now();
-  await py.loadPackage(["numpy", "scipy", "micropip"]);
+  await py.loadPackage(["numpy", "scipy"]);
 
+  // the pure-Python FElupe wheel is served by the app itself (#40)
   const t2 = performance.now();
-  const micropip = py.pyimport("micropip");
-  await micropip.install(`felupe==${felupeVersion}`);
-  micropip.destroy();
+  await py.loadPackage(felupeWheel);
   await py.runPythonAsync("import felupe");
 
   const t3 = performance.now();
@@ -82,7 +81,7 @@ ctx.onmessage = async (event: MessageEvent<ToWorker>) => {
   const id = message.type === "benchmark" ? message.id : undefined;
   try {
     if (message.type === "init") {
-      await init(message.pyodideVersion, message.felupeVersion);
+      await init(message.pyodideVersion, message.felupeWheel);
     } else if (message.type === "benchmark") {
       benchmark(message.id, message.sizes);
     }
