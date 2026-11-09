@@ -1,26 +1,23 @@
 import type { ModelStore } from "../core/store";
+import type { CommandType } from "../core/validate";
+import { CommandLine } from "./CommandLine";
+import { History } from "./History";
 import { type Runtime, runtimeText } from "./hooks";
 
-export function Footer({
-  store,
-  runtime,
-}: {
+interface Props {
   store: ModelStore;
   runtime: Runtime;
-}) {
+  selected?: string;
+  onSelect: (name: string) => void;
+  onOpen: (type: CommandType) => void;
+}
+
+export function Footer({ store, runtime, selected, onSelect, onOpen }: Props) {
   const issues = store.issues.length;
   return (
     <footer class="footer">
       <div class="command-line">
-        <label for="command" class="prompt">
-          ›
-        </label>
-        <input
-          id="command"
-          class="command-input"
-          disabled
-          placeholder="Commands can be typed here soon."
-        />
+        <CommandLine store={store} onSelect={onSelect} onOpen={onOpen} />
         <div class="status" role="status">
           <span class={runtime.state === "error" ? "error" : undefined}>
             {runtimeText(runtime)}
@@ -34,11 +31,7 @@ export function Footer({
           </span>
         </div>
       </div>
-      <div class="history" aria-label="History">
-        <span class="muted">
-          History: {store.commands.map((c) => c.name).join(" · ") || "empty"}
-        </span>
-      </div>
+      <History store={store} selected={selected} onSelect={onSelect} />
     </footer>
   );
 }

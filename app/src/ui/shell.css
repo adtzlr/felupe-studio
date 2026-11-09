@@ -635,8 +635,16 @@ button {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  gap: 4px 14px;
   padding: 4px 12px;
+}
+
+.command-box {
+  flex: 999 1 420px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
 .prompt {
@@ -644,16 +652,89 @@ button {
   font-family: "JetBrains Mono", ui-monospace, monospace;
 }
 
+.command-field {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .command-input {
-  flex: 999 1 320px;
-  min-height: 28px;
-  border: none;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 30px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
   background: transparent;
   color: var(--text);
   font:
     12px "JetBrains Mono",
     ui-monospace,
     monospace;
+}
+
+.command-input:focus-visible {
+  border-color: var(--border-strong);
+  background: var(--panel);
+  outline: none;
+}
+
+.suggestions {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  z-index: 5;
+  box-sizing: border-box;
+  min-width: min(520px, 100%);
+  max-width: 100%;
+  margin: 0;
+  padding: 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  list-style: none;
+}
+
+.suggestion {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.suggestion code {
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.suggestion .muted {
+  flex: 0 0 auto;
+  font-size: 12px;
+}
+
+.suggestion.active,
+.suggestion:hover {
+  background: #2d3647;
+}
+
+.command-message {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command-message.error {
+  color: var(--error);
+  white-space: normal;
 }
 
 .status {
@@ -667,12 +748,57 @@ button {
 }
 
 .history {
-  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 12px;
   background: var(--panel);
   border-top: 1px solid var(--border);
   font-size: 12px;
-  white-space: nowrap;
+}
+
+.history-separator {
+  width: 1px;
+  height: 22px;
+  margin: 0 8px;
+  background: var(--border-strong);
+}
+
+.history-items {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  padding: 2px 0;
   overflow-x: auto;
+  list-style: none;
+}
+
+.history-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: #252b36;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.history-item .icon {
+  color: var(--accent);
+}
+
+.history-item[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: #1b2330;
+}
+
+.history-issue {
+  display: inline-flex;
+  color: var(--warning);
 }
 
 /* narrow screens: browser and properties below the viewport */
