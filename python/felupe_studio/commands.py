@@ -57,7 +57,8 @@ def reserved():
     return set(names["keywords"]), set(names["names"]), tuple(names["prefixes"])
 
 
-def _schema_errors(document):
+def schema_errors(document):
+    """Return the messages of the JSON schema validation (empty if valid)."""
     from jsonschema import Draft202012Validator
 
     validator = Draft202012Validator(schema())
@@ -152,7 +153,7 @@ def _reference_errors(commands):
 
 def errors(document):
     """Return a list of error messages of a command list (empty if valid)."""
-    messages = _schema_errors(document)
+    messages = schema_errors(document)
     if messages:
         return messages
     return _reference_errors(document["commands"])

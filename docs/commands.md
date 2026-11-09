@@ -80,3 +80,15 @@ Generated scripts pass `ruff check` and `ruff format --check`. The tests run the
 - `subscribe(listener)` for the UI
 
 The TypeScript validation mirrors the Python validation. Both run the shared cases in `tests/data/validation_cases.json`, so their messages are identical; after changing a message, run `python tests/data/make_validation_cases.py`. Reserved names are part of the schema (`x-reserved`).
+
+## Project files
+
+A project is saved as `<name>.felupe.json`, the command list with a stable layout so that it diffs well:
+
+- `schema_version` first, then `commands`; every command is one block that starts with `command` and `name`, the other keys follow in the order of the schema (unknown keys sorted at the end),
+- two spaces of indentation and a newline at the end,
+- numbers as written by JavaScript's `JSON.stringify` (e.g. `1e-8`, `0.0000025`).
+
+The app (`app/src/core/project.ts`: `serialize`, `parse`) and Python (`felupe_studio.project`: `dumps`, `loads`) write byte-identical files; both are tested with `tests/data/*.felupe.json`. Loading checks the JSON schema (Ajv in the app, jsonschema in Python) but not the references between commands, so a file with a broken reference still opens and shows its issues in the browser.
+
+Older files are brought to the current schema with `MIGRATIONS[version]`, one step per schema version; a file of a newer schema version is rejected with a hint to update FElupe Studio.

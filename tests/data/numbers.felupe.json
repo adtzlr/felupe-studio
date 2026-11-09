@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "commands": [
+    {
+      "command": "mesh.import",
+      "name": "m",
+      "file": "a b ü.vtu"
+    },
+    {
+      "command": "mesh.merge",
+      "name": "merge",
+      "decimals": 6
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "cells",
+      "mesh": "m"
+    },
+    {
+      "command": "material.add",
+      "name": "steel",
+      "model": "LinearElasticLargeStrain",
+      "parameters": {
+        "E": 210000.5,
+        "nu": 0.3
+      }
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 1.5e-7,
+        "bulk": 5000
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "body",
+      "cellset": "cells",
+      "material": "rubber",
+      "formulation": "u-p-J",
+      "bulk": 1e+21
+    },
+    {
+      "command": "pointset.add",
+      "name": "left",
+      "select": {
+        "axis": "x",
+        "value": 0,
+        "atol": 1e-8
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "picked",
+      "select": {
+        "ids": [
+          3,
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "left",
+      "constrained": [
+        "z",
+        "x"
+      ],
+      "value": 0.000001234
+    },
+    {
+      "command": "step.add",
+      "name": "step_1",
+      "ramp": {
+        "boundary": "fixed",
+        "start": 0.0000025,
+        "end": 0.30000000000000004,
+        "num": 5
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "step_1"
+      ]
+    }
+  ]
+}
