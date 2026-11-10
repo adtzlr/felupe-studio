@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Command } from "./commands";
 import {
   curveCsv,
+  curveQuantities,
   curveOf,
   finitePoints,
   hasCurve,
@@ -85,5 +86,42 @@ describe("force-displacement curve", () => {
       "4,hold,0.3,1.5,0,3,0.3,0",
       "",
     ]);
+  });
+
+  it("shows the moment over the rotation of a rotation point (#98)", () => {
+    const commands = [
+      { command: "point.add", name: "turn", coordinates: [4, 0, 0] },
+      {
+        command: "mpc.add",
+        name: "glue",
+        points: "right",
+        center: "plate",
+        constrained: ["x", "y", "z"],
+        rotation: "turn",
+      },
+      {
+        command: "boundary.add",
+        name: "twist",
+        pointset: "turn",
+        constrained: ["x"],
+      },
+      { command: "job.add", name: "job_1", steps: ["load"], curve: "twist" },
+      { command: "job.add", name: "job_2", steps: ["load"], curve: "move" },
+    ] as unknown as Command[];
+    expect(curveQuantities(commands, "job_1")).toMatchObject({
+      title: "Moment–rotation",
+      u: "φ",
+      f: "M",
+    });
+    expect(curveQuantities(commands, "job_2").title).toBe("Force–displacement");
+    const run: Finished = {
+      state: "finished",
+      commands,
+      progress: { ...startProgress(), plan: { job_1: [4] } },
+      results: { job_1: result },
+    };
+    expect(curveCsv(run, "job_1").split("\n")[0]).toBe(
+      "substep,step,phi_x,phi_y,phi_z,M_x,M_y,M_z",
+    );
   });
 });

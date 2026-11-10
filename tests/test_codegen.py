@@ -682,3 +682,67 @@ def test_multi_point_constraint(two_sections, tmp_path, monkeypatch):
     commands.remove(controls[0])
     with pytest.raises(ValueError, match="'right' has 25 points, not one"):
         run(two_sections, tmp_path, monkeypatch)
+
+
+def test_rotation_point_and_moment(two_sections, tmp_path, monkeypatch):
+    mesh, tag = bar()
+    write(tmp_path / "specimen.vtu", mesh, tag)
+    commands = two_sections["commands"]
+    # the right end face is twisted about x by a rotation point (#98)
+    commands[9:9] = [
+        {"command": "point.add", "name": "plate", "coordinates": [3.5, 0.5, 0.5]},
+        {"command": "point.add", "name": "turn", "coordinates": [4, 0.5, 0.5]},
+    ]
+    move = next(c for c in commands if c["name"] == "move")
+    move.update(pointset="turn", constrained=["x"])
+    index = next(i for i, c in enumerate(commands) if c["command"] == "step.add")
+    commands[index:index] = [
+        {
+            "command": "boundary.add",
+            "name": "hold",
+            "pointset": "plate",
+            "constrained": ["x", "y", "z"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "axis",
+            "pointset": "turn",
+            "constrained": ["y", "z"],
+        },
+        {
+            "command": "mpc.add",
+            "name": "glue",
+            "points": "right",
+            "center": "plate",
+            "constrained": ["x", "y", "z"],
+            "rotation": "turn",
+        },
+    ]
+    step = next(c for c in commands if c["command"] == "step.add")
+    step["ramp"] = {"num": 2, "items": [{"target": "move", "end": 0.1}]}
+    namespace = run(two_sections, tmp_path, monkeypatch)
+    points = namespace["points"]
+    u = namespace["field"][0].values
+    right = namespace["right"]
+
+    # the points of the end face are rotated by 0.1 rad about x through the center
+    angle = 0.1
+    rotation = np.array(
+        [
+            [1, 0, 0],
+            [0, np.cos(angle), -np.sin(angle)],
+            [0, np.sin(angle), np.cos(angle)],
+        ]
+    )
+    arms = points[right] - [3.5, 0.5, 0.5]
+    np.testing.assert_allclose(u[right], arms @ rotation.T - arms, atol=1e-3)
+
+    # the curve of the rotation point: the moment over the rotation
+    job = namespace["job_1"]
+    rotations = np.array(job.x)[:, 0]
+    moments = np.array(job.y)[:, 0]
+    np.testing.assert_allclose(rotations, [0, 0.05, 0.1])
+    assert 0 < moments[1] < moments[2]
+    np.testing.assert_allclose(
+        moments[-1], namespace["glue"].results.moment[0], rtol=1e-6
+    )

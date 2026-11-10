@@ -36,6 +36,17 @@ export function Properties({ store, files, notes, selected, onSelect }: Props) {
   const dependents = store.dependents(command.name);
   // a control point is a point set of one point, with a label of its own (#95)
   const control = command.command === "point.add";
+  // the values of a rotation point are rotations (#98)
+  const rotation =
+    command.command === "boundary.add"
+      ? store.commands.find(
+          (c) => c.command === "mpc.add" && c.rotation === command.pointset,
+        )
+      : command.command === "point.add"
+        ? store.commands.find(
+            (c) => c.command === "mpc.add" && c.rotation === command.name,
+          )
+        : undefined;
 
   return (
     <div class="properties-content">
@@ -75,6 +86,13 @@ export function Properties({ store, files, notes, selected, onSelect }: Props) {
           Delete
         </button>
       </CommandForm>
+      {rotation && (
+        <p class="muted note">
+          {command.command === "boundary.add"
+            ? `${command.pointset} is the rotation point of ${rotation.name}: the values are rotations about its center point in rad, a curve shows the moment over the rotation.`
+            : `The rotation point of ${rotation.name}: its values are rotations about the center point in rad; its coordinates are not used.`}
+        </p>
+      )}
       {messages.length > 0 && (
         <ul class="issues" aria-label="Issues">
           {messages.map((message) => (

@@ -1,11 +1,66 @@
 // The force-displacement curve of a job with a curve boundary (#29): the series of a
 // component, the scales and ticks of the chart and the values as CSV.
 import type { JobResult } from "../worker/protocol";
+import type { Command } from "./commands";
 import { type Finished, stepOf } from "./results";
 
 export { largestAxis } from "./results";
 
 export const AXES = ["x", "y", "z"] as const;
+
+/** What a curve shows, with the symbols of its axes. */
+export interface CurveQuantities {
+  title: string;
+  /** The quantity and the symbol of the horizontal axis, e.g. Displacement u. */
+  x: string;
+  u: string;
+  /** The quantity and the symbol of the vertical axis, e.g. Force F. */
+  y: string;
+  f: string;
+}
+
+const FORCE: CurveQuantities = {
+  title: "Force–displacement",
+  x: "Displacement",
+  u: "u",
+  y: "Force",
+  f: "F",
+};
+
+const MOMENT: CurveQuantities = {
+  title: "Moment–rotation",
+  x: "Rotation",
+  u: "φ",
+  y: "Moment",
+  f: "M",
+};
+
+/** The rotation points of the constraints of a command list (#98). */
+export const rotationPoints = (commands: readonly Command[]): Set<string> =>
+  new Set(
+    commands.flatMap((c) =>
+      c.command === "mpc.add" && c.rotation ? [c.rotation] : [],
+    ),
+  );
+
+/**
+ * What the curve of a job shows: the force over the displacement, or the moment
+ * over the rotation for a boundary of a rotation point of a constraint (#98).
+ */
+export function curveQuantities(
+  commands: readonly Command[],
+  job: string,
+): CurveQuantities {
+  const curve = commands.find((c) => c.command === "job.add" && c.name === job);
+  const name = curve?.command === "job.add" ? curve.curve : undefined;
+  const boundary = commands.find(
+    (c) => c.command === "boundary.add" && c.name === name,
+  );
+  return boundary?.command === "boundary.add" &&
+    rotationPoints(commands).has(boundary.pointset)
+    ? MOMENT
+    : FORCE;
+}
 
 /** The curve of a job, if it has one. */
 export const hasCurve = (result: JobResult | undefined): boolean =>
@@ -118,11 +173,13 @@ export function nearest(
 /** The curve of a job as CSV: substep, step and all components (empty if non-finite). */
 export function curveCsv(run: Finished, job: string): string {
   const result = run.results[job];
+  const moment = curveQuantities(run.commands, job) === MOMENT;
+  const [u, f] = moment ? ["phi", "M"] : ["u", "F"];
   const header = [
     "substep",
     "step",
-    ...AXES.map((a) => `u_${a}`),
-    ...AXES.map((a) => `F_${a}`),
+    ...AXES.map((a) => `${u}_${a}`),
+    ...AXES.map((a) => `${f}_${a}`),
   ];
   const rows = (result?.x ?? []).map((x, i) => {
     const y = result?.y?.[i] ?? [];
