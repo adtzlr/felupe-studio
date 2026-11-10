@@ -159,17 +159,23 @@ def _reference_errors(commands):
     return messages
 
 
-def errors(document):
-    """Return a list of error messages of a command list (empty if valid)."""
-    messages = schema_errors(document)
+def errors(document, check_schema=True):
+    """Return a list of error messages of a command list (empty if valid).
+
+    With ``check_schema=False``, only the references between the commands are checked
+    (without the package ``jsonschema``), for a command list that was validated
+    against the same schema before, e.g. by the app with Ajv.
+    """
+    messages = schema_errors(document) if check_schema else []
     if messages:
         return messages
     return _reference_errors(document["commands"])
 
 
-def validate(document):
-    """Raise a :class:`ValidationError` if the command list is not valid."""
-    messages = errors(document)
+def validate(document, check_schema=True):
+    """Raise a :class:`ValidationError` if the command list is not valid (see
+    :func:`errors`)."""
+    messages = errors(document, check_schema)
     if messages:
         raise ValidationError(messages)
     return document

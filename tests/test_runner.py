@@ -109,6 +109,31 @@ assert hasattr(fem, "Hyperelastic") and hasattr(fem, "mooney_rivlin")
     subprocess.run([sys.executable, "-c", code], check=True)
 
 
+def test_runs_with_the_packages_of_the_worker():
+    # the worker has FElupe, NumPy, SciPy and meshio, but no jsonschema or tensortrax
+    code = f"""
+import json, os, sys
+sys.modules["jsonschema"] = None
+sys.modules["tensortrax"] = None
+from felupe_studio.commands import ValidationError
+from felupe_studio.runner import run_json
+os.chdir({str(GOLDEN / "bar_single_body")!r})
+with open("commands.json") as file:
+    text = file.read()
+results = json.loads(run_json(text, lambda event: None))
+assert results["job_1"]["substeps"] == 6
+document = json.loads(text)
+document["commands"].append(document["commands"][0])
+try:
+    run_json(json.dumps(document), lambda event: None)
+except ValidationError as error:
+    assert "already used" in str(error)
+else:
+    raise AssertionError("not validated")
+"""
+    subprocess.run([sys.executable, "-c", code], check=True)
+
+
 def test_mooney_rivlin(monkeypatch):
     monkeypatch.chdir(GOLDEN / "bar_mooney_rivlin")
     results = run(load("bar_mooney_rivlin"))
