@@ -16,6 +16,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 - `u-p-J` with tetrahedrons in a model with more than one section (#76).
 - An object created later can be chosen in an existing object, e.g. a new material in a section; the command list is reordered so that every reference points to an object before (#80).
+- Dropdowns no longer offer an option twice: the default axis of a load case is shown as e.g. `x (default)`, and *Also ramped* does not offer the ramped boundary (#88).
 
 ## [0.1.0] - 2026-11-10
 

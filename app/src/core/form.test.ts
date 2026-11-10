@@ -3,12 +3,14 @@ import fixture from "../../../tests/data/two_sections.json";
 import type { Command, CommandList } from "./commands";
 import {
   available,
+  choiceOptions,
   type Context,
   type Draft,
   draftErrors,
   fieldSpecs,
   initialDraft,
   normalize,
+  offered,
   sameDraft,
   setValue,
   suggestName,
@@ -477,6 +479,65 @@ describe("editing a draft", () => {
     const on = setValue("step.add", off, ["ramp"], {}, context);
     expect(on.ramp).toEqual({ boundary: "move", end: 1, num: 5 });
     expect(draftErrors("step.add", on, editing("step_1"))).toEqual({});
+  });
+
+  it("does not offer the ramped boundary as a further boundary", () => {
+    const step = find("step_1");
+    const spec = (draft: Draft) =>
+      fieldSpecs("step.add", draft).find((s) => s.key === "ramp.also")!;
+    expect(offered("step.add", spec(step), step, editing("step_1"))).toEqual([
+      "fixed",
+    ]);
+    const both = setValue(
+      "step.add",
+      step,
+      ["ramp", "also"],
+      ["fixed"],
+      context,
+    );
+    expect(both.ramp).toMatchObject({ boundary: "move", also: ["fixed"] });
+    // ramping a further boundary removes it from the further ones
+    const swapped = setValue(
+      "step.add",
+      both,
+      ["ramp", "boundary"],
+      "fixed",
+      context,
+    );
+    expect(swapped.ramp).toEqual({
+      boundary: "fixed",
+      start: 0,
+      end: 0.5,
+      num: 5,
+    });
+    expect(offered("step.add", spec(swapped), swapped, context)).toEqual([
+      "move",
+    ]);
+  });
+
+  it("labels the empty option of an axis by its default", () => {
+    const draft = { name: "pull", type: "biaxial" } as Draft;
+    const spec = (key: string) =>
+      fieldSpecs("loadcase.add", draft).find((s) => s.key === key)!;
+    const labels = (key: string, value?: string) => {
+      const { empty, options } = choiceOptions(spec(key), value);
+      return [empty, ...options.map((o) => o.label)];
+    };
+    expect(labels("axis")).toEqual(["x (default)", "y", "z"]);
+    expect(labels("second")).toEqual(["y (default)", "x", "z"]);
+    // a value set explicitly to the default stays selectable
+    expect(labels("axis", "x")).toEqual(["x (default)", "x", "y", "z"]);
+    // a required choice has no empty option
+    const points = fieldSpecs("pointset.add", find("left")).find(
+      (s) => s.key === "select.axis",
+    )!;
+    expect(choiceOptions(points, "x")).toEqual({
+      options: [
+        { value: "x", label: "x" },
+        { value: "y", label: "y" },
+        { value: "z", label: "z" },
+      ],
+    });
   });
 
   it("removes a value with undefined and keeps other values", () => {
