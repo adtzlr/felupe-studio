@@ -6,6 +6,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/preact";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import projectText from "../../../tests/data/two_sections.felupe.json?raw";
@@ -14,7 +15,7 @@ import type { CommandList } from "../core/commands";
 import { MeshFiles } from "../core/meshfiles";
 import { ModelStore } from "../core/store";
 import type { PyodideClient, Ready } from "../worker/client";
-import type { JobEvent, JobResult } from "../worker/protocol";
+import type { JobEvent, JobResult, ResultScene } from "../worker/protocol";
 import { App } from "./App";
 
 afterEach(cleanup);
@@ -391,6 +392,97 @@ describe("solve", () => {
     });
     expect(jobs.restart).toHaveBeenCalledTimes(1);
     expect(panel.textContent).toContain("Cancelled");
+  });
+
+  it("shows the results of the substeps", async () => {
+    const jobs = runner();
+    const scenes: [string, number, string][] = [];
+    let resolveScene: (scene: ResultScene) => void = () => {};
+    const resultScene = vi.fn(
+      (job: string, substep: number, quantity: string) => {
+        scenes.push([job, substep, quantity]);
+        return new Promise<ResultScene>((r) => (resolveScene = r));
+      },
+    );
+    const scene = (label: string): ResultScene => ({
+      label,
+      at: "point",
+      range: [0, 1],
+      surfaces: [],
+    });
+    render(
+      <App
+        store={new ModelStore(fixture as CommandList)}
+        files={await files()}
+        client={client(Promise.resolve(readyValue), { ...jobs, resultScene })}
+      />,
+    );
+    const workspace = (name: string) =>
+      fireEvent.click(screen.getByRole("button", { name }));
+    workspace("Results");
+    const results = screen.getByRole("main", { name: "Results" });
+    expect(results.textContent).toContain("Solve the model to see its results");
+    expect(screen.getByRole("tabpanel").textContent).toContain(
+      "Results will appear here",
+    );
+
+    workspace("Model");
+    await waitFor(() =>
+      expect(solveButton().getAttribute("aria-disabled")).toBeNull(),
+    );
+    fireEvent.click(solveButton());
+    await waitFor(() => expect(jobs.run).toHaveBeenCalledTimes(1));
+    jobs.emit({ event: "start", jobs: ["job_1"], substeps: { job_1: [6] } });
+    await act(async () =>
+      jobs.settle().resolve({
+        job_1: {
+          substeps: 6,
+          time: 0.1,
+          x: [0, 0.1, 0.2, 0.3, 0.4, 0.5].map((u) => [u, 0, 0]),
+          y: [0, 1, 2, 3, 4, 5].map((f) => [f, 0, 0]),
+        },
+      }),
+    );
+    // no scene is loaded while the results are not shown
+    expect(resultScene).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Show results" }));
+    expect(screen.queryByRole("region", { name: "Job" })).toBeNull();
+    expect(
+      document.querySelector<HTMLElement>('main[aria-label="Viewport"]')!
+        .hidden,
+    ).toBe(true);
+    await waitFor(() => expect(scenes).toEqual([["job_1", 6, "displacement"]]));
+    expect(results.textContent).toContain("Loading the results");
+
+    const panel = screen.getByRole("tabpanel");
+    expect(panel.textContent).toContain("Substep 6 of 6");
+    expect(panel.textContent).toContain("step_1: 6 of 6");
+    expect(panel.textContent).toContain("ux = 0.5, Fx = 5");
+
+    // the latest substep wins while a scene is loading
+    const slider = within(panel).getByRole("slider") as HTMLInputElement;
+    fireEvent.input(slider, { target: { value: "2" } });
+    fireEvent.input(slider, { target: { value: "3" } });
+    expect(panel.textContent).toContain("ux = 0.2, Fx = 2");
+    await act(async () => resolveScene(scene("Displacement")));
+    await waitFor(() => expect(scenes).toHaveLength(2));
+    expect(scenes[1]).toEqual(["job_1", 3, "displacement"]);
+    await act(async () => resolveScene(scene("Displacement")));
+
+    fireEvent.change(within(panel).getByLabelText("Contour"), {
+      target: { value: "stress_mises" },
+    });
+    await waitFor(() =>
+      expect(scenes.at(-1)).toEqual(["job_1", 3, "stress_mises"]),
+    );
+    await act(async () => resolveScene(scene("Von Mises")));
+    expect(scenes).toHaveLength(3);
+    // the scale and the undeformed shape need no new scene
+    fireEvent.change(within(panel).getByLabelText("Scale"), {
+      target: { value: "10" },
+    });
+    fireEvent.click(within(panel).getByLabelText("Undeformed"));
+    expect(scenes).toHaveLength(3);
   });
 
   it("explains why the jobs cannot be run", () => {

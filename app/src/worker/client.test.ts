@@ -175,6 +175,28 @@ describe("jobs", () => {
     expect(onEvent).toHaveBeenCalledWith(event);
   });
 
+  it("loads the result scene of a substep", async () => {
+    const { worker, client } = start();
+    worker.reply(ready);
+    const loaded = client.resultScene("job_1", 3, "stress_max");
+    await vi.waitFor(() => expect(worker.sent).toHaveLength(2));
+    expect(worker.sent[1]).toEqual({
+      type: "result",
+      id: 1,
+      job: "job_1",
+      substep: 3,
+      quantity: "stress_max",
+    });
+    const scene = {
+      label: "Max. principal Cauchy stress",
+      at: "cell" as const,
+      range: null,
+      surfaces: [],
+    };
+    worker.reply({ type: "result-scene", id: 1, scene });
+    await expect(loaded).resolves.toEqual(scene);
+  });
+
   it("cancels a job by restarting the worker and writes the files again", async () => {
     const workers: FakeWorker[] = [];
     const client = new PyodideClient(() => {

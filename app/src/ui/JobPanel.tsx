@@ -4,36 +4,18 @@ import {
   type JobProgress,
   type JobRun,
 } from "../core/jobs";
+import { curvePoint, formatValue as format } from "../core/results";
 import type { ModelStore } from "../core/store";
-import type { JobResult } from "../worker/protocol";
 
 interface Props {
   run: JobRun;
   store: ModelStore;
   onDismiss: () => void;
+  /** Show the results (switches to the Results workspace), if offered. */
+  onShowResults?: () => void;
 }
 
 const seconds = (time: number) => `${time.toFixed(time < 10 ? 2 : 1)} s`;
-
-/** The force and displacement of the last substep of a characteristic curve, along
- * the axis with the largest displacement. */
-export function lastPoint(result: JobResult) {
-  const x = result.x?.at(-1);
-  const y = result.y?.at(-1);
-  if (!x || !y) return undefined;
-  let axis = 0;
-  x.forEach((value, i) => {
-    if (Math.abs(value ?? 0) > Math.abs(x[axis] ?? 0)) axis = i;
-  });
-  const [u, f] = [x[axis], y[axis]];
-  if (u === null || f === null) return undefined;
-  return { axis: "xyz"[axis] ?? String(axis), u, f };
-}
-
-const format = (value: number) =>
-  Math.abs(value) >= 1e4 || (value !== 0 && Math.abs(value) < 1e-3)
-    ? value.toExponential(3)
-    : String(Number(value.toPrecision(4)));
 
 function Running({ progress }: { progress: JobProgress }) {
   const percent = Math.round(fraction(progress) * 100);
@@ -84,7 +66,7 @@ function Cutbacks({ progress }: { progress: JobProgress }) {
   );
 }
 
-export function JobPanel({ run, store, onDismiss }: Props) {
+export function JobPanel({ run, store, onDismiss, onShowResults }: Props) {
   if (run.state === "idle") return null;
   const titles = {
     running: `Solving ${run.progress.job ?? ""}`.trim(),
@@ -117,7 +99,7 @@ export function JobPanel({ run, store, onDismiss }: Props) {
         <>
           <ul class="job-results">
             {Object.entries(run.results).map(([name, result]) => {
-              const point = lastPoint(result);
+              const point = curvePoint(result);
               return (
                 <li key={name}>
                   <strong>{name}</strong>: {result.substeps}{" "}
@@ -140,6 +122,17 @@ export function JobPanel({ run, store, onDismiss }: Props) {
           <Cutbacks progress={run.progress} />
           {store.commands !== run.commands && (
             <p class="muted">The model was changed after solving.</p>
+          )}
+          {onShowResults && (
+            <div class="actions">
+              <button
+                type="button"
+                class="button primary"
+                onClick={onShowResults}
+              >
+                Show results
+              </button>
+            </div>
           )}
         </>
       )}

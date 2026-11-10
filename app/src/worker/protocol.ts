@@ -126,6 +126,45 @@ export interface JobResult {
   y?: (number | null)[][];
 }
 
+/** A quantity of the results (`felupe_studio.results.QUANTITIES`). */
+export type Quantity =
+  | "displacement"
+  | "displacement_x"
+  | "displacement_y"
+  | "displacement_z"
+  | "strain_max"
+  | "strain_mid"
+  | "strain_min"
+  | "stress_max"
+  | "stress_mid"
+  | "stress_min"
+  | "stress_mises";
+
+/** The outer surface of a section with the result of a substep. */
+export interface ResultSurface {
+  /** The name of the section. */
+  name: string;
+  /** Three coordinates per point of the surface (undeformed). */
+  positions: Float32Array;
+  /** Three components per point of the surface. */
+  displacement: Float32Array;
+  triangles: Uint32Array;
+  /** The face of a cell of every triangle, to shade faces flat (linear cells). */
+  faces?: Uint32Array;
+  edges: Uint32Array;
+  /** The values at the points or at the triangles (see `at`). */
+  values: Float32Array;
+}
+
+/** The result of a substep of a job (`felupe_studio.results.scene()`). */
+export interface ResultScene {
+  label: string;
+  at: "point" | "cell";
+  /** The range of the values of all sections (null without finite values). */
+  range: [number, number] | null;
+  surfaces: ResultSurface[];
+}
+
 export type ToWorker =
   | {
       type: "init";
@@ -137,7 +176,14 @@ export type ToWorker =
   | { type: "benchmark"; id: number; sizes: number[] }
   | { type: "write-file"; id: number; name: string; data: ArrayBuffer }
   | { type: "inspect-mesh"; id: number; name: string }
-  | { type: "run"; id: number; document: string };
+  | { type: "run"; id: number; document: string }
+  | {
+      type: "result";
+      id: number;
+      job: string;
+      substep: number;
+      quantity: Quantity;
+    };
 
 export type FromWorker =
   | { type: "ready"; versions: Versions; timings: LoadTimings }
@@ -152,5 +198,6 @@ export type FromWorker =
     }
   | { type: "job-progress"; id: number; event: JobEvent }
   | { type: "job-result"; id: number; results: Record<string, JobResult> }
+  | { type: "result-scene"; id: number; scene: ResultScene }
   | { type: "done"; id: number }
   | { type: "error"; id?: number; message: string };

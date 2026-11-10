@@ -8,7 +8,7 @@ import type {
   SceneObject,
   SurfaceObject,
 } from "../vendor/felupe-viewer/viewer.js";
-import type { MeshSurface } from "../worker/protocol";
+import type { MeshSurface, ResultScene } from "../worker/protocol";
 import { EDGE_COLOR, MARKER_COLOR } from "./palette";
 
 /** A mesh with its color, or with colors of groups of its cells. */
@@ -60,8 +60,21 @@ export interface Highlight {
   opacity?: number;
 }
 
+/** The result of a substep: the deformed surfaces of the sections with a contour. */
+export interface ResultContent {
+  scene: ResultScene;
+  /** The scale of the displacements. */
+  scale: number;
+  /** Show the undeformed surfaces as a transparent ghost. */
+  undeformed: boolean;
+}
+
+/** Color of the undeformed ghost of results. */
+export const GHOST_COLOR = "#c4c8cf";
+
 export interface SceneContent {
   meshes: readonly MeshLayer[];
+  result?: ResultContent;
   highlights?: readonly Highlight[];
   markers?: readonly Markers[];
   arrows?: readonly Arrows[];
@@ -263,10 +276,48 @@ export function arrowObject(arrows: Arrows): LinesObject {
   };
 }
 
-/** The scene of the viewer: the meshes, highlights, markers and arrows. */
+/**
+ * The surface objects of a result: the undeformed ghosts (optional) and the deformed
+ * surfaces of the sections with the values in a common range (one scalar bar).
+ */
+export function resultObjects(result: ResultContent): SurfaceObject[] {
+  const { scene, scale, undeformed } = result;
+  const range: [number, number] = scene.range ?? [0, 1];
+  const ghosts = undeformed
+    ? scene.surfaces.map((s): SurfaceObject => ({
+        type: "surface",
+        positions: f4(s.positions),
+        triangles: u4(s.triangles),
+        color: GHOST_COLOR,
+        opacity: 0.2,
+        smooth: false,
+      }))
+    : [];
+  const deformed = scene.surfaces.map((s): SurfaceObject => ({
+    type: "surface",
+    positions: f4(s.positions),
+    displacement: f4(s.displacement),
+    factor: scale,
+    triangles: u4(s.triangles),
+    ...(s.faces ? { faceIds: u4(s.faces) } : {}),
+    edges: u4(s.edges),
+    edgeColor: EDGE_COLOR,
+    lineWidth: 1,
+    smooth: false,
+    sharp: true,
+    values: f4(s.values),
+    valuesAt: scene.at,
+    range,
+    label: scene.label,
+  }));
+  return [...ghosts, ...deformed];
+}
+
+/** The scene of the viewer: the meshes, a result, highlights, markers and arrows. */
 export function buildScene(content: SceneContent): Scene {
   const objects: SceneObject[] = [
     ...content.meshes.flatMap(meshObjects),
+    ...(content.result ? resultObjects(content.result) : []),
     ...(content.highlights ?? [])
       .filter((h) => h.triangles.length > 0)
       .map((h): SurfaceObject => ({

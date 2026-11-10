@@ -21,6 +21,7 @@ import {
   type LegendEntry,
   type Markers,
   type MeshLayer,
+  type ResultContent,
 } from "./scene";
 
 export type CreateViewer = typeof createViewer;
@@ -86,6 +87,7 @@ export class Viewer {
   private markers: readonly Markers[] = [];
   private arrows: readonly Arrows[] = [];
   private legend: readonly LegendEntry[] | undefined;
+  private result: ResultContent | undefined;
   private plane: { point: Vec3; normal: Vec3 } | undefined;
   private scheduled = false;
   private down: { x: number; y: number } | undefined;
@@ -113,6 +115,12 @@ export class Viewer {
 
   setMeshes(meshes: readonly MeshLayer[]): void {
     this.meshes = meshes;
+    this.schedule();
+  }
+
+  /** Show the result of a substep (deformed surfaces with a contour), or none. */
+  setResult(result: ResultContent | undefined): void {
+    this.result = result;
     this.schedule();
   }
 
@@ -237,12 +245,13 @@ export class Viewer {
     this.scheduled = false;
     const scene = buildScene({
       meshes: this.meshes,
+      result: this.result,
       highlights: this.highlights(),
       markers: this.markers,
       arrows: this.arrows,
       legend: this.legend,
     });
     this.handle.update(scene, { keepView: !this.fitNext });
-    this.fitNext = this.meshes.length === 0;
+    this.fitNext = this.meshes.length === 0 && !this.result;
   }
 }

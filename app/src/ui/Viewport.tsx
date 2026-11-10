@@ -39,6 +39,8 @@ interface Props {
   }) => void;
   /** Creates the viewer; the default is the vendored FElupe viewer. */
   createViewer?: CreateViewer;
+  /** The viewport is shown (default); hidden in the Results workspace. */
+  active?: boolean;
 }
 
 /** A picked face: its plane, and the point set of the plane if it is normal to x, y or z. */
@@ -82,6 +84,7 @@ export function Viewport({
   selected,
   onCreatePointSet,
   createViewer,
+  active = true,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
@@ -180,7 +183,7 @@ export function Viewport({
 
   const shown = content.meshes.length > 0;
   return (
-    <main class="viewport" aria-label="Viewport">
+    <main class="viewport" aria-label="Viewport" hidden={!active}>
       <div class="viewer" ref={host} />
       {shown && available && (
         <div class="view-toolbar" role="toolbar" aria-label="View">

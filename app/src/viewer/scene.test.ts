@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { SurfaceObject } from "../vendor/felupe-viewer/viewer.js";
-import type { MeshSurface } from "../worker/protocol";
+import type { MeshSurface, ResultScene } from "../worker/protocol";
 import { categorical, CATEGORICAL, OTHER } from "./palette";
-import { arrowSegments, buildScene, meshObjects } from "./scene";
+import {
+  arrowSegments,
+  buildScene,
+  GHOST_COLOR,
+  meshObjects,
+  resultObjects,
+} from "./scene";
 
 /** Two cells (two triangles each) of a unit square in the xy-plane. */
 function square(faces = true): MeshSurface {
@@ -151,5 +157,60 @@ describe("arrows", () => {
     expect(
       arrowSegments({ origins: [0, 0, 0], directions: [0, 0, 0] }),
     ).toHaveLength(0);
+  });
+});
+
+describe("results", () => {
+  const surface = square();
+  const scene: ResultScene = {
+    label: "Displacement",
+    at: "point",
+    range: [0, 0.5],
+    surfaces: ["left", "right"].map((name) => ({
+      name,
+      positions: surface.positions,
+      displacement: new Float32Array(12).fill(0.1),
+      triangles: surface.triangles,
+      faces: surface.faces,
+      edges: surface.edges,
+      values: new Float32Array([0, 0.1, 0.2, 0.5]),
+    })),
+  };
+
+  it("draws the deformed sections with a common contour and ghosts", () => {
+    const objects = resultObjects({ scene, scale: 2, undeformed: true });
+    expect(objects).toHaveLength(4);
+    const [ghost, , deformed] = objects;
+    expect(ghost).toMatchObject({ color: GHOST_COLOR, opacity: 0.2 });
+    expect(ghost.displacement).toBeUndefined();
+    expect(deformed).toMatchObject({
+      factor: 2,
+      valuesAt: "point",
+      range: [0, 0.5],
+      label: "Displacement",
+      edgeColor: "#000000",
+    });
+    expect(deformed.displacement!.data).toBe(scene.surfaces[0].displacement);
+    expect(deformed.values!.data).toBe(scene.surfaces[0].values);
+    expect(values(deformed.faceIds!)).toEqual([0, 0, 1, 1]);
+
+    const plain = resultObjects({ scene, scale: 1, undeformed: false });
+    expect(plain).toHaveLength(2);
+    // without finite values, the range is a placeholder
+    const empty = resultObjects({
+      scene: { ...scene, range: null },
+      scale: 1,
+      undeformed: false,
+    });
+    expect(empty[0].range).toEqual([0, 1]);
+  });
+
+  it("is a part of the scene without a legend", () => {
+    const built = buildScene({
+      meshes: [],
+      result: { scene, scale: 1, undeformed: false },
+    });
+    expect(built.objects).toHaveLength(2);
+    expect(built.legend).toBeNull();
   });
 });

@@ -1,13 +1,22 @@
 // Web Worker that runs Pyodide and FElupe (ADR 0005).
 import type { PyodideInterface } from "pyodide";
 import { safeName } from "./files";
-import { type RawSurface, toSurfaces, transferables } from "./surface";
+import {
+  type RawResultSurface,
+  type RawSurface,
+  resultTransferables,
+  toResultScene,
+  toSurfaces,
+  transferables,
+} from "./surface";
 import type {
   BenchmarkResult,
   FromWorker,
   JobEvent,
   JobResult,
   MeshInfo,
+  Quantity,
+  ResultScene,
   ToWorker,
   Versions,
 } from "./protocol";
@@ -139,6 +148,26 @@ async function run(id: number, document: string) {
   }
 }
 
+/** The result of a substep of a job of the last run, for the viewer. */
+function result(id: number, job: string, substep: number, quantity: Quantity) {
+  const results = python().pyimport("felupe_studio.results");
+  try {
+    const proxy = results.scene(job, substep, quantity);
+    const [meta, raw] = proxy.toJs({ dict_converter: Object.fromEntries }) as [
+      string,
+      RawResultSurface[],
+    ];
+    proxy.destroy();
+    const scene = toResultScene(
+      JSON.parse(meta) as Omit<ResultScene, "surfaces">,
+      raw,
+    );
+    post({ type: "result-scene", id, scene }, resultTransferables(scene));
+  } finally {
+    results.destroy();
+  }
+}
+
 function benchmark(id: number, sizes: number[]) {
   const module = python().pyimport("felupe_studio.benchmark");
   try {
@@ -176,6 +205,13 @@ ctx.onmessage = async (event: MessageEvent<ToWorker>) => {
         return inspectMesh(message.id, message.name);
       case "run":
         return await run(message.id, message.document);
+      case "result":
+        return result(
+          message.id,
+          message.job,
+          message.substep,
+          message.quantity,
+        );
     }
   } catch (error) {
     post({

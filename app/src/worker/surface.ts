@@ -1,6 +1,6 @@
 // Conversion of the surface of `felupe_studio.scene.surface()` (bytes, converted to
 // Uint8Array by Pyodide) into the typed arrays of the viewer.
-import type { MeshSurface } from "./protocol";
+import type { MeshSurface, ResultScene, ResultSurface } from "./protocol";
 
 /** The surface as returned by Python, after `toJs()`. */
 export interface RawSurface {
@@ -76,6 +76,54 @@ export function transferables(
       surface.owners,
       surface.nodes,
       ...Object.values(surface.tags ?? {}),
+    ]) {
+      if (array) buffers.add(array.buffer as ArrayBuffer);
+    }
+  }
+  return [...buffers];
+}
+
+/** A surface of `felupe_studio.results.scene()`, after `toJs()`. */
+export interface RawResultSurface {
+  name: string;
+  positions: Uint8Array;
+  displacement: Uint8Array;
+  triangles: Uint8Array;
+  faces?: Uint8Array | null;
+  edges: Uint8Array;
+  values: Uint8Array;
+}
+
+export function toResultScene(
+  meta: Omit<ResultScene, "surfaces">,
+  raw: readonly RawResultSurface[],
+): ResultScene {
+  const surfaces = raw.map((s): ResultSurface => {
+    const surface: ResultSurface = {
+      name: s.name,
+      positions: view(Float32Array, s.positions),
+      displacement: view(Float32Array, s.displacement),
+      triangles: view(Uint32Array, s.triangles),
+      edges: view(Uint32Array, s.edges),
+      values: view(Float32Array, s.values),
+    };
+    if (s.faces) surface.faces = view(Uint32Array, s.faces);
+    return surface;
+  });
+  return { ...meta, surfaces };
+}
+
+/** The buffers of a result scene, to transfer them to another thread. */
+export function resultTransferables(scene: ResultScene): ArrayBuffer[] {
+  const buffers = new Set<ArrayBuffer>();
+  for (const s of scene.surfaces) {
+    for (const array of [
+      s.positions,
+      s.displacement,
+      s.triangles,
+      s.faces,
+      s.edges,
+      s.values,
     ]) {
       if (array) buffers.add(array.buffer as ArrayBuffer);
     }

@@ -162,8 +162,9 @@ export interface JobClient {
 export class JobRunner {
   private current: JobRun = { state: "idle" };
   private listeners = new Set<() => void>();
-  /** The last finished run, kept while a new run is going on. */
+  /** The last finished run; a new run replaces its results in Python. */
   private last?: Extract<JobRun, { state: "finished" }>;
+  private count = 0;
 
   constructor(private client: JobClient) {}
 
@@ -176,6 +177,11 @@ export class JobRunner {
     return this.last;
   }
 
+  /** The number of started runs, e.g. to tell the results of runs apart. */
+  get generation(): number {
+    return this.count;
+  }
+
   get running(): boolean {
     return this.current.state === "running";
   }
@@ -183,6 +189,9 @@ export class JobRunner {
   /** Run the jobs of a command list (with its JSON text). */
   async solve(commands: readonly Command[], document: string): Promise<void> {
     if (this.running) return;
+    this.count++;
+    // the results of Python are replaced by this run
+    this.last = undefined;
     let progress = startProgress();
     this.set({ state: "running", progress });
     try {

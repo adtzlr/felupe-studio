@@ -1,3 +1,4 @@
+import type { ComponentChildren } from "preact";
 import { useEffect } from "preact/hooks";
 import type { Tab } from "../core/registry";
 import { type RibbonItem, ribbonGroups, unavailable } from "../core/ribbon";
@@ -34,6 +35,8 @@ interface Props {
   onWorkspace: (workspace: Workspace) => void;
   onTab: (tab: string) => void;
   onCreate: (item: RibbonItem) => void;
+  /** The content of the Results tab. */
+  results?: ComponentChildren;
 }
 
 function Commands({
@@ -89,6 +92,7 @@ export function Ribbon({
   onWorkspace,
   onTab,
   onCreate,
+  results,
 }: Props) {
   const tabs = TABS[workspace];
   const active = tabs.find((t) => t.id === tab) ?? tabs[0];
@@ -157,9 +161,7 @@ export function Ribbon({
           ) : active.id === "tools" ? (
             <a href="./spike.html">Pyodide benchmark</a>
           ) : (
-            <span class="muted">
-              Results will appear here after a job has run.
-            </span>
+            results
           )}
         </div>
       </div>
