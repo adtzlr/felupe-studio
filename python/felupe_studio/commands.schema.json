@@ -82,6 +82,15 @@
       "type": "string",
       "enum": ["x", "y", "z"]
     },
+    "Coordinates": {
+      "description": "The coordinates x, y and z of a point.",
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "number"
+      }
+    },
     "Command": {
       "oneOf": [
         {
@@ -432,7 +441,7 @@
       }
     },
     "PointSetAdd": {
-      "description": "Points of the merged mesh selected by a coordinate or by point ids.",
+      "description": "Points of the merged mesh selected by a plane, by the coordinates of points or by point ids.",
       "type": "object",
       "required": ["command", "name", "select"],
       "additionalProperties": false,
@@ -456,6 +465,26 @@
                 },
                 "value": {
                   "type": "number"
+                },
+                "atol": {
+                  "description": "Absolute tolerance (default 1e-8).",
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              }
+            },
+            {
+              "description": "The points at the given coordinates, one point each, e.g. picked nodes. A coordinate without a point is an error of the script.",
+              "type": "object",
+              "required": ["points"],
+              "additionalProperties": false,
+              "properties": {
+                "points": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "$ref": "#/$defs/Coordinates"
+                  }
                 },
                 "atol": {
                   "description": "Absolute tolerance (default 1e-8).",

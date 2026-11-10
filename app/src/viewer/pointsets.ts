@@ -1,6 +1,7 @@
-// Point sets in the viewport: the points a point set selects by a coordinate (a
-// preview on the nodes of the drawn meshes, like `np.isclose` in the generated
-// script), and the point set of a picked face normal to x, y or z.
+// Point sets in the viewport: the points a point set selects by a coordinate or by
+// the coordinates of nodes (a preview on the nodes of the drawn meshes, like
+// `np.isclose` in the generated script), and the point set of a picked face normal
+// to x, y or z.
 import type { Command, PointSetAdd } from "../core/commands";
 import { toName } from "../core/importmesh";
 import type { Vec3 } from "./picking";
@@ -22,6 +23,34 @@ const RTOL = 1e-5;
 const isClose = (a: number, b: number, atol: number) =>
   Math.abs(a - b) <= atol + RTOL * Math.abs(b);
 
+/** Whether the node at index `p` of an array is at a point (like `np.isclose`). */
+const atPoint = (
+  array: Float64Array,
+  p: number,
+  point: readonly number[],
+  atol: number,
+) => [0, 1, 2].every((k) => isClose(array[p + k], point[k], atol));
+
+/**
+ * The points of a point set by nodes that have no node of the drawn meshes; the
+ * script raises an error for them (`points_at`).
+ */
+export function missingPoints(
+  select: PointSetAdd["select"],
+  nodes: readonly Float64Array[],
+): number[][] {
+  if (!("points" in select)) return [];
+  const atol = select.atol ?? ATOL;
+  return select.points.filter(
+    (point) =>
+      !nodes.some((array) => {
+        for (let p = 0; p < array.length; p += 3)
+          if (atPoint(array, p, point, atol)) return true;
+        return false;
+      }),
+  );
+}
+
 /**
  * The points of the nodes (three coordinates each, without duplicates) that a point
  * set selects. Point ids refer to the merged mesh of the script and are not shown.
@@ -30,14 +59,17 @@ export function selectedPoints(
   select: PointSetAdd["select"],
   nodes: readonly Float64Array[],
 ): Float64Array {
-  if (!("axis" in select)) return new Float64Array();
-  const k = AXES.indexOf(select.axis);
+  if ("ids" in select) return new Float64Array();
   const atol = select.atol ?? ATOL;
+  const selects = (array: Float64Array, p: number) =>
+    "axis" in select
+      ? isClose(array[p + AXES.indexOf(select.axis)], select.value, atol)
+      : select.points.some((point) => atPoint(array, p, point, atol));
   const seen = new Set<string>();
   const result: number[] = [];
   for (const array of nodes) {
     for (let p = 0; p < array.length; p += 3) {
-      if (!isClose(array[p + k], select.value, atol)) continue;
+      if (!selects(array, p)) continue;
       const key = `${array[p]} ${array[p + 1]} ${array[p + 2]}`;
       if (seen.has(key)) continue;
       seen.add(key);

@@ -242,6 +242,12 @@ def codegen(document, evaluate=True, check_schema=True):
                     f"atol={sel.get('atol', 1e-8)!r}",
                 ]
                 out.append(_call(ps["name"], "np.isclose", args))
+            elif "points" in sel:
+                coordinates = (f"[{', '.join(map(repr, p))}]" for p in sel["points"])
+                args = ["points", _List(coordinates)]
+                if "atol" in sel:
+                    args.append(f"atol={sel['atol']!r}")
+                out.append(_call(ps["name"], "points_at", args))
             else:
                 out.append(_call(ps["name"], "np.zeros", ["len(points)", "dtype=bool"]))
                 out.append(f"{ps['name']}[{sel['ids']!r}] = True")

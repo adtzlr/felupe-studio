@@ -550,3 +550,41 @@ def test_ramp_of_items_with_their_own_values(two_sections, tmp_path, monkeypatch
     np.testing.assert_allclose(ramp[boundaries["move"]], np.linspace(0, 0.5, 6))
     np.testing.assert_allclose(ramp[boundaries["fixed"]], 0)
     assert force(namespace)[-1] > 0
+
+
+def test_point_set_by_coordinates(two_sections, tmp_path, monkeypatch):
+    mesh, tag = bar()
+    write(tmp_path / "specimen.vtu", mesh, tag)
+    corners = {
+        "command": "pointset.add",
+        "name": "corners",
+        "select": {"points": [[0, 0, 0], [3, 1, 1.0]]},
+    }
+    two_sections["commands"].insert(9, corners)
+    script = codegen(two_sections)
+    assert "corners = points_at(points, [[0, 0, 0], [3, 1, 1.0]])\n" in script
+    namespace = run(two_sections, tmp_path, monkeypatch)
+    points = namespace["points"][namespace["corners"]]
+    np.testing.assert_allclose(points, [[0, 0, 0], [3, 1, 1]])
+
+    # many points are wrapped like ruff format does it, with a tolerance
+    corners["select"] = {
+        "points": [[0, y / 4, z / 4] for y in range(5) for z in range(5)],
+        "atol": 1e-6,
+    }
+    long = codegen(two_sections)
+    assert max(len(line) for line in long.splitlines()) <= 88
+    assert "    atol=1e-06,\n" in long
+    namespace = run(two_sections, tmp_path, monkeypatch)
+    assert namespace["corners"].sum() == 25
+    ruff = shutil.which("ruff")
+    if ruff:
+        path = tmp_path / "script.py"
+        path.write_text(long, encoding="utf-8")
+        fmt = [ruff, "format", "--isolated", "--check", str(path)]
+        assert subprocess.run(fmt, capture_output=True).returncode == 0
+
+    # a coordinate without a point is an error of the script
+    corners["select"] = {"points": [[0, 0, 0], [0.1, 0, 0]]}
+    with pytest.raises(ValueError, match=r"no point at \[\[0.1, 0.0, 0.0\]\]"):
+        run(two_sections, tmp_path, monkeypatch)

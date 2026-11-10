@@ -237,6 +237,27 @@ describe("editing in the properties panel", () => {
       select: { ids: [4, 8, 15] },
     });
     expect(points.field("Point ids").value).toBe("4, 8, 15");
+
+    // nodes by their coordinates, one per line (#92)
+    points.choose("Select", "points");
+    const nodes = points.field<HTMLTextAreaElement>("Nodes");
+    expect(nodes.tagName).toBe("TEXTAREA");
+    points.type("Nodes", "0, 0, 0\n3 1");
+    fireEvent.click(points.button("Apply"));
+    expect(points.properties.textContent).toContain(
+      "Line 2: enter three numbers x, y, z",
+    );
+    points.type("Nodes", "0, 0, 0\n3 1 1\n");
+    fireEvent.click(points.button("Apply"));
+    expect(points.store.get("left")).toMatchObject({
+      select: {
+        points: [
+          [0, 0, 0],
+          [3, 1, 1],
+        ],
+      },
+    });
+    expect(points.field("Nodes").value).toBe("0, 0, 0\n3, 1, 1");
   });
 });
 

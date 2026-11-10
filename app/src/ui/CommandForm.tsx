@@ -52,6 +52,24 @@ const parseIntegers = (text: string) =>
     .filter((part) => part !== "")
     .map(Number);
 
+/** Points, one per line (or separated by ;), three numbers each. */
+const parseCoordinates = (text: string) =>
+  text
+    .split(/[\n;]/)
+    .map((line) => line.trim())
+    .filter((line) => line !== "")
+    .map((line) =>
+      line
+        .split(/[,\s]+/)
+        .filter((part) => part !== "")
+        .map(Number),
+    );
+
+const coordinatesText = (value: unknown) =>
+  Array.isArray(value)
+    ? value.map((p) => (Array.isArray(p) ? p.join(", ") : String(p))).join("\n")
+    : "";
+
 const numberText = (value: unknown) =>
   typeof value === "number" && Number.isFinite(value) ? String(value) : "";
 
@@ -188,6 +206,26 @@ export function CommandForm({
             }}
           />
         );
+      case "coordinates": {
+        const text = texts[key]?.text ?? coordinatesText(value);
+        return (
+          <textarea
+            {...common}
+            value={text}
+            rows={Math.min(Math.max(2, text.split("\n").length), 8)}
+            placeholder={spec.placeholder ?? "0, 0, 0"}
+            autocomplete="off"
+            spellcheck={false}
+            onInput={(event) => {
+              const text = event.currentTarget.value;
+              change(spec, parseCoordinates(text), {
+                text,
+                parse: parseCoordinates,
+              });
+            }}
+          />
+        );
+      }
       case "choice": {
         const { empty, options } = choiceOptions(spec, value);
         return (

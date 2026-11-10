@@ -564,6 +564,24 @@ button {
   line-height: 1.35;
 }
 
+.command-form textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  background: var(--bar);
+  color: var(--text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  resize: vertical;
+}
+
+.command-form textarea:focus-visible {
+  border-color: var(--accent);
+  outline: 1px solid var(--accent);
+}
+
 .command-form input[type="text"],
 .command-form select {
   box-sizing: border-box;
@@ -745,6 +763,10 @@ button {
   padding: 0 16px;
   text-align: center;
   pointer-events: none;
+}
+
+.viewport-status.warning {
+  color: var(--warning);
 }
 
 .viewport-status {

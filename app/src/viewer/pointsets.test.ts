@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { Command } from "../core/commands";
+import type { Command, PointSetAdd } from "../core/commands";
 import {
+  missingPoints,
   outlined,
   planeName,
   planeSelect,
@@ -17,6 +18,29 @@ describe("point sets", () => {
     const points = selectedPoints({ axis: "x", value: 1 }, [left, right]);
     expect([...points]).toEqual([1, 0, 0, 1, 1, 0]);
     expect(selectedPoints({ ids: [0, 1] }, [left])).toHaveLength(0);
+  });
+
+  it("select the nodes at coordinates and find the ones without a node", () => {
+    const select = {
+      points: [
+        [1, 0, 0],
+        [2, 1, 0],
+        [5, 5, 5],
+      ],
+    } as PointSetAdd["select"];
+    expect([...selectedPoints(select, [left, right])]).toEqual([
+      1, 0, 0, 2, 1, 0,
+    ]);
+    expect(missingPoints(select, [left, right])).toEqual([[5, 5, 5]]);
+    // with the tolerances of np.isclose
+    const near = (atol?: number) =>
+      missingPoints(
+        { points: [[2.001, 1, 0]], atol } as PointSetAdd["select"],
+        [right],
+      );
+    expect(near()).toEqual([[2.001, 1, 0]]);
+    expect(near(1e-2)).toEqual([]);
+    expect(missingPoints({ axis: "x", value: 7 }, [right])).toEqual([]);
   });
 
   it("use the tolerances of np.isclose", () => {

@@ -49,6 +49,17 @@ def volume_cells(mesh, tag=None, cell_type=None):
     )
 
 
+def points_at(points, coordinates, atol=1e-8):
+    """Return a mask of the points at the given coordinates (like ``np.isclose``).
+    Every coordinate needs a point, otherwise a ``ValueError`` is raised."""
+    coordinates = np.atleast_2d(np.asarray(coordinates, dtype=float))
+    close = np.isclose(points[:, None], coordinates, atol=atol).all(axis=2)
+    missing = coordinates[~close.any(axis=0)]
+    if len(missing):
+        raise ValueError(f"There is no point at {missing.tolist()}.")
+    return close.any(axis=1)
+
+
 def mixed_region(mesh):
     """Return the region of the mixed fields (u-p-J) of a mesh. Linear tetrahedra get
     a bubble point in every cell (MINI element), the dual fields are linear.
