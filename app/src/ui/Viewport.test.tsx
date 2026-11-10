@@ -313,6 +313,73 @@ describe("Viewport", () => {
     expect(screen.queryByRole("status", { name: "Picked face" })).toBeNull();
   });
 
+  it("draws the boundaries and load cases (#82)", async () => {
+    const { files } = meshFiles();
+    await files.add("a.vtu", new Uint8Array());
+    const store = new ModelStore();
+    store.apply(
+      [
+        mesh("a", "a.vtu"),
+        {
+          command: "pointset.add",
+          name: "left",
+          select: { axis: "x", value: 0 },
+        },
+        {
+          command: "pointset.add",
+          name: "right",
+          select: { axis: "x", value: 1 },
+        },
+        {
+          command: "boundary.add",
+          name: "fixed",
+          pointset: "left",
+          constrained: ["x", "y"],
+        },
+        {
+          command: "boundary.add",
+          name: "move",
+          pointset: "right",
+          constrained: ["x"],
+        },
+        {
+          command: "step.add",
+          name: "step_1",
+          ramp: { boundary: "move", end: 0.5, num: 2 },
+        },
+      ].map((command) => ({
+        type: "add" as const,
+        command: command as Command,
+      })),
+    );
+    const viewer = fakeViewer();
+    const view = (hidden: string[], selected?: string) => (
+      <Viewport
+        store={store}
+        files={files}
+        hidden={new Set(hidden)}
+        selected={selected}
+        createViewer={viewer.create}
+      />
+    );
+    const { rerender } = render(view([]));
+    await act(async () => {});
+    const lines = () =>
+      viewer.handle.update.mock
+        .lastCall![0].objects.filter((o) => o.type === "lines")
+        .map((o) => [o.color, o.positions.size / 6]);
+    // strokes in x and y at the two points of x = 0, an arrow (five segments) at
+    // the point of x = 1
+    expect(lines()).toEqual([
+      ["#d62728", 2],
+      ["#2ca02c", 2],
+      ["#f5a524", 5],
+    ]);
+    rerender(view(["move"], "fixed"));
+    await act(async () => {});
+    expect(lines()).toEqual([[HIGHLIGHT, 4]]);
+  });
+
   it("shows a tip about picking until the first pick", async () => {
     localStorage.removeItem("felupe-studio.tip.pick");
     const { files } = meshFiles();

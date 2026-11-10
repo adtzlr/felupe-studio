@@ -19,6 +19,7 @@ import {
   buildScene,
   type Highlight,
   type LegendEntry,
+  type Lines,
   type Markers,
   type MeshLayer,
   type ResultContent,
@@ -93,6 +94,7 @@ export class Viewer {
   private meshes: readonly MeshLayer[] = [];
   private markers: readonly Markers[] = [];
   private arrows: readonly Arrows[] = [];
+  private lines: readonly Lines[] = [];
   private legend: readonly LegendEntry[] | undefined;
   private result: ResultContent | undefined;
   /** The drawn surfaces of the result, for probing (cached per scene and scale). */
@@ -196,6 +198,12 @@ export class Viewer {
 
   setArrows(arrows: readonly Arrows[]): void {
     this.arrows = arrows;
+    this.schedule();
+  }
+
+  /** Line segments, e.g. the symbols of the boundaries. */
+  setLines(lines: readonly Lines[]): void {
+    this.lines = lines;
     this.schedule();
   }
 
@@ -314,6 +322,7 @@ export class Viewer {
       highlights: this.highlights(),
       markers: this.markers,
       arrows: this.arrows,
+      lines: this.lines,
       legend: this.legend,
     });
     this.handle.update(scene, { keepView: !this.fitNext });

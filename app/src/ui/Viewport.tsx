@@ -16,6 +16,11 @@ import {
   planeSelect,
   selectedPoints,
 } from "../viewer/pointsets";
+import {
+  boundaryLines,
+  boundarySymbols,
+  modelSize,
+} from "../viewer/boundaries";
 import type { Markers } from "../viewer/scene";
 import {
   type CreateViewer,
@@ -138,6 +143,19 @@ export function Viewport({
     ];
   }, [commands, hidden, selected, nodes, preview]);
 
+  // the boundaries and load cases: strokes of fixed components, arrows of moved
+  // boundaries (#82)
+  const symbols = useMemo(
+    () => boundarySymbols(commands, nodes),
+    [commands, nodes],
+  );
+  const size = useMemo(() => modelSize(nodes), [nodes]);
+  const lines = useMemo(
+    () =>
+      boundaryLines(symbols, { size, hidden, selected, highlight: HIGHLIGHT }),
+    [symbols, size, hidden, selected],
+  );
+
   // the plane of a picked face, and its point set if it is normal to an axis (the
   // viewer calls it with the nodes of the latest render)
   const nodesRef = useRef(nodes);
@@ -167,8 +185,9 @@ export function Viewport({
     viewer.current.setMeshes(content.meshes);
     viewer.current.setLegend(content.legend);
     viewer.current.setMarkers(markers);
+    viewer.current.setLines(lines);
     viewer.current.setPlane(picked);
-  }, [content, markers, picked, createViewer]);
+  }, [content, markers, lines, picked, createViewer]);
 
   // Escape clears a picked face
   useEffect(() => {

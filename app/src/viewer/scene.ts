@@ -47,6 +47,14 @@ export interface Arrows {
   width?: number;
 }
 
+/** Line segments, e.g. the symbols of boundaries. */
+export interface Lines {
+  /** Six coordinates per segment. */
+  positions: Float32Array;
+  color: string;
+  width?: number;
+}
+
 export interface LegendEntry {
   label: string;
   color: string;
@@ -78,6 +86,7 @@ export interface SceneContent {
   highlights?: readonly Highlight[];
   markers?: readonly Markers[];
   arrows?: readonly Arrows[];
+  lines?: readonly Lines[];
   /** The legend; by default the names of the meshes, if there is more than one. */
   legend?: readonly LegendEntry[] | null;
 }
@@ -330,6 +339,14 @@ export function buildScene(content: SceneContent): Scene {
       })),
     ...(content.markers ?? []).map(markerObject),
     ...(content.arrows ?? []).map(arrowObject),
+    ...(content.lines ?? [])
+      .filter((l) => l.positions.length > 0)
+      .map((l): LinesObject => ({
+        type: "lines",
+        positions: f4(l.positions),
+        color: l.color,
+        width: l.width ?? 2,
+      })),
   ];
   const legend =
     content.legend === undefined
