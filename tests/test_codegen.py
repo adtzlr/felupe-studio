@@ -588,3 +588,34 @@ def test_point_set_by_coordinates(two_sections, tmp_path, monkeypatch):
     corners["select"] = {"points": [[0, 0, 0], [0.1, 0, 0]]}
     with pytest.raises(ValueError, match=r"no point at \[\[0.1, 0.0, 0.0\]\]"):
         run(two_sections, tmp_path, monkeypatch)
+
+
+def test_control_point(two_sections, tmp_path, monkeypatch):
+    mesh, tag = bar()
+    write(tmp_path / "specimen.vtu", mesh, tag)
+    commands = two_sections["commands"]
+    commands.insert(
+        9, {"command": "point.add", "name": "control", "coordinates": [4, 0.5, 0.5]}
+    )
+    pin = {
+        "command": "boundary.add",
+        "name": "pin",
+        "pointset": "control",
+        "constrained": ["x", "y", "z"],
+    }
+    commands.insert(12, pin)
+    script = codegen(two_sections)
+    assert "region_control_points = vertex_region([[4, 0.5, 0.5]])\n" in script
+    assert "field_section_soft, field_control_points]" in script
+    assert "control = points_at(points, [4, 0.5, 0.5])\n" in script
+    namespace = run(two_sections, tmp_path, monkeypatch)
+    points = namespace["points"]
+    np.testing.assert_allclose(points[namespace["control"]], [[4, 0.5, 0.5]])
+    # the control point is the last point of the merged field, without stiffness
+    assert np.flatnonzero(namespace["control"]).tolist() == [len(points) - 1]
+    assert force(namespace)[-1] > 0
+
+    # without a boundary of all components, it has no stiffness
+    pin["constrained"] = ["x", "y"]
+    with pytest.raises(ValidationError, match="'control' has no stiffness"):
+        codegen(two_sections)

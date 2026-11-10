@@ -41,6 +41,8 @@ export type Input =
   | { type: "integers"; minItems: number; min?: number }
   /** Points, one per line: three coordinates each. */
   | { type: "coordinates"; minItems: number }
+  /** A list of numbers, e.g. the coordinates x, y, z of a point. */
+  | { type: "numbers"; minItems: number; maxItems?: number }
   | { type: "reference"; kind: Kind; multiple: boolean; minItems: number }
   /**
    * A list of objects, edited as rows; `columns` are the fields of a row, with
@@ -91,6 +93,7 @@ interface Node {
   exclusiveMinimum?: number;
   exclusiveMaximum?: number;
   minItems?: number;
+  maxItems?: number;
   description?: string;
   default?: unknown;
   /** Short label of a definition or a property, e.g. `Mooney-Rivlin` or `μ`. */
@@ -315,6 +318,17 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
             path,
             isRequired,
             { type: "rows", columns, minItems },
+            raw.description,
+          );
+        } else if (resolve(items).type === "number") {
+          push(
+            path,
+            isRequired,
+            {
+              type: "numbers",
+              minItems,
+              maxItems: property.maxItems,
+            },
             raw.description,
           );
         } else if (resolve(items).type === "array") {
@@ -742,6 +756,21 @@ function fieldError(
       return names.includes(value as string)
         ? undefined
         : `There is no ${kind} '${String(value)}'.`;
+    }
+    case "numbers": {
+      const numbers = Array.isArray(value) ? (value as unknown[]) : [];
+      if (!numbers.length && !required) return undefined;
+      const count =
+        input.maxItems === input.minItems
+          ? `${input.minItems} numbers`
+          : "numbers";
+      const ok =
+        numbers.length >= input.minItems &&
+        numbers.length <= (input.maxItems ?? Infinity) &&
+        numbers.every((x) => typeof x === "number" && Number.isFinite(x));
+      return ok
+        ? undefined
+        : `Enter ${count}, separated by commas, with a point as decimal separator.`;
     }
     case "coordinates": {
       const points = Array.isArray(value) ? (value as unknown[]) : [];

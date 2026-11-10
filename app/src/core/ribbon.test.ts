@@ -22,6 +22,7 @@ describe("ribbonGroups", () => {
     expect(labels("loads")).toEqual([
       ["Boundary"],
       ["Uniaxial", "Biaxial", "Planar", "Shear"],
+      ["Control point"],
     ]);
     expect(labels("steps")).toEqual([["Step"], ["Job"]]);
   });

@@ -60,6 +60,8 @@ function detail(cmd: Command): string {
           : `node (${first.join(", ")})`;
       }
       return `${cmd.select.ids.length} points`;
+    case "point.add":
+      return `control (${cmd.coordinates.join(", ")})`;
     case "boundary.add": {
       const value = cmd.value ?? 0;
       const constrained = AXES.filter((a) => cmd.constrained.includes(a)).join(

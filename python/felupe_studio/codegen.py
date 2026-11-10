@@ -148,7 +148,8 @@ def codegen(document, evaluate=True, check_schema=True):
         return [c for c in commands if c["command"] == command]
 
     sections = get("section.add")
-    pointsets = get("pointset.add")
+    # point sets, with the control points (a point set of one point each)
+    pointsets = [c for c in commands if c["command"] in ("pointset.add", "point.add")]
     if pointsets and not sections:
         raise ValidationError(["Point sets need at least one section (a field)."])
 
@@ -206,7 +207,24 @@ def codegen(document, evaluate=True, check_schema=True):
                     _call(f"field_{sec['name']}", "fem.FieldsMixed", [region, "n=3"])
                 )
 
-        fields = _List(f"field_{s['name']}" for s in sections)
+        controls = get("point.add")
+        if controls:
+            out.append(
+                "\n# control points: a mesh of vertices, not nodes of the sections"
+            )
+            coordinates = (
+                f"[{', '.join(map(repr, p['coordinates']))}]" for p in controls
+            )
+            out.append(
+                _call("region_control_points", "vertex_region", [_List(coordinates)])
+            )
+            fields = "[fem.Field(region_control_points, dim=3)]"
+            out.append(_call("field_control_points", "fem.FieldContainer", [fields]))
+
+        fields = _List(
+            [f"field_{s['name']}" for s in sections]
+            + (["field_control_points"] if controls else [])
+        )
         out.append(
             "\n# merge the displacements of all sections into the top-level field"
         )
@@ -233,6 +251,10 @@ def codegen(document, evaluate=True, check_schema=True):
         out.append("\n# point sets of the merged mesh")
         out.append("points = field.mesh_container.points")
         for ps in pointsets:
+            if ps["command"] == "point.add":
+                point = f"[{', '.join(map(repr, ps['coordinates']))}]"
+                out.append(_call(ps["name"], "points_at", ["points", point]))
+                continue
             sel = ps["select"]
             if "axis" in sel:
                 axis = AXES.index(sel["axis"])

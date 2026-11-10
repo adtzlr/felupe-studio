@@ -13,6 +13,7 @@ export type Command =
   | MaterialAdd
   | SectionAdd
   | PointSetAdd
+  | PointAdd
   | BoundaryAdd
   | LoadcaseAdd
   | StepAdd
@@ -271,6 +272,17 @@ export interface PointSetAdd {
          */
         ids: [number, ...number[]];
       };
+}
+/**
+ * A control point that is not a node of the meshes, e.g. the center point of a multi-point constraint. It is a point set of one point: all control points form a mesh of vertices that is merged with the fields of the sections.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "PointAdd".
+ */
+export interface PointAdd {
+  command: "point.add";
+  name: Name;
+  coordinates: Coordinates;
 }
 /**
  * Prescribe displacement components of a point set (fem.Boundary).

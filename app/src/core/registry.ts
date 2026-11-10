@@ -253,6 +253,19 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       normal: AXES,
     },
   },
+  "point.add": {
+    label: "Control point",
+    tab: "loads",
+    prefix: "control",
+    noun: "control point",
+    fields: {
+      coordinates: {
+        label: "Coordinates",
+        hint: "x, y, z; a point that is not a node of the meshes",
+        default: [0, 0, 0],
+      },
+    },
+  },
   "step.add": {
     label: "Step",
     tab: "steps",

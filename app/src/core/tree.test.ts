@@ -56,6 +56,15 @@ describe("deriveTree", () => {
     expect(find(deriveTree(jobs), "job_1")!.detail).toBe(
       "step_1 · cutback · tol 0.05",
     );
+    // control points
+    const control: Command = {
+      command: "point.add",
+      name: "control",
+      coordinates: [4, 0.5, 0.5],
+    };
+    expect(find(deriveTree([...commands, control]), "control")!.detail).toBe(
+      "control (4, 0.5, 0.5)",
+    );
     // point sets by nodes
     const nodes = (points: number[][]) =>
       find(

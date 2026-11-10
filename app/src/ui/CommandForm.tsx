@@ -52,6 +52,12 @@ const parseIntegers = (text: string) =>
     .filter((part) => part !== "")
     .map(Number);
 
+const parseNumbers = (text: string) =>
+  text
+    .split(/[,\s]+/)
+    .filter((part) => part !== "")
+    .map(Number);
+
 /** Points, one per line (or separated by ;), three numbers each. */
 const parseCoordinates = (text: string) =>
   text
@@ -203,6 +209,23 @@ export function CommandForm({
             onInput={(event) => {
               const text = event.currentTarget.value;
               change(spec, parseIntegers(text), { text, parse: parseIntegers });
+            }}
+          />
+        );
+      case "numbers":
+        return (
+          <input
+            {...common}
+            type="text"
+            inputMode="decimal"
+            value={
+              texts[key]?.text ?? (Array.isArray(value) ? value.join(", ") : "")
+            }
+            placeholder={spec.placeholder}
+            autocomplete="off"
+            onInput={(event) => {
+              const text = event.currentTarget.value;
+              change(spec, parseNumbers(text), { text, parse: parseNumbers });
             }}
           />
         );
