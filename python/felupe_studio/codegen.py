@@ -110,7 +110,7 @@ def _call(target, func, args):
     return _wrap(f"{target} = {func}", args)
 
 
-def codegen(document, evaluate=True):
+def codegen(document, evaluate=True, check_schema=True):
     """Return the FElupe script of a command list as a string.
 
     Parameters
@@ -120,13 +120,16 @@ def codegen(document, evaluate=True):
         validated first, see :func:`felupe_studio.commands.validate`.
     evaluate : bool, optional
         Evaluate the jobs at the end of the script (default is True).
+    check_schema : bool, optional
+        Validate the command list against the JSON schema (default is True). The
+        references between the commands are checked in any case.
 
     Returns
     -------
     str
         The FElupe script.
     """
-    validate(document)
+    validate(document, check_schema)
     commands = document["commands"]
 
     def get(command):

@@ -136,7 +136,9 @@ def run(document, report=lambda event: None):
     if uses_tensortrax(document):
         load_tensortrax()
 
-    script = codegen(document, evaluate=False)
+    # the app validated the command list against the schema with Ajv: no jsonschema
+    # in the worker, the references are checked here
+    script = codegen(document, evaluate=False, check_schema=False)
     namespace = {"__name__": "felupe_studio_model"}
     exec(compile(script, "model.py", "exec"), namespace)
     LAST.clear()
