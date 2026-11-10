@@ -213,6 +213,13 @@ The viewport draws the imported meshes with the WebGL2 viewer of FElupe ([ADR 00
 - The recorded fields take memory in the worker: the values of all fields (float64) per substep.
 - **Force-displacement curve** (a job with a curve boundary, `fem.CharacteristicCurve`): a card over the results shows the reaction force over the displacement of the curve boundary per substep, for a component (by default the one with the largest displacement at the end). The current substep is marked; hovering shows the values of the nearest substep, a click selects it. **Table** lists the values (a click on a row selects the substep), **CSV** downloads all components with the substeps and steps. **Curve** in the ribbon shows or hides the card.
 
+## Samples (app)
+
+**Samples** (header, and the browser of an empty model) lists finished models; **Open** loads one like a project file with its mesh files (a sample replaces the current model; the dialog warns about unsaved changes).
+
+- The samples are folders in `app/public/samples` with a project file `model.felupe.json` and its mesh files, listed in `app/src/core/samples.json` (title, description, topics, mesh files). Both are made by `app/scripts/make_samples.py` (units: mm, N, MPa); run it from the repository root after a change and commit the files.
+- `tests/test_samples.py` checks that every sample is a canonical project file without errors, that its files exist, and solves it with FElupe. The material test is checked against the analytical curve of the incompressible Neo-Hooke model.
+
 ## Exports (app)
 
 **Export** (header) lists the exports of the project; an export that is not possible says why.

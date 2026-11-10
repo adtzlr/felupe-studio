@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "commands": [
+    {
+      "command": "mesh.import",
+      "name": "cube",
+      "file": "cube.vtu"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "all_cells",
+      "mesh": "cube"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 0.5
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "specimen",
+      "cellset": "all_cells",
+      "material": "rubber",
+      "formulation": "u-p-J",
+      "bulk": 5000
+    },
+    {
+      "command": "loadcase.add",
+      "name": "tension",
+      "type": "uniaxial",
+      "axis": "x"
+    },
+    {
+      "command": "step.add",
+      "name": "stretch",
+      "ramp": {
+        "boundary": "tension",
+        "end": 1,
+        "num": 10
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job",
+      "steps": [
+        "stretch"
+      ],
+      "curve": "tension"
+    }
+  ]
+}

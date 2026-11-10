@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "commands": [
+    {
+      "command": "mesh.import",
+      "name": "bar",
+      "file": "bar.vtu",
+      "tag": "material"
+    },
+    {
+      "command": "cellset.from_tag",
+      "name": "stiff",
+      "mesh": "bar",
+      "value": 1
+    },
+    {
+      "command": "cellset.from_tag",
+      "name": "soft",
+      "mesh": "bar",
+      "value": 2
+    },
+    {
+      "command": "material.add",
+      "name": "plastic",
+      "model": "LinearElasticLargeStrain",
+      "parameters": {
+        "E": 100,
+        "nu": 0.3
+      }
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 1
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "stiff_half",
+      "cellset": "stiff",
+      "material": "plastic",
+      "formulation": "u"
+    },
+    {
+      "command": "section.add",
+      "name": "soft_half",
+      "cellset": "soft",
+      "material": "rubber",
+      "formulation": "u-p-J",
+      "bulk": 5000
+    },
+    {
+      "command": "pointset.add",
+      "name": "left",
+      "select": {
+        "axis": "x",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "right",
+      "select": {
+        "axis": "x",
+        "value": 30
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "left",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "clamp",
+      "pointset": "right",
+      "constrained": [
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "pull",
+      "pointset": "right",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "step.add",
+      "name": "tension",
+      "ramp": {
+        "boundary": "pull",
+        "end": 15,
+        "num": 10
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job",
+      "steps": [
+        "tension"
+      ],
+      "curve": "pull"
+    }
+  ]
+}

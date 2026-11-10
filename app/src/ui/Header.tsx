@@ -8,6 +8,7 @@ interface Props {
   fileName: string;
   modified: boolean;
   onOpen: () => void;
+  onSamples: () => void;
   onSave: () => void;
   exports: ExportItem[];
   solve: {
@@ -24,6 +25,7 @@ export function Header({
   fileName,
   modified,
   onOpen,
+  onSamples,
   onSave,
   exports,
   solve,
@@ -43,6 +45,15 @@ export function Header({
           onClick={onOpen}
         >
           <Icon name="open" />
+        </button>
+        <button
+          type="button"
+          class="icon-button"
+          aria-label="Samples"
+          title="Open a sample model"
+          onClick={onSamples}
+        >
+          <Icon name="samples" />
         </button>
         <button
           type="button"

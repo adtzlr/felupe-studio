@@ -1433,3 +1433,61 @@ button {
   color: var(--muted);
   font-size: 11.5px;
 }
+
+/* the sample models */
+.samples {
+  display: grid;
+  gap: 8px;
+  max-height: min(70vh, 560px);
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+}
+
+.samples > li {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+
+.samples h3 {
+  margin: 0 0 4px;
+  font-size: 13.5px;
+}
+
+.samples p {
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.samples .topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.samples .topics li {
+  padding: 1px 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.dialog > .warning {
+  margin: 0 0 10px;
+  color: var(--warning);
+}
+
+.empty-model .button {
+  margin-top: 10px;
+}

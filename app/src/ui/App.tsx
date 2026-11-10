@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { exportName, mediaType, SUFFIX } from "../core/files";
 import { JobRunner, solveBlocker } from "../core/jobs";
 import { type ResultView, viewOf } from "../core/results";
+import { type Sample, sampleFiles } from "../core/samples";
 import { fileNotes, MeshFiles } from "../core/meshfiles";
 import { REGISTRY } from "../core/registry";
 import type { RibbonItem } from "../core/ribbon";
@@ -16,6 +17,7 @@ import { ImportMeshDialog } from "./ImportMeshDialog";
 import { JobPanel } from "./JobPanel";
 import type { Capture } from "../viewer/viewer";
 import { CurveCard } from "./CurveCard";
+import { SamplesDialog } from "./SamplesDialog";
 import type { ExportItem } from "./ExportMenu";
 import { ResultsControls } from "./ResultsControls";
 import { ResultsView } from "./ResultsView";
@@ -35,6 +37,8 @@ interface Props {
   updates?: UpdateWatcher;
   /** Reload the page; the default reloads the browser window. */
   reload?: () => void;
+  /** Fetch the files of the samples; the default is the fetch of the browser. */
+  fetchSample?: typeof fetch;
 }
 
 function downloadFile(name: string, data: string | Blob) {
@@ -66,6 +70,7 @@ export function App({
   download = downloadFile,
   updates,
   reload = () => window.location.reload(),
+  fetchSample,
 }: Props) {
   useStore(store);
   const [files] = useState(() => given ?? new MeshFiles());
@@ -172,6 +177,22 @@ export function App({
     },
     [files, openProject],
   );
+
+  const [samplesOpen, setSamplesOpen] = useState(false);
+  const openSample = async (sample: Sample) => {
+    try {
+      const list = await sampleFiles(
+        sample,
+        document.baseURI,
+        fetchSample ?? ((...args) => fetch(...args)),
+      );
+      await openFiles(list);
+      setSamplesOpen(false);
+    } catch (error) {
+      setSamplesOpen(false);
+      failed("The sample could not be opened.")(error);
+    }
+  };
 
   const solve = async () => {
     if (!jobs) return;
@@ -306,6 +327,7 @@ export function App({
         fileName={fileName}
         modified={store.commands !== saved}
         onOpen={() => fileInput.current?.click()}
+        onSamples={() => setSamplesOpen(true)}
         onSave={() => void save()}
         exports={exports}
         solve={{
@@ -407,6 +429,7 @@ export function App({
           hidden={hidden}
           onSelect={setSelection}
           onToggleVisible={toggleVisible}
+          onSamples={() => setSamplesOpen(true)}
         />
         <div class="views">
           <Viewport
@@ -473,6 +496,13 @@ export function App({
               })
         }
       />
+      {samplesOpen && (
+        <SamplesDialog
+          modified={store.commands.length > 0 && store.commands !== saved}
+          onOpen={openSample}
+          onClose={() => setSamplesOpen(false)}
+        />
+      )}
       {importing && (
         <ImportMeshDialog
           store={store}
