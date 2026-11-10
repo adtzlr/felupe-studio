@@ -6,7 +6,13 @@ import {
   createViewer,
   type ViewerHandle,
 } from "../vendor/felupe-viewer/viewer.js";
-import { type Arrows, buildScene, type Markers, type MeshLayer } from "./scene";
+import {
+  type Arrows,
+  buildScene,
+  type LegendEntry,
+  type Markers,
+  type MeshLayer,
+} from "./scene";
 
 export type CreateViewer = typeof createViewer;
 
@@ -25,6 +31,7 @@ export class Viewer {
   private meshes: readonly MeshLayer[] = [];
   private markers: readonly Markers[] = [];
   private arrows: readonly Arrows[] = [];
+  private legend: readonly LegendEntry[] | undefined;
   private scheduled = false;
   /** The camera fits the model on the next draw (e.g. after it was empty). */
   private fitNext = true;
@@ -52,6 +59,12 @@ export class Viewer {
 
   setArrows(arrows: readonly Arrows[]): void {
     this.arrows = arrows;
+    this.schedule();
+  }
+
+  /** Set the legend; undefined names the meshes (if there is more than one). */
+  setLegend(legend: readonly LegendEntry[] | undefined): void {
+    this.legend = legend;
     this.schedule();
   }
 
@@ -85,6 +98,7 @@ export class Viewer {
       meshes: this.meshes,
       markers: this.markers,
       arrows: this.arrows,
+      legend: this.legend,
     });
     this.handle.update(scene, { keepView: !this.fitNext });
     this.fitNext = this.meshes.length === 0;

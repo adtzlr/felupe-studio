@@ -17,6 +17,9 @@ export const CATEGORICAL = [
 /** Color of the objects beyond the categorical colors (never a generated hue). */
 export const OTHER = "#8b93a1";
 
+/** Color of cells without a cell set or section (shown as such in the legend). */
+export const UNASSIGNED = "#c4c8cf";
+
 /** Color of the edges of the faces, like `mesh.plot()` of FElupe. */
 export const EDGE_COLOR = "#000000";
 

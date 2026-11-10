@@ -18,6 +18,8 @@ export interface MeshLayer {
   color: string;
   /** Colors of cells; cells of no group (and later groups win) keep `color`. */
   groups?: readonly CellGroup[];
+  /** Cells that are not drawn (non-zero), one entry per cell. */
+  hidden?: ArrayLike<number>;
   opacity?: number;
 }
 
@@ -68,31 +70,46 @@ const u4 = (data: ArrayLike<number>): SceneArray => {
   return { dtype: "u4", size: array.length, data: array };
 };
 
-/** The triangles (and their faces) of each color of a mesh, in order of first use. */
+const HIDDEN = 0xffffffff;
+
+/**
+ * The triangles (and their faces) of each color of a mesh, in the order of the
+ * colors, without the triangles of hidden cells.
+ */
 function split(layer: MeshLayer) {
   const { surface } = layer;
   const ntriangles = surface.triangles.length / 3;
-  if (!layer.groups?.length) {
+  const hidden = layer.hidden;
+  if (!layer.groups?.length && !hidden) {
     return [
       {
         color: layer.color,
         triangles: surface.triangles,
         faces: surface.faces,
+        count: ntriangles,
       },
     ];
   }
 
   // the color of every cell: 0 for the color of the mesh, i + 1 for group i
   const colorOf = new Uint32Array(surface.cells);
-  layer.groups.forEach((group, i) => {
+  (layer.groups ?? []).forEach((group, i) => {
     for (let k = 0; k < group.cells.length; k++) {
       const cell = group.cells[k];
       if (cell >= 0 && cell < surface.cells) colorOf[cell] = i + 1;
     }
   });
-  const colors = [layer.color, ...layer.groups.map((g) => g.color)];
+  if (hidden) {
+    for (let cell = 0; cell < surface.cells; cell++) {
+      if (hidden[cell]) colorOf[cell] = HIDDEN;
+    }
+  }
+  const colors = [layer.color, ...(layer.groups ?? []).map((g) => g.color)];
   const counts = new Uint32Array(colors.length);
-  for (let t = 0; t < ntriangles; t++) counts[colorOf[surface.owners[t]]]++;
+  for (let t = 0; t < ntriangles; t++) {
+    const c = colorOf[surface.owners[t]];
+    if (c !== HIDDEN) counts[c]++;
+  }
 
   const parts = colors.map((color, c) => ({
     color,
@@ -101,7 +118,9 @@ function split(layer: MeshLayer) {
     count: 0,
   }));
   for (let t = 0; t < ntriangles; t++) {
-    const part = parts[colorOf[surface.owners[t]]];
+    const c = colorOf[surface.owners[t]];
+    if (c === HIDDEN) continue;
+    const part = parts[c];
     part.triangles.set(
       surface.triangles.subarray(3 * t, 3 * t + 3),
       3 * part.count,
@@ -112,11 +131,33 @@ function split(layer: MeshLayer) {
   return parts.filter((part) => part.count > 0);
 }
 
+/**
+ * The edges between points of drawn triangles. Every region of cells has its own
+ * points (see `felupe_studio.scene`), so the edges of hidden regions are left out.
+ */
+function visibleEdges(
+  surface: MeshSurface,
+  parts: readonly { triangles: Uint32Array }[],
+): Uint32Array {
+  const drawn = new Uint8Array(surface.positions.length / 3);
+  for (const part of parts) {
+    for (const point of part.triangles) drawn[point] = 1;
+  }
+  const { edges } = surface;
+  const kept: number[] = [];
+  for (let e = 0; e < edges.length; e += 2) {
+    if (drawn[edges[e]] && drawn[edges[e + 1]])
+      kept.push(edges[e], edges[e + 1]);
+  }
+  return Uint32Array.from(kept);
+}
+
 /** The surface objects of a mesh: its faces (by color) and its edges. */
 export function meshObjects(layer: MeshLayer): SurfaceObject[] {
   const positions = f4(layer.surface.positions);
   const opacity = layer.opacity ?? 1;
-  const objects: SurfaceObject[] = split(layer).map((part) => ({
+  const parts = split(layer);
+  const objects: SurfaceObject[] = parts.map((part) => ({
     type: "surface",
     positions,
     triangles: u4(part.triangles),
@@ -126,11 +167,12 @@ export function meshObjects(layer: MeshLayer): SurfaceObject[] {
     smooth: false,
     sharp: true,
   }));
-  const edges = {
-    edges: u4(layer.surface.edges),
-    edgeColor: EDGE_COLOR,
-    lineWidth: 1,
-  };
+  const anyHidden = Array.prototype.some.call(layer.hidden ?? [], Boolean);
+  const edgeList = anyHidden
+    ? visibleEdges(layer.surface, parts)
+    : layer.surface.edges;
+  if (edgeList.length === 0) return objects;
+  const edges = { edges: u4(edgeList), edgeColor: EDGE_COLOR, lineWidth: 1 };
   if (objects.length > 0) Object.assign(objects[0], edges);
   else
     objects.push({

@@ -196,6 +196,39 @@ describe("Viewport", () => {
     await vi.waitFor(() => expect(viewer.handle.dispose).toHaveBeenCalled());
   });
 
+  it("colors by the chosen kind of object", async () => {
+    const { files } = meshFiles();
+    await files.add("a.vtu", new Uint8Array());
+    const store = new ModelStore();
+    store.apply([
+      { type: "add", command: mesh("a", "a.vtu") },
+      {
+        type: "add",
+        command: { command: "cellset.from_file", name: "all", mesh: "a" },
+      },
+    ]);
+    const viewer = fakeViewer();
+    render(
+      <Viewport
+        store={store}
+        files={files}
+        hidden={new Set()}
+        createViewer={viewer.create}
+      />,
+    );
+    await act(async () => {});
+    const select = screen.getByLabelText("Color by") as HTMLSelectElement;
+    // the model has cell sets, but no sections
+    expect(select.value).toBe("cellset");
+    const legend = () => viewer.handle.update.mock.lastCall![0].legend;
+    expect(legend()).toEqual([{ label: "all", color: CATEGORICAL[0] }]);
+
+    fireEvent.change(select, { target: { value: "mesh" } });
+    await act(async () => {});
+    expect(select.value).toBe("mesh");
+    expect(legend()).toBeNull();
+  });
+
   it("hides the toolbar without WebGL2", async () => {
     const { files } = meshFiles();
     await files.add("a.vtu", new Uint8Array());

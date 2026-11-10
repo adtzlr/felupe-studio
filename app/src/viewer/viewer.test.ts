@@ -77,6 +77,18 @@ describe("Viewer", () => {
     expect(handle.dispose).toHaveBeenCalled();
   });
 
+  it("sets the legend", async () => {
+    const { handle, create } = fake();
+    const viewer = new Viewer(document.createElement("div"), create);
+    viewer.setMeshes([{ name: "bar", surface, color: "#3987e5" }]);
+    viewer.setLegend([{ label: "body", color: "#3987e5" }]);
+    await tick();
+    expect(handle.update).toHaveBeenCalledTimes(1);
+    expect(handle.update.mock.lastCall![0].legend).toEqual([
+      { label: "body", color: "#3987e5" },
+    ]);
+  });
+
   it("works without WebGL2", () => {
     const { create } = fake(false);
     const viewer = new Viewer(document.createElement("div"), create);

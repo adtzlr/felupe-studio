@@ -688,6 +688,23 @@ button {
   color: var(--text);
 }
 
+.view-toolbar select {
+  height: 28px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.view-toolbar .toolbar-separator {
+  width: 1px;
+  margin: 4px 2px;
+  background: var(--border-strong);
+}
+
 /* footer: command line, status and history */
 .footer {
   background: var(--bar);
