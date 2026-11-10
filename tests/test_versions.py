@@ -15,6 +15,14 @@ def test_versions():
     assert int(v["felupe"].split(".")[0]) >= 12
 
 
+def test_app_and_package_have_the_same_version():
+    "The app and the Python package are released together (docs/release.md)."
+    app = json.loads((ROOT / "app" / "package.json").read_text())
+    lock = json.loads((ROOT / "app" / "package-lock.json").read_text())
+    assert app["version"] == felupe_studio.__version__
+    assert lock["version"] == lock["packages"][""]["version"] == app["version"]
+
+
 def test_vendored_viewer_is_felupes():
     "The vendored viewer is an unmodified copy of the viewer of the pinned FElupe."
     pinned = json.loads((ROOT / "app" / "package.json").read_text())
