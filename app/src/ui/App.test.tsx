@@ -533,7 +533,9 @@ describe("solve", () => {
 
   it("exports the script and a picture of the view", async () => {
     const download = vi.fn();
-    const script = vi.fn(async (_document: string) => "import felupe as fem\n");
+    const script = vi.fn<(document: string) => Promise<string>>(
+      async () => "import felupe as fem\n",
+    );
     const store = new ModelStore(fixture as CommandList);
     render(
       <App
@@ -564,7 +566,7 @@ describe("solve", () => {
         "import felupe as fem\n",
       ),
     );
-    expect(JSON.parse(script.mock.calls[0]![0] as string).commands).toEqual(
+    expect(JSON.parse(script.mock.calls[0][0]).commands).toEqual(
       store.commands,
     );
 
