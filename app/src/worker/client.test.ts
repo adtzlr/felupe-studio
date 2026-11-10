@@ -189,6 +189,26 @@ describe("jobs", () => {
     await expect(script).resolves.toBe("import felupe as fem\n");
   });
 
+  it("exports the results of a job", async () => {
+    const { worker, client } = start();
+    worker.reply(ready);
+    const exported = client.exportResults("job_1", "vtu", 3);
+    await vi.waitFor(() => expect(worker.sent).toHaveLength(2));
+    expect(worker.sent[1]).toEqual({
+      type: "export-results",
+      id: 1,
+      job: "job_1",
+      format: "vtu",
+      substep: 3,
+    });
+    worker.reply({
+      type: "bytes",
+      id: 1,
+      data: new Uint8Array([60, 63]).buffer,
+    });
+    expect([...(await exported)]).toEqual([60, 63]);
+  });
+
   it("loads the result scene of a substep", async () => {
     const { worker, client } = start();
     worker.reply(ready);

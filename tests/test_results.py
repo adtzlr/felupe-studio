@@ -145,3 +145,66 @@ def test_every_cell_type_and_formulation(cell_type, formulation, tmp_path, monke
             assert np.isfinite(data["values"]).all()
             # linear cells are shaded by faces, curved faces are subdivided
             assert (surface["faces"] is None) == (cell_type.endswith("0"))
+
+    # the export has the points of the cells only (no bubble points of MINI)
+    exported = meshio.read(read(results.export("job_1", "vtu"), ".vtu", tmp_path))
+    assert len(exported.points) == len(mesh.points)
+    assert {block.type for block in exported.cells} == {cell_type}
+
+
+def read(data, suffix, tmp_path):
+    path = tmp_path / f"result{suffix}"
+    path.write_bytes(data)
+    return path
+
+
+def test_export_vtu(two_materials, tmp_path):
+    namespace = two_materials
+    mesh = meshio.read(read(results.export("job_1", "vtu"), ".vtu", tmp_path))
+    field = namespace["field"]
+    assert len(mesh.points) == len(field[0].values)
+    # the blocks of the sections are read as one block of hexahedrons
+    assert [block.type for block in mesh.cells] == ["hexahedron"]
+    np.testing.assert_allclose(mesh.point_data["Displacement"], field[0].values)
+    assert mesh.point_data["Displacement"][:, 0].max() == pytest.approx(0.5)
+    sections = ["hard_body", "soft_body"]
+    section = np.concatenate(mesh.cell_data["Section"])
+    for name in ["Equivalent of Cauchy Stress", "Principal Values of Cauchy Stress"]:
+        exported = np.concatenate(mesh.cell_data[name]).reshape(len(section), -1)
+        for i, name_of_section in enumerate(sections):
+            view = fem.ViewSolid(
+                namespace[f"field_{name_of_section}"],
+                namespace[f"solid_{name_of_section}"],
+            )
+            expected = view.cell_data[name].reshape((section == i).sum(), -1)
+            np.testing.assert_allclose(
+                np.sort(exported[section == i], axis=1),
+                np.sort(expected, axis=1),
+                rtol=1e-5,
+                atol=1e-8,
+            )
+    assert sorted(set(section)) == [0, 1]
+
+    # an earlier substep
+    mesh = meshio.read(read(results.export("job_1", "vtu", 2), ".vtu", tmp_path))
+    assert mesh.point_data["Displacement"][:, 0].max() == pytest.approx(0.1)
+
+
+def test_export_xdmf(two_materials, tmp_path):
+    path = read(results.export("job_1", "xdmf"), ".xdmf", tmp_path)
+    assert not list(tmp_path.glob("*.h5"))
+    reader = meshio.xdmf.TimeSeriesReader(str(path))
+    points, cells = reader.read_points_cells()
+    assert {block.type for block in cells} == {"hexahedron"}
+    assert sum(len(block.data) for block in cells) == 192
+    assert reader.num_steps == 6
+    for k, moved in enumerate(np.linspace(0, 0.5, 6)):
+        time, point_data, cell_data = reader.read_data(k)
+        assert time == k + 1
+        assert point_data["Displacement"][:, 0].max() == pytest.approx(moved, abs=1e-12)
+        assert set(cell_data) == {*results.EXPORTED, "Section"}
+
+    with pytest.raises(KeyError):
+        results.export("job_2", "xdmf")
+    with pytest.raises(ValueError):
+        results.export("job_1", "stl")

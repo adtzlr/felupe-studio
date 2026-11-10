@@ -405,6 +405,7 @@ describe("solve", () => {
       },
     );
     const download = vi.fn();
+    const exportResults = vi.fn(async () => new Uint8Array([1]));
     const scene = (label: string): ResultScene => ({
       label,
       at: "point",
@@ -415,7 +416,11 @@ describe("solve", () => {
       <App
         store={new ModelStore(fixture as CommandList)}
         files={await files()}
-        client={client(Promise.resolve(readyValue), { ...jobs, resultScene })}
+        client={client(Promise.resolve(readyValue), {
+          ...jobs,
+          resultScene,
+          exportResults,
+        })}
         download={download}
       />,
     );
@@ -529,6 +534,37 @@ describe("solve", () => {
     expect(
       screen.getByRole("region", { name: "Force-displacement curve" }),
     ).toBeTruthy();
+
+    // the results of the job and of the shown substep as files
+    const exportItem = (name: RegExp) => {
+      fireEvent.click(screen.getByRole("button", { name: "Export" }));
+      return within(screen.getByRole("list", { name: "Exports" })).getByRole(
+        "button",
+        { name },
+      );
+    };
+    expect(exportItem(/Results of the substep/).textContent).toContain(
+      "Substep 5 of job_1",
+    );
+    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.click(exportItem(/Results of the substep/));
+    await waitFor(() =>
+      expect(download).toHaveBeenCalledWith(
+        "untitled-job_1-5.vtu",
+        expect.any(Blob),
+      ),
+    );
+    fireEvent.click(exportItem(/Results of the job/));
+    await waitFor(() =>
+      expect(download).toHaveBeenCalledWith(
+        "untitled-job_1.xdmf",
+        expect.any(Blob),
+      ),
+    );
+    expect(exportResults.mock.calls).toEqual([
+      ["job_1", "vtu", 5],
+      ["job_1", "xdmf", undefined],
+    ]);
   });
 
   it("exports the script and a picture of the view", async () => {
@@ -569,6 +605,12 @@ describe("solve", () => {
     expect(JSON.parse(script.mock.calls[0][0]).commands).toEqual(
       store.commands,
     );
+
+    open();
+    expect(item(/Results of the job/).textContent).toContain(
+      "Solve the model first.",
+    );
+    fireEvent.keyDown(document, { key: "Escape" });
 
     // without a view, the picture is not exported
     open();

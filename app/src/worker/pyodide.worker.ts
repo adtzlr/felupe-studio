@@ -178,6 +178,28 @@ function script(id: number, document: string) {
   }
 }
 
+/** The results of a job of the last run as a VTU file (a substep) or XDMF file. */
+function exportResults(
+  id: number,
+  job: string,
+  format: "vtu" | "xdmf",
+  substep?: number,
+) {
+  const results = python().pyimport("felupe_studio.results");
+  try {
+    const proxy = results.export(job, format, substep ?? null);
+    const bytes = proxy.toJs() as Uint8Array;
+    proxy.destroy();
+    const data = bytes.buffer.slice(
+      bytes.byteOffset,
+      bytes.byteOffset + bytes.byteLength,
+    ) as ArrayBuffer;
+    post({ type: "bytes", id, data }, [data]);
+  } finally {
+    results.destroy();
+  }
+}
+
 function benchmark(id: number, sizes: number[]) {
   const module = python().pyimport("felupe_studio.benchmark");
   try {
@@ -217,6 +239,13 @@ ctx.onmessage = async (event: MessageEvent<ToWorker>) => {
         return await run(message.id, message.document);
       case "script":
         return script(message.id, message.document);
+      case "export-results":
+        return exportResults(
+          message.id,
+          message.job,
+          message.format,
+          message.substep,
+        );
       case "result":
         return result(
           message.id,

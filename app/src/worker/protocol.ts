@@ -179,6 +179,14 @@ export type ToWorker =
   | { type: "run"; id: number; document: string }
   | { type: "script"; id: number; document: string }
   | {
+      type: "export-results";
+      id: number;
+      job: string;
+      format: "vtu" | "xdmf";
+      /** The substep of a VTU file (the last one by default). */
+      substep?: number;
+    }
+  | {
       type: "result";
       id: number;
       job: string;
@@ -201,5 +209,6 @@ export type FromWorker =
   | { type: "job-result"; id: number; results: Record<string, JobResult> }
   | { type: "result-scene"; id: number; scene: ResultScene }
   | { type: "text"; id: number; text: string }
+  | { type: "bytes"; id: number; data: ArrayBuffer }
   | { type: "done"; id: number }
   | { type: "error"; id?: number; message: string };
