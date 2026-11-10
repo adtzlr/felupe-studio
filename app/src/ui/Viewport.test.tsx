@@ -5,6 +5,7 @@ import {
   fireEvent,
   render,
   screen,
+  within,
 } from "@testing-library/preact";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Command } from "../core/commands";
@@ -525,6 +526,81 @@ describe("Viewport", () => {
     rerender(view(undefined, ["control", "corner"]));
     await act(async () => {});
     expect(markers()).toEqual([]);
+  });
+
+  it("offers control points at the center of point sets, faces and nodes (#96)", async () => {
+    const { files } = meshFiles();
+    await files.add("a.vtu", new Uint8Array());
+    const store = new ModelStore();
+    store.apply([
+      { type: "add", command: mesh("a", "a.vtu") },
+      {
+        type: "add",
+        command: {
+          command: "pointset.add",
+          name: "bottom",
+          select: { axis: "y", value: 0 },
+        },
+      },
+    ]);
+    const viewer = fakeViewer();
+    const create = vi.fn();
+    const view = (selected?: string) => (
+      <Viewport
+        store={store}
+        files={files}
+        hidden={new Set()}
+        selected={selected}
+        onCreateControlPoint={create}
+        createViewer={viewer.create}
+        showNodes
+      />
+    );
+    const { rerender } = render(view("bottom"));
+    await act(async () => {});
+    // the selected point set: (0, 0, 0) and (1, 0, 0)
+    const panel = screen.getByRole("status", { name: "Selected point set" });
+    expect(panel.textContent).toContain(
+      "bottom · 2 points · center (0.5, 0, 0)",
+    );
+    fireEvent.click(
+      within(panel).getByRole("button", { name: "Control point at center" }),
+    );
+    expect(create).toHaveBeenLastCalledWith({
+      name: "control_bottom",
+      coordinates: [0.5, 0, 0],
+    });
+
+    // a picked face: the plane z = 0 with all three nodes
+    rerender(view());
+    await act(async () => {});
+    const canvas = viewer.handle.root.querySelector("canvas")!;
+    const click = (x: number, y: number) =>
+      act(async () => {
+        canvas.dispatchEvent(
+          new MouseEvent("click", { bubbles: true, clientX: x, clientY: y }),
+        );
+      });
+    await click(55, 45);
+    const face = screen.getByRole("status", { name: "Picked face" });
+    fireEvent.click(
+      within(face).getByRole("button", { name: "Control point at center" }),
+    );
+    expect(create).toHaveBeenLastCalledWith({
+      name: "control_z_min",
+      coordinates: [0.5, 0.5, 0],
+    });
+
+    // a picked node
+    await click(40, 60);
+    const nodes = screen.getByRole("status", { name: "Picked nodes" });
+    fireEvent.click(
+      within(nodes).getByRole("button", { name: "Control point at center" }),
+    );
+    expect(create).toHaveBeenLastCalledWith({
+      name: "control",
+      coordinates: [0, 0, 0],
+    });
   });
 
   it("draws the boundaries and load cases (#82)", async () => {

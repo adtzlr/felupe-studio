@@ -12,6 +12,8 @@ import {
 import { axisOf, type Vec3 } from "../viewer/picking";
 import {
   type CoordinateSelect,
+  centerOf,
+  controlName,
   exactNode,
   missingPoints,
   nodesName,
@@ -54,6 +56,11 @@ interface Props {
   active?: boolean;
   /** Set to a function that returns a PNG of the view (none without a view). */
   capture?: Capture;
+  /** Create a control point, e.g. at the center of a point set (opens the dialog). */
+  onCreateControlPoint?: (preset: {
+    name: string;
+    coordinates: [number, number, number];
+  }) => void;
   /** Select an object, e.g. a control point picked in the viewport (#95). */
   onSelect?: (name: string) => void;
   /** Show the nodes of the meshes (#91); without, the viewport keeps its own. */
@@ -114,6 +121,7 @@ export function Viewport({
   showNodes,
   onShowNodes,
   onSelect,
+  onCreateControlPoint,
 }: Props) {
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
@@ -199,6 +207,19 @@ export function Viewport({
     const set = commands.find((c) => c.name === selected);
     return set && isPointSet(set) ? missingPoints(set.select, nodes) : [];
   }, [commands, selected, nodes]);
+
+  // the selected point set and its points, for a control point at its center (#96)
+  const selectedSet = useMemo(() => {
+    const set = commands.find((c) => c.name === selected);
+    if (!set || !isPointSet(set) || hidden.has(set.name)) return undefined;
+    const points = selectedPoints(set.select, nodes);
+    return points.length ? { name: set.name, points } : undefined;
+  }, [commands, selected, hidden, nodes]);
+  const controlAt = (points: ArrayLike<number>, of?: string) =>
+    onCreateControlPoint?.({
+      name: controlName(of, commands),
+      coordinates: centerOf(points),
+    });
 
   // a control point at a node of the meshes is merged with it (ADR 0006)
   const atNode = useMemo(() => {
@@ -376,23 +397,50 @@ export function Viewport({
           </select>
         </div>
       )}
-      {shown && available && tip && !picked && !pickedNodes.length && (
-        <div class="pick-panel tip" role="note" aria-label="Tip">
-          <span class="muted">
-            {nodesShown
-              ? "Tip: click a node to pick it, Shift+click for more nodes. Drag to rotate."
-              : "Tip: click a face to create a point set of its plane. Drag to rotate."}
-          </span>
-          <button
-            type="button"
-            class="icon-button"
-            aria-label="Dismiss the tip"
-            onClick={hideTip}
-          >
-            ×
-          </button>
-        </div>
-      )}
+      {shown &&
+        selectedSet &&
+        !picked &&
+        !pickedNodes.length &&
+        onCreateControlPoint && (
+          <div class="pick-panel" role="status" aria-label="Selected point set">
+            <span>
+              <strong>{selectedSet.name}</strong>{" "}
+              <span class="muted">
+                · {selectedSet.points.length / 3} points · center (
+                {centerOf(selectedSet.points).map(formatNumber).join(", ")})
+              </span>
+            </span>
+            <button
+              type="button"
+              class="button"
+              onClick={() => controlAt(selectedSet.points, selectedSet.name)}
+            >
+              Control point at center
+            </button>
+          </div>
+        )}
+      {shown &&
+        available &&
+        tip &&
+        !picked &&
+        !pickedNodes.length &&
+        !(selectedSet && onCreateControlPoint) && (
+          <div class="pick-panel tip" role="note" aria-label="Tip">
+            <span class="muted">
+              {nodesShown
+                ? "Tip: click a node to pick it, Shift+click for more nodes. Drag to rotate."
+                : "Tip: click a face to create a point set of its plane. Drag to rotate."}
+            </span>
+            <button
+              type="button"
+              class="icon-button"
+              aria-label="Dismiss the tip"
+              onClick={hideTip}
+            >
+              ×
+            </button>
+          </div>
+        )}
       {shown && picked && (
         <div class="pick-panel" role="status" aria-label="Picked face">
           {picked.select ? (
@@ -422,6 +470,21 @@ export function Viewport({
                   }}
                 >
                   Create point set
+                </button>
+              )}
+              {onCreateControlPoint && preview && preview.length > 0 && (
+                <button
+                  type="button"
+                  class="button"
+                  onClick={() => {
+                    controlAt(
+                      preview,
+                      planeName(picked.select!, nodes, commands),
+                    );
+                    setPicked(undefined);
+                  }}
+                >
+                  Control point at center
                 </button>
               )}
             </>
@@ -460,6 +523,18 @@ export function Viewport({
           {target && (
             <button type="button" class="button" onClick={addToTarget}>
               Add to {target.name}
+            </button>
+          )}
+          {onCreateControlPoint && (
+            <button
+              type="button"
+              class="button"
+              onClick={() => {
+                controlAt(pickedNodes.flat());
+                setPickedNodes([]);
+              }}
+            >
+              Control point at center
             </button>
           )}
           {onCreatePointSet && (

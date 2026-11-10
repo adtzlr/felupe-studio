@@ -261,7 +261,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     fields: {
       coordinates: {
         label: "Coordinates",
-        hint: "x, y, z; a point that is not a node of the meshes",
+        hint: "x, y, z; not a node of the meshes, e.g. a center moved off its face",
         default: [0, 0, 0],
       },
     },
