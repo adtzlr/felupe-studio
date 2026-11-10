@@ -42,6 +42,13 @@ CHANGES = {
         find(d, "section_soft").update(formulation="u"),
         find(d, "section_soft").pop("bulk"),
     ),
+    "MooneyRivlin without bulk": lambda d: (
+        find(d, "umat_soft").update(
+            model="MooneyRivlin", parameters={"C10": 0.4, "C01": 0.1}
+        ),
+        find(d, "section_soft").update(formulation="u"),
+        find(d, "section_soft").pop("bulk"),
+    ),
     "keyword": lambda d: find(d, "job_1").update(name="lambda"),
     "reserved name": lambda d: find(d, "job_1").update(name="field"),
     "reserved prefix": lambda d: find(d, "job_1").update(name="solid_a"),

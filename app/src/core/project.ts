@@ -108,14 +108,35 @@ export function migrate(
   return document;
 }
 
+/** The keywords of the schema that are not JSON schema, e.g. `x-label`. */
+function extensionKeywords(
+  node: unknown,
+  found = new Set<string>(),
+): Set<string> {
+  if (Array.isArray(node)) {
+    for (const item of node) extensionKeywords(item, found);
+  } else if (typeof node === "object" && node !== null) {
+    for (const [key, value] of Object.entries(node)) {
+      if (key.startsWith("x-")) found.add(key);
+      else extensionKeywords(value, found);
+    }
+  }
+  return found;
+}
+
+/** A validator of the schema that knows its extension keywords. */
+function newAjv(): Ajv2020 {
+  const ajv = new Ajv2020({ allErrors: true });
+  for (const keyword of extensionKeywords(schema)) ajv.addKeyword(keyword);
+  return ajv;
+}
+
 let validator: ReturnType<Ajv2020["compile"]> | undefined;
 
 /** Messages of the JSON schema validation of a command list (empty if valid). */
 export function schemaErrors(document: unknown): string[] {
   if (!validator) {
-    const ajv = new Ajv2020({ allErrors: true });
-    ajv.addKeyword("x-reserved");
-    validator = ajv.compile(schema);
+    validator = newAjv().compile(schema);
   }
   if (validator(document)) return [];
   return (validator.errors ?? []).map(
@@ -158,8 +179,7 @@ export function commandErrors(command: Command): string[] {
   const name = definitionOf(command);
   if (!name) return [`Unknown command '${command.command}'.`];
   if (!commandAjv) {
-    commandAjv = new Ajv2020({ allErrors: true });
-    commandAjv.addKeyword("x-reserved");
+    commandAjv = newAjv();
     commandAjv.addSchema(schema);
   }
   let validate = commandValidators.get(name);

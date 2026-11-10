@@ -97,28 +97,10 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     label: "Material",
     tab: "materials",
     prefix: "material",
+    // the labels, hints and defaults of the models and their parameters are in the
+    // material registry of the schema (x-label, description, default)
     fields: {
       model: { label: "Model", default: "NeoHooke" },
-      "parameters.mu": { label: "mu", hint: "Shear modulus", default: 1 },
-      "parameters.bulk": {
-        label: "bulk",
-        hint: "Bulk modulus; without it, use the mixed formulation",
-        placeholder: "none",
-      },
-      "parameters.lmbda": {
-        label: "lmbda",
-        hint: "First Lamé parameter",
-        default: 2,
-      },
-      "parameters.E": { label: "E", hint: "Young's modulus", default: 1 },
-      "parameters.nu": { label: "nu", hint: "Poisson's ratio", default: 0.3 },
-    },
-    options: {
-      model: {
-        NeoHooke: "Neo-Hooke",
-        NeoHookeCompressible: "Neo-Hooke (compressible)",
-        LinearElasticLargeStrain: "Linear elastic (large strain)",
-      },
     },
   },
   "section.add": {

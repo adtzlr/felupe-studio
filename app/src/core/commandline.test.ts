@@ -218,6 +218,7 @@ describe("complete", () => {
     expect(items.map((i) => i.detail)).toEqual([
       "Neo-Hooke",
       "Neo-Hooke (compressible)",
+      "Mooney-Rivlin",
       "Linear elastic (large strain)",
     ]);
     expect(items[0].value).toBe(
@@ -237,7 +238,7 @@ describe("complete", () => {
     );
     expect(line).toBe("material.add ");
     const completion = complete(line, commands);
-    line = accept(line, completion, completion.items[2]);
+    line = accept(line, completion, completion.items[3]);
     expect(line).toBe(
       'material.add {"name":"material_1","model":"LinearElasticLargeStrain","parameters":{"E":1,"nu":0.3}}',
     );

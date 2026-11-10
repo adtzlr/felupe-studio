@@ -107,7 +107,7 @@ describe("fieldSpecs", () => {
     );
   });
 
-  it("takes ranges and options from the schema and labels from the registry", () => {
+  it("takes ranges, options and the labels of materials from the schema", () => {
     const specs = fieldSpecs("material.add", find("umat_hard"));
     const nu = specs.find((s) => s.key === "parameters.nu")!;
     expect(nu.input).toMatchObject({
@@ -115,12 +115,13 @@ describe("fieldSpecs", () => {
       min: -1,
       exclusiveMax: 0.5,
     });
-    expect(nu).toMatchObject({ label: "nu", hint: "Poisson's ratio" });
+    expect(nu).toMatchObject({ label: "ν", hint: "nu: Poisson's ratio" });
     const model = specs.find((s) => s.key === "model")!;
     expect(model.input).toMatchObject({
       options: [
         { value: "NeoHooke", label: "Neo-Hooke" },
         { value: "NeoHookeCompressible", label: "Neo-Hooke (compressible)" },
+        { value: "MooneyRivlin", label: "Mooney-Rivlin" },
         {
           value: "LinearElasticLargeStrain",
           label: "Linear elastic (large strain)",
@@ -137,7 +138,7 @@ describe("fieldSpecs", () => {
     });
   });
 
-  it("has a registry label for every field of every variant", () => {
+  it("has a label for every field of every variant", () => {
     const context: Context = { commands };
     for (const type of TYPES) {
       // all variants of a command: follow every option of every variant field
@@ -145,8 +146,10 @@ describe("fieldSpecs", () => {
       for (let i = 0; i < drafts.length; i++) {
         for (const spec of fieldSpecs(type, drafts[i])) {
           if (spec.key !== "name") {
+            // from the registry, or from the schema (the material registry)
             expect(
-              REGISTRY[type].fields[spec.key],
+              REGISTRY[type].fields[spec.key]?.label ??
+                (spec.label !== spec.key ? spec.label : undefined),
               `${type} ${spec.key}`,
             ).toBeDefined();
           }

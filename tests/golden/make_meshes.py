@@ -35,6 +35,7 @@ def main():
     tag = material_tag(mesh)
 
     write_vtu(HERE / "bar_single_body" / "bar.vtu", mesh)
+    write_vtu(HERE / "bar_mooney_rivlin" / "bar.vtu", mesh)
     write_vtu(HERE / "bar_sections_tag" / "bar.vtu", mesh, {"material": [tag]})
     write_vtu(HERE / "bar_two_materials" / "bar.vtu", mesh, {"material": [tag]})
 

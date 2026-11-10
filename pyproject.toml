@@ -11,7 +11,7 @@ license-files = ["LICENSE"]
 authors = [{ name = "Andreas Dutzler" }]
 requires-python = ">=3.11"
 dynamic = ["version"]
-dependencies = ["felupe>=12.0.0", "meshio", "jsonschema>=4.18"]
+dependencies = ["felupe>=12.0.0", "meshio", "tensortrax>=0.30.0", "jsonschema>=4.18"]
 
 [project.optional-dependencies]
 test = ["pytest", "ruff"]

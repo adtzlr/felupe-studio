@@ -71,6 +71,8 @@ def schema_errors(document):
 
 
 def _reference_errors(commands):
+    from .materials import needs_bulk  # the registry reads the schema of this module
+
     keywords, reserved_names, reserved_prefixes = reserved()
     messages = []
     defined = {}  # name -> (index, command)
@@ -112,18 +114,15 @@ def _reference_errors(commands):
                     f"'{mesh['name']}' was imported without a tag."
                 )
 
-        # NeoHooke without a bulk modulus has no volumetric part
+        # a model with an optional bulk modulus has no volumetric part without it
         if cmd["command"] == "section.add" and cmd["formulation"] == "u":
             material = defined.get(cmd["material"], (None, {}))[1]
-            if (
-                material.get("command") == "material.add"
-                and material["model"] == "NeoHooke"
-                and "bulk" not in material["parameters"]
-            ):
+            if material.get("command") == "material.add" and needs_bulk(material):
                 messages.append(
                     f"commands/{i}: section '{name}' uses the displacement "
-                    f"formulation with NeoHooke '{material['name']}' without a bulk "
-                    "modulus. Add 'bulk' to the material or use 'u-p-J'."
+                    f"formulation with {material['model']} '{material['name']}' "
+                    "without a bulk modulus. Add 'bulk' to the material or use "
+                    "'u-p-J'."
                 )
 
         if cmd["command"] == "mesh.merge" and any(
