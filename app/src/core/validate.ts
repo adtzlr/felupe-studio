@@ -34,6 +34,8 @@ export const KINDS: Record<CommandType, Kind> = {
   "material.add": "material",
   "section.add": "section",
   "pointset.add": "pointset",
+  // a control point is a point set of one point (boundaries, constraints, curves)
+  "point.add": "pointset",
   "boundary.add": "boundary",
   // a load case is referenced like a boundary (ramps of steps, curves of jobs)
   "loadcase.add": "boundary",
@@ -241,6 +243,27 @@ export function validate(commands: readonly Command[]): Issue[] {
       add(`name '${name}' is already used by commands/${previous[0]}.`);
     } else {
       defined.set(name, [i, cmd]);
+    }
+  });
+
+  // a control point has no stiffness of its own
+  commands.forEach((cmd, i) => {
+    if (cmd.command !== "point.add") return;
+    const fixed = new Set(
+      commands.flatMap((c) =>
+        c.command === "boundary.add" && c.pointset === cmd.name
+          ? c.constrained
+          : [],
+      ),
+    );
+    if (fixed.size < 3) {
+      issues.push({
+        index: i,
+        name: cmd.name,
+        message:
+          `commands/${i}: control point '${cmd.name}' has no stiffness: it ` +
+          "needs a boundary of the components x, y and z.",
+      });
     }
   });
 

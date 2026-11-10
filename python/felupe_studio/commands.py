@@ -20,6 +20,8 @@ KINDS = {
     "material.add": "material",
     "section.add": "section",
     "pointset.add": "pointset",
+    # a control point is a point set of one point (boundaries, constraints, curves)
+    "point.add": "pointset",
     "boundary.add": "boundary",
     # a load case is referenced like a boundary (ramps of steps, curves of jobs)
     "loadcase.add": "boundary",
@@ -160,6 +162,20 @@ def _reference_errors(commands):
             )
         else:
             defined[name] = (i, cmd)
+
+    # a control point has no stiffness of its own
+    for i, cmd in enumerate(commands):
+        if cmd["command"] != "point.add":
+            continue
+        fixed = set()
+        for other in commands:
+            if other["command"] == "boundary.add" and other["pointset"] == cmd["name"]:
+                fixed.update(other["constrained"])
+        if fixed != {"x", "y", "z"}:
+            messages.append(
+                f"commands/{i}: control point '{cmd['name']}' has no stiffness: it "
+                "needs a boundary of the components x, y and z."
+            )
 
     return messages
 

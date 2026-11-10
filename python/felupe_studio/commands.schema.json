@@ -68,11 +68,15 @@
           "REGIONS",
           "SimpleNamespace",
           "boundaries",
+          "control_points",
           "fem",
           "field",
           "meshio",
+          "mixed_region",
           "np",
           "points",
+          "points_at",
+          "vertex_region",
           "volume_cells"
         ],
         "prefixes": ["field_", "solid_", "region_", "ramp_"]
@@ -113,6 +117,9 @@
         },
         {
           "$ref": "#/$defs/PointSetAdd"
+        },
+        {
+          "$ref": "#/$defs/PointAdd"
         },
         {
           "$ref": "#/$defs/BoundaryAdd"
@@ -511,6 +518,23 @@
               }
             }
           ]
+        }
+      }
+    },
+    "PointAdd": {
+      "description": "A control point that is not a node of the meshes, e.g. the center point of a multi-point constraint. It is a point set of one point: all control points form a mesh of vertices that is merged with the fields of the sections.",
+      "type": "object",
+      "required": ["command", "name", "coordinates"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "point.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "coordinates": {
+          "$ref": "#/$defs/Coordinates"
         }
       }
     },

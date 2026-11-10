@@ -240,3 +240,28 @@ def test_export_xdmf(two_materials, tmp_path):
         results.export("job_2", "xdmf")
     with pytest.raises(ValueError):
         results.export("job_1", "stl")
+
+
+def test_control_points_are_left_out_of_the_results(monkeypatch, tmp_path):
+    monkeypatch.chdir(GOLDEN / "bar_two_materials")
+    document = copy.deepcopy(load("bar_two_materials"))
+    commands = document["commands"]
+    first = next(i for i, c in enumerate(commands) if c["command"] == "boundary.add")
+    commands[first:first] = [
+        {"command": "point.add", "name": "control", "coordinates": [4, 0.5, 0.5]},
+        {
+            "command": "boundary.add",
+            "name": "pin",
+            "pointset": "control",
+            "constrained": ["x", "y", "z"],
+        },
+    ]
+    run(document)
+    field = LAST["field"]
+    meta, surfaces = results.scene("job_1", 6, "displacement")
+    assert json.loads(meta)["range"][1] == pytest.approx(0.5, rel=0.05)
+    assert {s["name"] for s in surfaces} == {"hard_body", "soft_body"}
+    mesh = meshio.read(read(results.export("job_1", "vtu"), ".vtu", tmp_path))
+    # the points of the cells, without the control point
+    assert len(mesh.points) == len(field[0].values) - 1
+    assert [block.type for block in mesh.cells] == ["hexahedron"]

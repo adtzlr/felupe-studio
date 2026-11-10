@@ -83,6 +83,10 @@ describe("fieldSpecs", () => {
       "constrained:multichoice*",
       "value:number",
     ]);
+    expect(summary("point.add", {} as Draft)).toEqual([
+      "name:name*",
+      "coordinates:numbers*",
+    ]);
     expect(summary("step.add", find("step_1"))).toEqual([
       "name:name*",
       "sections:reference",
@@ -536,6 +540,23 @@ describe("editing a draft", () => {
     expect(draftErrors("step.add", none, editing("step_1"))).toMatchObject({
       "ramp.items": "Add at least one row.",
     });
+  });
+
+  it("takes the coordinates of a control point as three numbers", () => {
+    const draft = initialDraft("point.add", { commands });
+    expect(draft).toEqual({
+      command: "point.add",
+      name: "control_1",
+      coordinates: [0, 0, 0],
+    });
+    const errors = (coordinates: unknown) =>
+      draftErrors("point.add", { ...draft, coordinates }, { commands });
+    expect(errors([4, 0.5, 0.5])).toEqual({});
+    expect(errors([4, 0.5])).toEqual({
+      coordinates:
+        "Enter 3 numbers, separated by commas, with a point as decimal separator.",
+    });
+    expect(errors([4, Number.NaN, 0])).toHaveProperty("coordinates");
   });
 
   it("labels the empty option of an axis by its default", () => {

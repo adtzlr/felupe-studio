@@ -41,6 +41,34 @@ CHANGES = {
     "ramp of an item twice": lambda d: find(d, "step_1")["ramp"]["items"].append(
         {"target": "move", "end": 1}
     ),
+    "control point pinned": lambda d: (
+        d["commands"].insert(
+            9, {"command": "point.add", "name": "pin", "coordinates": [4, 0, 0]}
+        ),
+        d["commands"].insert(
+            11,
+            {
+                "command": "boundary.add",
+                "name": "pinned",
+                "pointset": "pin",
+                "constrained": ["x", "y", "z"],
+            },
+        ),
+    ),
+    "control point without stiffness": lambda d: (
+        d["commands"].insert(
+            9, {"command": "point.add", "name": "pin", "coordinates": [4, 0, 0]}
+        ),
+        d["commands"].insert(
+            11,
+            {
+                "command": "boundary.add",
+                "name": "half",
+                "pointset": "pin",
+                "constrained": ["x", "y"],
+            },
+        ),
+    ),
     "duplicate name": lambda d: find(d, "soft").update(name="hard"),
     "mesh without tag": lambda d: find(d, "specimen").pop("tag"),
     "mesh with cell type": lambda d: find(d, "specimen").update(cell_type="tetra10"),
