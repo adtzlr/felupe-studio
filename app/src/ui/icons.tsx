@@ -4,6 +4,7 @@ const PATHS = {
   open: "M3 7 V19 H21 V9 H11 L9 7 Z",
   save: "M12 3 V14 M7 9 L12 14 L17 9 M4 17 V20 H20 V17",
   export: "M14 4 H20 V10 M20 4 L11 13 M18 14 V20 H4 V6 H10",
+  samples: "M4 5 H10 L12 7 H20 V19 H4 Z M8 11 H16 M8 15 H13",
   undo: "M9 6 L4 11 L9 16 M4 11 H15 A5 5 0 0 1 15 21 H11",
   redo: "M15 6 L20 11 L15 16 M20 11 H9 A5 5 0 0 0 9 21 H13",
   play: "M7 4 L19 12 L7 20 Z",

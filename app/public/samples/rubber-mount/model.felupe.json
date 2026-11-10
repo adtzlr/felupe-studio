@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "commands": [
+    {
+      "command": "mesh.import",
+      "name": "mount",
+      "file": "mount.vtu",
+      "tag": "part"
+    },
+    {
+      "command": "cellset.from_tag",
+      "name": "bottom_plate",
+      "mesh": "mount",
+      "value": 1
+    },
+    {
+      "command": "cellset.from_tag",
+      "name": "rubber_layer",
+      "mesh": "mount",
+      "value": 2
+    },
+    {
+      "command": "cellset.from_tag",
+      "name": "top_plate",
+      "mesh": "mount",
+      "value": 3
+    },
+    {
+      "command": "material.add",
+      "name": "steel",
+      "model": "LinearElasticLargeStrain",
+      "parameters": {
+        "E": 210000,
+        "nu": 0.3
+      }
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "MooneyRivlin",
+      "parameters": {
+        "C10": 0.4,
+        "C01": 0.1
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "bottom",
+      "cellset": "bottom_plate",
+      "material": "steel",
+      "formulation": "u"
+    },
+    {
+      "command": "section.add",
+      "name": "block",
+      "cellset": "rubber_layer",
+      "material": "rubber",
+      "formulation": "u-p-J",
+      "bulk": 2000
+    },
+    {
+      "command": "section.add",
+      "name": "top",
+      "cellset": "top_plate",
+      "material": "steel",
+      "formulation": "u"
+    },
+    {
+      "command": "loadcase.add",
+      "name": "shear",
+      "type": "shear",
+      "axis": "x",
+      "normal": "z",
+      "symmetry": false
+    },
+    {
+      "command": "step.add",
+      "name": "shearing",
+      "ramp": {
+        "boundary": "shear",
+        "end": 20,
+        "num": 10
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job",
+      "steps": [
+        "shearing"
+      ],
+      "curve": "shear"
+    }
+  ]
+}

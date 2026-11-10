@@ -12,7 +12,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import projectText from "../../../tests/data/two_sections.felupe.json?raw";
 import fixture from "../../../tests/data/two_sections.json";
 import type { CommandList } from "../core/commands";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { MeshFiles } from "../core/meshfiles";
+import { SAMPLES } from "../core/samples";
 import { ModelStore } from "../core/store";
 import type { PyodideClient, Ready } from "../worker/client";
 import type { JobEvent, JobResult, ResultScene } from "../worker/protocol";
@@ -641,5 +644,68 @@ describe("solve", () => {
     render(<App store={new ModelStore(fixture as CommandList)} />);
     expect(solveButton().getAttribute("aria-disabled")).toBe("true");
     expect(solveButton().title).toBe("Load the mesh files of the model first.");
+  });
+});
+
+describe("samples", () => {
+  const serve = (async (url: string | URL | Request) => {
+    // the files of public/ (the working directory of the tests is app/)
+    const path = new URL(String(url)).pathname.replace(/^\//, "");
+    const file = resolve("public", path);
+    return existsSync(file)
+      ? new Response(readFileSync(file))
+      : new Response("", { status: 404 });
+  }) as typeof fetch;
+
+  it("opens a sample like a project with its mesh files", async () => {
+    const store = new ModelStore();
+    render(<App store={store} fetchSample={serve} />);
+    // the empty model offers the samples, like the header
+    fireEvent.click(screen.getByRole("button", { name: "Open a sample" }));
+    const dialog = screen.getByRole("dialog", { name: "Samples" });
+    expect(within(dialog).queryByRole("note")).toBeNull();
+    const samples = within(dialog)
+      .getAllByRole("listitem")
+      .filter((item) => item.querySelector("h3"));
+    expect(
+      samples.map((item) => item.querySelector("h3")?.textContent),
+    ).toEqual(SAMPLES.map((sample) => sample.title));
+    const mount = samples.find((item) =>
+      item.textContent?.includes("Rubber mount in shear"),
+    )!;
+    expect(mount.textContent).toContain("Mooney-Rivlin");
+    fireEvent.click(within(mount).getByRole("button", { name: /Open/ }));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Samples" })).toBeNull(),
+    );
+    const text = readFileSync(
+      resolve("public/samples/rubber-mount/model.felupe.json"),
+      "utf8",
+    );
+    expect(store.commands).toEqual(JSON.parse(text).commands);
+    expect(screen.getByRole("banner").textContent).toContain(
+      "rubber-mount.felupe.json",
+    );
+  });
+
+  it("warns before replacing changes and reports a missing file", async () => {
+    const store = new ModelStore(fixture as CommandList);
+    const missing = (async () =>
+      new Response("", { status: 404 })) as typeof fetch;
+    render(<App store={store} fetchSample={missing} />);
+    act(() => store.apply({ type: "remove", name: "job_1" }));
+    fireEvent.click(screen.getByRole("button", { name: "Samples" }));
+    const dialog = screen.getByRole("dialog", { name: "Samples" });
+    expect(within(dialog).getByRole("note").textContent).toContain(
+      "unsaved changes",
+    );
+    fireEvent.click(within(dialog).getAllByRole("button", { name: "Open" })[0]);
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain(
+        "The sample could not be opened.",
+      ),
+    );
+    expect(store.commands).not.toContain(undefined);
+    expect(screen.queryByRole("dialog", { name: "Samples" })).toBeNull();
   });
 });

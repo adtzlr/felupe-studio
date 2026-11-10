@@ -1,0 +1,54 @@
+[
+  {
+    "id": "two-materials",
+    "title": "Bar of two materials",
+    "description": "A bar with a stiff and a soft half from a cell tag, pulled at its clamped end.",
+    "topics": [
+      "VTU cell tag",
+      "u and u-p-J",
+      "force-displacement curve"
+    ],
+    "files": [
+      "bar.vtu"
+    ]
+  },
+  {
+    "id": "material-test",
+    "title": "Material test: uniaxial tension",
+    "description": "An eighth of a cube with symmetry planes, stretched to twice its length; the curve is the analytical one of the incompressible Neo-Hooke model.",
+    "topics": [
+      "load case",
+      "symmetry",
+      "u-p-J"
+    ],
+    "files": [
+      "cube.vtu"
+    ]
+  },
+  {
+    "id": "hex-tet-gmsh",
+    "title": "Hexahedrons and tetrahedrons",
+    "description": "A Gmsh file with hexahedrons and tetrahedrons, one mesh per type of cells, both nearly incompressible.",
+    "topics": [
+      "Gmsh",
+      "two cell types",
+      "MINI element"
+    ],
+    "files": [
+      "bar.msh"
+    ]
+  },
+  {
+    "id": "rubber-mount",
+    "title": "Rubber mount in shear",
+    "description": "A rubber layer bonded between two steel plates, sheared by the top plate by its thickness.",
+    "topics": [
+      "Mooney-Rivlin",
+      "three sections",
+      "shear load case"
+    ],
+    "files": [
+      "mount.vtu"
+    ]
+  }
+]

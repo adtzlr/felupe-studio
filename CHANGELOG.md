@@ -2,6 +2,16 @@
 
 All notable changes of FElupe Studio (the web app and the Python package `felupe_studio`, released together with the same version).
 
+## [Unreleased]
+
+### Added
+
+- Samples (header and empty model): four finished models with their mesh files, opened like a project file (#32).
+
+### Fixed
+
+- `u-p-J` with tetrahedrons in a model with more than one section (#76).
+
 ## [0.1.0] - 2026-11-10
 
 The first release: a model of hyperelastic solids, from mesh files to results, in the browser.

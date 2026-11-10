@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "commands": [
+    {
+      "command": "mesh.import",
+      "name": "bar_hexahedron",
+      "file": "bar.msh",
+      "cell_type": "hexahedron"
+    },
+    {
+      "command": "mesh.import",
+      "name": "bar_tetra",
+      "file": "bar.msh",
+      "cell_type": "tetra"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "hexahedrons",
+      "mesh": "bar_hexahedron"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "tetrahedrons",
+      "mesh": "bar_tetra"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 1
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "hex_part",
+      "cellset": "hexahedrons",
+      "material": "rubber",
+      "formulation": "u-p-J",
+      "bulk": 5000
+    },
+    {
+      "command": "section.add",
+      "name": "tet_part",
+      "cellset": "tetrahedrons",
+      "material": "rubber",
+      "formulation": "u-p-J",
+      "bulk": 5000
+    },
+    {
+      "command": "pointset.add",
+      "name": "left",
+      "select": {
+        "axis": "x",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "right",
+      "select": {
+        "axis": "x",
+        "value": 30
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "left",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "pull",
+      "pointset": "right",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "step.add",
+      "name": "tension",
+      "ramp": {
+        "boundary": "pull",
+        "end": 15,
+        "num": 5
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job",
+      "steps": [
+        "tension"
+      ],
+      "curve": "pull"
+    }
+  ]
+}
