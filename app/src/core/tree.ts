@@ -68,9 +68,13 @@ function detail(cmd: Command): string {
         ? `${cmd.ramp.boundary}: ${cmd.ramp.start ?? 0} → ${cmd.ramp.end} (${cmd.ramp.num})`
         : "no ramp";
     case "job.add":
-      return cmd.curve
-        ? `${cmd.steps.join(", ")} · curve ${cmd.curve}`
-        : cmd.steps.join(", ");
+      return [
+        cmd.steps.join(", "),
+        cmd.curve && `curve ${cmd.curve}`,
+        cmd.cutback && "cutback",
+      ]
+        .filter(Boolean)
+        .join(" · ");
   }
 }
 

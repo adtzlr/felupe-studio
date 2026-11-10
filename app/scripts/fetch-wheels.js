@@ -1,4 +1,5 @@
-// Download the pure-Python wheels that Pyodide does not ship (FElupe, meshio) into
+// Download the pure-Python wheels that Pyodide does not ship (FElupe, meshio,
+// tensortrax) into
 // public/wheels, so the app loads them from its own origin (#40). Versions and
 // SHA-256 are pinned in package.json (config.wheels). Runs before dev and build.
 import { createHash } from "node:crypto";

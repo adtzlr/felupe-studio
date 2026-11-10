@@ -38,7 +38,7 @@ The JSON schema [`python/felupe_studio/commands.schema.json`](../python/felupe_s
 | `boundary.add`      | boundary                    | point set                                | `fem.Boundary` on the merged field, `constrained` components                                                                                                         |
 | `loadcase.add`      | boundary (a group)          |                                          | `fem.dof.uniaxial`, `fem.dof.biaxial` (also planar), `fem.dof.shear` on the merged field                                                                             |
 | `step.add`          | step                        | sections (default: all), ramped boundary | `fem.Step`, `fem.math.linsteps([start, end], num)`                                                                                                                   |
-| `job.add`           | job                         | steps, curve boundary                    | `fem.Job` or `fem.CharacteristicCurve`                                                                                                                               |
+| `job.add`           | job                         | steps, curve boundary                    | `fem.Job` or `fem.CharacteristicCurve`, with `cutback`: `plugins=[fem.CutbackPlugin()]`                                                                              |
 
 ## Load cases
 
@@ -191,3 +191,13 @@ The viewport draws the imported meshes with the WebGL2 viewer of FElupe ([ADR 00
 - **Updates:** the build writes `version.json` with the build (the commit on GitHub Pages). An open app asks for it every ten minutes and when the page becomes visible again, without the HTTP cache, and offers **Reload** once a newer version is deployed; with a model, it asks to save the project first, because the project and its mesh files are not kept across a reload yet (#57).
 - The toolbar fits the model into the view and sets the camera onto the xy-, xz- or yz-plane or isometric. Drag to rotate, shift-drag (or right-drag) to pan, scroll to zoom, double-click to reset. The camera fits the model when it is first shown and keeps its rotation, zoom and pan while the model changes.
 - The app talks to the viewer only through the adapter `app/src/viewer/viewer.ts`: meshes with colors of groups of cells and hidden cells, the legend, point markers, arrows and camera presets. The scenes are built by pure functions (`app/src/viewer/scene.ts`), tested without WebGL.
+
+## Running jobs (app)
+
+**Solve** (header) runs the jobs of the model in the Pyodide worker. It is offered for a valid model with a job and loaded mesh files, once Python is loaded; otherwise its tooltip says what is missing.
+
+- `felupe_studio.runner.run()` runs the generated script (`codegen(..., evaluate=False)`) and evaluates every job with a plugin (`fem.Plugin`) that reports the progress: the substeps of every step at the start, then every substep, Newton iteration (norm of the residuals), failed attempt and converged substep. The worker posts these events to the main thread while Python runs. The results are the number of substeps and the time per job and, for a characteristic curve, the displacements and forces of its boundary per substep (three components each). The namespace of the last run is kept in Python (`runner.LAST`) for the results of #28.
+- The panel in the viewport shows the job, step, substep and Newton iteration with a progress bar, then the time per job and the force at the last substep of a curve. A failed run shows the exception and the full Python traceback; a failed Newton-Raphson method also suggests more substeps or the cutback.
+- **Cutback** is a setting of the job (`cutback`, also in the generated script): `fem.CutbackPlugin` retries a substep that does not converge with smaller increments. The panel counts these attempts.
+- **Cancel:** Python runs synchronously in the worker, so a run is cancelled by terminating the worker. A new worker loads Python again (Pyodide and the wheels come from the cache) and gets the mesh files again (`PyodideClient.restart()`).
+- **tensortrax** (Mooney-Rivlin) is a pinned wheel that is loaded only before the first run of a model with one of its materials (`lazy` in `config.wheels`), so it does not add to the start-up time. FElupe was imported before, so `load_tensortrax()` reloads `felupe.constitution` to make `fem.Hyperelastic` available.

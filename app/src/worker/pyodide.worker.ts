@@ -5,6 +5,8 @@ import { type RawSurface, toSurfaces, transferables } from "./surface";
 import type {
   BenchmarkResult,
   FromWorker,
+  JobEvent,
+  JobResult,
   MeshInfo,
   ToWorker,
   Versions,
@@ -12,6 +14,8 @@ import type {
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 let pyodide: PyodideInterface | undefined;
+/** Wheels that are loaded only when they are needed (e.g. tensortrax). */
+let lazyWheels: Record<string, string> = {};
 
 /** The package felupe_studio, written into the file system of Pyodide. */
 const SOURCES = import.meta.glob("../../../python/felupe_studio/*.{py,json}", {
@@ -33,7 +37,12 @@ function python(): PyodideInterface {
   return pyodide;
 }
 
-async function init(pyodideVersion: string, wheels: string[]) {
+async function init(
+  pyodideVersion: string,
+  wheels: string[],
+  lazy: Record<string, string> = {},
+) {
+  lazyWheels = lazy;
   const t0 = performance.now();
   const indexURL = `https://cdn.jsdelivr.net/pyodide/v${pyodideVersion}/full/`;
   const { loadPyodide } = (await import(
@@ -105,6 +114,31 @@ function inspectMesh(id: number, name: string) {
   }
 }
 
+/**
+ * Run the jobs of a command list with progress. Models of tensortrax load the
+ * tensortrax wheel first. Python runs synchronously: a job is cancelled by
+ * terminating the worker.
+ */
+async function run(id: number, document: string) {
+  const py = python();
+  const runner = py.pyimport("felupe_studio.runner");
+  try {
+    if (runner.uses_tensortrax(document) && lazyWheels.tensortrax) {
+      await py.loadPackage([lazyWheels.tensortrax]);
+    }
+    const report = (text: string) =>
+      post({ type: "job-progress", id, event: JSON.parse(text) as JobEvent });
+    const results = runner.run_json(document, report) as string;
+    post({
+      type: "job-result",
+      id,
+      results: JSON.parse(results) as Record<string, JobResult>,
+    });
+  } finally {
+    runner.destroy();
+  }
+}
+
 function benchmark(id: number, sizes: number[]) {
   const module = python().pyimport("felupe_studio.benchmark");
   try {
@@ -129,13 +163,19 @@ ctx.onmessage = async (event: MessageEvent<ToWorker>) => {
   try {
     switch (message.type) {
       case "init":
-        return await init(message.pyodideVersion, message.wheels);
+        return await init(
+          message.pyodideVersion,
+          message.wheels,
+          message.lazyWheels,
+        );
       case "benchmark":
         return benchmark(message.id, message.sizes);
       case "write-file":
         return writeFile(message.id, message.name, message.data);
       case "inspect-mesh":
         return inspectMesh(message.id, message.name);
+      case "run":
+        return await run(message.id, message.document);
     }
   } catch (error) {
     post({

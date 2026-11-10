@@ -298,9 +298,10 @@ def codegen(document, evaluate=True):
             args = [_List(job["steps"], prefix="steps=")]
             if "curve" in job:
                 args.append(f"boundary={curve(job['curve'])}")
-                out.append(_call(job["name"], "fem.CharacteristicCurve", args))
-            else:
-                out.append(_call(job["name"], "fem.Job", args))
+            if job.get("cutback", False):
+                args.append("plugins=[fem.CutbackPlugin()]")
+            func = "fem.CharacteristicCurve" if "curve" in job else "fem.Job"
+            out.append(_call(job["name"], func, args))
         if evaluate:
             out.append("")
             out.extend(f"{job['name']}.evaluate(x0=field)" for job in jobs)

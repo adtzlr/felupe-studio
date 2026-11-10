@@ -13,6 +13,11 @@
       "meshio": {
         "version": "5.3.5",
         "sha256": "0736c6e34ecc768f62f2cde5d8233a3529512a9399b25c68ea2ca0d5900cdc10"
+      },
+      "tensortrax": {
+        "version": "0.30.0",
+        "sha256": "0f095e10d67374641f99acbb9e06d78d4f231a5b7055f5ff91ca48480c17a613",
+        "lazy": true
       }
     }
   },

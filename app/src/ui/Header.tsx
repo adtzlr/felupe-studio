@@ -1,24 +1,29 @@
 import { APP_NAME, formatVersion } from "../app";
 import type { ModelStore } from "../core/store";
-import type { Runtime } from "./hooks";
 import { Icon } from "./icons";
 
 interface Props {
   store: ModelStore;
   fileName: string;
   modified: boolean;
-  runtime: Runtime;
   onOpen: () => void;
   onSave: () => void;
+  solve: {
+    /** Why the jobs cannot be run, if so. */
+    blocker?: string;
+    running: boolean;
+    onSolve: () => void;
+    onCancel: () => void;
+  };
 }
 
 export function Header({
   store,
   fileName,
   modified,
-  runtime,
   onOpen,
   onSave,
+  solve,
 }: Props) {
   return (
     <header class="header">
@@ -71,19 +76,31 @@ export function Header({
         {modified && <span aria-label="modified"> •</span>}
       </div>
       <div class="header-group">
-        <button
-          type="button"
-          class="button"
-          disabled
-          title={
-            runtime.state === "ready"
-              ? "Running jobs is not available yet."
-              : "Python is still loading."
-          }
-        >
-          <Icon name="play" size={12} />
-          Solve
-        </button>
+        {solve.running ? (
+          <button type="button" class="button" onClick={solve.onCancel}>
+            <Icon name="stop" size={12} />
+            Cancel
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              class="button primary"
+              aria-disabled={solve.blocker ? true : undefined}
+              aria-describedby={solve.blocker ? "solve-blocker" : undefined}
+              title={solve.blocker ?? "Run the jobs of the model"}
+              onClick={() => !solve.blocker && solve.onSolve()}
+            >
+              <Icon name="play" size={12} />
+              Solve
+            </button>
+            {solve.blocker && (
+              <span id="solve-blocker" hidden>
+                {solve.blocker}
+              </span>
+            )}
+          </>
+        )}
       </div>
     </header>
   );

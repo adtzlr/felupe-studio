@@ -48,6 +48,10 @@ describe("deriveTree", () => {
     expect(find(tree, "move")!.detail).toBe("right · x");
     expect(find(tree, "step_1")!.detail).toBe("move: 0 → 0.5 (5)");
     expect(find(tree, "job_1")!.detail).toBe("step_1 · curve move");
+    const jobs = commands.map((c) =>
+      c.command === "job.add" ? { ...c, curve: undefined, cutback: true } : c,
+    );
+    expect(find(deriveTree(jobs), "job_1")!.detail).toBe("step_1 · cutback");
   });
 
   it("shows the merge group only with a merge command", () => {

@@ -256,6 +256,19 @@ def test_point_ids_and_job_without_curve(two_sections, tmp_path, monkeypatch):
     assert not isinstance(namespace["job_1"], fem.CharacteristicCurve)
 
 
+def test_cutback(two_sections, tmp_path, monkeypatch):
+    mesh, tag = bar()
+    write(tmp_path / "specimen.vtu", mesh, tag)
+    assert "CutbackPlugin" not in codegen(two_sections)
+    for cmd in two_sections["commands"]:
+        if cmd["command"] == "job.add":
+            cmd["cutback"] = True
+    assert "plugins=[fem.CutbackPlugin()]" in codegen(two_sections)
+    namespace = run(two_sections, tmp_path, monkeypatch)
+    plugins = namespace["job_1"].dispatcher.plugins
+    assert any(isinstance(p, fem.CutbackPlugin) for p in plugins)
+
+
 def test_merge_decimals(two_sections):
     assert "fem.field.merge([field_section_hard, field_section_soft])" in codegen(
         two_sections

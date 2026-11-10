@@ -422,4 +422,8 @@ export interface JobAdd {
    */
   steps: [Name, ...Name[]];
   curve?: Name;
+  /**
+   * Retry a substep that does not converge with smaller increments (fem.CutbackPlugin).
+   */
+  cutback?: boolean;
 }
