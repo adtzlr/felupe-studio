@@ -346,11 +346,24 @@ describe("drafts", () => {
       expect(schemaAccepts(draft(ids))).toBe(false);
   });
 
-  it("offers only objects that are defined before the edited one", () => {
+  it("offers all objects of a kind, also the ones created later (#80)", () => {
     expect(available({ commands }, "material")).toEqual([
       "umat_hard",
       "umat_soft",
     ]);
+    // a material after the edited section, but not the edited object itself
+    const later = [
+      ...commands,
+      {
+        command: "material.add",
+        name: "later",
+        model: "NeoHooke",
+        parameters: { mu: 1 },
+      },
+    ] as Command[];
+    expect(
+      available({ commands: later, editing: "section_hard" }, "material"),
+    ).toEqual(["umat_hard", "umat_soft", "later"]);
     expect(available(editing("umat_soft"), "material")).toEqual(["umat_hard"]);
     expect(available(editing("section_hard"), "cellset")).toEqual([
       "hard",
@@ -358,9 +371,9 @@ describe("drafts", () => {
     ]);
 
     const context = editing("section_hard");
-    const draft = { ...find("section_hard"), material: "later" };
+    const draft = { ...find("section_hard"), material: "missing" };
     expect(draftErrors("section.add", draft, context).material).toBe(
-      "There is no material 'later' before this object.",
+      "There is no material 'missing'.",
     );
     const none = draftErrors(
       "job.add",

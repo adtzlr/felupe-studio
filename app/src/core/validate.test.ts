@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import cases from "../../../tests/data/validation_cases.json";
 import type { Command } from "./commands";
 import { NAME_MAX_LENGTH, RESERVED_KEYWORDS, SCHEMA_VERSION } from "./schema";
-import { nameProblem, references, validate } from "./validate";
+import { nameProblem, order, references, validate } from "./validate";
 
 describe("validate", () => {
   // the same cases and messages as the Python validation
@@ -56,5 +56,71 @@ describe("references", () => {
       { field: "sections", name: "b" },
       { field: "ramp", name: "move" },
     ]);
+  });
+});
+
+describe("order", () => {
+  const command = (
+    name: string,
+    kind: string,
+    refs: Record<string, unknown> = {},
+  ) => ({ command: kind, name, ...refs }) as unknown as Command;
+  const names = (commands: Command[]) => commands.map((c) => c.name);
+
+  it("keeps an ordered list", () => {
+    const list = [
+      command("mesh", "mesh.import"),
+      command("cells", "cellset.from_file", { mesh: "mesh" }),
+      command("rubber", "material.add"),
+      command("body", "section.add", { cellset: "cells", material: "rubber" }),
+    ];
+    expect(order(list)).toEqual(list);
+  });
+
+  it("moves a command and its dependents behind a later reference", () => {
+    const list = [
+      command("mesh", "mesh.import"),
+      command("cells", "cellset.from_file", { mesh: "mesh" }),
+      command("body", "section.add", { cellset: "cells", material: "steel" }),
+      command("left", "pointset.add"),
+      command("fixed", "boundary.add", { pointset: "left" }),
+      command("step", "step.add", {
+        sections: ["body"],
+        ramp: { boundary: "fixed" },
+      }),
+      command("job", "job.add", { steps: ["step"] }),
+      command("steel", "material.add"),
+    ];
+    expect(names(order(list))).toEqual([
+      "mesh",
+      "cells",
+      "left",
+      "fixed",
+      "steel",
+      "body",
+      "step",
+      "job",
+    ]);
+    // a point set created after its boundary
+    const boundary = [
+      command("fixed", "boundary.add", { pointset: "left" }),
+      command("mesh", "mesh.import"),
+      command("left", "pointset.add"),
+    ];
+    expect(names(order(boundary))).toEqual(["mesh", "left", "fixed"]);
+  });
+
+  it("does not move a command for a reference to a missing object", () => {
+    const list = [
+      command("body", "section.add", {
+        cellset: "missing",
+        material: "rubber",
+      }),
+      command("other", "material.add"),
+    ];
+    expect(names(order(list))).toEqual(["body", "other"]);
+    // the material that the section references comes later
+    list.push(command("rubber", "material.add"));
+    expect(names(order(list))).toEqual(["other", "rubber", "body"]);
   });
 });

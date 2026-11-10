@@ -137,7 +137,7 @@ describe("editing in the properties panel", () => {
     ).toContain("without a bulk modulus");
   });
 
-  it("offers the objects defined before as references", () => {
+  it("offers the objects of a kind as references", () => {
     const { store, field, button, choose } = edit("section_hard");
     const options = [...field<HTMLSelectElement>("Material").options].map(
       (o) => o.value,
@@ -146,6 +146,37 @@ describe("editing in the properties panel", () => {
     choose("Cell set", "soft");
     fireEvent.click(button("Apply"));
     expect(store.get("section_hard")).toMatchObject({ cellset: "soft" });
+  });
+
+  it("offers a material that was created later (#80)", () => {
+    const { store, field, button, choose } = edit("section_hard");
+    act(() =>
+      store.apply({
+        type: "add",
+        command: {
+          command: "material.add",
+          name: "later",
+          model: "NeoHooke",
+          parameters: { mu: 2, bulk: 5000 },
+        },
+      }),
+    );
+    const options = [...field<HTMLSelectElement>("Material").options].map(
+      (o) => o.value,
+    );
+    expect(options).toEqual(["umat_hard", "umat_soft", "later"]);
+    choose("Material", "later");
+    fireEvent.click(button("Apply"));
+    expect(store.get("section_hard")).toMatchObject({ material: "later" });
+    // the section moved behind the material; the model has no issues
+    const names = store.commands.map((c) => c.name);
+    expect(names.indexOf("section_hard")).toBeGreaterThan(
+      names.indexOf("later"),
+    );
+    expect(store.issues).toEqual([]);
+    expect(field<HTMLSelectElement>("Material").value).toBe("later");
+    act(() => store.undo());
+    expect(store.get("section_hard")).toMatchObject({ material: "umat_hard" });
   });
 
   it("edits checkbox groups, optional groups and variants", () => {

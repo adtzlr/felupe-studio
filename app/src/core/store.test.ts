@@ -168,6 +168,57 @@ describe("ModelStore", () => {
     expect(listener).toHaveBeenCalledTimes(3);
   });
 
+  it("moves a command behind a later object that it references (#80)", () => {
+    const store = new ModelStore(document);
+    store.apply({ type: "add", command: { ...material, name: "later" } });
+    const before = store.commands;
+    const section = store.get("section_hard") as Extract<
+      Command,
+      { command: "section.add" }
+    >;
+    store.update("section_hard", { ...section, material: "later" });
+    // the section moves behind the material; all other commands keep their order
+    // (the step references no sections: it takes all of them)
+    expect(names(store)).toEqual([
+      "specimen",
+      "hard",
+      "soft",
+      "umat_hard",
+      "umat_soft",
+      "section_soft",
+      "left",
+      "right",
+      "fixed",
+      "move",
+      "step_1",
+      "job_1",
+      "later",
+      "section_hard",
+    ]);
+    expect(store.get("section_hard")).toMatchObject({ material: "later" });
+    expect(store.issues).toEqual([]);
+
+    // one undo restores the order and the reference
+    store.undo();
+    expect(store.commands).toBe(before);
+    store.redo();
+    expect(names(store).indexOf("section_hard")).toBe(13);
+
+    // a step that lists the section moves behind it, and so does its job
+    const step = store.get("step_1") as Extract<
+      Command,
+      { command: "step.add" }
+    >;
+    store.update("step_1", { ...step, sections: ["section_hard"] });
+    expect(names(store).slice(-4)).toEqual([
+      "later",
+      "section_hard",
+      "step_1",
+      "job_1",
+    ]);
+    expect(store.issues).toEqual([]);
+  });
+
   it("validates the commands and lists dependents", () => {
     const store = new ModelStore(document);
     expect(store.dependents("umat_hard")).toEqual(["section_hard"]);

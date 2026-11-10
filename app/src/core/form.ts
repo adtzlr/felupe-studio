@@ -175,14 +175,14 @@ function referenceKind(type: CommandType, key: string): Kind {
   return reference[0];
 }
 
-/** Names of the objects of a kind that the edited command may reference. */
+/**
+ * Names of the objects of a kind that the edited command may reference: all of
+ * them, also the ones created later (the store keeps the command list ordered, #80).
+ */
 export function available(context: Context, kind: Kind): string[] {
   const { commands, editing } = context;
-  const index =
-    editing === undefined ? -1 : commands.findIndex((c) => c.name === editing);
   return commands
-    .slice(0, index < 0 ? commands.length : index)
-    .filter((c) => KINDS[c.command] === kind)
+    .filter((c) => KINDS[c.command] === kind && c.name !== editing)
     .map((c) => c.name);
 }
 
@@ -566,8 +566,7 @@ function fieldError(
             : `Create ${article(kind)} ${kind} first.`;
         }
         const unknown = items.find((item) => !names.includes(item));
-        if (unknown)
-          return `There is no ${kind} '${unknown}' before this object.`;
+        if (unknown) return `There is no ${kind} '${unknown}'.`;
         return new Set(items).size < items.length
           ? "Each object may appear only once."
           : undefined;
@@ -580,7 +579,7 @@ function fieldError(
       }
       return names.includes(value as string)
         ? undefined
-        : `There is no ${kind} '${String(value)}' before this object.`;
+        : `There is no ${kind} '${String(value)}'.`;
     }
     default:
       return undefined;

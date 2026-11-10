@@ -74,7 +74,7 @@ A model with an optional bulk modulus is incompressible without it: a section wi
 `felupe_studio.commands.validate(document)` raises a `ValidationError` with all messages, `errors(document)` returns them as a list. Besides the schema, it checks:
 
 - names are unique within the command list, at most 24 characters, no Python keywords and not reserved for the generated script (`field`, `points`, `boundaries`, … and the prefixes `field_`, `solid_`, `region_`, `ramp_`),
-- references point to an object of the right kind that was created before,
+- references point to an object of the right kind that was created before (the app keeps the command list in this order, see _Order of the commands_),
 - `cellset.from_tag` refers to a mesh imported with a `tag`,
 - a material whose model has an optional `bulk` (e.g. `NeoHooke`, `MooneyRivlin`) is only used without `bulk` in a `u-p-J` section.
 
@@ -127,15 +127,15 @@ Older files are brought to the current schema with `MIGRATIONS[version]`, one st
 
 The forms of the app are not written per command. `app/src/core/form.ts` derives them from the schema:
 
-| Schema                                                                    | Field                                                                        |
-| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `name`                                                                    | name field, checked for the pattern, reserved names and duplicates           |
-| reference to a `Name` (single or array)                                   | selection of the objects of that kind that are defined before the edited one |
-| `string`, `number`, `integer`                                             | text and number fields with the ranges of the schema                         |
-| `enum`, array of an `enum`                                                | selection, checkboxes                                                        |
-| `oneOf` of definitions with a constant (`model`) or of objects (`select`) | variant selection that switches the fields below                             |
-| optional object (`ramp`)                                                  | checkbox that switches a group of fields on and off                          |
-| `if` / `then` / `else` (`bulk` of a section)                              | field that is only shown and required for a condition                        |
+| Schema                                                                    | Field                                                                                                    |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `name`                                                                    | name field, checked for the pattern, reserved names and duplicates                                       |
+| reference to a `Name` (single or array)                                   | selection of all objects of that kind (except the edited one), also of the ones created later; see below |
+| `string`, `number`, `integer`                                             | text and number fields with the ranges of the schema                                                     |
+| `enum`, array of an `enum`                                                | selection, checkboxes                                                                                    |
+| `oneOf` of definitions with a constant (`model`) or of objects (`select`) | variant selection that switches the fields below                                                         |
+| optional object (`ramp`)                                                  | checkbox that switches a group of fields on and off                                                      |
+| `if` / `then` / `else` (`bulk` of a section)                              | field that is only shown and required for a condition                                                    |
 
 `app/src/core/registry.ts` adds what the schema does not know: labels, hints, placeholders, defaults of new objects, the ribbon tab of a command and the prefix of suggested names (`material_1`). A test checks that every field of every variant has a label (from the registry or, for the material registry, from the schema), and that the form validation rejects what the schema rejects. An `initial` function adapts the defaults of a new object to the model: a new section takes the first cell set without a section, and `u-p-J` if its material is incompressible (no bulk modulus).
 
@@ -165,6 +165,8 @@ The command line below the viewport accepts the same JSON as the project file (`
 A created command is checked like a form (`draftErrors`), keys that are not part of the command are reported instead of being dropped, and finally the command is validated against its own schema definition (`commandErrors` in `project.ts`, Ajv). On an error the line stays for correction.
 
 Tab or Enter accepts a suggestion: command names and keywords for the first word, object names after `delete` and `select`, and after a command a JSON template with the defaults (one per material model). ↑/↓ move through the suggestions, or through the entered lines if no suggestions are shown; Escape closes the suggestions, a second Escape clears the line.
+
+**Order of the commands:** a form offers every object of the right kind, also one that was created later (#80). After every edit, the store puts the command list into an order in which every reference points to an object before (`order()` in `app/src/core/validate.ts`, a stable topological order): a command that references a later object moves behind it, together with the commands that depend on it, and all other commands keep their order. A command without references (e.g. `mesh.import`, `material.add`) never moves. The reordering is part of the edit, so one undo restores it; the saved project file and the generated script are always in order.
 
 The history bar below shows the command list in order: a click selects the object, objects with issues are marked, and the arrows step back and forward (undo, redo).
 
