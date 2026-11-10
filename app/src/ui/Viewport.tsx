@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { Command, PointSetAdd } from "../core/commands";
 import type { MeshFiles } from "../core/meshfiles";
 import type { ModelStore } from "../core/store";
+import { NodesButton, useShowNodes } from "./NodesButton";
 import {
   COLOR_BY,
   type ColorBy,
@@ -49,6 +50,9 @@ interface Props {
   active?: boolean;
   /** Set to a function that returns a PNG of the view (none without a view). */
   capture?: Capture;
+  /** Show the nodes of the meshes (#91); without, the viewport keeps its own. */
+  showNodes?: boolean;
+  onShowNodes?: (show: boolean) => void;
 }
 
 /** A picked face: its plane, and the point set of the plane if it is normal to x, y or z. */
@@ -94,7 +98,10 @@ export function Viewport({
   createViewer,
   active = true,
   capture,
+  showNodes,
+  onShowNodes,
 }: Props) {
+  const [nodesShown, toggleNodes] = useShowNodes(showNodes, onShowNodes);
   const host = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
   if (capture) {
@@ -187,7 +194,8 @@ export function Viewport({
     viewer.current.setMarkers(markers);
     viewer.current.setLines(lines);
     viewer.current.setPlane(picked);
-  }, [content, markers, lines, picked, createViewer]);
+    viewer.current.setNodes(nodesShown);
+  }, [content, markers, lines, picked, nodesShown, createViewer]);
 
   // Escape clears a picked face
   useEffect(() => {
@@ -231,6 +239,8 @@ export function Viewport({
               {view.label}
             </button>
           ))}
+          <span class="toolbar-separator" aria-hidden="true" />
+          <NodesButton pressed={nodesShown} onToggle={toggleNodes} />
           <span class="toolbar-separator" aria-hidden="true" />
           <select
             aria-label="Color by"

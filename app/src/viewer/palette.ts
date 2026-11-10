@@ -23,6 +23,9 @@ export const UNASSIGNED = "#c4c8cf";
 /** Color of the edges of the faces, like `mesh.plot()` of FElupe. */
 export const EDGE_COLOR = "#000000";
 
+/** Color of the nodes of the meshes (toggle **Nodes**), like the edges. */
+export const NODE_COLOR = "#000000";
+
 /** Color of point markers and arrows (boundaries and loads). */
 export const MARKER_COLOR = "#f5a524";
 

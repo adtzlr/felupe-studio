@@ -6,7 +6,10 @@ import {
   arrowSegments,
   buildScene,
   GHOST_COLOR,
+  meshNodes,
   meshObjects,
+  nodeObject,
+  resultNodes,
   resultObjects,
 } from "./scene";
 
@@ -157,6 +160,71 @@ describe("arrows", () => {
     expect(
       arrowSegments({ origins: [0, 0, 0], directions: [0, 0, 0] }),
     ).toHaveLength(0);
+  });
+});
+
+describe("nodes", () => {
+  it("are the points of the drawn faces that are nodes of the mesh", () => {
+    const layer = { name: "bar", surface: square(), color: "#3987e5" };
+    expect(Array.from(meshNodes(layer).positions)).toEqual([
+      0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0,
+    ]);
+    // hidden cells hide their nodes: a second cell with a point of its own
+    const two = {
+      ...layer,
+      surface: {
+        ...square(),
+        positions: new Float32Array([
+          0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 2, 0, 0,
+        ]),
+        triangles: new Uint32Array([0, 1, 2, 0, 2, 3, 1, 4, 2]),
+        faces: undefined,
+        owners: new Uint32Array([0, 0, 1]),
+      },
+    };
+    expect(meshNodes(two).positions).toHaveLength(15);
+    expect(meshNodes({ ...two, hidden: [0, 1] }).positions).toHaveLength(12);
+    expect(meshNodes({ ...two, hidden: [1, 1] }).positions).toHaveLength(0);
+    // a point inside a subdivided face is not a node
+    const surface = { ...square(), isNode: new Uint8Array([1, 1, 0, 1]) };
+    expect(meshNodes({ ...layer, surface }).positions).toHaveLength(9);
+  });
+
+  it("of a result are displaced like its surfaces", () => {
+    const surface = square();
+    const scene: ResultScene = {
+      label: "Displacement",
+      at: "point",
+      range: [0, 1],
+      surfaces: [
+        {
+          name: "bar",
+          positions: surface.positions,
+          displacement: new Float32Array([0, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0]),
+          triangles: surface.triangles,
+          edges: surface.edges,
+          values: new Float32Array(4),
+          owners: new Uint32Array([0, 0, 1, 1]),
+          nodes: new Int32Array([0, 1, -1, 3]),
+        },
+      ],
+    };
+    const [nodes] = resultNodes({ scene, scale: 2, undeformed: false });
+    expect(Array.from(nodes.positions)).toEqual([0, 0, 0, 1, 0, 0, 0, 1, 0]);
+    expect(Array.from(nodes.displacement!)).toEqual([
+      0, 0, 0, 1, 0, 0, 3, 0, 0,
+    ]);
+    expect(nodeObject(nodes)).toMatchObject({
+      type: "points",
+      color: "#000000",
+      factor: 2,
+    });
+    // empty nodes are left out of a scene, the others are drawn after the meshes
+    const built = buildScene({
+      meshes: [{ name: "bar", surface, color: "#3987e5" }],
+      nodes: [nodes, { positions: new Float32Array() }],
+    });
+    expect(built.objects.map((o) => o.type)).toEqual(["surface", "points"]);
   });
 });
 

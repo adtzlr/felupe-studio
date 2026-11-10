@@ -22,7 +22,9 @@ import {
   type Lines,
   type Markers,
   type MeshLayer,
+  meshNodes,
   type ResultContent,
+  resultNodes,
 } from "./scene";
 import { deformedPositions, type Probe, probeAt, projectPoint } from "./probe";
 import { snapshot } from "./snapshot";
@@ -103,6 +105,7 @@ export class Viewer {
     surfaces: { positions: Float32Array; triangles: Uint32Array }[];
   };
   private plane: { point: Vec3; normal: Vec3 } | undefined;
+  private nodes = false;
   private scheduled = false;
   private down: { x: number; y: number } | undefined;
   private pickListeners = new Set<(pick: Pick | undefined) => void>();
@@ -213,6 +216,13 @@ export class Viewer {
     this.schedule();
   }
 
+  /** Show the nodes of the drawn meshes and of the result (#91). */
+  setNodes(show: boolean): void {
+    if (show === this.nodes) return;
+    this.nodes = show;
+    this.schedule();
+  }
+
   /** Highlight the drawn faces in a plane (e.g. of a picked face), or none. */
   setPlane(plane: { point: Vec3; normal: Vec3 } | undefined): void {
     this.plane = plane;
@@ -320,6 +330,12 @@ export class Viewer {
       meshes: this.meshes,
       result: this.result,
       highlights: this.highlights(),
+      nodes: this.nodes
+        ? [
+            ...this.meshes.map(meshNodes),
+            ...(this.result ? resultNodes(this.result) : []),
+          ]
+        : [],
       markers: this.markers,
       arrows: this.arrows,
       lines: this.lines,

@@ -19,6 +19,7 @@ describe("surface of Python", () => {
     owners: bytes(new Uint32Array([0])),
     tags: { material: bytes(new Int32Array([-3])) },
     nodes: bytes(new Float64Array([0.1, 0, 0])),
+    isnode: new Uint8Array([1, 1, 0]),
     cells: 1,
   };
 
@@ -32,7 +33,8 @@ describe("surface of Python", () => {
     expect(surface.cells).toBe(1);
     expect([...surface.tags!.material]).toEqual([-3]);
     expect([...surface.nodes!]).toEqual([0.1, 0, 0]);
-    expect(transferables(surface)).toHaveLength(7);
+    expect([...surface.isNode!]).toEqual([1, 1, 0]);
+    expect(transferables(surface)).toHaveLength(8);
   });
 
   it("copies unaligned bytes and leaves out missing faces", () => {
@@ -45,7 +47,7 @@ describe("surface of Python", () => {
     });
     expect([...surface.triangles]).toEqual([0, 1, 2]);
     expect(surface.faces).toBeUndefined();
-    expect(transferables(surface)).toHaveLength(6);
+    expect(transferables(surface)).toHaveLength(7);
   });
 
   it("converts the surfaces of all cell types", () => {
@@ -53,7 +55,7 @@ describe("surface of Python", () => {
     expect(Object.keys(surfaces)).toEqual(["hexahedron", "tetra"]);
     expect(toSurfaces(undefined)).toEqual({});
     // shared buffers are transferred once
-    expect(transferables(...Object.values(surfaces))).toHaveLength(7);
+    expect(transferables(...Object.values(surfaces))).toHaveLength(8);
   });
 
   it("rejects truncated arrays", () => {

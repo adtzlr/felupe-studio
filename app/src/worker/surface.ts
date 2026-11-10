@@ -11,6 +11,7 @@ export interface RawSurface {
   owners: Uint8Array;
   tags?: Record<string, Uint8Array>;
   nodes?: Uint8Array;
+  isnode?: Uint8Array;
   cells: number;
 }
 
@@ -45,6 +46,7 @@ export function toSurface(raw: RawSurface): MeshSurface {
   };
   if (raw.faces) surface.faces = view(Uint32Array, raw.faces);
   if (raw.nodes) surface.nodes = view(Float64Array, raw.nodes);
+  if (raw.isnode) surface.isNode = raw.isnode;
   if (raw.tags) {
     surface.tags = Object.fromEntries(
       Object.entries(raw.tags).map(([name, b]) => [name, view(Int32Array, b)]),
@@ -75,6 +77,7 @@ export function transferables(
       surface.edges,
       surface.owners,
       surface.nodes,
+      surface.isNode,
       ...Object.values(surface.tags ?? {}),
     ]) {
       if (array) buffers.add(array.buffer as ArrayBuffer);

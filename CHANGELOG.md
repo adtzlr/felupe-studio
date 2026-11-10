@@ -6,6 +6,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Added
 
+- **Nodes** in the view toolbar shows the nodes of the visible meshes, also in the results (#91).
 - A tolerance of the Newton-Raphson method per job (`tol`), e.g. 0.05 to loosen it (#106).
 - Boundaries and load cases in the viewport: strokes of the fixed components and arrows of the moved boundaries, also of the load cases like `fem.dof` (#82).
 - Results: hovering shows the value under the pointer, of a cell (strains, stresses) or of a node (displacements), with its cell or node (#85).

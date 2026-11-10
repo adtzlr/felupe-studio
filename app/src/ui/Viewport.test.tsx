@@ -209,6 +209,19 @@ describe("Viewport", () => {
     fireEvent.click(screen.getByRole("button", { name: "Fit" }));
     expect(viewer.handle.setView.mock.calls).toEqual([["xz"], [null]]);
 
+    // the nodes of the meshes (#91)
+    const nodes = screen.getByRole("button", { name: "Nodes" });
+    expect(nodes.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(nodes);
+    await act(async () => {});
+    expect(nodes.getAttribute("aria-pressed")).toBe("true");
+    expect(
+      viewer.handle.update.mock.lastCall![0].objects.map((o) => o.type),
+    ).toEqual(["surface", "points"]);
+    fireEvent.click(nodes);
+    await act(async () => {});
+    expect(viewer.handle.update.mock.lastCall![0].objects).toHaveLength(1);
+
     // hiding the mesh empties the scene, the viewer stays
     rerender(view(new Set(["a"])));
     await act(async () => {});

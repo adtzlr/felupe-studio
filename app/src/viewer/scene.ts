@@ -9,7 +9,7 @@ import type {
   SurfaceObject,
 } from "../vendor/felupe-viewer/viewer.js";
 import type { MeshSurface, ResultScene } from "../worker/protocol";
-import { EDGE_COLOR, MARKER_COLOR } from "./palette";
+import { EDGE_COLOR, MARKER_COLOR, NODE_COLOR } from "./palette";
 
 /** A mesh with its color, or with colors of groups of its cells. */
 export interface MeshLayer {
@@ -35,6 +35,15 @@ export interface Markers {
   positions: ArrayLike<number>;
   color?: string;
   size?: number;
+}
+
+/** The nodes of a mesh or of a result, displaced in a result (#91). */
+export interface NodePoints {
+  /** Three coordinates per node. */
+  positions: Float32Array;
+  /** Three components per node, scaled by `factor`. */
+  displacement?: Float32Array;
+  factor?: number;
 }
 
 /** Arrows from points, e.g. of loads or prescribed displacements. */
@@ -84,6 +93,7 @@ export interface SceneContent {
   meshes: readonly MeshLayer[];
   result?: ResultContent;
   highlights?: readonly Highlight[];
+  nodes?: readonly NodePoints[];
   markers?: readonly Markers[];
   arrows?: readonly Arrows[];
   lines?: readonly Lines[];
@@ -217,6 +227,61 @@ export function meshObjects(layer: MeshLayer): SurfaceObject[] {
   return objects;
 }
 
+/**
+ * The nodes of a mesh on its drawn faces: the points of the surface of the cells
+ * that are not hidden, without the points inside subdivided faces (`isNode`).
+ */
+export function meshNodes(layer: MeshLayer): NodePoints {
+  const { surface } = layer;
+  const npoints = surface.positions.length / 3;
+  const drawn = new Uint8Array(npoints);
+  for (const part of split(layer)) {
+    for (const point of part.triangles) drawn[point] = 1;
+  }
+  const isNode = surface.isNode;
+  const kept: number[] = [];
+  for (let p = 0; p < npoints; p++) {
+    if (drawn[p] && (!isNode || isNode[p])) kept.push(p);
+  }
+  const positions = new Float32Array(3 * kept.length);
+  kept.forEach((p, i) =>
+    positions.set(surface.positions.subarray(3 * p, 3 * p + 3), 3 * i),
+  );
+  return { positions };
+}
+
+/** The nodes of the surfaces of a result, displaced like the surfaces. */
+export function resultNodes(result: ResultContent): NodePoints[] {
+  return result.scene.surfaces.map((s) => {
+    const kept: number[] = [];
+    for (let p = 0; p < s.nodes.length; p++) if (s.nodes[p] >= 0) kept.push(p);
+    const pick = (data: Float32Array) => {
+      const out = new Float32Array(3 * kept.length);
+      kept.forEach((p, i) => out.set(data.subarray(3 * p, 3 * p + 3), 3 * i));
+      return out;
+    };
+    return {
+      positions: pick(s.positions),
+      displacement: pick(s.displacement),
+      factor: result.scale,
+    };
+  });
+}
+
+/** The points object of nodes: small dots like the edges. */
+export function nodeObject(nodes: NodePoints): PointsObject {
+  // the vendored viewer displaces the points of every object (`deformed`)
+  return {
+    type: "points",
+    positions: f4(nodes.positions),
+    ...(nodes.displacement
+      ? { displacement: f4(nodes.displacement), factor: nodes.factor ?? 1 }
+      : {}),
+    color: NODE_COLOR,
+    size: 5,
+  } as PointsObject;
+}
+
 export function markerObject(markers: Markers): PointsObject {
   return {
     type: "points",
@@ -337,6 +402,9 @@ export function buildScene(content: SceneContent): Scene {
         opacity: h.opacity ?? 0.6,
         smooth: false,
       })),
+    ...(content.nodes ?? [])
+      .filter((n) => n.positions.length > 0)
+      .map(nodeObject),
     ...(content.markers ?? []).map(markerObject),
     ...(content.arrows ?? []).map(arrowObject),
     ...(content.lines ?? [])

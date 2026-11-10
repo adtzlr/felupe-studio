@@ -22,6 +22,20 @@ def _bytes(array, dtype):
     return np.ascontiguousarray(array, dtype=dtype).tobytes()
 
 
+def surface_nodes(result):
+    """Return the point of the mesh of every point of a triangulated surface, or -1
+    for a point inside a subdivided face (interpolated from several points of the
+    mesh)."""
+    interpolation = result.interpolation.tocsr()
+    nodes = np.full(interpolation.shape[0], -1)
+    counts = np.diff(interpolation.indptr)
+    single = counts == 1
+    rows = interpolation.indptr[:-1][single]
+    exact = np.isclose(interpolation.data[rows], 1.0)
+    nodes[np.flatnonzero(single)[exact]] = interpolation.indices[rows][exact]
+    return nodes
+
+
 def regions(cells, tags):
     """Return the region of every cell: the cells of a region have the same values of
     all tags (one region without tags)."""
@@ -53,7 +67,9 @@ def surface(solid, tags=None):
         edges of the faces) and ``owners`` (the solid cell of every triangle) as
         bytes, ``tags`` (the ``int32`` values of the tags of the cells as bytes by
         name), ``nodes`` (the ``float64`` coordinates of the points of the cells, to
-        preview point sets) and the number of ``cells``.
+        preview point sets), ``isnode`` (``uint8``, 1 for a point of the surface that
+        is a point of the mesh, 0 for a point inside a subdivided face) and the
+        number of ``cells``.
     """
     points = np.asarray(solid.points, dtype=float)
     points = np.pad(points, ((0, 0), (0, 3 - points.shape[1])))
@@ -64,7 +80,8 @@ def surface(solid, tags=None):
     # the curved faces of quadratic cells are subdivided like in mesh.plot()
     order = polynomial_order(fem.Mesh(points, cells[:1], solid.cell_type))
 
-    parts = {key: [] for key in ["positions", "triangles", "faces", "edges", "owners"]}
+    keys = ["positions", "triangles", "faces", "edges", "owners", "isnode"]
+    parts = {key: [] for key in keys}
     npoints = nfaces = 0
     for r in np.unique(region):
         ids = np.flatnonzero(region == r)
@@ -76,6 +93,7 @@ def surface(solid, tags=None):
         parts["edges"].append(result.edges + npoints)
         parts["faces"].append(result.faces + nfaces)
         parts["owners"].append(ids[result.owners])
+        parts["isnode"].append(surface_nodes(result) >= 0)
         npoints += len(positions)
         nfaces += int(result.faces.max(initial=-1)) + 1
 
@@ -88,6 +106,7 @@ def surface(solid, tags=None):
         "faces": _bytes(stack("faces", 0), "<u4") if order == 1 else None,
         "edges": _bytes(stack("edges", (0, 2)), "<u4"),
         "owners": _bytes(stack("owners", 0), "<u4"),
+        "isnode": _bytes(stack("isnode", 0), "u1"),
         "tags": {name: _bytes(values, "<i4") for name, values in tags.items()},
         "nodes": _bytes(points[np.unique(cells)], "<f8"),
         "cells": len(cells),
