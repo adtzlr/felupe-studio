@@ -1,5 +1,6 @@
 import { render } from "preact";
 import { MeshFiles } from "./core/meshfiles";
+import { IndexedDBSession } from "./core/session";
 import { ModelStore } from "./core/store";
 import { registerServiceWorker } from "./service-worker";
 import "./style.css";
@@ -22,6 +23,8 @@ render(
     store={store}
     client={client}
     files={files}
+    // the project and its mesh files survive a reload (#57)
+    session={"indexedDB" in window ? new IndexedDBSession() : undefined}
     // a newer deployment (not in the development server)
     updates={
       import.meta.env.PROD

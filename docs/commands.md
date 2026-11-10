@@ -213,6 +213,15 @@ The viewport draws the imported meshes with the WebGL2 viewer of FElupe ([ADR 00
 - The recorded fields take memory in the worker: the values of all fields (float64) per substep.
 - **Force-displacement curve** (a job with a curve boundary, `fem.CharacteristicCurve`): a card over the results shows the reaction force over the displacement of the curve boundary per substep, for a component (by default the one with the largest displacement at the end). The current substep is marked; hovering shows the values of the nearest substep, a click selects it. **Table** lists the values (a click on a row selects the substep), **CSV** downloads all components with the substeps and steps. **Curve** in the ribbon shows or hides the card.
 
+## Session in the browser (app)
+
+The app keeps the current project in the browser, so that a reload (or a crash of the tab) restores it: the project file (text), its file name, whether it has unsaved changes, and the mesh files that its `mesh.import` commands read. The undo history and the results are not kept; solve again after a reload.
+
+- `app/src/core/session.ts`: IndexedDB database `felupe-studio` with the stores `session` (one record: project, file name, modified, names, sizes and SHA-256 hashes of the files) and `files` (the content by file name). A file whose hash did not change is not written again; files that the project does not import any more are removed. Only the last session is kept, also with several tabs (the last change wins).
+- The session is written 0.4 s after the last change. If the mesh files do not fit into the storage of the browser, the project is kept without them; a storage that does not work does not break the app. The status bar says where the session is kept (_Kept in this browser_, _… without mesh files_, _Not kept in this browser_, with the reason as tooltip).
+- On start, the last session is restored if the model is still empty; the mesh files are written into the worker and inspected again.
+- **New project** (header) starts an empty project and clears the kept session; with unsaved changes it asks first. The data stays in this browser only: save the project file to keep it elsewhere.
+
 ## Samples (app)
 
 **Samples** (header, and the browser of an empty model) lists finished models; **Open** loads one like a project file with its mesh files (a sample replaces the current model; the dialog warns about unsaved changes).

@@ -8,6 +8,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/preact";
+import { IDBFactory } from "fake-indexeddb";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import projectText from "../../../tests/data/two_sections.felupe.json?raw";
 import fixture from "../../../tests/data/two_sections.json";
@@ -16,6 +17,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { MeshFiles } from "../core/meshfiles";
 import { SAMPLES } from "../core/samples";
+import { IndexedDBSession, type SessionStorage } from "../core/session";
 import { ModelStore } from "../core/store";
 import type { PyodideClient, Ready } from "../worker/client";
 import type { JobEvent, JobResult, ResultScene } from "../worker/protocol";
@@ -707,5 +709,99 @@ describe("samples", () => {
     );
     expect(store.commands).not.toContain(undefined);
     expect(screen.queryByRole("dialog", { name: "Samples" })).toBeNull();
+  });
+});
+
+describe("session in the browser", () => {
+  const inspector = async (name: string) => ({
+    info: { file: name, points: 8, solids: [] },
+  });
+  const status = () => screen.getByRole("status").textContent ?? "";
+
+  it("restores the last session after a reload", async () => {
+    const storage = new IndexedDBSession(new IDBFactory());
+    await storage.save({
+      project: projectText,
+      fileName: "specimen.felupe.json",
+      modified: true,
+      files: [{ name: "specimen.vtu", data: new Uint8Array([1, 2]) }],
+    });
+    const store = new ModelStore();
+    const files = new MeshFiles(inspector);
+    render(<App store={store} files={files} session={storage} />);
+    await waitFor(() => expect(store.commands).toEqual(fixture.commands));
+    expect(screen.getByRole("banner").textContent).toContain(
+      "specimen.felupe.json",
+    );
+    // the restored project has unsaved changes
+    expect(screen.getByLabelText("modified")).toBeTruthy();
+    await waitFor(() =>
+      expect(files.dataOf("specimen.vtu")).toEqual(new Uint8Array([1, 2])),
+    );
+    await waitFor(() => expect(status()).toContain("Kept in this browser"));
+    expect(screen.getByText("Kept in this browser").title).toContain(
+      "kept in this browser only",
+    );
+  });
+
+  it("keeps the project and its mesh files after changes", async () => {
+    const storage = new IndexedDBSession(new IDBFactory());
+    const store = new ModelStore();
+    const files = new MeshFiles(inspector);
+    render(<App store={store} files={files} session={storage} />);
+    await files.add("specimen.vtu", new Uint8Array([7]));
+    await files.add("unused.vtu", new Uint8Array([8]));
+    act(() => store.load(fixture as CommandList));
+    await waitFor(
+      async () => {
+        const kept = await storage.load();
+        expect(kept?.files).toEqual([
+          { name: "specimen.vtu", data: new Uint8Array([7]) },
+        ]);
+        expect(JSON.parse(kept!.project).commands).toEqual(fixture.commands);
+        expect(kept?.fileName).toBe("untitled.felupe.json");
+      },
+      { timeout: 3000 },
+    );
+
+    // a new project (with a confirmation of the unsaved changes) clears it
+    fireEvent.click(screen.getByRole("button", { name: "New project" }));
+    const dialog = screen.getByRole("dialog", { name: "New project" });
+    expect(dialog.textContent).toContain("discards them, also in this browser");
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "New project" }),
+    );
+    expect(store.commands).toEqual([]);
+    expect(files.names).toEqual([]);
+    await waitFor(async () => expect(await storage.load()).toBeUndefined(), {
+      timeout: 3000,
+    });
+  });
+
+  it("reports a storage that does not work", async () => {
+    const broken: SessionStorage = {
+      load: async () => undefined,
+      clear: async () => {
+        throw new Error("The storage is blocked.");
+      },
+      save: async () => {
+        throw new Error("The storage is blocked.");
+      },
+    };
+    const store = new ModelStore(fixture as CommandList);
+    render(<App store={store} session={broken} />);
+    await waitFor(
+      () => expect(status()).toContain("Not kept in this browser"),
+      {
+        timeout: 3000,
+      },
+    );
+    expect(screen.getByText("Not kept in this browser").title).toBe(
+      "The storage is blocked.",
+    );
+    // without changes, a new project needs no confirmation
+    fireEvent.click(screen.getByRole("button", { name: "New project" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(store.commands).toEqual([]);
   });
 });

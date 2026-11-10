@@ -7,6 +7,7 @@ interface Props {
   store: ModelStore;
   fileName: string;
   modified: boolean;
+  onNew: () => void;
   onOpen: () => void;
   onSamples: () => void;
   onSave: () => void;
@@ -24,6 +25,7 @@ export function Header({
   store,
   fileName,
   modified,
+  onNew,
   onOpen,
   onSamples,
   onSave,
@@ -37,6 +39,15 @@ export function Header({
           <Icon name="logo" size={20} />
           {APP_NAME}
         </span>
+        <button
+          type="button"
+          class="icon-button"
+          aria-label="New project"
+          title="Start a new, empty project"
+          onClick={onNew}
+        >
+          <Icon name="new" />
+        </button>
         <button
           type="button"
           class="icon-button"

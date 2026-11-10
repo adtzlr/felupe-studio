@@ -1,6 +1,7 @@
 // Stroke icons (24 × 24), drawn with currentColor.
 const PATHS = {
   logo: "M3 3 H21 V21 H3 Z M9 3 V21 M15 3 V21 M3 9 H21 M3 15 H21",
+  new: "M6 3 H14 L19 8 V21 H6 Z M14 3 V8 H19 M12.5 11 V17 M9.5 14 H15.5",
   open: "M3 7 V19 H21 V9 H11 L9 7 Z",
   save: "M12 3 V14 M7 9 L12 14 L17 9 M4 17 V20 H20 V17",
   export: "M14 4 H20 V10 M20 4 L11 13 M18 14 V20 H4 V6 H10",
