@@ -204,3 +204,28 @@ export function nodesName(count: number, commands: readonly Command[]): string {
   const names = new Set(commands.map((c) => c.name));
   return toName(count === 1 ? "node" : "nodes", names, "points");
 }
+
+/** The center of the bounding box of points (three coordinates each), #96. */
+export function centerOf(points: ArrayLike<number>): [number, number, number] {
+  const center: [number, number, number] = [0, 0, 0];
+  for (const k of [0, 1, 2]) {
+    let min = Infinity;
+    let max = -Infinity;
+    for (let p = k; p < points.length; p += 3) {
+      min = Math.min(min, points[p]);
+      max = Math.max(max, points[p]);
+    }
+    // without float noise of the mean, e.g. 0.5 instead of 0.49999999999999994
+    center[k] = min <= max ? +((min + max) / 2).toPrecision(12) : 0;
+  }
+  return center;
+}
+
+/** A name for a control point at the center of something, e.g. `control_right`. */
+export function controlName(
+  of: string | undefined,
+  commands: readonly Command[],
+): string {
+  const names = new Set(commands.map((c) => c.name));
+  return toName(of ? `control_${of}` : "control", names, "control");
+}

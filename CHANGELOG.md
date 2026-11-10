@@ -6,6 +6,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Added
 
+- **Control point at center** of the selected point set, of a picked face or of picked nodes (#96).
 - Control points in the viewport: drawn as markers (also displaced in the results), selected by a click, listed under **Points** in the browser (#95).
 - Control points (`point.add`): points that are not nodes of the meshes, merged as a mesh of vertices and referenced like a point set, e.g. by a boundary (#94, ADR 0006).
 - Picking nodes: with **Nodes** shown, a click picks a node, Shift+click more; create a point set of them, add them to the selected one or copy their coordinates (#93).

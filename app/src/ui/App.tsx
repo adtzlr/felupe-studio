@@ -508,6 +508,14 @@ export function App({
                 preset,
               })
             }
+            onCreateControlPoint={(preset) =>
+              setCreating({
+                id: "point.add",
+                type: "point.add",
+                label: REGISTRY["point.add"].label,
+                preset,
+              })
+            }
           />
           <ResultsView
             source={client}

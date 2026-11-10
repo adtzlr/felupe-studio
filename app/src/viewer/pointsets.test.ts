@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Command, PointSetAdd } from "../core/commands";
 import {
+  centerOf,
+  controlName,
   exactNode,
   missingPoints,
   nodesName,
@@ -58,6 +60,23 @@ describe("point sets", () => {
     expect(nodesName(1, [])).toBe("node");
     expect(nodesName(1, [node])).toBe("node_2");
     expect(nodesName(3, [node])).toBe("nodes");
+  });
+
+  it("have a center for a control point (#96)", () => {
+    expect(
+      centerOf(Float64Array.from([3, 0, 0, 3, 1, 1, 3, 0.1, 0.7])),
+    ).toEqual([3, 0.5, 0.5]);
+    // without float noise of the mean
+    expect(centerOf([0.1, 0, 0, 0.2, 0, 0])[0]).toBe(0.15);
+    expect(centerOf([])).toEqual([0, 0, 0]);
+    const right: Command = {
+      command: "point.add",
+      name: "control_right",
+      coordinates: [3, 0.5, 0.5],
+    };
+    expect(controlName("right", [])).toBe("control_right");
+    expect(controlName("right", [right])).toBe("control_right_2");
+    expect(controlName(undefined, [])).toBe("control");
   });
 
   it("use the tolerances of np.isclose", () => {
