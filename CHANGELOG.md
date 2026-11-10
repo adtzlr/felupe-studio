@@ -7,6 +7,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 ### Added
 
 - Samples (header and empty model): four finished models with their mesh files, opened like a project file (#32).
+- The properties of the selected object are shown in a panel on the right of the viewport, which opens on selection and can be closed; the browser has the left sidebar for itself (#83).
 - The project and its mesh files are kept in the browser (IndexedDB), so a reload restores them; **New project** in the header starts an empty project and clears them (#57).
 
 ### Fixed
