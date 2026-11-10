@@ -154,6 +154,10 @@ export interface ResultSurface {
   edges: Uint32Array;
   /** The values at the points or at the triangles (see `at`). */
   values: Float32Array;
+  /** The cell of the section of every triangle. */
+  owners: Uint32Array;
+  /** The node (point of the mesh) of every point, -1 inside a subdivided face. */
+  nodes: Int32Array;
 }
 
 /** The result of a substep of a job (`felupe_studio.results.scene()`). */

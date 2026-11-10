@@ -19,7 +19,13 @@ def load(case):
 
 def arrays(surface):
     """The arrays of a surface of a result scene."""
-    dtypes = {"triangles": "<u4", "faces": "<u4", "edges": "<u4"}
+    dtypes = {
+        "triangles": "<u4",
+        "faces": "<u4",
+        "edges": "<u4",
+        "owners": "<u4",
+        "nodes": "<i4",
+    }
     return {
         key: np.frombuffer(value, dtype=dtypes.get(key, "<f4"))
         for key, value in surface.items()
@@ -145,6 +151,32 @@ def test_every_cell_type_and_formulation(cell_type, formulation, tmp_path, monke
             assert np.isfinite(data["values"]).all()
             # linear cells are shaded by faces, curved faces are subdivided
             assert (surface["faces"] is None) == (cell_type.endswith("0"))
+            # the cell of every triangle and the node of every point (if any)
+            section = surface["name"]
+            cells = results._cells(section)[1]
+            assert len(data["owners"]) == ntriangles
+            assert data["owners"].max() < len(cells)
+            nodes = data["nodes"]
+            assert len(nodes) == npoints
+            if cell_type == "hexahedron20":
+                # the centers of the subdivided faces are no nodes
+                assert (nodes < 0).any() and (nodes >= 0).any()
+            else:
+                assert (nodes >= 0).all()
+            known = nodes >= 0
+            points = LAST[f"field_{section}"][0].region.mesh.points
+            np.testing.assert_allclose(
+                data["positions"].reshape(-1, 3)[known],
+                points[nodes[known]],
+                rtol=1e-6,
+                atol=1e-6,
+            )
+            # the nodes of a triangle belong to its cell
+            triangles = data["triangles"].reshape(-1, 3)
+            for t in range(0, ntriangles, max(ntriangles // 20, 1)):
+                corner = nodes[triangles[t]]
+                corner = corner[corner >= 0]
+                assert set(corner) <= set(cells[data["owners"][t]])
 
     # the export has the points of the cells only (no bubble points of MINI)
     exported = meshio.read(read(results.export("job_1", "vtu"), ".vtu", tmp_path))
