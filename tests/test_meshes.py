@@ -5,7 +5,7 @@ import felupe as fem
 import meshio
 import numpy as np
 
-from felupe_studio.meshes import MAX_TAG_VALUES, inspect, inspect_json
+from felupe_studio.meshes import MAX_TAG_VALUES, inspect, load
 
 GOLDEN = Path(__file__).parent / "golden"
 
@@ -27,7 +27,9 @@ def test_vtu_with_tag():
             }
         ],
     }
-    assert json.loads(inspect_json(GOLDEN / "bar_sections_tag" / "bar.vtu")) == info
+    text, surface = load(GOLDEN / "bar_sections_tag" / "bar.vtu")
+    assert json.loads(text) == info
+    assert surface["cells"] == 192
 
 
 def test_gmsh_physical_first():

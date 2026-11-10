@@ -121,12 +121,23 @@ describe("files", () => {
 
     const inspected = client.inspectMesh("bar.vtu");
     await vi.waitFor(() => expect(worker.sent).toHaveLength(3));
+    const surface = {
+      positions: new Float32Array(9),
+      triangles: new Uint32Array([0, 1, 2]),
+      edges: new Uint32Array([0, 1]),
+      owners: new Uint32Array([0]),
+      cells: 1,
+    };
     worker.reply({
       type: "mesh-info",
       id: 2,
       info: { file: "bar.vtu", points: 8 },
+      surface,
     });
-    await expect(inspected).resolves.toEqual({ file: "bar.vtu", points: 8 });
+    await expect(inspected).resolves.toEqual({
+      info: { file: "bar.vtu", points: 8 },
+      surface,
+    });
   });
 
   it("allows plain file names only", () => {

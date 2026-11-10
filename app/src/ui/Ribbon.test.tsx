@@ -20,11 +20,13 @@ afterEach(cleanup);
 
 function setup(store = new ModelStore()) {
   const files = new MeshFiles(async (name) => ({
-    file: name,
-    points: 325,
-    cell_type: "hexahedron",
-    cells: 192,
-    tags: [],
+    info: {
+      file: name,
+      points: 325,
+      cell_type: "hexahedron",
+      cells: 192,
+      tags: [],
+    },
   }));
   render(<App store={store} files={files} />);
   const tab = (name: string) =>

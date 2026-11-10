@@ -226,7 +226,7 @@ export function App({
           onSelect={setSelection}
           onToggleVisible={toggleVisible}
         />
-        <Viewport />
+        <Viewport store={store} files={files} hidden={hidden} />
       </div>
       <Footer
         store={store}

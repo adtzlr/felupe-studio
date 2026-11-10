@@ -128,8 +128,7 @@ describe("planImport", () => {
 describe("MeshFiles", () => {
   it("inspects added files and notifies", async () => {
     const inspector = vi.fn(async (name: string) => ({
-      ...tagged,
-      file: name,
+      info: { ...tagged, file: name },
     }));
     const files = new MeshFiles(inspector);
     const listener = vi.fn();
@@ -148,8 +147,7 @@ describe("MeshFiles", () => {
 
   it("keeps errors of the inspection as state", async () => {
     const files = new MeshFiles(async (name) => ({
-      file: name,
-      error: "no solid cells",
+      info: { file: name, error: "no solid cells" },
     }));
     expect((await files.add("a.vtu", new Uint8Array())).status).toEqual({
       state: "error",
@@ -173,7 +171,7 @@ describe("MeshFiles", () => {
     const slow = new Promise<void>((resolve) => (release = resolve));
     const files = new MeshFiles(async (name, data) => {
       if (data[0] === 1) await slow;
-      return { file: name, points: data[0] };
+      return { info: { file: name, points: data[0] } };
     });
     const first = files.add("a.vtu", new Uint8Array([1]));
     await files.add("a.vtu", new Uint8Array([2]));
@@ -183,11 +181,12 @@ describe("MeshFiles", () => {
   });
 
   it("reports meshes whose file is missing, unusable or lacks the tag", async () => {
-    const files = new MeshFiles(async (name) =>
-      name === "broken.vtu"
-        ? { file: name, error: "meshio could not read the file." }
-        : tagged,
-    );
+    const files = new MeshFiles(async (name) => ({
+      info:
+        name === "broken.vtu"
+          ? { file: name, error: "meshio could not read the file." }
+          : tagged,
+    }));
     const mesh = (name: string, file: string, tag?: string): Command =>
       tag
         ? { command: "mesh.import", name, file, tag }

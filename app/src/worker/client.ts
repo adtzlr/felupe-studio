@@ -5,6 +5,7 @@ import type {
   FromWorker,
   LoadTimings,
   MeshInfo,
+  MeshSurface,
   ToWorker,
   Versions,
 } from "./protocol";
@@ -89,13 +90,22 @@ export class PyodideClient {
     );
   }
 
-  /** Inspect a mesh file of the project directory. */
-  async inspectMesh(name: string): Promise<MeshInfo> {
+  /**
+   * Inspect a mesh file of the project directory. The outer surface is given for
+   * files that can be used.
+   */
+  async inspectMesh(
+    name: string,
+  ): Promise<{ info: MeshInfo; surface?: MeshSurface }> {
     const message = await this.request(
       { type: "inspect-mesh", name },
       "mesh-info",
     );
-    return (message as Extract<FromWorker, { type: "mesh-info" }>).info;
+    const { info, surface } = message as Extract<
+      FromWorker,
+      { type: "mesh-info" }
+    >;
+    return { info, surface };
   }
 
   terminate(): void {
