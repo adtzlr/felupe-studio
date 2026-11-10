@@ -12,7 +12,7 @@ import { type Inspection, MeshFiles } from "../core/meshfiles";
 import { ModelStore } from "../core/store";
 import type { Scene, ViewerHandle } from "../vendor/felupe-viewer/viewer.js";
 import { viewportContent } from "../viewer/layers";
-import { CATEGORICAL } from "../viewer/palette";
+import { CATEGORICAL, CONTROL_COLOR } from "../viewer/palette";
 import { type CreateViewer, HIGHLIGHT } from "../viewer/viewer";
 import type { MeshSurface } from "../worker/protocol";
 import { Viewport } from "./Viewport";
@@ -457,6 +457,74 @@ describe("Viewport", () => {
     await click(60, 45);
     expect(screen.queryByRole("status", { name: "Picked nodes" })).toBeNull();
     expect(screen.getByRole("status", { name: "Picked face" })).toBeTruthy();
+  });
+
+  it("draws control points and selects one on a click (#95)", async () => {
+    const { files } = meshFiles();
+    await files.add("a.vtu", new Uint8Array());
+    const store = new ModelStore();
+    store.apply([
+      { type: "add", command: mesh("a", "a.vtu") },
+      {
+        type: "add",
+        command: {
+          command: "point.add",
+          name: "control",
+          coordinates: [-0.5, 0, 0],
+        },
+      },
+      {
+        type: "add",
+        command: {
+          command: "point.add",
+          name: "corner",
+          coordinates: [0, 0, 0],
+        },
+      },
+    ]);
+    const viewer = fakeViewer();
+    const onSelect = vi.fn();
+    const view = (selected?: string, hidden: string[] = []) => (
+      <Viewport
+        store={store}
+        files={files}
+        hidden={new Set(hidden)}
+        selected={selected}
+        onSelect={onSelect}
+        createViewer={viewer.create}
+      />
+    );
+    const { rerender } = render(view());
+    await act(async () => {});
+    const markers = () =>
+      viewer.handle.update.mock
+        .lastCall![0].objects.filter((o) => o.type === "points")
+        .map((m) => [m.color, m.positions.size]);
+    // two control points with an outline, also without the nodes
+    expect(markers()).toEqual([
+      ["#11151c", 6],
+      [CONTROL_COLOR, 6],
+    ]);
+    // (-0.5, 0, 0) is drawn at (15.9, 61.4), beside the triangle
+    const canvas = viewer.handle.root.querySelector("canvas")!;
+    await act(async () => {
+      canvas.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, clientX: 16, clientY: 61 }),
+      );
+    });
+    expect(onSelect).toHaveBeenCalledWith("control");
+    rerender(view("control"));
+    await act(async () => {});
+    expect(markers().at(-1)).toEqual([HIGHLIGHT, 3]);
+    expect(screen.queryByText(/is at a node/)).toBeNull();
+    // a control point at a node is merged with it
+    rerender(view("corner"));
+    await act(async () => {});
+    expect(screen.getByText(/corner is at a node of the meshes/)).toBeTruthy();
+    // hidden control points are neither drawn nor picked
+    rerender(view(undefined, ["control", "corner"]));
+    await act(async () => {});
+    expect(markers()).toEqual([]);
   });
 
   it("draws the boundaries and load cases (#82)", async () => {

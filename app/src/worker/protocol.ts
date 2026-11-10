@@ -171,7 +171,16 @@ export interface ResultScene {
   at: "point" | "cell";
   /** The range of the values of all sections (null without finite values). */
   range: [number, number] | null;
+  /** The control points with their positions and displacements (#95). */
+  points?: ResultPoint[];
   surfaces: ResultSurface[];
+}
+
+/** A control point of a result: its position and its displacement. */
+export interface ResultPoint {
+  name: string;
+  position: [number, number, number];
+  displacement: [number, number, number];
 }
 
 export type ToWorker =

@@ -94,6 +94,24 @@ describe("deriveTree", () => {
     expect(find(tree, "group:merge")!.children[0].detail).toBe("decimals = 6");
   });
 
+  it("lists the control points in a group of their own", () => {
+    expect(find(deriveTree(commands), "group:point")).toBeUndefined();
+    const control: Command = {
+      command: "point.add",
+      name: "control",
+      coordinates: [4, 0.5, 0.5],
+    };
+    const tree = deriveTree([...commands, control]);
+    const group = find(tree, "group:point")!;
+    expect(group.label).toBe("Points");
+    expect(group.children.map((c) => [c.label, c.kind, c.icon])).toEqual([
+      ["control", "pointset", "point"],
+    ]);
+    // after the point sets
+    const ids = tree.map((g) => g.id);
+    expect(ids.indexOf("group:point")).toBe(ids.indexOf("group:pointset") + 1);
+  });
+
   it("attaches validation issues", () => {
     const broken = commands.map((c) =>
       c.name === "section_hard" ? { ...c, material: "missing" } : c,

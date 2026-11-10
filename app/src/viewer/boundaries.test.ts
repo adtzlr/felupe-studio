@@ -143,6 +143,21 @@ describe("boundary symbols", () => {
     // point sets of point ids are not drawn
     expect(symbols.find((s) => s.name === "by_ids")).toBeUndefined();
     expect(boundarySymbols(commands, [])).toEqual([]);
+    // a boundary of a control point is drawn at the control point (#95)
+    const control = boundarySymbols(
+      [
+        ...commands,
+        { command: "point.add", name: "c", coordinates: [5, 0.5, 0.5] },
+        {
+          command: "boundary.add",
+          name: "pin",
+          pointset: "c",
+          constrained: ["x"],
+        },
+      ] as Command[],
+      nodes,
+    ).find((s) => s.name === "pin")!;
+    expect([...control.points]).toEqual([5, 0.5, 0.5]);
   });
 
   it("draws strokes and directions", () => {

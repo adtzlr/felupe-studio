@@ -34,12 +34,14 @@ export function Properties({ store, files, notes, selected, onSelect }: Props) {
     ...(notes.get(command.name) ?? []),
   ].filter((message) => !message.includes("is not loaded"));
   const dependents = store.dependents(command.name);
+  // a control point is a point set of one point, with a label of its own (#95)
+  const control = command.command === "point.add";
 
   return (
     <div class="properties-content">
       <div class="properties-head">
-        <Icon name={kind as IconName} />
-        <strong>{KIND_LABELS[kind]}</strong>
+        <Icon name={(control ? "point" : kind) as IconName} />
+        <strong>{control ? "Control point" : KIND_LABELS[kind]}</strong>
         <code class="muted">{command.command}</code>
       </div>
       {command.command === "mesh.import" && (

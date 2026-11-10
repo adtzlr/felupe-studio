@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import type { Command, PointSetAdd } from "../core/commands";
+import type { Command, PointAdd, PointSetAdd } from "../core/commands";
 import type { MeshFiles } from "../core/meshfiles";
 import type { ModelStore } from "../core/store";
 import { NodesButton, useShowNodes } from "./NodesButton";
@@ -25,6 +25,7 @@ import {
   boundarySymbols,
   modelSize,
 } from "../viewer/boundaries";
+import { CONTROL_COLOR } from "../viewer/palette";
 import type { Markers } from "../viewer/scene";
 import {
   type CreateViewer,
@@ -53,6 +54,8 @@ interface Props {
   active?: boolean;
   /** Set to a function that returns a PNG of the view (none without a view). */
   capture?: Capture;
+  /** Select an object, e.g. a control point picked in the viewport (#95). */
+  onSelect?: (name: string) => void;
   /** Show the nodes of the meshes (#91); without, the viewport keeps its own. */
   showNodes?: boolean;
   onShowNodes?: (show: boolean) => void;
@@ -70,6 +73,8 @@ const POINTS = "#f2f4f8";
 
 const isPointSet = (c: Command): c is PointSetAdd =>
   c.command === "pointset.add";
+
+const isControl = (c: Command): c is PointAdd => c.command === "point.add";
 
 const formatNumber = (value: number) => String(+value.toPrecision(6));
 
@@ -108,7 +113,10 @@ export function Viewport({
   capture,
   showNodes,
   onShowNodes,
+  onSelect,
 }: Props) {
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
   const [nodesShown, toggleNodes] = useShowNodes(showNodes, onShowNodes);
   const host = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
@@ -146,6 +154,10 @@ export function Viewport({
     () => (picked?.select ? selectedPoints(picked.select, nodes) : undefined),
     [picked, nodes],
   );
+  const controls = useMemo(
+    () => commands.filter(isControl).filter((c) => !hidden.has(c.name)),
+    [commands, hidden],
+  );
   const markers = useMemo((): Markers[] => {
     const sets = commands.filter(isPointSet).filter((c) => !hidden.has(c.name));
     const others = sets.filter((c) => c.name !== selected);
@@ -159,8 +171,27 @@ export function Viewport({
       ...(chosen ? outlined(points([chosen]), HIGHLIGHT, 9) : []),
       ...(preview ? outlined(preview, HIGHLIGHT, 9) : []),
       ...outlined(Float64Array.from(pickedNodes.flat()), HIGHLIGHT, 9),
+      // the control points, always shown (#95)
+      ...outlined(
+        Float64Array.from(
+          controls
+            .filter((c) => c.name !== selected)
+            .flatMap((c) => c.coordinates),
+        ),
+        CONTROL_COLOR,
+        10,
+      ),
+      ...outlined(
+        Float64Array.from(
+          controls
+            .filter((c) => c.name === selected)
+            .flatMap((c) => c.coordinates),
+        ),
+        HIGHLIGHT,
+        11,
+      ),
     ];
-  }, [commands, hidden, selected, nodes, preview, pickedNodes]);
+  }, [commands, hidden, selected, nodes, preview, pickedNodes, controls]);
 
   // the nodes of the selected point set (by nodes) that the meshes do not have; the
   // script raises an error for them (#92)
@@ -168,6 +199,13 @@ export function Viewport({
     const set = commands.find((c) => c.name === selected);
     return set && isPointSet(set) ? missingPoints(set.select, nodes) : [];
   }, [commands, selected, nodes]);
+
+  // a control point at a node of the meshes is merged with it (ADR 0006)
+  const atNode = useMemo(() => {
+    const point = controls.find((c) => c.name === selected);
+    if (!point || !nodes.length) return false;
+    return missingPoints({ points: [point.coordinates] }, nodes).length === 0;
+  }, [controls, selected, nodes]);
 
   // the boundaries and load cases: strokes of fixed components, arrows of moved
   // boundaries (#82)
@@ -204,6 +242,13 @@ export function Viewport({
       viewer.current = new Viewer(host.current, createViewer);
       viewer.current.onPick((pick, click) => {
         setCopied(false);
+        if (click.target) {
+          // a control point: select it (#95)
+          setPicked(undefined);
+          setPickedNodes([]);
+          onSelectRef.current?.(click.target);
+          return;
+        }
         if (click.node) {
           // a node: Shift adds or removes it, else it replaces the picked ones
           const node = exactNode(click.node, nodesRef.current);
@@ -229,7 +274,10 @@ export function Viewport({
     viewer.current.setLines(lines);
     viewer.current.setPlane(picked);
     viewer.current.setNodes(nodesShown);
-  }, [content, markers, lines, picked, nodesShown, createViewer]);
+    viewer.current.setTargets(
+      controls.map((c) => ({ name: c.name, position: c.coordinates })),
+    );
+  }, [content, markers, lines, picked, nodesShown, controls, createViewer]);
 
   // Escape clears a picked face or picked nodes
   useEffect(() => {
@@ -452,6 +500,12 @@ export function Viewport({
             .map((p) => `(${p.map(formatNumber).join(", ")})`)
             .join(", ")}
           {missing.length > 3 && ` and ${missing.length - 3} more`}
+        </p>
+      )}
+      {shown && content.reading.length === 0 && atNode && (
+        <p class="viewport-status warning" role="status">
+          {selected} is at a node of the meshes: the script merges it with the
+          node.
         </p>
       )}
       {shown && content.reading.length > 0 && (
