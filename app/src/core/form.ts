@@ -39,6 +39,8 @@ export type Input =
   | { type: "variant"; options: Option[]; seeds: Record<string, unknown> }
   | { type: "multichoice"; options: Option[]; minItems: number }
   | { type: "integers"; minItems: number; min?: number }
+  /** Points, one per line: three coordinates each. */
+  | { type: "coordinates"; minItems: number }
   | { type: "reference"; kind: Kind; multiple: boolean; minItems: number }
   /**
    * A list of objects, edited as rows; `columns` are the fields of a row, with
@@ -313,6 +315,13 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
             path,
             isRequired,
             { type: "rows", columns, minItems },
+            raw.description,
+          );
+        } else if (resolve(items).type === "array") {
+          push(
+            path,
+            isRequired,
+            { type: "coordinates", minItems },
             raw.description,
           );
         } else if (refName(items) === "Name") {
@@ -733,6 +742,20 @@ function fieldError(
       return names.includes(value as string)
         ? undefined
         : `There is no ${kind} '${String(value)}'.`;
+    }
+    case "coordinates": {
+      const points = Array.isArray(value) ? (value as unknown[]) : [];
+      if (points.length < Math.max(input.minItems, required ? 1 : 0))
+        return "Enter at least one point.";
+      const bad = points.findIndex(
+        (p) =>
+          !Array.isArray(p) ||
+          p.length !== 3 ||
+          !p.every((x) => typeof x === "number" && Number.isFinite(x)),
+      );
+      return bad < 0
+        ? undefined
+        : `Line ${bad + 1}: enter three numbers x, y, z, with a point as decimal separator.`;
     }
     case "rows": {
       const rows = Array.isArray(value) ? (value as Draft[]) : [];

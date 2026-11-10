@@ -174,6 +174,11 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       "select.axis": { label: "Axis", default: "x" },
       "select.value": { label: "Coordinate", default: 0 },
       "select.atol": { label: "Tolerance", placeholder: "1e-8" },
+      "select.points": {
+        label: "Nodes",
+        hint: "One point per line: x, y, z",
+        default: [],
+      },
       "select.ids": {
         label: "Point ids",
         hint: "Separated by commas",
@@ -181,7 +186,11 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       },
     },
     options: {
-      select: { axis: "By coordinate", ids: "By point ids" },
+      select: {
+        axis: "By coordinate",
+        points: "By nodes",
+        ids: "By point ids",
+      },
       "select.axis": AXES,
     },
   },

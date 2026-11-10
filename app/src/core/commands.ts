@@ -41,6 +41,16 @@ export type MaterialAdd =
  */
 export type Axis = "x" | "y" | "z";
 /**
+ * The coordinates x, y and z of a point.
+ *
+ * @minItems 3
+ * @maxItems 3
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "Coordinates".
+ */
+export type Coordinates = [number, number, number];
+/**
  * A load case of FElupe (fem.dof) on the merged field: the boundaries of a standard test. It is referenced like a boundary: a step ramps its moving end faces, a job records the reaction force of its (first) moving end face.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
@@ -228,7 +238,7 @@ export interface SectionAdd {
   bulk?: number;
 }
 /**
- * Points of the merged mesh selected by a coordinate or by point ids.
+ * Points of the merged mesh selected by a plane, by the coordinates of points or by point ids.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "PointSetAdd".
@@ -240,6 +250,16 @@ export interface PointSetAdd {
     | {
         axis: Axis;
         value: number;
+        /**
+         * Absolute tolerance (default 1e-8).
+         */
+        atol?: number;
+      }
+    | {
+        /**
+         * @minItems 1
+         */
+        points: [Coordinates, ...Coordinates[]];
         /**
          * Absolute tolerance (default 1e-8).
          */

@@ -56,6 +56,23 @@ describe("deriveTree", () => {
     expect(find(deriveTree(jobs), "job_1")!.detail).toBe(
       "step_1 · cutback · tol 0.05",
     );
+    // point sets by nodes
+    const nodes = (points: number[][]) =>
+      find(
+        deriveTree(
+          commands.map((c) =>
+            c.name === "left" ? ({ ...c, select: { points } } as Command) : c,
+          ),
+        ),
+        "left",
+      )!.detail;
+    expect(nodes([[0, 1, 2.5]])).toBe("node (0, 1, 2.5)");
+    expect(
+      nodes([
+        [0, 0, 0],
+        [1, 0, 0],
+      ]),
+    ).toBe("2 nodes");
   });
 
   it("shows the merge group only with a merge command", () => {

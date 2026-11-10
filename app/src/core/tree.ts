@@ -51,9 +51,15 @@ function detail(cmd: Command): string {
     case "section.add":
       return `${cmd.material} · ${cmd.formulation}`;
     case "pointset.add":
-      return "axis" in cmd.select
-        ? `${cmd.select.axis} == ${cmd.select.value}`
-        : `${cmd.select.ids.length} points`;
+      if ("axis" in cmd.select)
+        return `${cmd.select.axis} == ${cmd.select.value}`;
+      if ("points" in cmd.select) {
+        const [first, ...rest] = cmd.select.points;
+        return rest.length
+          ? `${cmd.select.points.length} nodes`
+          : `node (${first.join(", ")})`;
+      }
+      return `${cmd.select.ids.length} points`;
     case "boundary.add": {
       const value = cmd.value ?? 0;
       const constrained = AXES.filter((a) => cmd.constrained.includes(a)).join(

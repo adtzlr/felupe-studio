@@ -326,6 +326,49 @@ describe("Viewport", () => {
     expect(screen.queryByRole("status", { name: "Picked face" })).toBeNull();
   });
 
+  it("warns about nodes of a point set that the meshes do not have (#92)", async () => {
+    const { files } = meshFiles();
+    await files.add("a.vtu", new Uint8Array());
+    const store = new ModelStore();
+    store.apply([
+      { type: "add", command: mesh("a", "a.vtu") },
+      {
+        type: "add",
+        command: {
+          command: "pointset.add",
+          name: "corners",
+          select: {
+            points: [
+              [1, 0, 0],
+              [5, 5, 0.5],
+            ],
+          },
+        },
+      },
+    ]);
+    const viewer = fakeViewer();
+    const view = (selected?: string) => (
+      <Viewport
+        store={store}
+        files={files}
+        hidden={new Set()}
+        selected={selected}
+        createViewer={viewer.create}
+      />
+    );
+    const { rerender } = render(view());
+    await act(async () => {});
+    // the node at (1, 0, 0) is drawn
+    const points = viewer.handle.update.mock.lastCall![0].objects.filter(
+      (o) => o.type === "points",
+    );
+    expect(points.map((m) => m.positions.size)).toEqual([3, 3]);
+    expect(screen.queryByText(/no node at/)).toBeNull();
+    rerender(view("corners"));
+    await act(async () => {});
+    expect(screen.getByText("corners: no node at (5, 5, 0.5)")).toBeTruthy();
+  });
+
   it("draws the boundaries and load cases (#82)", async () => {
     const { files } = meshFiles();
     await files.add("a.vtu", new Uint8Array());

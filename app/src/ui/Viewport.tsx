@@ -12,6 +12,7 @@ import {
 import { axisOf, type Vec3 } from "../viewer/picking";
 import {
   type CoordinateSelect,
+  missingPoints,
   outlined,
   planeName,
   planeSelect,
@@ -149,6 +150,13 @@ export function Viewport({
       ...(preview ? outlined(preview, HIGHLIGHT, 9) : []),
     ];
   }, [commands, hidden, selected, nodes, preview]);
+
+  // the nodes of the selected point set (by nodes) that the meshes do not have; the
+  // script raises an error for them (#92)
+  const missing = useMemo(() => {
+    const set = commands.find((c) => c.name === selected);
+    return set && isPointSet(set) ? missingPoints(set.select, nodes) : [];
+  }, [commands, selected, nodes]);
 
   // the boundaries and load cases: strokes of fixed components, arrows of moved
   // boundaries (#82)
@@ -324,6 +332,16 @@ export function Viewport({
       )}
       {content.message && (
         <p class="viewport-message muted">{content.message}</p>
+      )}
+      {shown && content.reading.length === 0 && missing.length > 0 && (
+        <p class="viewport-status warning" role="status">
+          {selected}: no node at{" "}
+          {missing
+            .slice(0, 3)
+            .map((p) => `(${p.map(formatNumber).join(", ")})`)
+            .join(", ")}
+          {missing.length > 3 && ` and ${missing.length - 3} more`}
+        </p>
       )}
       {shown && content.reading.length > 0 && (
         <p class="viewport-status muted" role="status">
