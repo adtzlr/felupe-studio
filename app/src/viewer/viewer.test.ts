@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Scene, ViewerHandle } from "../vendor/felupe-viewer/viewer.js";
 import type { MeshSurface } from "../worker/protocol";
-import { type CreateViewer, Viewer } from "./viewer";
+import { type CreateViewer, HIGHLIGHT, Viewer } from "./viewer";
 
 const surface: MeshSurface = {
   positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
@@ -13,8 +13,25 @@ const surface: MeshSurface = {
 };
 
 function fake(webgl = true) {
+  const root = document.createElement("div");
+  const canvas = document.createElement("canvas");
+  canvas.getBoundingClientRect = () =>
+    ({ left: 10, top: 20, width: 100, height: 100 }) as DOMRect;
+  root.appendChild(canvas);
   const handle = {
-    root: document.createElement("div"),
+    root,
+    // looking from +z onto the xy-plane, centered at (0.25, 0.25, 0)
+    camera: {
+      basis: [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ],
+      target: [0.25, 0.25, 0],
+      radius: 1,
+      zoom: 1,
+      parallel: true,
+    },
     update: vi.fn<(scene: Scene, options?: { keepView?: boolean }) => void>(),
     setView: vi.fn<(view: string | null) => void>(),
     dispose: vi.fn(),
@@ -87,6 +104,71 @@ describe("Viewer", () => {
     expect(handle.update.mock.lastCall![0].legend).toEqual([
       { label: "body", color: "#3987e5" },
     ]);
+  });
+
+  it("picks the first drawn face under the pointer", () => {
+    const { create } = fake();
+    const viewer = new Viewer(document.createElement("div"), create);
+    viewer.setMeshes([{ name: "bar", surface, color: "#3987e5" }]);
+    const pick = viewer.pickAt(50, 50, 100, 100)!;
+    expect(pick.mesh).toBe("bar");
+    expect(pick.normal).toEqual([0, 0, 1]);
+    expect(pick.point[0]).toBeCloseTo(0.25);
+    expect(pick.point[2]).toBeCloseTo(0);
+    // beside the triangle
+    expect(viewer.pickAt(99, 1, 100, 100)).toBeUndefined();
+    // hidden cells are not picked
+    viewer.setMeshes([{ name: "bar", surface, color: "#3987e5", hidden: [1] }]);
+    expect(viewer.pickAt(50, 50, 100, 100)).toBeUndefined();
+  });
+
+  it("picks on a click, not after a drag", () => {
+    const { handle, create } = fake();
+    const viewer = new Viewer(document.createElement("div"), create);
+    viewer.setMeshes([{ name: "bar", surface, color: "#3987e5" }]);
+    const picks = vi.fn();
+    viewer.onPick(picks);
+    const canvas = handle.root.querySelector("canvas")!;
+    const click = (from: number[], to: number[]) => {
+      canvas.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          clientX: from[0],
+          clientY: from[1],
+        }),
+      );
+      canvas.dispatchEvent(
+        new MouseEvent("click", {
+          bubbles: true,
+          clientX: to[0],
+          clientY: to[1],
+        }),
+      );
+    };
+    // the center of the canvas, which starts at (10, 20)
+    click([60, 70], [61, 70]);
+    expect(picks).toHaveBeenCalledTimes(1);
+    expect(picks.mock.lastCall![0]).toMatchObject({ mesh: "bar" });
+    click([60, 70], [90, 70]);
+    expect(picks).toHaveBeenCalledTimes(1);
+    click([109, 21], [109, 21]);
+    expect(picks.mock.lastCall![0]).toBeUndefined();
+  });
+
+  it("highlights the drawn faces of a plane", async () => {
+    const { handle, create } = fake();
+    const viewer = new Viewer(document.createElement("div"), create);
+    viewer.setMeshes([{ name: "bar", surface, color: "#3987e5" }]);
+    viewer.setPlane({ point: [5, 5, 0], normal: [0, 0, 1] });
+    await tick();
+    const objects = handle.update.mock.lastCall![0].objects;
+    expect(objects.map((o) => [o.type, o.color])).toEqual([
+      ["surface", "#3987e5"],
+      ["surface", HIGHLIGHT],
+    ]);
+    viewer.setPlane({ point: [5, 5, 1], normal: [0, 0, 1] });
+    await tick();
+    expect(handle.update.mock.lastCall![0].objects).toHaveLength(1);
   });
 
   it("works without WebGL2", () => {

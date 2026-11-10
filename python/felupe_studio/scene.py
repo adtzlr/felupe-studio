@@ -52,7 +52,8 @@ def surface(solid, tags=None):
         curved faces of quadratic cells), ``edges`` (two points per segment of the
         edges of the faces) and ``owners`` (the solid cell of every triangle) as
         bytes, ``tags`` (the ``int32`` values of the tags of the cells as bytes by
-        name) and the number of ``cells``.
+        name), ``nodes`` (the ``float64`` coordinates of the points of the cells, to
+        preview point sets) and the number of ``cells``.
     """
     points = np.asarray(solid.points, dtype=float)
     points = np.pad(points, ((0, 0), (0, 3 - points.shape[1])))
@@ -88,5 +89,6 @@ def surface(solid, tags=None):
         "edges": _bytes(stack("edges", (0, 2)), "<u4"),
         "owners": _bytes(stack("owners", 0), "<u4"),
         "tags": {name: _bytes(values, "<i4") for name, values in tags.items()},
+        "nodes": _bytes(points[np.unique(cells)], "<f8"),
         "cells": len(cells),
     }

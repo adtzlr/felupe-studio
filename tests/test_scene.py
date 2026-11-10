@@ -52,6 +52,9 @@ def test_like_felupe():
     np.testing.assert_array_equal(result["faces"], expected.faces)
     np.testing.assert_array_equal(result["edges"].reshape(-1, 2), expected.edges)
     np.testing.assert_array_equal(result["owners"], expected.owners)
+    # the exact coordinates of the points of the cells
+    nodes = np.frombuffer(surface(solid)["nodes"], dtype="<f8").reshape(-1, 3)
+    np.testing.assert_array_equal(nodes, solid.points[np.unique(solid.cells)])
 
 
 @pytest.mark.parametrize(

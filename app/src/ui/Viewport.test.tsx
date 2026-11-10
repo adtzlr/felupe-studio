@@ -13,7 +13,7 @@ import { ModelStore } from "../core/store";
 import type { Scene, ViewerHandle } from "../vendor/felupe-viewer/viewer.js";
 import { viewportContent } from "../viewer/layers";
 import { CATEGORICAL } from "../viewer/palette";
-import type { CreateViewer } from "../viewer/viewer";
+import { type CreateViewer, HIGHLIGHT } from "../viewer/viewer";
 import type { MeshSurface } from "../worker/protocol";
 import { Viewport } from "./Viewport";
 
@@ -24,6 +24,7 @@ const surface: MeshSurface = {
   triangles: new Uint32Array([0, 1, 2]),
   edges: new Uint32Array([0, 1, 1, 2, 2, 0]),
   owners: new Uint32Array([0]),
+  nodes: new Float64Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
   cells: 1,
 };
 
@@ -52,6 +53,13 @@ function meshFiles() {
       ] as [number[], number[]],
       tags: [],
     };
+    if (name === "tilted.vtu") {
+      const positions = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);
+      return {
+        info: { file: name, solids: [solid] },
+        surfaces: { tetra: { ...surface, positions } },
+      };
+    }
     if (name === "hybrid.vtu") {
       return {
         info: {
@@ -70,8 +78,25 @@ function meshFiles() {
 }
 
 function fakeViewer() {
+  const root = document.createElement("div");
+  const canvas = document.createElement("canvas");
+  canvas.getBoundingClientRect = () =>
+    ({ left: 0, top: 0, width: 100, height: 100 }) as DOMRect;
+  root.appendChild(canvas);
   const handle = {
-    root: document.createElement("div"),
+    root,
+    // looking from +z onto the triangle in the xy-plane
+    camera: {
+      basis: [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ],
+      target: [0.25, 0.25, 0],
+      radius: 1,
+      zoom: 1,
+      parallel: true,
+    },
     update: vi.fn<(scene: Scene, options?: { keepView?: boolean }) => void>(),
     setView: vi.fn<(view: string | null) => void>(),
     dispose: vi.fn(),
@@ -227,6 +252,110 @@ describe("Viewport", () => {
     await act(async () => {});
     expect(select.value).toBe("mesh");
     expect(legend()).toBeNull();
+  });
+
+  it("shows point sets and creates one of a picked face", async () => {
+    const { files } = meshFiles();
+    await files.add("a.vtu", new Uint8Array());
+    const store = new ModelStore();
+    store.apply([
+      { type: "add", command: mesh("a", "a.vtu") },
+      {
+        type: "add",
+        command: {
+          command: "pointset.add",
+          name: "left",
+          select: { axis: "x", value: 0 },
+        },
+      },
+    ]);
+    const viewer = fakeViewer();
+    const create = vi.fn();
+    const view = (selected?: string) => (
+      <Viewport
+        store={store}
+        files={files}
+        hidden={new Set()}
+        selected={selected}
+        onCreatePointSet={create}
+        createViewer={viewer.create}
+      />
+    );
+    const { rerender } = render(view());
+    await act(async () => {});
+    const markers = () =>
+      viewer.handle.update.mock.lastCall![0].objects.filter(
+        (o) => o.type === "points",
+      );
+    // two points at x = 0, with an outline
+    expect(markers().map((m) => [m.color, m.positions.size])).toEqual([
+      ["#11151c", 6],
+      ["#f2f4f8", 6],
+    ]);
+    rerender(view("left"));
+    await act(async () => {});
+    expect(markers()[1].color).toBe(HIGHLIGHT);
+
+    // a click onto the triangle picks the plane z = 0
+    const canvas = viewer.handle.root.querySelector("canvas")!;
+    await act(async () => {
+      canvas.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, clientX: 50, clientY: 50 }),
+      );
+    });
+    const panel = screen.getByRole("status", { name: "Picked face" });
+    expect(panel.textContent).toContain("Plane z = 0 · 3 points");
+    fireEvent.click(screen.getByRole("button", { name: "Create point set" }));
+    expect(create).toHaveBeenCalledWith({
+      name: "z_min",
+      select: { axis: "z", value: 0 },
+    });
+    expect(screen.queryByRole("status", { name: "Picked face" })).toBeNull();
+  });
+
+  it("explains faces that are not normal to an axis", async () => {
+    const { files } = meshFiles();
+    await files.add("tilted.vtu", new Uint8Array());
+    const store = new ModelStore();
+    store.apply({ type: "add", command: mesh("a", "tilted.vtu") });
+    const viewer = fakeViewer();
+    // looking along -(1, 1, 1) onto the triangle in the plane x + y + z = 1
+    const s2 = Math.SQRT1_2;
+    const s6 = 1 / Math.sqrt(6);
+    const s3 = 1 / Math.sqrt(3);
+    Object.assign(viewer.handle.camera, {
+      basis: [
+        [-s2, s2, 0],
+        [-s6, -s6, 2 * s6],
+        [s3, s3, s3],
+      ],
+      target: [1 / 3, 1 / 3, 1 / 3],
+    });
+    render(
+      <Viewport
+        store={store}
+        files={files}
+        hidden={new Set()}
+        onCreatePointSet={vi.fn()}
+        createViewer={viewer.create}
+      />,
+    );
+    await act(async () => {});
+    const canvas = viewer.handle.root.querySelector("canvas")!;
+    await act(async () => {
+      canvas.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, clientX: 50, clientY: 50 }),
+      );
+    });
+    const panel = screen.getByRole("status", { name: "Picked face" });
+    expect(panel.textContent).toContain("not normal to x, y or z");
+    expect(
+      screen.queryByRole("button", { name: "Create point set" }),
+    ).toBeNull();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Clear the picked face" }),
+    );
+    expect(screen.queryByRole("status", { name: "Picked face" })).toBeNull();
   });
 
   it("hides the toolbar without WebGL2", async () => {

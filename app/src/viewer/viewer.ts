@@ -1,14 +1,23 @@
 // Adapter of the vendored FElupe viewer (ADR 0004): the only module that talks to it.
 // Content is set in parts (meshes, markers, arrows); changes of the same task are
 // drawn together. The camera fits the model when it is first shown and keeps its
-// rotation, zoom and pan afterwards.
+// rotation, zoom and pan afterwards. A click (not a drag) picks the face under the
+// pointer; the faces of a picked plane are highlighted.
 import {
   createViewer,
   type ViewerHandle,
 } from "../vendor/felupe-viewer/viewer.js";
 import {
+  firstHit,
+  rayAt,
+  trianglesInPlane,
+  type Ray,
+  type Vec3,
+} from "./picking";
+import {
   type Arrows,
   buildScene,
+  type Highlight,
   type LegendEntry,
   type Markers,
   type MeshLayer,
@@ -26,13 +35,61 @@ export const VIEWS = [
 
 export type CameraView = (typeof VIEWS)[number]["id"];
 
+/** The face under the pointer: the mesh, the hit point and the unit normal. */
+export interface Pick {
+  mesh: string;
+  point: Vec3;
+  normal: Vec3;
+}
+
+/** Color of the faces of a picked plane. */
+export const HIGHLIGHT = "#ffd23f";
+
+/** A drag of more pixels is a rotation, not a click. */
+const CLICK = 4;
+
+/**
+ * A tolerance of the coordinates of the meshes: relative to the size of the model
+ * and to the precision of the float32 coordinates of the surfaces.
+ */
+function tolerance(meshes: readonly MeshLayer[]): number {
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  for (const { surface } of meshes) {
+    const p = surface.positions;
+    for (let i = 0; i < p.length; i++) {
+      min[i % 3] = Math.min(min[i % 3], p[i]);
+      max[i % 3] = Math.max(max[i % 3], p[i]);
+    }
+  }
+  const size = Math.hypot(...max.map((m, k) => m - min[k]));
+  const magnitude = Math.max(...min.map(Math.abs), ...max.map(Math.abs));
+  const tol = 1e-6 * size + 1e-6 * magnitude;
+  return Number.isFinite(tol) && tol > 0 ? tol : 1e-9;
+}
+
+/** The triangles of the cells that are drawn. */
+function drawnTriangles(layer: MeshLayer): Uint32Array {
+  const { surface, hidden } = layer;
+  if (!hidden) return surface.triangles;
+  const kept: number[] = [];
+  for (let t = 0; t < surface.owners.length; t++) {
+    if (hidden[surface.owners[t]]) continue;
+    kept.push(...surface.triangles.subarray(3 * t, 3 * t + 3));
+  }
+  return Uint32Array.from(kept);
+}
+
 export class Viewer {
   private handle: ViewerHandle;
   private meshes: readonly MeshLayer[] = [];
   private markers: readonly Markers[] = [];
   private arrows: readonly Arrows[] = [];
   private legend: readonly LegendEntry[] | undefined;
+  private plane: { point: Vec3; normal: Vec3 } | undefined;
   private scheduled = false;
+  private down: { x: number; y: number } | undefined;
+  private pickListeners = new Set<(pick: Pick | undefined) => void>();
   /** The camera fits the model on the next draw (e.g. after it was empty). */
   private fitNext = true;
 
@@ -40,6 +97,13 @@ export class Viewer {
     this.handle = create(element, buildScene({ meshes: [] }), {
       wheelOnFocus: false,
     });
+    const root = this.handle.root;
+    root.addEventListener(
+      "pointerdown",
+      (event) => (this.down = { x: event.clientX, y: event.clientY }),
+      true,
+    );
+    root.addEventListener("click", (event) => this.click(event));
   }
 
   /** False if the browser has no WebGL2 (the viewer shows a message instead). */
@@ -68,6 +132,44 @@ export class Viewer {
     this.schedule();
   }
 
+  /** Highlight the drawn faces in a plane (e.g. of a picked face), or none. */
+  setPlane(plane: { point: Vec3; normal: Vec3 } | undefined): void {
+    this.plane = plane;
+    this.schedule();
+  }
+
+  /** Listen to picks: a face, or undefined for a click beside the model. */
+  onPick(listener: (pick: Pick | undefined) => void): () => void {
+    this.pickListeners.add(listener);
+    return () => this.pickListeners.delete(listener);
+  }
+
+  /** The ray through a point of the view (pixels from its top left corner). */
+  rayAt(x: number, y: number, width: number, height: number): Ray | undefined {
+    const camera = this.handle.camera;
+    return camera ? rayAt(camera, x, y, width, height) : undefined;
+  }
+
+  /** The first drawn face at a point of the view of the given size. */
+  pickAt(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ): Pick | undefined {
+    this.flush();
+    const ray = this.rayAt(x, y, width, height);
+    if (!ray) return undefined;
+    let best: (Pick & { distance: number }) | undefined;
+    for (const layer of this.meshes) {
+      const hit = firstHit(ray, layer.surface.positions, drawnTriangles(layer));
+      if (hit && (!best || hit.distance < best.distance)) {
+        best = { mesh: layer.name, ...hit };
+      }
+    }
+    return best && { mesh: best.mesh, point: best.point, normal: best.normal };
+  }
+
   /** Look at the model from a preset direction, fitted into the view. */
   setView(view: CameraView): void {
     this.flush();
@@ -84,6 +186,45 @@ export class Viewer {
     this.handle.dispose();
   }
 
+  private click(event: MouseEvent) {
+    const down = this.down;
+    this.down = undefined;
+    if (
+      down &&
+      Math.hypot(event.clientX - down.x, event.clientY - down.y) > CLICK
+    ) {
+      return;
+    }
+    const canvas = this.handle.root.querySelector("canvas");
+    if (!canvas || !this.available) return;
+    const rect = canvas.getBoundingClientRect();
+    const pick = this.pickAt(
+      event.clientX - rect.left,
+      event.clientY - rect.top,
+      rect.width,
+      rect.height,
+    );
+    for (const listener of this.pickListeners) listener(pick);
+  }
+
+  /** The faces of the meshes in the highlighted plane. */
+  private highlights(): Highlight[] {
+    const plane = this.plane;
+    if (!plane) return [];
+    const tol = tolerance(this.meshes);
+    return this.meshes.map((layer) => ({
+      positions: layer.surface.positions,
+      triangles: trianglesInPlane(
+        layer.surface.positions,
+        drawnTriangles(layer),
+        plane.point,
+        plane.normal,
+        tol,
+      ),
+      color: HIGHLIGHT,
+    }));
+  }
+
   private schedule() {
     if (this.scheduled) return;
     this.scheduled = true;
@@ -96,6 +237,7 @@ export class Viewer {
     this.scheduled = false;
     const scene = buildScene({
       meshes: this.meshes,
+      highlights: this.highlights(),
       markers: this.markers,
       arrows: this.arrows,
       legend: this.legend,

@@ -52,8 +52,17 @@ export interface LegendEntry {
   color: string;
 }
 
+/** Faces drawn transparent over the meshes, e.g. a picked plane. */
+export interface Highlight {
+  positions: Float32Array;
+  triangles: Uint32Array;
+  color: string;
+  opacity?: number;
+}
+
 export interface SceneContent {
   meshes: readonly MeshLayer[];
+  highlights?: readonly Highlight[];
   markers?: readonly Markers[];
   arrows?: readonly Arrows[];
   /** The legend; by default the names of the meshes, if there is more than one. */
@@ -254,10 +263,20 @@ export function arrowObject(arrows: Arrows): LinesObject {
   };
 }
 
-/** The scene of the viewer: the meshes, the markers and the arrows. */
+/** The scene of the viewer: the meshes, highlights, markers and arrows. */
 export function buildScene(content: SceneContent): Scene {
   const objects: SceneObject[] = [
     ...content.meshes.flatMap(meshObjects),
+    ...(content.highlights ?? [])
+      .filter((h) => h.triangles.length > 0)
+      .map((h): SurfaceObject => ({
+        type: "surface",
+        positions: f4(h.positions),
+        triangles: u4(h.triangles),
+        color: h.color,
+        opacity: h.opacity ?? 0.6,
+        smooth: false,
+      })),
     ...(content.markers ?? []).map(markerObject),
     ...(content.arrows ?? []).map(arrowObject),
   ];
