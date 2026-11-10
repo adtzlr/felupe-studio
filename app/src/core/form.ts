@@ -409,7 +409,66 @@ export function normalize(
     return result;
   };
 
-  return fill(definition(type, source).node, source, []);
+  return withoutTaken(type, fill(definition(type, source).node, source, []));
+}
+
+/** Names that the field excluded by a reference field holds (registry `excludes`). */
+function taken(type: CommandType, key: string, draft: Draft): string[] {
+  const other = info(type, key)?.excludes;
+  const value = other ? getValue(draft, other.split(".")) : undefined;
+  if (typeof value === "string") return [value];
+  return Array.isArray(value) ? (value as string[]) : [];
+}
+
+/** Remove the names of reference lists that their excluded field holds. */
+function withoutTaken(type: CommandType, draft: Draft): Draft {
+  for (const [key, field] of Object.entries(REGISTRY[type].fields)) {
+    if (!field.excludes) continue;
+    const path = key.split(".");
+    const value = getValue(draft, path);
+    if (!Array.isArray(value)) continue;
+    const not = taken(type, key, draft);
+    const kept = value.filter((name) => !not.includes(name));
+    if (kept.length < value.length)
+      assign(draft, path, kept.length ? kept : undefined);
+  }
+  return draft;
+}
+
+/**
+ * Names a reference field offers: the objects of its kind, without the edited one
+ * and without the ones of the field it excludes (a boundary is ramped only once).
+ */
+export function offered(
+  type: CommandType,
+  spec: FieldSpec,
+  draft: Draft,
+  context: Context,
+): string[] {
+  if (spec.input.type !== "reference") return [];
+  const not = taken(type, spec.key, draft);
+  return available(context, spec.input.kind).filter((n) => !not.includes(n));
+}
+
+/**
+ * Options of a choice field. An optional field starts with an empty option for its
+ * default. If the placeholder is one of the options (an axis), the empty option is
+ * labelled with it, e.g. "x (default)", and the option is not listed twice, unless
+ * the value is set to it explicitly.
+ */
+export function choiceOptions(
+  spec: FieldSpec,
+  value: unknown,
+): { empty?: string; options: Option[] } {
+  if (spec.input.type !== "choice") return { options: [] };
+  const { options } = spec.input;
+  if (spec.required) return { options };
+  const fallback = options.find((o) => o.value === spec.placeholder);
+  if (!fallback) return { empty: spec.placeholder ?? "none", options };
+  return {
+    empty: `${fallback.label} (default)`,
+    options: options.filter((o) => o !== fallback || value === o.value),
+  };
 }
 
 /** A name for a new object that is not used yet, e.g. `material_1`. */
@@ -466,7 +525,13 @@ export function setValue(
   context: Context,
 ): Draft {
   const next = structuredClone(draft);
-  let target = next;
+  assign(next, path, value);
+  return normalize(type, next, context, keysOf(type, draft));
+}
+
+/** Set (or with undefined: remove) the value at a path of a draft, in place. */
+function assign(draft: Draft, path: string[], value: unknown) {
+  let target = draft;
   for (const key of path.slice(0, -1)) {
     if (!isObject(target[key])) target[key] = {};
     target = target[key] as Draft;
@@ -474,7 +539,6 @@ export function setValue(
   const last = path[path.length - 1];
   if (value === undefined) delete target[last];
   else target[last] = value;
-  return normalize(type, next, context, keysOf(type, draft));
 }
 
 const article = (word: string) => (/^[aeiou]/i.test(word) ? "an" : "a");

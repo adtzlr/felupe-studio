@@ -13,6 +13,11 @@ export interface FieldInfo {
   placeholder?: string;
   /** Initial value of a required field of a new object. */
   default?: unknown;
+  /**
+   * Key of another reference field: its objects are not offered here, e.g. the
+   * ramped boundary in the further boundaries of a ramp.
+   */
+  excludes?: string;
 }
 
 export type Tab = "mesh" | "materials" | "sections" | "loads" | "steps";
@@ -251,6 +256,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         label: "Also ramped",
         hint: "Further boundaries with the same values, e.g. equi-biaxial",
         placeholder: "none",
+        excludes: "ramp.boundary",
       },
       "ramp.start": { label: "Start", placeholder: "0" },
       "ramp.end": { label: "End", default: 1 },

@@ -4,13 +4,14 @@ import type { ComponentChildren } from "preact";
 import { useState } from "preact/hooks";
 import type { Command } from "../core/commands";
 import {
-  available,
+  choiceOptions,
   type Context,
   type Draft,
   draftErrors,
   type FieldSpec,
   fieldSpecs,
   getValue,
+  offered,
   sameDraft,
   setValue,
   toCommand,
@@ -182,7 +183,8 @@ export function CommandForm({
             }}
           />
         );
-      case "choice":
+      case "choice": {
+        const { empty, options } = choiceOptions(spec, value);
         return (
           <select
             {...common}
@@ -191,16 +193,15 @@ export function CommandForm({
               change(spec, event.currentTarget.value || undefined)
             }
           >
-            {!spec.required && (
-              <option value="">{spec.placeholder ?? "none"}</option>
-            )}
-            {input.options.map((o) => (
+            {empty !== undefined && <option value="">{empty}</option>}
+            {options.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
             ))}
           </select>
         );
+      }
       case "variant":
         return (
           <select
@@ -246,7 +247,7 @@ export function CommandForm({
         );
       }
       case "reference": {
-        const names = available(context, input.kind);
+        const names = offered(type, spec, draft, context);
         const kind = KIND_LABELS[input.kind].toLowerCase();
         if (!input.multiple) {
           const current = typeof value === "string" ? value : "";

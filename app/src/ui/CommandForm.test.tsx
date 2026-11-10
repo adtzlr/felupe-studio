@@ -192,6 +192,10 @@ describe("editing in the properties panel", () => {
 
     const step = edit("step_1");
     expect(step.field("Increments").value).toBe("5");
+    // the ramped boundary is not offered as a further boundary
+    const also = step.field<HTMLElement>("Also ramped");
+    expect(within(also).queryByLabelText("move")).toBeNull();
+    expect(within(also).getByLabelText("fixed")).toBeTruthy();
     fireEvent.click(step.field("Ramp a boundary"));
     expect(within(step.properties).queryByLabelText("Increments")).toBeNull();
     fireEvent.click(step.field("section_soft"));
@@ -269,6 +273,13 @@ describe("load cases", () => {
     // the defaults of fem.dof
     expect(symmetry.checked).toBe(true);
     expect(clamped.checked).toBe(false);
+    // the default axes are not listed twice
+    const options = (label: string) =>
+      [
+        ...(within(dialog).getByLabelText(label) as HTMLSelectElement).options,
+      ].map((o) => o.text);
+    expect(options("Axis")).toEqual(["x (default)", "y", "z"]);
+    expect(options("Second axis")).toEqual(["y (default)", "x", "z"]);
     fireEvent.click(clamped);
     fireEvent.click(symmetry);
     fireEvent.click(within(dialog).getByRole("button", { name: "Create" }));
