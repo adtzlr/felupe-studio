@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "commands": [
+    {
+      "command": "mesh.import",
+      "name": "bar",
+      "file": "bar.vtu"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "all_cells",
+      "mesh": "bar"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHookeCompressible",
+      "parameters": {
+        "mu": 1.0,
+        "lmbda": 2.0
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "body",
+      "cellset": "all_cells",
+      "material": "rubber",
+      "formulation": "u"
+    },
+    {
+      "command": "loadcase.add",
+      "name": "tension",
+      "type": "uniaxial",
+      "clamped": true,
+      "symmetry": false
+    },
+    {
+      "command": "step.add",
+      "name": "step_1",
+      "ramp": {
+        "boundary": "tension",
+        "end": 0.5,
+        "num": 5
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "step_1"
+      ],
+      "curve": "tension"
+    }
+  ]
+}

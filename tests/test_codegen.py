@@ -296,12 +296,26 @@ def test_longest_names_are_wrapped(two_sections, tmp_path, monkeypatch):
     script = codegen(document)
     assert max(len(line) for line in script.splitlines()) <= 88
 
+    # a ramp of more boundaries is exploded like ruff format would do it
+    ramped = copy.deepcopy(document)
+    step = next(c for c in ramped["commands"] if c["command"] == "step.add")
+    fixed = next(
+        c["name"]
+        for c in ramped["commands"]
+        if c["command"] == "boundary.add" and c["name"] != step["ramp"]["boundary"]
+    )
+    step["ramp"]["also"] = [fixed]
+    long = codegen(ramped)
+    assert "    ramp={\n" in long
+    assert max(len(line) for line in long.splitlines()) <= 88
+
     ruff = shutil.which("ruff")
     if ruff:
-        path = tmp_path / "script.py"
-        path.write_text(script, encoding="utf-8")
-        fmt = [ruff, "format", "--isolated", "--check", str(path)]
-        assert subprocess.run(fmt, capture_output=True).returncode == 0
+        for text in (script, long):
+            path = tmp_path / "script.py"
+            path.write_text(text, encoding="utf-8")
+            fmt = [ruff, "format", "--isolated", "--check", str(path)]
+            assert subprocess.run(fmt, capture_output=True).returncode == 0
 
     mesh, tag = bar()
     write(tmp_path / "specimen.vtu", mesh, tag)

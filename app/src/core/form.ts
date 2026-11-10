@@ -4,6 +4,7 @@
 // the models of the material registry: a new material model needs a schema
 // definition only.
 import type { Command } from "./commands";
+import { type Loadcase, loadcaseFieldErrors } from "./loadcases";
 import { KIND_LABELS, REGISTRY } from "./registry";
 import { schema } from "./schema";
 import {
@@ -40,7 +41,9 @@ export type Input =
   | { type: "integers"; minItems: number; min?: number }
   | { type: "reference"; kind: Kind; multiple: boolean; minItems: number }
   /** Switches an optional group of fields on or off. */
-  | { type: "toggle" };
+  | { type: "toggle" }
+  /** A flag; without a value, the default of the schema applies. */
+  | { type: "boolean"; default: boolean };
 
 export interface FieldSpec {
   /** Path of the value in the command, e.g. ["parameters", "mu"]. */
@@ -165,7 +168,8 @@ function variantOf(node: Node, value: Draft): Node {
 
 /** Kind of object a reference field points to. */
 function referenceKind(type: CommandType, key: string): Kind {
-  if (type === "step.add" && key === "ramp.boundary") return "boundary";
+  if (type === "step.add" && (key === "ramp.boundary" || key === "ramp.also"))
+    return "boundary";
   const reference = REFERENCES[type]?.[key];
   if (!reference) throw new Error(`No reference kind for ${type} ${key}.`);
   return reference[0];
@@ -256,6 +260,13 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
         push(path, isRequired, { type: "choice", options }, raw.description);
       } else if (property.type === "string") {
         push(path, isRequired, { type: "text" }, raw.description);
+      } else if (property.type === "boolean") {
+        push(
+          path,
+          isRequired,
+          { type: "boolean", default: raw.default === true },
+          raw.description,
+        );
       } else if (property.type === "number" || property.type === "integer") {
         push(
           path,
@@ -586,6 +597,9 @@ export function draftErrors(
   for (const spec of fieldSpecs(type, draft)) {
     const error = fieldError(spec, getValue(draft, spec.path), context);
     if (error) errors[spec.key] = error;
+  }
+  if (type === "loadcase.add" && typeof draft.type === "string") {
+    Object.assign(errors, loadcaseFieldErrors(draft as unknown as Loadcase));
   }
   return errors;
 }

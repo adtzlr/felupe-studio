@@ -19,7 +19,10 @@ describe("ribbonGroups", () => {
       ["Point set"],
     ]);
     expect(labels("sections")).toEqual([["Section"]]);
-    expect(labels("loads")).toEqual([["Boundary"]]);
+    expect(labels("loads")).toEqual([
+      ["Boundary"],
+      ["Uniaxial", "Biaxial", "Planar", "Shear"],
+    ]);
     expect(labels("steps")).toEqual([["Step"], ["Job"]]);
   });
 

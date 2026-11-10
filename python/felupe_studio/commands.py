@@ -21,6 +21,8 @@ KINDS = {
     "section.add": "section",
     "pointset.add": "pointset",
     "boundary.add": "boundary",
+    # a load case is referenced like a boundary (ramps of steps, curves of jobs)
+    "loadcase.add": "boundary",
     "step.add": "step",
     "job.add": "job",
 }
@@ -71,7 +73,9 @@ def schema_errors(document):
 
 
 def _reference_errors(commands):
-    from .materials import needs_bulk  # the registry reads the schema of this module
+    # the registries read the schema of this module
+    from .loadcases import problems as loadcase_problems
+    from .materials import needs_bulk
 
     keywords, reserved_names, reserved_prefixes = reserved()
     messages = []
@@ -97,13 +101,15 @@ def _reference_errors(commands):
                         f"{other}, not a {ref_kind}."
                     )
 
-        # the ramped boundary of a step
+        # the ramped boundaries of a step
         if cmd["command"] == "step.add" and "ramp" in cmd:
-            ref = cmd["ramp"]["boundary"]
-            if ref not in defined or KINDS[defined[ref][1]["command"]] != "boundary":
-                messages.append(
-                    f"commands/{i}: step '{name}' ramps unknown boundary '{ref}'."
-                )
+            ramp = cmd["ramp"]
+            for ref in [ramp["boundary"], *ramp.get("also", [])]:
+                kind = KINDS[defined[ref][1]["command"]] if ref in defined else None
+                if kind != "boundary":
+                    messages.append(
+                        f"commands/{i}: step '{name}' ramps unknown boundary '{ref}'."
+                    )
 
         # cell sets from tags need a mesh imported with a tag
         if cmd["command"] == "cellset.from_tag" and cmd["mesh"] in defined:
@@ -124,6 +130,9 @@ def _reference_errors(commands):
                     "without a bulk modulus. Add 'bulk' to the material or use "
                     "'u-p-J'."
                 )
+
+        if cmd["command"] == "loadcase.add":
+            messages.extend(f"commands/{i}: {p}" for p in loadcase_problems(cmd))
 
         if cmd["command"] == "mesh.merge" and any(
             c["command"] == "mesh.merge" for _, c in defined.values()

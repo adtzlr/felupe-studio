@@ -4,6 +4,7 @@ import type { CheckReport } from "./checks";
 import type { Command } from "./commands";
 import type { Issue, Kind } from "./validate";
 import { KINDS } from "./validate";
+import { describeLoadcase } from "./loadcases";
 import { MATERIAL_MODELS } from "./materials";
 
 export interface TreeNode {
@@ -60,6 +61,8 @@ function detail(cmd: Command): string {
       );
       return `${cmd.pointset} · ${constrained}${value !== 0 ? ` = ${value}` : ""}`;
     }
+    case "loadcase.add":
+      return describeLoadcase(cmd);
     case "step.add":
       return cmd.ramp
         ? `${cmd.ramp.boundary}: ${cmd.ramp.start ?? 0} → ${cmd.ramp.end} (${cmd.ramp.num})`

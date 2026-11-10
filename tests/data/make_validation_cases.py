@@ -30,6 +30,10 @@ CHANGES = {
     "step with a cell set": lambda d: find(d, "step_1").update(sections=["hard"]),
     "ramp of a point set": lambda d: find(d, "step_1")["ramp"].update(boundary="left"),
     "unknown curve": lambda d: find(d, "job_1").update(curve="fixed2"),
+    "ramp also": lambda d: find(d, "step_1")["ramp"].update(also=["fixed"]),
+    "ramp also unknown": lambda d: find(d, "step_1")["ramp"].update(
+        also=["fixed", "left"]
+    ),
     "duplicate name": lambda d: find(d, "soft").update(name="hard"),
     "mesh without tag": lambda d: find(d, "specimen").pop("tag"),
     "mesh with cell type": lambda d: find(d, "specimen").update(cell_type="tetra10"),
@@ -48,6 +52,27 @@ CHANGES = {
         ),
         find(d, "section_soft").update(formulation="u"),
         find(d, "section_soft").pop("bulk"),
+    ),
+    "load case ramped and recorded": lambda d: (
+        d["commands"].insert(
+            -2,
+            {"command": "loadcase.add", "name": "tension", "type": "uniaxial"},
+        ),
+        find(d, "step_1")["ramp"].update(boundary="tension"),
+        find(d, "job_1").update(curve="tension"),
+    ),
+    "load case with the same axes": lambda d: d["commands"].insert(
+        -2,
+        {"command": "loadcase.add", "name": "shear", "type": "shear", "normal": "x"},
+    ),
+    "load case without support": lambda d: d["commands"].insert(
+        -2,
+        {
+            "command": "loadcase.add",
+            "name": "pull",
+            "type": "planar",
+            "symmetry": False,
+        },
     ),
     "keyword": lambda d: find(d, "job_1").update(name="lambda"),
     "reserved name": lambda d: find(d, "job_1").update(name="field"),

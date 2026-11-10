@@ -82,6 +82,7 @@ export function unavailable(
 
 /** Title of the dialog that creates an object of a ribbon item. */
 export function dialogTitle(item: RibbonItem): string {
-  const kind = KIND_LABELS[KINDS[item.type]].toLowerCase();
-  return `New ${kind}`;
+  const noun =
+    REGISTRY[item.type].noun ?? KIND_LABELS[KINDS[item.type]].toLowerCase();
+  return `New ${noun}`;
 }
