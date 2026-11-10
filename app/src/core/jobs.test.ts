@@ -138,6 +138,7 @@ describe("solve", () => {
     expect(runner.run).toMatchObject({
       state: "running",
       progress: { job: "job_1", substep: 1 },
+      commands,
     });
     const results = { job_1: { substeps: 5, time: 0.1 } };
     settle().resolve(results);

@@ -1149,6 +1149,18 @@ button {
   margin: 6px 0 0;
 }
 
+/* lines of a running job: no wrapping, so the panel keeps its size (#108) */
+.job-panel .job-line {
+  overflow: hidden;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-panel .job-line + .job-line {
+  margin-top: 2px;
+}
+
 .job-head {
   display: flex;
   align-items: center;
@@ -1157,7 +1169,11 @@ button {
 }
 
 .job-head h2 {
+  min-width: 0;
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 14px;
 }
 

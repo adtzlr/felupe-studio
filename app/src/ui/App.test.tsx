@@ -338,6 +338,17 @@ describe("solve", () => {
     expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe(
       "50",
     );
+    // the next substep keeps the line of the Newton iteration (#108)
+    const height = panel.querySelectorAll(".job-line").length;
+    jobs.emit({
+      event: "substep",
+      job: "job_1",
+      step: 0,
+      steps: 1,
+      substep: 3,
+      substeps: 4,
+    });
+    expect(panel.querySelectorAll(".job-line").length).toBe(height);
     expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
 
     await act(async () =>

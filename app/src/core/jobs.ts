@@ -104,7 +104,12 @@ export function fraction(progress: JobProgress): number {
 
 export type JobRun =
   | { state: "idle" }
-  | { state: "running"; progress: JobProgress }
+  | {
+      state: "running";
+      progress: JobProgress;
+      /** The command list of the run. */
+      commands: readonly Command[];
+    }
   | {
       state: "finished";
       progress: JobProgress;
@@ -193,12 +198,12 @@ export class JobRunner {
     // the results of Python are replaced by this run
     this.last = undefined;
     let progress = startProgress();
-    this.set({ state: "running", progress });
+    this.set({ state: "running", progress, commands });
     try {
       const results = await this.client.run(document, (event) => {
         if (this.current.state !== "running") return;
         progress = advance(progress, event);
-        this.set({ state: "running", progress });
+        this.set({ state: "running", progress, commands });
       });
       this.last = { state: "finished", progress, results, commands };
       this.set(this.last);
