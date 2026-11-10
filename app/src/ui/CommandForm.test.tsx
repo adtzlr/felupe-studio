@@ -57,23 +57,23 @@ describe("editing in the properties panel", () => {
 
   it("shows errors and does not apply invalid values", () => {
     const { store, properties, field, button, type } = edit("umat_hard");
-    type("nu", "0.5");
+    type("ν", "0.5");
     expect(properties.textContent).toContain("Must be less than 0.5.");
-    expect(field("nu").getAttribute("aria-invalid")).toBe("true");
+    expect(field("ν").getAttribute("aria-invalid")).toBe("true");
     fireEvent.click(button("Apply"));
     expect(store.get("umat_hard")).toMatchObject({ parameters: { nu: 0.3 } });
-    expect(document.activeElement).toBe(field("nu"));
+    expect(document.activeElement).toBe(field("ν"));
 
-    type("nu", "0,3");
+    type("ν", "0,3");
     expect(properties.textContent).toContain(
       "with a point as decimal separator",
     );
-    type("nu", "");
+    type("ν", "");
     expect(properties.textContent).toContain("Required.");
     // partly typed numbers stay as typed
-    type("nu", "1e-");
-    expect(field("nu").value).toBe("1e-");
-    type("nu", "1e-2");
+    type("ν", "1e-");
+    expect(field("ν").value).toBe("1e-");
+    type("ν", "1e-2");
     expect(properties.textContent).not.toContain("decimal separator");
     fireEvent.click(button("Apply"));
     expect(store.get("umat_hard")).toMatchObject({ parameters: { nu: 0.01 } });
@@ -109,12 +109,12 @@ describe("editing in the properties panel", () => {
 
   it("switches the material model and its parameters", () => {
     const { store, properties, field, button, choose } = edit("umat_soft");
-    expect(field("bulk").value).toBe("");
-    expect(field("bulk").placeholder).toBe("none");
+    expect(field("K").value).toBe("");
+    expect(field("K").placeholder).toBe("none");
     choose("Model", "NeoHookeCompressible");
-    expect(field("mu").value).toBe("1");
-    expect(field("lmbda").value).toBe("2");
-    expect(within(properties).queryByLabelText("bulk")).toBeNull();
+    expect(field("μ").value).toBe("1");
+    expect(field("λ").value).toBe("2");
+    expect(within(properties).queryByLabelText("K")).toBeNull();
     fireEvent.click(button("Apply"));
     expect(store.get("umat_soft")).toEqual({
       command: "material.add",

@@ -32,12 +32,25 @@ The JSON schema [`python/felupe_studio/commands.schema.json`](../python/felupe_s
 | `mesh.merge`        | merge setting (at most one) |                                          | `fem.field.merge([...], decimals=...)`: merges points that agree to `decimals`, e.g. files of different mesh generators; without it only identical points are merged |
 | `cellset.from_tag`  | cell set                    | mesh (imported with a tag)               | `fem.Mesh(points, cells[tag == value], cell_type)`                                                                                                                   |
 | `cellset.from_file` | cell set                    | mesh                                     | all cells of the mesh                                                                                                                                                |
-| `material.add`      | material                    |                                          | `NeoHooke`, `NeoHookeCompressible`, `LinearElasticLargeStrain`                                                                                                       |
+| `material.add`      | material                    |                                          | a model of the material registry, see below                                                                                                                          |
 | `section.add`       | section                     | cell set, material                       | `u`: `FieldContainer` + `SolidBody`; `u-p-J`: `FieldsMixed` + `NearlyIncompressible(bulk)`                                                                           |
 | `pointset.add`      | point set                   |                                          | coordinate (`x == 0`, with `atol`) or point ids                                                                                                                      |
 | `boundary.add`      | boundary                    | point set                                | `fem.Boundary` on the merged field, `constrained` components                                                                                                         |
 | `step.add`          | step                        | sections (default: all), ramped boundary | `fem.Step`, `fem.math.linsteps([start, end], num)`                                                                                                                   |
 | `job.add`           | job                         | steps, curve boundary                    | `fem.Job` or `fem.CharacteristicCurve`                                                                                                                               |
+
+## Material models
+
+The material models are the definitions `Material<Model>` of `material.add` in the command schema, the material registry. Every definition holds the label of the model (`x-label`), how FElupe creates it (`x-felupe`: a `class`, or a `function` of tensortrax for `fem.Hyperelastic`) and its parameters with label, description, bounds and default. The forms, the ribbon, the validation and the generated script read them from there (`felupe_studio.materials` in Python), so a new model needs a schema definition and tests, but no code in the app.
+
+| Model                      | Label                         | FElupe                                                       | Parameters                                    |
+| -------------------------- | ----------------------------- | ------------------------------------------------------------ | --------------------------------------------- |
+| `NeoHooke`                 | Neo-Hooke                     | `fem.NeoHooke(mu, bulk)`                                     | μ `mu`, optional K `bulk`                     |
+| `NeoHookeCompressible`     | Neo-Hooke (compressible)      | `fem.NeoHookeCompressible(mu, lmbda)`                        | μ `mu`, λ `lmbda`                             |
+| `MooneyRivlin`             | Mooney-Rivlin                 | `fem.Hyperelastic(fem.mooney_rivlin, C10, C01)` (tensortrax) | C₁₀ `C10`, C₀₁ `C01`, optional K `bulk`       |
+| `LinearElasticLargeStrain` | Linear elastic (large strain) | `fem.LinearElasticLargeStrain(E, nu)`                        | E `E`, ν `nu`                                 |
+
+A model with an optional bulk modulus is incompressible without it: a section with this material needs the `u-p-J` formulation (`fem.NearlyIncompressible(..., bulk)`). A bulk modulus marked `"x-felupe": "volumetric"` is added as `fem.Volumetric(bulk=...)`, e.g. `umat &= fem.Volumetric(bulk=5000.0)` for Mooney-Rivlin. The models of tensortrax need the package `tensortrax` in the generated script; the shear modulus of Mooney-Rivlin is 2 (C₁₀ + C₀₁).
 
 ## Validation
 
@@ -46,7 +59,7 @@ The JSON schema [`python/felupe_studio/commands.schema.json`](../python/felupe_s
 - names are unique within the command list, at most 24 characters, no Python keywords and not reserved for the generated script (`field`, `points`, `boundaries`, … and the prefixes `field_`, `solid_`, `region_`, `ramp_`),
 - references point to an object of the right kind that was created before,
 - `cellset.from_tag` refers to a mesh imported with a `tag`,
-- a `NeoHooke` material without `bulk` is only used in a `u-p-J` section.
+- a material whose model has an optional `bulk` (e.g. `NeoHooke`, `MooneyRivlin`) is only used without `bulk` in a `u-p-J` section.
 
 ## Checks with the mesh data
 
@@ -59,7 +72,7 @@ Example messages: `192 / 192 cells assigned once.` and `Interface left_body / ri
 
 ## Generated script
 
-`felupe_studio.codegen(document)` validates the command list and returns a FElupe script that only needs FElupe, NumPy and meshio. Its structure does not depend on the order of the commands:
+`felupe_studio.codegen(document)` validates the command list and returns a FElupe script that only needs FElupe, NumPy and meshio (and tensortrax for its models). Its structure does not depend on the order of the commands:
 
 1. meshes (`volume_cells()` keeps the solid cells of a meshio file, of one cell type, and ignores lower-dimensional blocks) and cell sets
 2. materials

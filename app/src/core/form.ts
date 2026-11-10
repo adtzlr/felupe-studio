@@ -1,7 +1,8 @@
 // Forms of the commands, derived from the command schema (ADR 0003): which fields a
 // command has, their types, ranges and variants. Labels, hints and defaults come
-// from the registry. A new material model needs a schema definition and registry
-// labels, but no form code.
+// from the registry, or from the schema (`x-label`, `description`, `default`) like
+// the models of the material registry: a new material model needs a schema
+// definition only.
 import type { Command } from "./commands";
 import { KIND_LABELS, REGISTRY } from "./registry";
 import { schema } from "./schema";
@@ -77,6 +78,9 @@ interface Node {
   exclusiveMaximum?: number;
   minItems?: number;
   description?: string;
+  default?: unknown;
+  /** Short label of a definition or a property, e.g. `Mooney-Rivlin` or `μ`. */
+  "x-label"?: string;
   if?: Node;
   then?: Node;
   else?: { not?: Node };
@@ -188,16 +192,24 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
     required: boolean,
     input: Input,
     description?: string,
+    raw?: Node,
   ) => {
     const key = path.join(".");
     const field = key === "name" ? { label: "Name" } : info(type, key);
+    // a property with a label in the schema (e.g. a material parameter `μ`) takes
+    // its description and its key as hint, and "none" as placeholder if optional
+    const labelled = raw?.["x-label"] !== undefined;
+    const schemaHint = labelled
+      ? `${path.at(-1)}: ${raw!.description}`
+      : undefined;
     specs.push({
       path,
       key,
-      label: field?.label ?? key,
-      hint: field?.hint,
+      label: field?.label ?? raw?.["x-label"] ?? key,
+      hint: field?.hint ?? schemaHint,
       description,
-      placeholder: field?.placeholder,
+      placeholder:
+        field?.placeholder ?? (labelled && !required ? "none" : undefined),
       required,
       input,
     });
@@ -219,7 +231,12 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
           const ids = nodes.map((n) => String(n.properties![name].const));
           push(path, true, {
             type: "variant",
-            options: ids.map((id) => option(type, key, id)),
+            options: nodes.map((n, i) => ({
+              ...option(type, key, ids[i]),
+              ...(n["x-label"] && !REGISTRY[type].options?.[key]?.[ids[i]]
+                ? { label: n["x-label"] }
+                : {}),
+            })),
             seeds: Object.fromEntries(ids.map((id) => [id, id])),
           });
         }
@@ -252,6 +269,7 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
             exclusiveMax: property.exclusiveMaximum,
           },
           raw.description,
+          raw,
         );
       } else if (property.type === "array") {
         const items = property.items!;
@@ -353,7 +371,7 @@ export function normalize(
         continue;
       }
       if (result[name] === undefined && required.has(name) && !known.has(key)) {
-        const fallback = info(type, key)?.default;
+        const fallback = info(type, key)?.default ?? raw.default;
         if (fallback !== undefined) {
           result[name] = structuredClone(fallback);
         } else if (refName(raw) === "Name" && key !== "name") {

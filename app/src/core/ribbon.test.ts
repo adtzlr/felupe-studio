@@ -28,6 +28,7 @@ describe("ribbonGroups", () => {
     expect(materials.map((item) => [item.label, item.preset])).toEqual([
       ["Neo-Hooke", { model: "NeoHooke" }],
       ["Neo-Hooke (compressible)", { model: "NeoHookeCompressible" }],
+      ["Mooney-Rivlin", { model: "MooneyRivlin" }],
       ["Linear elastic (large strain)", { model: "LinearElasticLargeStrain" }],
     ]);
     expect(dialogTitle(materials[0])).toBe("New material");

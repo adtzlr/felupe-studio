@@ -327,3 +327,40 @@ def test_invalid_documents(two_sections):
     }
     with pytest.raises(ValidationError, match="at least one section"):
         codegen(without_sections)
+
+
+def test_mooney_rivlin_like_neo_hooke(tmp_path, monkeypatch):
+    # with C01 = 0, Mooney-Rivlin (tensortrax) is Neo-Hooke with mu = 2 C10
+    mesh, _ = bar(n=(4, 2, 2))
+    write(tmp_path / "bar.vtu", mesh)
+    curves = {}
+    for model, parameters in [
+        ("NeoHooke", {"mu": 1.0}),
+        ("MooneyRivlin", {"C10": 0.5, "C01": 0.0}),
+    ]:
+        document = {
+            "schema_version": 1,
+            "commands": [
+                {"command": "mesh.import", "name": "m", "file": "bar.vtu"},
+                {"command": "cellset.from_file", "name": "all", "mesh": "m"},
+                {
+                    "command": "material.add",
+                    "name": "umat",
+                    "model": model,
+                    "parameters": {**parameters, "bulk": 50.0},
+                },
+                section("body_u", "all"),
+                *uniaxial(),
+            ],
+        }
+        curves[model, "u"] = force(run(document, tmp_path, monkeypatch))
+        # incompressible without bulk, in the u-p-J formulation
+        material = document["commands"][2]
+        material["parameters"].pop("bulk")
+        document["commands"][3].update(formulation="u-p-J", bulk=5000.0)
+        curves[model, "upJ"] = force(run(document, tmp_path, monkeypatch))
+    for kind in ("u", "upJ"):
+        np.testing.assert_allclose(
+            curves["MooneyRivlin", kind], curves["NeoHooke", kind], rtol=1e-10
+        )
+        assert curves["NeoHooke", kind][-1] > 0

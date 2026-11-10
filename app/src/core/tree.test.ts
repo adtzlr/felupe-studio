@@ -41,6 +41,8 @@ describe("deriveTree", () => {
       ["soft", "tag = 2"],
     ]);
     expect(find(tree, "section_soft")!.detail).toBe("umat_soft · u-p-J");
+    // the label of the material model of the registry
+    expect(find(tree, "umat_soft")!.detail).toBe("Neo-Hooke");
     expect(find(tree, "left")!.detail).toBe("x == 0");
     expect(find(tree, "fixed")!.detail).toBe("left · x, y, z");
     expect(find(tree, "move")!.detail).toBe("right · x");

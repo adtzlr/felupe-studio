@@ -202,7 +202,7 @@
       }
     },
     "MaterialAdd": {
-      "description": "Add a material to the material library.",
+      "description": "Add a material to the material library. Every model is a definition below (the material registry): its label, the FElupe class or tensortrax function, and its parameters with label, description, bounds and default.",
       "oneOf": [
         {
           "$ref": "#/$defs/MaterialNeoHooke"
@@ -211,12 +211,17 @@
           "$ref": "#/$defs/MaterialNeoHookeCompressible"
         },
         {
+          "$ref": "#/$defs/MaterialMooneyRivlin"
+        },
+        {
           "$ref": "#/$defs/MaterialLinearElasticLargeStrain"
         }
       ]
     },
     "MaterialNeoHooke": {
       "description": "Isotropic hyperelastic Neo-Hookean material (fem.NeoHooke). Without a bulk modulus it needs the u-p-J formulation.",
+      "x-label": "Neo-Hooke",
+      "x-felupe": { "class": "fem.NeoHooke" },
       "type": "object",
       "required": ["command", "name", "model", "parameters"],
       "additionalProperties": false,
@@ -236,10 +241,15 @@
           "additionalProperties": false,
           "properties": {
             "mu": {
+              "x-label": "μ",
+              "description": "Shear modulus",
               "type": "number",
-              "exclusiveMinimum": 0
+              "exclusiveMinimum": 0,
+              "default": 1
             },
             "bulk": {
+              "x-label": "K",
+              "description": "Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.",
               "type": "number",
               "exclusiveMinimum": 0
             }
@@ -249,6 +259,8 @@
     },
     "MaterialNeoHookeCompressible": {
       "description": "Compressible isotropic hyperelastic Neo-Hookean material (fem.NeoHookeCompressible).",
+      "x-label": "Neo-Hooke (compressible)",
+      "x-felupe": { "class": "fem.NeoHookeCompressible" },
       "type": "object",
       "required": ["command", "name", "model", "parameters"],
       "additionalProperties": false,
@@ -268,12 +280,64 @@
           "additionalProperties": false,
           "properties": {
             "mu": {
+              "x-label": "μ",
+              "description": "Shear modulus",
               "type": "number",
-              "exclusiveMinimum": 0
+              "exclusiveMinimum": 0,
+              "default": 1
             },
             "lmbda": {
+              "x-label": "λ",
+              "description": "First Lamé parameter",
               "type": "number",
-              "minimum": 0
+              "minimum": 0,
+              "default": 2
+            }
+          }
+        }
+      }
+    },
+    "MaterialMooneyRivlin": {
+      "description": "Isotropic hyperelastic Mooney-Rivlin material (fem.Hyperelastic with fem.mooney_rivlin, needs tensortrax). The shear modulus is 2 (C10 + C01). Without a bulk modulus it needs the u-p-J formulation.",
+      "x-label": "Mooney-Rivlin",
+      "x-felupe": { "function": "fem.mooney_rivlin" },
+      "type": "object",
+      "required": ["command", "name", "model", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "material.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "model": {
+          "const": "MooneyRivlin"
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["C10", "C01"],
+          "additionalProperties": false,
+          "properties": {
+            "C10": {
+              "x-label": "C₁₀",
+              "description": "Material parameter of the first invariant",
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "default": 0.4
+            },
+            "C01": {
+              "x-label": "C₀₁",
+              "description": "Material parameter of the second invariant",
+              "type": "number",
+              "default": 0.1
+            },
+            "bulk": {
+              "x-label": "K",
+              "description": "Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.",
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "x-felupe": "volumetric"
             }
           }
         }
@@ -281,6 +345,8 @@
     },
     "MaterialLinearElasticLargeStrain": {
       "description": "Linear-elastic material formulated for large deformations (fem.LinearElasticLargeStrain).",
+      "x-label": "Linear elastic (large strain)",
+      "x-felupe": { "class": "fem.LinearElasticLargeStrain" },
       "type": "object",
       "required": ["command", "name", "model", "parameters"],
       "additionalProperties": false,
@@ -300,13 +366,19 @@
           "additionalProperties": false,
           "properties": {
             "E": {
+              "x-label": "E",
+              "description": "Young's modulus",
               "type": "number",
-              "exclusiveMinimum": 0
+              "exclusiveMinimum": 0,
+              "default": 1
             },
             "nu": {
+              "x-label": "ν",
+              "description": "Poisson's ratio",
               "type": "number",
               "minimum": -1,
-              "exclusiveMaximum": 0.5
+              "exclusiveMaximum": 0.5,
+              "default": 0.3
             }
           }
         }

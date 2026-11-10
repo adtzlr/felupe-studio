@@ -4,6 +4,7 @@ import type { CheckReport } from "./checks";
 import type { Command } from "./commands";
 import type { Issue, Kind } from "./validate";
 import { KINDS } from "./validate";
+import { MATERIAL_MODELS } from "./materials";
 
 export interface TreeNode {
   /** Unique id: the object name, or `group:<kind>` for a group. */
@@ -43,7 +44,9 @@ function detail(cmd: Command): string {
     case "cellset.from_file":
       return "all cells";
     case "material.add":
-      return cmd.model;
+      return (
+        MATERIAL_MODELS.find((m) => m.name === cmd.model)?.label ?? cmd.model
+      );
     case "section.add":
       return `${cmd.material} · ${cmd.formulation}`;
     case "pointset.add":

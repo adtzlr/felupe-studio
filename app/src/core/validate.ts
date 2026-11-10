@@ -2,6 +2,7 @@
 // (felupe_studio.commands); both are tested with tests/data/validation_cases.json,
 // so the messages are identical.
 import type { Command } from "./commands";
+import { needsBulk } from "./materials";
 import {
   NAME_MAX_LENGTH,
   NAME_PATTERN,
@@ -167,16 +168,12 @@ export function validate(commands: readonly Command[]): Issue[] {
       }
     }
 
-    // NeoHooke without a bulk modulus has no volumetric part
+    // a model with an optional bulk modulus has no volumetric part without it
     if (cmd.command === "section.add" && cmd.formulation === "u") {
       const material = defined.get(cmd.material)?.[1];
-      if (
-        material?.command === "material.add" &&
-        material.model === "NeoHooke" &&
-        material.parameters.bulk === undefined
-      ) {
+      if (material?.command === "material.add" && needsBulk(material)) {
         add(
-          `section '${name}' uses the displacement formulation with NeoHooke ` +
+          `section '${name}' uses the displacement formulation with ${material.model} ` +
             `'${material.name}' without a bulk modulus. Add 'bulk' to the material or use 'u-p-J'.`,
         );
       }

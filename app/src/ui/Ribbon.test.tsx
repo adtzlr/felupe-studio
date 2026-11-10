@@ -68,6 +68,7 @@ describe("ribbon commands", () => {
     expect(names()).toEqual([
       "Neo-Hooke",
       "Neo-Hooke (compressible)",
+      "Mooney-Rivlin",
       "Linear elastic (large strain)",
     ]);
   });

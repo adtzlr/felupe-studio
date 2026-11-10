@@ -24,7 +24,7 @@ export type Command =
  */
 export type Name = string;
 /**
- * Add a material to the material library.
+ * Add a material to the material library. Every model is a definition below (the material registry): its label, the FElupe class or tensortrax function, and its parameters with label, description, bounds and default.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "MaterialAdd".
@@ -32,6 +32,7 @@ export type Name = string;
 export type MaterialAdd =
   | MaterialNeoHooke
   | MaterialNeoHookeCompressible
+  | MaterialMooneyRivlin
   | MaterialLinearElasticLargeStrain;
 /**
  * This interface was referenced by `CommandList`'s JSON-Schema
@@ -120,7 +121,13 @@ export interface MaterialNeoHooke {
   name: Name;
   model: "NeoHooke";
   parameters: {
+    /**
+     * Shear modulus
+     */
     mu: number;
+    /**
+     * Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.
+     */
     bulk?: number;
   };
 }
@@ -135,8 +142,39 @@ export interface MaterialNeoHookeCompressible {
   name: Name;
   model: "NeoHookeCompressible";
   parameters: {
+    /**
+     * Shear modulus
+     */
     mu: number;
+    /**
+     * First Lamé parameter
+     */
     lmbda: number;
+  };
+}
+/**
+ * Isotropic hyperelastic Mooney-Rivlin material (fem.Hyperelastic with fem.mooney_rivlin, needs tensortrax). The shear modulus is 2 (C10 + C01). Without a bulk modulus it needs the u-p-J formulation.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MaterialMooneyRivlin".
+ */
+export interface MaterialMooneyRivlin {
+  command: "material.add";
+  name: Name;
+  model: "MooneyRivlin";
+  parameters: {
+    /**
+     * Material parameter of the first invariant
+     */
+    C10: number;
+    /**
+     * Material parameter of the second invariant
+     */
+    C01: number;
+    /**
+     * Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.
+     */
+    bulk?: number;
   };
 }
 /**
@@ -150,7 +188,13 @@ export interface MaterialLinearElasticLargeStrain {
   name: Name;
   model: "LinearElasticLargeStrain";
   parameters: {
+    /**
+     * Young's modulus
+     */
     E: number;
+    /**
+     * Poisson's ratio
+     */
     nu: number;
   };
 }
