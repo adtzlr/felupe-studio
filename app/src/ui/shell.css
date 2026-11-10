@@ -363,6 +363,32 @@ button {
   min-height: 0;
 }
 
+/* the properties panel on the right of the viewport (#83) */
+.shell > .body.inspecting {
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr) minmax(
+      300px,
+      360px
+    );
+}
+
+.inspector {
+  min-height: 0;
+  overflow: auto;
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.inspector-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.inspector-head .panel-title {
+  margin: 0;
+}
+
 .sidebar {
   display: flex;
   flex-direction: column;
@@ -382,11 +408,7 @@ button {
 }
 
 .properties {
-  flex: 0 0 auto;
-  max-height: 60%;
   overflow: auto;
-  border-top: 1px solid var(--border);
-  background: var(--panel-2);
 }
 
 .panel-title {
@@ -635,6 +657,7 @@ button {
 
 /* the viewports of the model and of the results, one of them shown */
 .views {
+  position: relative;
   display: grid;
   min-width: 0;
   min-height: 0;
@@ -939,13 +962,17 @@ button {
     min-height: 100%;
   }
 
-  .shell > .body {
+  .shell > .body,
+  .shell > .body.inspecting {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: minmax(280px, 50vh) auto;
   }
 
-  .properties {
-    max-height: none;
+  /* the properties below the browser */
+  .inspector {
+    order: 3;
+    border-left: none;
+    border-top: 1px solid var(--border);
   }
 
   .sidebar {

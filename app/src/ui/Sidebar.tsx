@@ -1,12 +1,9 @@
-import type { MeshFiles } from "../core/meshfiles";
 import type { ModelStore } from "../core/store";
 import type { TreeNode } from "../core/tree";
 import { Browser } from "./Browser";
-import { Properties } from "./Properties";
 
 interface Props {
   store: ModelStore;
-  files: MeshFiles;
   /** Messages about the mesh files, by object name. */
   notes: Map<string, string[]>;
   selected?: string;
@@ -35,7 +32,6 @@ function withNotes(
 
 export function Sidebar({
   store,
-  files,
   notes,
   selected,
   hidden,
@@ -70,16 +66,6 @@ export function Sidebar({
           />
         )}
       </nav>
-      <section class="panel properties" aria-label="Properties">
-        <h2 class="panel-title">Properties</h2>
-        <Properties
-          store={store}
-          files={files}
-          notes={notes}
-          selected={selected}
-          onSelect={onSelect}
-        />
-      </section>
     </aside>
   );
 }

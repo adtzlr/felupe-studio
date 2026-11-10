@@ -15,6 +15,7 @@ import { Footer } from "./Footer";
 import { Header } from "./Header";
 import { useJobs, useMeshFiles, useRuntime, useStore } from "./hooks";
 import { ImportMeshDialog } from "./ImportMeshDialog";
+import { Inspector } from "./Inspector";
 import { JobPanel } from "./JobPanel";
 import type { Capture } from "../viewer/viewer";
 import { CurveCard } from "./CurveCard";
@@ -105,11 +106,20 @@ export function App({
   const [importing, setImporting] = useState<{ file?: File }>();
   const [dragging, setDragging] = useState(false);
   const [selection, setSelection] = useState<string | undefined>();
+  // the properties panel on the right opens when an object is selected (#83)
+  const [inspecting, setInspecting] = useState(false);
+  const select = (id: string | undefined) => {
+    setSelection(id);
+    setInspecting(id !== undefined);
+  };
   const [creating, setCreating] = useState<RibbonItem | undefined>();
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
   const [update, setUpdate] = useState<"available" | "dismissed">();
   // a selection that was removed (or renamed) is gone
   const selected = selection && store.get(selection) ? selection : undefined;
+  // the panel shows the properties of a selected object in the Model workspace
+  const showInspector =
+    inspecting && selected !== undefined && workspace === "model";
   const toggleVisible = (id: string) =>
     setHidden((current) => {
       const next = new Set(current);
@@ -466,14 +476,13 @@ export function App({
           />
         }
       />
-      <div class="body">
+      <div class={showInspector ? "body inspecting" : "body"}>
         <Sidebar
           store={store}
-          files={files}
           notes={notes}
           selected={selected}
           hidden={hidden}
-          onSelect={setSelection}
+          onSelect={select}
           onToggleVisible={toggleVisible}
           onSamples={() => setSamplesOpen(true)}
         />
@@ -511,27 +520,37 @@ export function App({
               />
             )}
           </ResultsView>
+          <JobPanel
+            run={run}
+            store={store}
+            onDismiss={() => jobs?.dismiss()}
+            onShowResults={
+              workspace === "results"
+                ? undefined
+                : () => {
+                    setWorkspace("results");
+                    jobs?.dismiss();
+                  }
+            }
+          />
         </div>
-        <JobPanel
-          run={run}
-          store={store}
-          onDismiss={() => jobs?.dismiss()}
-          onShowResults={
-            workspace === "results"
-              ? undefined
-              : () => {
-                  setWorkspace("results");
-                  jobs?.dismiss();
-                }
-          }
-        />
+        {showInspector && (
+          <Inspector
+            store={store}
+            files={files}
+            notes={notes}
+            selected={selected}
+            onSelect={select}
+            onClose={() => setInspecting(false)}
+          />
+        )}
       </div>
       <Footer
         store={store}
         runtime={runtime}
         kept={kept}
         selected={selected}
-        onSelect={setSelection}
+        onSelect={select}
         onOpen={(type) =>
           type === "mesh.import"
             ? setImporting({})
@@ -565,7 +584,7 @@ export function App({
           onClose={() => setImporting(undefined)}
           onCreated={(name) => {
             setImporting(undefined);
-            setSelection(name);
+            select(name);
           }}
         />
       )}
@@ -576,7 +595,7 @@ export function App({
           onClose={() => setCreating(undefined)}
           onCreated={(name) => {
             setCreating(undefined);
-            setSelection(name);
+            select(name);
           }}
         />
       )}

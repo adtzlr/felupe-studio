@@ -125,6 +125,8 @@ Older files are brought to the current schema with `MIGRATIONS[version]`, one st
 
 ## Forms (app)
 
+The form of the selected object is shown in the **properties panel** on the right of the viewport (#83). It opens when an object is selected (in the browser, in the history bar, with `select <name>` and after an object was created) and closes with ×; the selection stays, and a click on the object opens the panel again. The panel belongs to the Model workspace; on narrow screens it is shown below the browser.
+
 The forms of the app are not written per command. `app/src/core/form.ts` derives them from the schema:
 
 | Schema                                                                    | Field                                                                                                    |
@@ -179,7 +181,7 @@ A project file references mesh files by name; their content lives next to it. In
 - **Open** accepts a project file together with its mesh files (select several files, or drop them on the window). Several mesh files without a project are offered in the import dialog.
 - A mesh whose file is not loaded, cannot be read, lacks its cell tag or needs a `cell_type` (or names one the file does not have) is marked in the browser; its properties show the file state with **Choose file…**, which stores the chosen file under the name the mesh references.
 
-The files are kept in the browser (`app/src/core/meshfiles.ts`) and written into the working directory of Python in the worker, where `felupe_studio.meshes.load()` reads them with meshio exactly like the generated script (`volume_cells`): a summary for the dialog (`inspect()`, one entry per type of solid cells) and the outer surfaces for the viewport, from one read. meshio is served as a pinned wheel next to FElupe (`config.wheels` in `app/package.json`). The files are not kept across a reload of the page yet (#57).
+The files are kept in the browser (`app/src/core/meshfiles.ts`) and written into the working directory of Python in the worker, where `felupe_studio.meshes.load()` reads them with meshio exactly like the generated script (`volume_cells`): a summary for the dialog (`inspect()`, one entry per type of solid cells) and the outer surfaces for the viewport, from one read. meshio is served as a pinned wheel next to FElupe (`config.wheels` in `app/package.json`). They are kept across a reload of the page, see _Session in the browser_.
 
 ## Viewport (app)
 

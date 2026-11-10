@@ -20,7 +20,8 @@ function setup() {
   render(<App store={store} />);
   const tree = screen.getByRole("tree", { name: "Model" });
   const item = (name: string) => within(tree).getByRole("treeitem", { name });
-  const properties = screen.getByRole("region", { name: "Properties" });
+  // the properties panel opens when an object is selected (#83)
+  const properties = () => screen.getByRole("region", { name: "Properties" });
   return { store, tree, item, properties };
 }
 
@@ -90,26 +91,24 @@ describe("Browser", () => {
     expect(document.activeElement).toBe(item("job_1"));
     fireEvent.keyDown(item("job_1"), { key: "Enter" });
     expect(item("job_1").getAttribute("aria-selected")).toBe("true");
-    expect(properties.textContent).toContain("job.add");
+    expect(properties().textContent).toContain("job.add");
     fireEvent.keyDown(item("job_1"), { key: "Home" });
     expect(document.activeElement).toBe(item("Meshes"));
   });
 
   it("shows the properties of the selected object", () => {
     const { item, properties } = setup();
-    expect(properties.textContent).toContain(
-      "Select an object in the browser.",
-    );
+    expect(screen.queryByRole("region", { name: "Properties" })).toBeNull();
     fireEvent.click(item("umat_hard"));
     const field = (label: string) =>
-      within(properties).getByLabelText(label) as HTMLInputElement;
+      within(properties()).getByLabelText(label) as HTMLInputElement;
     expect(field("Name").value).toBe("umat_hard");
     expect(field("Model").value).toBe("LinearElasticLargeStrain");
     expect(field("E").value).toBe("10");
-    expect(properties.textContent).toContain("Used by section_hard");
+    expect(properties().textContent).toContain("Used by section_hard");
 
     fireEvent.click(
-      within(properties).getByRole("button", { name: "section_hard" }),
+      within(properties()).getByRole("button", { name: "section_hard" }),
     );
     expect(item("section_hard").getAttribute("aria-selected")).toBe("true");
     expect(field("Formulation").value).toBe("u");
@@ -118,17 +117,18 @@ describe("Browser", () => {
   it("deletes unused objects only, with undo", () => {
     const { store, item, properties } = setup();
     fireEvent.click(item("umat_hard"));
-    const remove = within(properties).getByRole("button", {
+    const remove = within(properties()).getByRole("button", {
       name: /Delete/,
     }) as HTMLButtonElement;
     expect(remove.disabled).toBe(true);
 
     fireEvent.click(item("job_1"));
-    fireEvent.click(within(properties).getByRole("button", { name: /Delete/ }));
-    expect(store.get("job_1")).toBeUndefined();
-    expect(properties.textContent).toContain(
-      "Select an object in the browser.",
+    fireEvent.click(
+      within(properties()).getByRole("button", { name: /Delete/ }),
     );
+    expect(store.get("job_1")).toBeUndefined();
+    // nothing is selected: the panel is closed
+    expect(screen.queryByRole("region", { name: "Properties" })).toBeNull();
     act(() => store.undo());
     expect(item("job_1")).toBeTruthy();
   });
@@ -149,7 +149,7 @@ describe("Browser", () => {
     expect(within(item("Sections")).getByLabelText("1 issue")).toBeTruthy();
     fireEvent.click(item("section_hard"));
     expect(
-      within(properties).getByRole("list", { name: "Issues" }).textContent,
+      within(properties()).getByRole("list", { name: "Issues" }).textContent,
     ).toContain("unknown material 'missing'");
   });
 
@@ -167,5 +167,55 @@ describe("Browser", () => {
     // toggling does not select
     expect(item("section_soft").getAttribute("aria-selected")).toBe("false");
     expect(within(item("umat_soft")).queryByRole("button")).toBeNull();
+  });
+});
+
+describe("properties panel (#83)", () => {
+  it("opens with a selection, closes and opens again", () => {
+    const { item, properties } = setup();
+    const panel = () => screen.queryByRole("region", { name: "Properties" });
+    const body = () => document.querySelector(".body")!;
+    expect(panel()).toBeNull();
+    expect(body().classList.contains("inspecting")).toBe(false);
+
+    fireEvent.click(item("umat_hard"));
+    expect(properties().textContent).toContain("material.add");
+    expect(body().classList.contains("inspecting")).toBe(true);
+    // the browser has the left sidebar for itself
+    expect(
+      screen
+        .getByRole("navigation", { name: "Model browser" })
+        .closest(".sidebar")
+        ?.querySelector(".properties"),
+    ).toBeNull();
+
+    fireEvent.click(
+      within(properties()).getByRole("button", {
+        name: "Close the properties",
+      }),
+    );
+    expect(panel()).toBeNull();
+    // the selection stays, a click on the object opens the panel again
+    expect(item("umat_hard").getAttribute("aria-selected")).toBe("true");
+    fireEvent.click(item("umat_hard"));
+    expect(
+      (within(properties()).getByLabelText("Name") as HTMLInputElement).value,
+    ).toBe("umat_hard");
+
+    // a click in the history bar selects and opens as well
+    fireEvent.click(
+      within(properties()).getByRole("button", {
+        name: "Close the properties",
+      }),
+    );
+    const history = screen.getByRole("region", { name: "History" });
+    fireEvent.click(within(history).getByRole("button", { name: /job_1/ }));
+    expect(properties().textContent).toContain("job.add");
+
+    // the Results workspace has no properties panel
+    fireEvent.click(screen.getByRole("button", { name: "Results" }));
+    expect(panel()).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Model" }));
+    expect(properties().textContent).toContain("job.add");
   });
 });

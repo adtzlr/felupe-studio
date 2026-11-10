@@ -56,7 +56,8 @@ describe("App shell", () => {
     expect(
       screen.getByRole("navigation", { name: "Model browser" }),
     ).toBeTruthy();
-    expect(screen.getByRole("region", { name: "Properties" })).toBeTruthy();
+    // the properties panel opens with a selection
+    expect(screen.queryByRole("region", { name: "Properties" })).toBeNull();
     expect(screen.getByRole("main", { name: "Viewport" })).toBeTruthy();
     expect(screen.getByRole("contentinfo")).toBeTruthy();
     expect(
