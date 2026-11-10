@@ -164,6 +164,24 @@ export class PyodideClient {
     return (message as Extract<FromWorker, { type: "text" }>).text;
   }
 
+  /**
+   * The results of a job of the last run as a file: VTU of a substep (the last one
+   * by default) or XDMF of all substeps.
+   */
+  async exportResults(
+    job: string,
+    format: "vtu" | "xdmf",
+    substep?: number,
+  ): Promise<Uint8Array> {
+    const message = await this.request(
+      { type: "export-results", job, format, substep },
+      "bytes",
+    );
+    return new Uint8Array(
+      (message as Extract<FromWorker, { type: "bytes" }>).data,
+    );
+  }
+
   /** The result of a substep of a job of the last run (substeps count from 1). */
   async resultScene(
     job: string,

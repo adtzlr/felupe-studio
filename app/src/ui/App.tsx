@@ -211,6 +211,25 @@ export function App({
     download(exportName(fileName, suffix), png);
   };
 
+  const exportResults = async (format: "vtu" | "xdmf") => {
+    if (!client || !finished || !resultView) return;
+    const { job, substep } = resultView;
+    const data = await client.exportResults(
+      job,
+      format,
+      format === "vtu" ? substep : undefined,
+    );
+    const suffix = format === "vtu" ? `-${job}-${substep}.vtu` : `-${job}.xdmf`;
+    const name = exportName(fileName, suffix);
+    download(name, new Blob([data as BlobPart], { type: mediaType(name) }));
+  };
+  const resultsBlocker =
+    run.state === "running"
+      ? "Wait until the jobs have run."
+      : !finished || !resultView
+        ? "Solve the model first."
+        : undefined;
+
   const exports: ExportItem[] = [
     {
       id: "script",
@@ -229,6 +248,30 @@ export function App({
                 : undefined,
       onSelect: () =>
         void exportScript().catch(failed("The script could not be exported.")),
+    },
+    {
+      id: "xdmf",
+      label: "Results of the job (XDMF)",
+      hint: resultView
+        ? `All substeps of ${resultView.job}: displacements, strains and stresses, for ParaView.`
+        : "All substeps of the job, for ParaView.",
+      blocker: resultsBlocker,
+      onSelect: () =>
+        void exportResults("xdmf").catch(
+          failed("The results could not be exported."),
+        ),
+    },
+    {
+      id: "vtu",
+      label: "Results of the substep (VTU)",
+      hint: resultView
+        ? `Substep ${resultView.substep} of ${resultView.job} (as shown in the Results workspace).`
+        : "The substep shown in the Results workspace.",
+      blocker: resultsBlocker,
+      onSelect: () =>
+        void exportResults("vtu").catch(
+          failed("The results could not be exported."),
+        ),
     },
     {
       id: "picture",

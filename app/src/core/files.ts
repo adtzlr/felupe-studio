@@ -15,6 +15,8 @@ const TYPES: Record<string, string> = {
   ".csv": "text/csv",
   ".py": "text/x-python",
   ".png": "image/png",
+  ".vtu": "application/xml",
+  ".xdmf": "application/xml",
 };
 
 export const mediaType = (name: string): string =>
