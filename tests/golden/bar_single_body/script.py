@@ -49,6 +49,15 @@ def volume_cells(mesh, tag=None, cell_type=None):
     )
 
 
+def mixed_region(mesh):
+    """Return the region of the mixed fields (u-p-J) of a mesh. Linear tetrahedra get
+    a bubble point in every cell (MINI element), the dual fields are linear."""
+    if mesh.cell_type == "tetra":
+        bubble = fem.mesh.add_midpoints_volumes(mesh, cell_type_new="tetra5")
+        return fem.RegionTetraMINI(bubble)
+    return REGIONS[mesh.cell_type](mesh)
+
+
 # meshes
 bar = volume_cells(meshio.read("bar.vtu"))
 

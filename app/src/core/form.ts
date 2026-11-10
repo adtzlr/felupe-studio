@@ -423,7 +423,11 @@ export function initialDraft(
   preset: Draft = {},
 ): Draft {
   const name = suggestName(type, context.commands);
-  return normalize(type, { name, ...preset, command: type }, context);
+  const draft = normalize(type, { name, ...preset, command: type }, context);
+  const initial = REGISTRY[type].initial;
+  if (!initial) return draft;
+  const adjusted = initial(draft, context.commands);
+  return normalize(type, { ...adjusted, ...preset, command: type }, context);
 }
 
 /** Value of a draft at a path. */

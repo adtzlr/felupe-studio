@@ -364,3 +364,50 @@ def test_mooney_rivlin_like_neo_hooke(tmp_path, monkeypatch):
             curves["MooneyRivlin", kind], curves["NeoHooke", kind], rtol=1e-10
         )
         assert curves["NeoHooke", kind][-1] > 0
+
+
+def solid_meshes():
+    """The bar 3 x 1 x 1 with every supported type of solid cells."""
+    hexahedron = fem.Cube(b=(3, 1, 1), n=(4, 2, 2))
+    tetra = hexahedron.triangulate()
+    return {
+        "hexahedron": hexahedron,
+        "hexahedron20": fem.mesh.convert(hexahedron, order=2),
+        "hexahedron27": fem.mesh.convert(
+            hexahedron, order=2, calc_midfaces=True, calc_midvolumes=True
+        ),
+        "tetra": tetra,
+        "tetra10": fem.mesh.add_midpoints_edges(tetra, cell_type_new="tetra10"),
+    }
+
+
+@pytest.mark.parametrize("cell_type", list(solid_meshes()))
+@pytest.mark.parametrize("formulation", ["u", "u-p-J"])
+def test_every_cell_type_and_formulation(cell_type, formulation, tmp_path, monkeypatch):
+    mesh = solid_meshes()[cell_type]
+    assert mesh.cell_type == cell_type
+    write(tmp_path / "bar.vtu", mesh)
+    umat = {"command": "material.add", "name": "umat", "model": "NeoHooke"}
+    body = section("body", "all")
+    if formulation == "u":
+        umat["parameters"] = {"mu": 1.0, "bulk": 5.0}
+    else:
+        umat["parameters"] = {"mu": 1.0}
+        body.update(formulation="u-p-J", bulk=5.0)
+    document = {
+        "schema_version": 1,
+        "commands": [
+            {"command": "mesh.import", "name": "m", "file": "bar.vtu"},
+            {"command": "cellset.from_file", "name": "all", "mesh": "m"},
+            umat,
+            body,
+            *uniaxial(),
+        ],
+    }
+    namespace = run(document, tmp_path, monkeypatch)
+    curve = force(namespace)
+    # the forces of all elements and formulations agree within about 10 %
+    assert 0.38 < curve[-1] < 0.47, curve
+    if (cell_type, formulation) == ("tetra", "u-p-J"):
+        # MINI element: a bubble point in every cell
+        assert namespace["region_body"].mesh.cell_type == "tetra5"

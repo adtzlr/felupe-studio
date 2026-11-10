@@ -49,6 +49,15 @@ def volume_cells(mesh, tag=None, cell_type=None):
     )
 
 
+def mixed_region(mesh):
+    """Return the region of the mixed fields (u-p-J) of a mesh. Linear tetrahedra get
+    a bubble point in every cell (MINI element), the dual fields are linear."""
+    if mesh.cell_type == "tetra":
+        bubble = fem.mesh.add_midpoints_volumes(mesh, cell_type_new="tetra5")
+        return fem.RegionTetraMINI(bubble)
+    return REGIONS[mesh.cell_type](mesh)
+
+
 # meshes
 bar = volume_cells(meshio.read("bar.vtu"), tag="material")
 
@@ -63,7 +72,7 @@ rubber = fem.NeoHooke(mu=1)
 # sections: a region and a field container per section
 region_hard_body = REGIONS[hard.cell_type](hard)
 field_hard_body = fem.FieldContainer([fem.Field(region_hard_body, dim=3)])
-region_soft_body = REGIONS[soft.cell_type](soft)
+region_soft_body = mixed_region(soft)
 field_soft_body = fem.FieldsMixed(region_soft_body, n=3)
 
 # merge the displacements of all sections into the top-level field
