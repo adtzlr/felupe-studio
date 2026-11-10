@@ -1,3 +1,4 @@
+import { hasCurve } from "../core/curve";
 import {
   curvePoint,
   type Finished,
@@ -31,7 +32,8 @@ export function ResultsControls({ store, results, running, onChange }: Props) {
   const jobs = Object.keys(run.results);
   const total = substepsOf(run, view.job);
   const step = stepOf(run, view.job, view.substep);
-  const point = curvePoint(run.results[view.job], view.substep);
+  const result = run.results[view.job];
+  const point = curvePoint(result, view.substep, view.axis);
   const set = (change: Partial<ResultView>) => onChange({ ...view, ...change });
   return (
     <div class="results-controls">
@@ -119,6 +121,16 @@ export function ResultsControls({ store, results, running, onChange }: Props) {
         />
         Undeformed
       </label>
+      {hasCurve(result) && (
+        <label class="check">
+          <input
+            type="checkbox"
+            checked={view.curve}
+            onChange={(event) => set({ curve: event.currentTarget.checked })}
+          />
+          Curve
+        </label>
+      )}
       {store.commands !== run.commands && (
         <span class="warning" role="note">
           The model was changed after solving.

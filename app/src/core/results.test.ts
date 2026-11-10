@@ -49,6 +49,7 @@ describe("results view", () => {
       quantity: "displacement",
       scale: 1,
       undeformed: true,
+      curve: true,
     });
     const previous = {
       job: "job_2",
@@ -56,6 +57,8 @@ describe("results view", () => {
       quantity: "stress_mises" as const,
       scale: 5,
       undeformed: false,
+      curve: false,
+      axis: 1,
     };
     expect(viewOf(run, previous)).toEqual({ ...previous, substep: 2 });
     expect(viewOf(run, { ...previous, job: "gone" }).job).toBe("job_1");
@@ -83,6 +86,7 @@ describe("results view", () => {
   it("takes the curve along the axis of the largest last displacement", () => {
     const result = run.results.job_1;
     expect(curvePoint(result, 3)).toEqual({ axis: "x", u: 0.2, f: 2 });
+    expect(curvePoint(result, 3, 1)).toEqual({ axis: "y", u: 0.02, f: 0 });
     // non-finite values are null
     expect(curvePoint(result)).toBeUndefined();
     expect(curvePoint(run.results.job_2)).toBeUndefined();

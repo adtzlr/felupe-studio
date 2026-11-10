@@ -46,6 +46,10 @@ export interface ResultView {
   scale: number;
   /** Show the undeformed shape as a transparent ghost. */
   undeformed: boolean;
+  /** Show the force-displacement curve (of a job with a curve boundary). */
+  curve: boolean;
+  /** The component of the curve (default: the largest displacement). */
+  axis?: number;
 }
 
 export type Finished = Extract<JobRun, { state: "finished" }>;
@@ -69,6 +73,7 @@ export function viewOf(
     quantity: "displacement",
     scale: 1,
     undeformed: true,
+    curve: true,
     ...previous,
     job,
     substep: substepsOf(run, job),
@@ -101,21 +106,30 @@ export function stepOf(
   return { name: "", step: 1, substep, substeps: substep };
 }
 
-/**
- * The displacement and the force of a characteristic curve at a substep (counted
- * from 1; the last one by default), along the axis with the largest displacement of
- * the last substep.
- */
-export function curvePoint(result: JobResult, substep?: number) {
-  const last = result.x?.at(-1);
-  const index = (substep ?? result.x?.length ?? 0) - 1;
-  const x = result.x?.[index];
-  const y = result.y?.[index];
-  if (!last || !x || !y) return undefined;
+/** The component with the largest displacement of the last substep of a curve. */
+export function largestAxis(result: JobResult): number {
+  const last = result.x?.at(-1) ?? [];
   let axis = 0;
   last.forEach((value, i) => {
     if (Math.abs(value ?? 0) > Math.abs(last[axis] ?? 0)) axis = i;
   });
+  return axis;
+}
+
+/**
+ * The displacement and the force of a characteristic curve at a substep (counted
+ * from 1; the last one by default), of a component (by default the one with the
+ * largest displacement of the last substep).
+ */
+export function curvePoint(
+  result: JobResult,
+  substep?: number,
+  axis = largestAxis(result),
+) {
+  const index = (substep ?? result.x?.length ?? 0) - 1;
+  const x = result.x?.[index];
+  const y = result.y?.[index];
+  if (!x || !y) return undefined;
   const [u, f] = [x[axis], y[axis]];
   if (u === null || f === null) return undefined;
   return { axis: "xyz"[axis] ?? String(axis), u, f };
