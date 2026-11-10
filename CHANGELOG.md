@@ -2,7 +2,7 @@
 
 All notable changes of FElupe Studio (the web app and the Python package `felupe_studio`, released together with the same version).
 
-## [0.1.0] - unreleased
+## [0.1.0] - 2026-11-10
 
 The first release: a model of hyperelastic solids, from mesh files to results, in the browser.
 
