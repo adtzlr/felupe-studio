@@ -11,8 +11,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import projectText from "../../../tests/data/two_sections.felupe.json?raw";
 import fixture from "../../../tests/data/two_sections.json";
 import type { CommandList } from "../core/commands";
+import { MeshFiles } from "../core/meshfiles";
 import { ModelStore } from "../core/store";
 import type { PyodideClient, Ready } from "../worker/client";
+import type { JobEvent, JobResult } from "../worker/protocol";
 import { App } from "./App";
 
 afterEach(cleanup);
@@ -24,8 +26,8 @@ const material = {
   parameters: { mu: 1, lmbda: 2 },
 } as const;
 
-function client(ready: Promise<Ready>) {
-  return { ready } as unknown as PyodideClient;
+function client(ready: Promise<Ready>, extra: Partial<PyodideClient> = {}) {
+  return { ready, onRestart: () => () => {}, ...extra } as PyodideClient;
 }
 
 const readyValue: Ready = {
@@ -161,9 +163,10 @@ describe("App shell", () => {
     const status = screen.getByRole("status");
     expect(status.textContent).toContain("Loading Python and FElupe");
     expect(
-      (screen.getByRole("button", { name: /Solve/ }) as HTMLButtonElement)
-        .disabled,
-    ).toBe(true);
+      screen
+        .getByRole("button", { name: /Solve/ })
+        .getAttribute("aria-disabled"),
+    ).toBe("true");
     await act(async () => resolve(readyValue));
     expect(status.textContent).toContain("FElupe 12.0.0 ready");
 
@@ -226,5 +229,173 @@ describe("updates", () => {
     expect(
       screen.getByRole("status", { name: "Update" }).textContent,
     ).toContain("Save your project first");
+  });
+});
+
+describe("solve", () => {
+  const files = async () => {
+    const files = new MeshFiles(async (name) => ({
+      info: {
+        file: name,
+        points: 8,
+        solids: [
+          {
+            cell_type: "hexahedron",
+            cells: 1,
+            bounds: [
+              [0, 0, 0],
+              [1, 1, 1],
+            ] as [number[], number[]],
+            tags: [
+              {
+                name: "material",
+                values: [
+                  { value: 1, cells: 1 },
+                  { value: 2, cells: 1 },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    }));
+    await files.add("specimen.vtu", new Uint8Array([1]));
+    return files;
+  };
+
+  function runner() {
+    let emit: (event: JobEvent) => void = () => {};
+    let settle!: {
+      resolve: (results: Record<string, JobResult>) => void;
+      reject: (error: Error) => void;
+    };
+    const run = vi.fn(
+      (_document: string, onEvent: (event: JobEvent) => void) => {
+        emit = onEvent;
+        return new Promise<Record<string, JobResult>>((resolve, reject) => {
+          settle = { resolve, reject };
+        });
+      },
+    );
+    const restart = vi.fn(() => {
+      const error = new Error("Cancelled.");
+      error.name = "CancelledError";
+      settle.reject(error);
+    });
+    return {
+      run,
+      restart,
+      emit: (event: JobEvent) => act(() => emit(event)),
+      settle: () => settle,
+    };
+  }
+
+  const solveButton = () => screen.getByRole("button", { name: /Solve/ });
+
+  it("runs the jobs with progress and shows the outcome", async () => {
+    const store = new ModelStore(fixture as CommandList);
+    const jobs = runner();
+    render(
+      <App
+        store={store}
+        files={await files()}
+        client={client(Promise.resolve(readyValue), jobs)}
+      />,
+    );
+    await waitFor(() =>
+      expect(solveButton().getAttribute("aria-disabled")).toBeNull(),
+    );
+    fireEvent.click(solveButton());
+    await waitFor(() => expect(jobs.run).toHaveBeenCalledTimes(1));
+    expect(JSON.parse(jobs.run.mock.calls[0][0]).commands).toEqual(
+      store.commands,
+    );
+
+    const panel = screen.getByRole("region", { name: "Job" });
+    expect(panel.textContent).toContain("Preparing the model");
+    jobs.emit({ event: "start", jobs: ["job_1"], substeps: { job_1: [4] } });
+    jobs.emit({
+      event: "substep",
+      job: "job_1",
+      step: 0,
+      steps: 1,
+      substep: 2,
+      substeps: 4,
+    });
+    jobs.emit({ event: "iteration", iteration: 3, fnorm: 1.5e-7, xnorm: 1 });
+    expect(panel.textContent).toContain("Solving job_1");
+    expect(panel.textContent).toContain("Step 1 of 1 · substep 3 of 4");
+    expect(panel.textContent).toContain(
+      "Newton iteration 3 · residuals 1.50e-7",
+    );
+    expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe(
+      "50",
+    );
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeTruthy();
+
+    await act(async () =>
+      jobs.settle().resolve({
+        job_1: {
+          substeps: 4,
+          time: 0.25,
+          x: [
+            [0, 0, 0],
+            [0.5, 0, 0],
+          ],
+          y: [
+            [0, 0, 0],
+            [12.5, 0.1, 0],
+          ],
+        },
+      }),
+    );
+    expect(panel.textContent).toContain("Solved");
+    expect(panel.textContent).toContain("job_1: 4 substeps in 0.25 s");
+    expect(panel.textContent).toContain("Last substep: ux = 0.5, Fx = 12.5");
+    act(() => store.apply({ type: "remove", name: "job_1" }));
+    expect(panel.textContent).toContain("The model was changed after solving.");
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("region", { name: "Job" })).toBeNull();
+    expect(solveButton().getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("shows a failed run with the traceback and cancels a run", async () => {
+    const jobs = runner();
+    render(
+      <App
+        store={new ModelStore(fixture as CommandList)}
+        files={await files()}
+        client={client(Promise.resolve(readyValue), jobs)}
+      />,
+    );
+    await waitFor(() =>
+      expect(solveButton().getAttribute("aria-disabled")).toBeNull(),
+    );
+    fireEvent.click(solveButton());
+    await waitFor(() => expect(jobs.run).toHaveBeenCalledTimes(1));
+    const traceback =
+      'Traceback (most recent call last):\n  File "model.py", line 40\nfelupe.NewtonConvergenceError: The solution did not converge.';
+    await act(async () => jobs.settle().reject(new Error(traceback)));
+    const panel = screen.getByRole("region", { name: "Job" });
+    expect(panel.textContent).toContain("Solving failed");
+    expect(panel.querySelector(".error")?.textContent).toBe(
+      "NewtonConvergenceError: The solution did not converge.",
+    );
+    expect(panel.textContent).toContain("enable the cutback");
+    expect(panel.querySelector("pre")?.textContent).toBe(traceback);
+
+    fireEvent.click(solveButton());
+    await waitFor(() => expect(jobs.run).toHaveBeenCalledTimes(2));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    });
+    expect(jobs.restart).toHaveBeenCalledTimes(1);
+    expect(panel.textContent).toContain("Cancelled");
+  });
+
+  it("explains why the jobs cannot be run", () => {
+    render(<App store={new ModelStore(fixture as CommandList)} />);
+    expect(solveButton().getAttribute("aria-disabled")).toBe("true");
+    expect(solveButton().title).toBe("Load the mesh files of the model first.");
   });
 });

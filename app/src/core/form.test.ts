@@ -112,6 +112,7 @@ describe("fieldSpecs", () => {
       "name:name*",
       "steps:reference*",
       "curve:reference",
+      "cutback:boolean",
     ]);
   });
 

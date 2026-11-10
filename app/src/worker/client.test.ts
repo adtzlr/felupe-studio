@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { PyodideClient } from "./client";
+import { CancelledError, PyodideClient } from "./client";
 import { safeName } from "./files";
 import type { FromWorker, ToWorker } from "./protocol";
 
@@ -49,6 +49,10 @@ describe("PyodideClient", () => {
           `https://example.org/app/wheels/felupe-${__FELUPE_VERSION__}-py3-none-any.whl`,
           "https://example.org/app/wheels/meshio-5.3.5-py3-none-any.whl",
         ],
+        lazyWheels: {
+          tensortrax:
+            "https://example.org/app/wheels/tensortrax-0.30.0-py3-none-any.whl",
+        },
       },
     ]);
   });
@@ -146,5 +150,66 @@ describe("files", () => {
     expect(safeName("../../etc/passwd")).toBe("passwd");
     expect(() => safeName("..")).toThrow("Invalid file name");
     expect(() => safeName("dir/")).toThrow("Invalid file name");
+  });
+});
+
+describe("jobs", () => {
+  it("runs the jobs of a model with progress events", async () => {
+    const { worker, client } = start();
+    worker.reply(ready);
+    const onEvent = vi.fn();
+    const run = client.run('{"commands": []}', onEvent);
+    await vi.waitFor(() => expect(worker.sent).toHaveLength(2));
+    expect(worker.sent[1]).toEqual({
+      type: "run",
+      id: 1,
+      document: '{"commands": []}',
+    });
+    const event = { event: "iteration", iteration: 1, fnorm: 1, xnorm: 1 };
+    worker.reply({ type: "job-progress", id: 1, event } as FromWorker);
+    const results = {
+      job: { substeps: 3, time: 0.5, x: [[0], [1]], y: [[0], [2]] },
+    };
+    worker.reply({ type: "job-result", id: 1, results });
+    await expect(run).resolves.toEqual(results);
+    expect(onEvent).toHaveBeenCalledWith(event);
+  });
+
+  it("cancels a job by restarting the worker and writes the files again", async () => {
+    const workers: FakeWorker[] = [];
+    const client = new PyodideClient(() => {
+      const worker = new FakeWorker();
+      workers.push(worker);
+      return worker as unknown as Worker;
+    }, "https://example.org/app/");
+    workers[0].reply(ready);
+    const written = client.writeFile("bar.vtu", new Uint8Array([1, 2]));
+    await vi.waitFor(() => expect(workers[0].sent).toHaveLength(2));
+    workers[0].reply({ type: "done", id: 1 });
+    await written;
+
+    const run = client.run("{}", () => {});
+    await vi.waitFor(() => expect(workers[0].sent).toHaveLength(3));
+    const onRestart = vi.fn();
+    client.onRestart(onRestart);
+    client.restart();
+    await expect(run).rejects.toBeInstanceOf(CancelledError);
+    expect(workers[0].terminated).toBe(true);
+    expect(onRestart).toHaveBeenCalledTimes(1);
+    // late messages of the old worker are ignored
+    workers[0].reply({ type: "job-result", id: 2, results: {} });
+
+    expect(workers[1].sent[0]).toMatchObject({ type: "init" });
+    workers[1].reply(ready);
+    await vi.waitFor(() => expect(workers[1].sent).toHaveLength(2));
+    expect(workers[1].sent[1]).toMatchObject({
+      type: "write-file",
+      name: "bar.vtu",
+    });
+    const id = (workers[1].sent[1] as { id: number }).id;
+    workers[1].reply({ type: "done", id });
+    await expect(client.ready).resolves.toMatchObject({
+      versions: { felupe: "12.0.0" },
+    });
   });
 });

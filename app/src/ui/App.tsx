@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { SUFFIX } from "../core/files";
+import { JobRunner, solveBlocker } from "../core/jobs";
 import { fileNotes, MeshFiles } from "../core/meshfiles";
 import { REGISTRY } from "../core/registry";
 import type { RibbonItem } from "../core/ribbon";
@@ -9,8 +10,9 @@ import type { PyodideClient } from "../worker/client";
 import { CreateDialog } from "./CreateDialog";
 import { Footer } from "./Footer";
 import { Header } from "./Header";
-import { useMeshFiles, useRuntime, useStore } from "./hooks";
+import { useJobs, useMeshFiles, useRuntime, useStore } from "./hooks";
 import { ImportMeshDialog } from "./ImportMeshDialog";
+import { JobPanel } from "./JobPanel";
 import { Ribbon, type Workspace } from "./Ribbon";
 import { Sidebar } from "./Sidebar";
 import { Viewport } from "./Viewport";
@@ -61,6 +63,9 @@ export function App({
   const [files] = useState(() => given ?? new MeshFiles());
   useMeshFiles(files);
   const runtime = useRuntime(client);
+  const [jobs] = useState(() => client && new JobRunner(client));
+  const run = useJobs(jobs);
+  const notes = fileNotes(store.commands, files);
   const [workspace, setWorkspace] = useState<Workspace>("model");
   const [tab, setTab] = useState("mesh");
   const [fileName, setFileName] = useState(`untitled${SUFFIX}`);
@@ -153,6 +158,12 @@ export function App({
     [files, openProject],
   );
 
+  const solve = async () => {
+    if (!jobs) return;
+    const { serialize } = await import("../core/project");
+    await jobs.solve(store.commands, serialize(store.document));
+  };
+
   const save = async () => {
     const { serialize } = await import("../core/project");
     download(fileName, serialize(store.document));
@@ -180,9 +191,19 @@ export function App({
         store={store}
         fileName={fileName}
         modified={store.commands !== saved}
-        runtime={runtime}
         onOpen={() => fileInput.current?.click()}
         onSave={() => void save()}
+        solve={{
+          blocker: solveBlocker({
+            commands: store.commands,
+            issues: store.issues.length,
+            notes: notes.size,
+            runtime: runtime.state,
+          }),
+          running: run.state === "running",
+          onSolve: () => void solve(),
+          onCancel: () => jobs?.cancel(),
+        }}
       />
       <input
         ref={fileInput}
@@ -254,7 +275,7 @@ export function App({
         <Sidebar
           store={store}
           files={files}
-          notes={fileNotes(store.commands, files)}
+          notes={notes}
           selected={selected}
           hidden={hidden}
           onSelect={setSelection}
@@ -274,6 +295,7 @@ export function App({
             })
           }
         />
+        <JobPanel run={run} store={store} onDismiss={() => jobs?.dismiss()} />
       </div>
       <Footer
         store={store}

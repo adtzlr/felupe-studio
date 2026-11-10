@@ -1,4 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
+import type { JobRun, JobRunner } from "../core/jobs";
 import type { MeshFiles } from "../core/meshfiles";
 import type { ModelStore } from "../core/store";
 import type { PyodideClient, Ready } from "../worker/client";
@@ -27,24 +28,40 @@ export function useRuntime(client: PyodideClient | undefined): Runtime {
   const [runtime, setRuntime] = useState<Runtime>({ state: "loading" });
   useEffect(() => {
     if (!client) return;
-    let active = true;
-    const started = performance.now();
-    client.ready.then(
-      (ready) =>
-        active &&
-        setRuntime({
-          state: "ready",
-          ready,
-          seconds: (performance.now() - started) / 1000,
-        }),
-      (error: Error) =>
-        active && setRuntime({ state: "error", message: error.message }),
-    );
+    let generation = 0;
+    const follow = () => {
+      const current = ++generation;
+      const active = () => current === generation;
+      const started = performance.now();
+      setRuntime({ state: "loading" });
+      client.ready.then(
+        (ready) =>
+          active() &&
+          setRuntime({
+            state: "ready",
+            ready,
+            seconds: (performance.now() - started) / 1000,
+          }),
+        (error: Error) =>
+          active() && setRuntime({ state: "error", message: error.message }),
+      );
+    };
+    follow();
+    // a restart (e.g. a cancelled job) loads Python again
+    const unsubscribe = client.onRestart(follow);
     return () => {
-      active = false;
+      generation = -1;
+      unsubscribe();
     };
   }, [client]);
   return runtime;
+}
+
+/** Re-render the component after every change of the run of the jobs. */
+export function useJobs(jobs: JobRunner | undefined): JobRun {
+  const [, setVersion] = useState(0);
+  useEffect(() => jobs?.subscribe(() => setVersion((n) => n + 1)), [jobs]);
+  return jobs?.run ?? { state: "idle" };
 }
 
 export function runtimeText(runtime: Runtime): string {

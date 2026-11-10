@@ -1,8 +1,12 @@
 // Main-thread client of the Pyodide worker. Creating it starts loading Pyodide and
-// FElupe right away, so loading overlaps with building the model (#40).
+// FElupe right away, so loading overlaps with building the model (#40). Python runs
+// jobs synchronously in the worker: a running job is cancelled by restarting the
+// worker, which loads Python again (from the cache) and gets the files again.
 import type {
   BenchmarkResult,
   FromWorker,
+  JobEvent,
+  JobResult,
   LoadTimings,
   MeshInfo,
   MeshSurface,
@@ -29,25 +33,64 @@ interface Pending {
   onMessage?: (message: FromWorker) => void;
 }
 
+/** A request that was stopped by a restart of the worker. */
+export class CancelledError extends Error {
+  constructor() {
+    super("Cancelled.");
+    this.name = "CancelledError";
+  }
+}
+
+const newWorker = () =>
+  new Worker(new URL("./pyodide.worker.ts", import.meta.url), {
+    type: "module",
+  });
+
 export class PyodideClient {
-  /** Resolves when Pyodide and FElupe are loaded. */
-  readonly ready: Promise<Ready>;
-  private worker: Worker;
+  /** Resolves when Pyodide and FElupe are loaded (and the files are written). */
+  ready!: Promise<Ready>;
+  private booted!: Promise<Ready>;
+  private worker!: Worker;
   private pending = new Map<number, Pending>();
   private nextId = 1;
+  /** The files written into the project directory, written again on a restart. */
+  private files = new Map<string, Uint8Array>();
+  private listeners = new Set<() => void>();
+  private createWorker: () => Worker;
 
   constructor(
-    worker: Worker = new Worker(
-      new URL("./pyodide.worker.ts", import.meta.url),
-      {
-        type: "module",
-      },
-    ),
-    base: string = document.baseURI,
+    worker: Worker | (() => Worker) = newWorker,
+    private base: string = document.baseURI,
   ) {
+    this.createWorker = typeof worker === "function" ? worker : () => worker;
+    this.start([]);
+  }
+
+  /**
+   * Stop the worker (e.g. a running job) and start a new one. Pending requests are
+   * rejected with a CancelledError; the written files are written again.
+   */
+  restart(): void {
+    this.worker.terminate();
+    const pending = [...this.pending.values()];
+    this.pending.clear();
+    for (const p of pending) p.reject(new CancelledError());
+    this.start([...this.files]);
+    for (const listener of this.listeners) listener();
+  }
+
+  /** Listen to restarts, e.g. to wait for the new `ready`. */
+  onRestart(listener: () => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private start(files: [string, Uint8Array][]): void {
+    const worker = this.createWorker();
     this.worker = worker;
-    this.ready = new Promise<Ready>((resolve, reject) => {
+    this.booted = new Promise<Ready>((resolve, reject) => {
       worker.addEventListener("message", (event: MessageEvent<FromWorker>) => {
+        if (this.worker !== worker) return;
         const message = event.data;
         if (message.type === "ready") {
           resolve({ versions: message.versions, timings: message.timings });
@@ -58,12 +101,21 @@ export class PyodideClient {
         }
       });
     });
-    // avoid an unhandled rejection; callers see the error through `ready`
+    this.ready = this.booted.then(async (ready) => {
+      for (const [name, data] of files) await this.write(name, data);
+      return ready;
+    });
+    // avoid unhandled rejections; callers see the error through `ready`
+    this.booted.catch(() => {});
     this.ready.catch(() => {});
-    this.worker.postMessage({
+    const url = (wheel: string) => new URL(wheel, this.base).href;
+    worker.postMessage({
       type: "init",
       pyodideVersion: __PYODIDE_VERSION__,
-      wheels: __WHEELS__.map((wheel) => new URL(wheel, base).href),
+      wheels: __WHEELS__.map(url),
+      lazyWheels: Object.fromEntries(
+        Object.entries(__LAZY_WHEELS__).map(([name, w]) => [name, url(w)]),
+      ),
     } satisfies ToWorker);
   }
 
@@ -81,8 +133,32 @@ export class PyodideClient {
 
   /** Write a file into the project directory of Python (a copy of the data is sent). */
   async writeFile(name: string, data: Uint8Array): Promise<void> {
+    this.files.set(name, data);
+    await this.ready;
+    await this.write(name, data);
+  }
+
+  /**
+   * Run the jobs of a command list (JSON text), with an event for every substep and
+   * Newton iteration. Rejects with the Python traceback, or with a CancelledError.
+   */
+  async run(
+    document: string,
+    onEvent: (event: JobEvent) => void,
+  ): Promise<Record<string, JobResult>> {
+    const message = await this.request(
+      { type: "run", document },
+      "job-result",
+      (message) => {
+        if (message.type === "job-progress") onEvent(message.event);
+      },
+    );
+    return (message as Extract<FromWorker, { type: "job-result" }>).results;
+  }
+
+  private async write(name: string, data: Uint8Array): Promise<void> {
     const copy = data.slice().buffer;
-    await this.request(
+    await this.send(
       { type: "write-file", name, data: copy },
       "done",
       undefined,
@@ -119,6 +195,17 @@ export class PyodideClient {
     transfer: Transferable[] = [],
   ): Promise<FromWorker> {
     await this.ready;
+    return this.send(body, final, onMessage, transfer);
+  }
+
+  /** Send a request once Python is loaded (without waiting for the files). */
+  private async send(
+    body: RequestBody,
+    final: FromWorker["type"],
+    onMessage?: (message: FromWorker) => void,
+    transfer: Transferable[] = [],
+  ): Promise<FromWorker> {
+    await this.booted;
     const id = this.nextId++;
     return new Promise<FromWorker>((resolve, reject) => {
       this.pending.set(id, { final, resolve, reject, onMessage });

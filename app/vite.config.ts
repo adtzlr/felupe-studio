@@ -3,8 +3,18 @@ import pkg from "./package.json" with { type: "json" };
 
 // pure-Python wheels served from public/wheels (#40); the FElupe version must match
 // FELUPE_VERSION in .github/workflows/ci.yml
-const WHEELS = Object.entries(pkg.config.wheels).map(
-  ([name, { version }]) => `wheels/${name}-${version}-py3-none-any.whl`,
+const wheel = (name: string, version: string) =>
+  `wheels/${name}-${version}-py3-none-any.whl`;
+type Wheel = { version: string; lazy?: boolean };
+const entries = Object.entries(pkg.config.wheels as Record<string, Wheel>);
+// loaded at startup, and loaded when needed (tensortrax for its material models)
+const WHEELS = entries
+  .filter(([, w]) => !w.lazy)
+  .map(([name, w]) => wheel(name, w.version));
+const LAZY_WHEELS = Object.fromEntries(
+  entries
+    .filter(([, w]) => w.lazy)
+    .map(([name, w]) => [name, wheel(name, w.version)]),
 );
 const FELUPE_VERSION = pkg.config.wheels.felupe.version;
 
@@ -21,6 +31,7 @@ export default defineConfig({
     __PYODIDE_VERSION__: JSON.stringify(pkg.devDependencies.pyodide),
     __FELUPE_VERSION__: JSON.stringify(FELUPE_VERSION),
     __WHEELS__: JSON.stringify(WHEELS),
+    __LAZY_WHEELS__: JSON.stringify(LAZY_WHEELS),
     __BUILD_ID__: JSON.stringify(BUILD_ID),
   },
   plugins: [

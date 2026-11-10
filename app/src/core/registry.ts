@@ -268,6 +268,10 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         hint: "Records the reaction force over the displacement",
         placeholder: "none",
       },
+      cutback: {
+        label: "Cutback",
+        hint: "Retries a substep that does not converge with smaller increments",
+      },
     },
   },
 };

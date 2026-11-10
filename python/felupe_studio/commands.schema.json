@@ -750,6 +750,11 @@
         },
         "curve": {
           "$ref": "#/$defs/Name"
+        },
+        "cutback": {
+          "description": "Retry a substep that does not converge with smaller increments (fem.CutbackPlugin).",
+          "type": "boolean",
+          "default": false
         }
       }
     }

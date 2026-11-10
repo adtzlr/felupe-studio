@@ -85,11 +85,59 @@ export interface MeshSurface {
   cells: number;
 }
 
+/** An event of a running job (`felupe_studio.runner`). */
+export type JobEvent =
+  | {
+      event: "start";
+      jobs: string[];
+      /** The substeps of every step, by job. */
+      substeps: Record<string, number[]>;
+    }
+  | {
+      event: "substep";
+      job: string;
+      step: number;
+      steps: number;
+      substep: number;
+      substeps: number;
+    }
+  | {
+      event: "iteration";
+      iteration: number;
+      fnorm: number | null;
+      xnorm: number | null;
+    }
+  | { event: "failed"; step: number; substep: number; message: string }
+  | {
+      event: "converged";
+      step: number;
+      substep: number;
+      iterations: number;
+      /** Increments of the substep, more than one after cutbacks. */
+      increments: number;
+    }
+  | { event: "finished"; job: string; time: number };
+
+/** Results of a job: for a characteristic curve, the displacements and forces. */
+export interface JobResult {
+  substeps: number;
+  time: number;
+  x?: (number | null)[][];
+  y?: (number | null)[][];
+}
+
 export type ToWorker =
-  | { type: "init"; pyodideVersion: string; wheels: string[] }
+  | {
+      type: "init";
+      pyodideVersion: string;
+      wheels: string[];
+      /** Wheels loaded when they are needed, by name (e.g. tensortrax). */
+      lazyWheels?: Record<string, string>;
+    }
   | { type: "benchmark"; id: number; sizes: number[] }
   | { type: "write-file"; id: number; name: string; data: ArrayBuffer }
-  | { type: "inspect-mesh"; id: number; name: string };
+  | { type: "inspect-mesh"; id: number; name: string }
+  | { type: "run"; id: number; document: string };
 
 export type FromWorker =
   | { type: "ready"; versions: Versions; timings: LoadTimings }
@@ -102,5 +150,7 @@ export type FromWorker =
       /** Outer surfaces by cell type. */
       surfaces: Record<string, MeshSurface>;
     }
+  | { type: "job-progress"; id: number; event: JobEvent }
+  | { type: "job-result"; id: number; results: Record<string, JobResult> }
   | { type: "done"; id: number }
   | { type: "error"; id?: number; message: string };
