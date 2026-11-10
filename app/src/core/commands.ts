@@ -14,6 +14,7 @@ export type Command =
   | SectionAdd
   | PointSetAdd
   | BoundaryAdd
+  | LoadcaseAdd
   | StepAdd
   | JobAdd;
 /**
@@ -39,6 +40,14 @@ export type MaterialAdd =
  * via the `definition` "Axis".
  */
 export type Axis = "x" | "y" | "z";
+/**
+ * A load case of FElupe (fem.dof) on the merged field: the boundaries of a standard test. It is referenced like a boundary: a step ramps its moving end faces, a job records the reaction force of its (first) moving end face.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "LoadcaseAdd".
+ */
+export type LoadcaseAdd =
+  LoadcaseUniaxial | LoadcaseBiaxial | LoadcasePlanar | LoadcaseShear;
 
 /**
  * A list of FElupe Studio commands. Objects are created by commands and referenced by their names.
@@ -265,6 +274,110 @@ export interface BoundaryAdd {
   value?: number;
 }
 /**
+ * Uniaxial tension or compression along an axis (fem.dof.uniaxial). The end face at the largest coordinate moves.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "LoadcaseUniaxial".
+ */
+export interface LoadcaseUniaxial {
+  command: "loadcase.add";
+  name: Name;
+  type: "uniaxial";
+  /**
+   * Direction of the loading (default x).
+   */
+  axis?: "x" | "y" | "z";
+  /**
+   * Rigid end faces: no transversal displacements of the moving (and, without symmetry, the opposite) end faces.
+   */
+  clamped?: boolean;
+  /**
+   * Symmetry planes at x = 0, y = 0 and z = 0 (a quarter or an eighth of a model). Without them, the opposite end faces are at the smallest coordinates.
+   */
+  symmetry?: boolean;
+}
+/**
+ * Equi-biaxial tension along two axes (fem.dof.biaxial). The end faces at the largest coordinates move.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "LoadcaseBiaxial".
+ */
+export interface LoadcaseBiaxial {
+  command: "loadcase.add";
+  name: Name;
+  type: "biaxial";
+  /**
+   * First direction of the loading (default x).
+   */
+  axis?: "x" | "y" | "z";
+  /**
+   * Second direction of the loading (default y).
+   */
+  second?: "x" | "y" | "z";
+  /**
+   * Rigid end faces: no transversal displacements of the moving (and, without symmetry, the opposite) end faces.
+   */
+  clamped?: boolean;
+  /**
+   * Symmetry planes at x = 0, y = 0 and z = 0 (a quarter or an eighth of a model). Without them, the opposite end faces are at the smallest coordinates.
+   */
+  symmetry?: boolean;
+}
+/**
+ * Planar (pure shear) tension along an axis with a constant width along a second axis (fem.dof.biaxial without a move of the second axis).
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "LoadcasePlanar".
+ */
+export interface LoadcasePlanar {
+  command: "loadcase.add";
+  name: Name;
+  type: "planar";
+  /**
+   * Direction of the loading (default x).
+   */
+  axis?: "x" | "y" | "z";
+  /**
+   * Direction of the constant width (default y).
+   */
+  second?: "x" | "y" | "z";
+  /**
+   * Rigid end faces: no transversal displacements of the moving (and, without symmetry, the opposite) end faces.
+   */
+  clamped?: boolean;
+  /**
+   * Symmetry planes at x = 0, y = 0 and z = 0 (a quarter or an eighth of a model). Without them, the opposite end faces are at the smallest coordinates.
+   */
+  symmetry?: boolean;
+}
+/**
+ * Simple shear between the end faces normal to an axis (fem.dof.shear). The face at the largest coordinate moves along the shear direction.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "LoadcaseShear".
+ */
+export interface LoadcaseShear {
+  command: "loadcase.add";
+  name: Name;
+  type: "shear";
+  /**
+   * Direction of the shear (default x).
+   */
+  axis?: "x" | "y" | "z";
+  /**
+   * Normal of the sheared end faces (default y).
+   */
+  normal?: "x" | "y" | "z";
+  /**
+   * Displacement of the moving face along the normal, held during the shear (default 0).
+   */
+  compression?: number;
+  /**
+   * Symmetry plane normal to the third axis at its zero coordinate.
+   */
+  symmetry?: boolean;
+}
+/**
  * A step with all boundaries, optionally ramping one boundary (fem.Step).
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
@@ -284,6 +397,12 @@ export interface StepAdd {
    */
   ramp?: {
     boundary: Name;
+    /**
+     * Further boundaries ramped with the same values, e.g. the second axis of an equi-biaxial tension.
+     *
+     * @minItems 1
+     */
+    also?: [Name, ...Name[]];
     start?: number;
     end: number;
     num: number;

@@ -83,9 +83,30 @@ describe("fieldSpecs", () => {
       "sections:reference",
       "ramp:toggle",
       "ramp.boundary:reference*",
+      "ramp.also:reference",
       "ramp.start:number",
       "ramp.end:number*",
       "ramp.num:number*",
+    ]);
+    expect(
+      summary("loadcase.add", { type: "biaxial", name: "pull" } as Draft),
+    ).toEqual([
+      "name:name*",
+      "type:variant*",
+      "axis:choice",
+      "second:choice",
+      "clamped:boolean",
+      "symmetry:boolean",
+    ]);
+    expect(
+      summary("loadcase.add", { type: "shear", name: "shear" } as Draft),
+    ).toEqual([
+      "name:name*",
+      "type:variant*",
+      "axis:choice",
+      "normal:choice",
+      "compression:number",
+      "symmetry:boolean",
     ]);
     expect(summary("job.add", find("job_1"))).toEqual([
       "name:name*",

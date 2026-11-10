@@ -221,3 +221,36 @@ describe("a form for a new object", () => {
     expect(onCancel).toHaveBeenCalled();
   });
 });
+
+describe("load cases", () => {
+  it("are created with checkboxes for their flags", () => {
+    const store = new ModelStore(fixture as CommandList);
+    render(<App store={store} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Loads & BCs" }));
+    fireEvent.click(screen.getByRole("button", { name: "Planar" }));
+    const dialog = screen.getByRole("dialog");
+    const symmetry = within(dialog).getByLabelText(
+      "Symmetry planes",
+    ) as HTMLInputElement;
+    const clamped = within(dialog).getByLabelText(
+      "Clamped",
+    ) as HTMLInputElement;
+    // the defaults of fem.dof
+    expect(symmetry.checked).toBe(true);
+    expect(clamped.checked).toBe(false);
+    fireEvent.click(clamped);
+    fireEvent.click(symmetry);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Create" }));
+    expect(store.commands.at(-1)).toEqual({
+      command: "loadcase.add",
+      name: "loadcase_1",
+      type: "planar",
+      clamped: true,
+      symmetry: false,
+    });
+    const tree = screen.getByRole("tree", { name: "Model" });
+    expect(
+      within(tree).getByRole("treeitem", { name: /loadcase_1/ }).textContent,
+    ).toContain("planar x, y · clamped · no symmetry");
+  });
+});

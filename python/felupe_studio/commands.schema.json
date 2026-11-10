@@ -109,6 +109,9 @@
           "$ref": "#/$defs/BoundaryAdd"
         },
         {
+          "$ref": "#/$defs/LoadcaseAdd"
+        },
+        {
           "$ref": "#/$defs/StepAdd"
         },
         {
@@ -512,6 +515,166 @@
         }
       }
     },
+    "LoadcaseAdd": {
+      "description": "A load case of FElupe (fem.dof) on the merged field: the boundaries of a standard test. It is referenced like a boundary: a step ramps its moving end faces, a job records the reaction force of its (first) moving end face.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/LoadcaseUniaxial"
+        },
+        {
+          "$ref": "#/$defs/LoadcaseBiaxial"
+        },
+        {
+          "$ref": "#/$defs/LoadcasePlanar"
+        },
+        {
+          "$ref": "#/$defs/LoadcaseShear"
+        }
+      ]
+    },
+    "LoadcaseUniaxial": {
+      "description": "Uniaxial tension or compression along an axis (fem.dof.uniaxial). The end face at the largest coordinate moves.",
+      "x-label": "Uniaxial",
+      "x-felupe": { "function": "fem.dof.uniaxial" },
+      "type": "object",
+      "required": ["command", "name", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "loadcase.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "type": {
+          "const": "uniaxial"
+        },
+        "axis": {
+          "description": "Direction of the loading (default x).",
+          "$ref": "#/$defs/Axis"
+        },
+        "clamped": {
+          "description": "Rigid end faces: no transversal displacements of the moving (and, without symmetry, the opposite) end faces.",
+          "type": "boolean",
+          "default": false
+        },
+        "symmetry": {
+          "description": "Symmetry planes at x = 0, y = 0 and z = 0 (a quarter or an eighth of a model). Without them, the opposite end faces are at the smallest coordinates.",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "LoadcaseBiaxial": {
+      "description": "Equi-biaxial tension along two axes (fem.dof.biaxial). The end faces at the largest coordinates move.",
+      "x-label": "Biaxial",
+      "x-felupe": { "function": "fem.dof.biaxial" },
+      "type": "object",
+      "required": ["command", "name", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "loadcase.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "type": {
+          "const": "biaxial"
+        },
+        "axis": {
+          "description": "First direction of the loading (default x).",
+          "$ref": "#/$defs/Axis"
+        },
+        "second": {
+          "description": "Second direction of the loading (default y).",
+          "$ref": "#/$defs/Axis"
+        },
+        "clamped": {
+          "description": "Rigid end faces: no transversal displacements of the moving (and, without symmetry, the opposite) end faces.",
+          "type": "boolean",
+          "default": false
+        },
+        "symmetry": {
+          "description": "Symmetry planes at x = 0, y = 0 and z = 0 (a quarter or an eighth of a model). Without them, the opposite end faces are at the smallest coordinates.",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "LoadcasePlanar": {
+      "description": "Planar (pure shear) tension along an axis with a constant width along a second axis (fem.dof.biaxial without a move of the second axis).",
+      "x-label": "Planar",
+      "x-felupe": { "function": "fem.dof.biaxial" },
+      "type": "object",
+      "required": ["command", "name", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "loadcase.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "type": {
+          "const": "planar"
+        },
+        "axis": {
+          "description": "Direction of the loading (default x).",
+          "$ref": "#/$defs/Axis"
+        },
+        "second": {
+          "description": "Direction of the constant width (default y).",
+          "$ref": "#/$defs/Axis"
+        },
+        "clamped": {
+          "description": "Rigid end faces: no transversal displacements of the moving (and, without symmetry, the opposite) end faces.",
+          "type": "boolean",
+          "default": false
+        },
+        "symmetry": {
+          "description": "Symmetry planes at x = 0, y = 0 and z = 0 (a quarter or an eighth of a model). Without them, the opposite end faces are at the smallest coordinates.",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "LoadcaseShear": {
+      "description": "Simple shear between the end faces normal to an axis (fem.dof.shear). The face at the largest coordinate moves along the shear direction.",
+      "x-label": "Shear",
+      "x-felupe": { "function": "fem.dof.shear" },
+      "type": "object",
+      "required": ["command", "name", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "loadcase.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "type": {
+          "const": "shear"
+        },
+        "axis": {
+          "description": "Direction of the shear (default x).",
+          "$ref": "#/$defs/Axis"
+        },
+        "normal": {
+          "description": "Normal of the sheared end faces (default y).",
+          "$ref": "#/$defs/Axis"
+        },
+        "compression": {
+          "description": "Displacement of the moving face along the normal, held during the shear (default 0).",
+          "type": "number"
+        },
+        "symmetry": {
+          "description": "Symmetry plane normal to the third axis at its zero coordinate.",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
     "StepAdd": {
       "description": "A step with all boundaries, optionally ramping one boundary (fem.Step).",
       "type": "object",
@@ -541,6 +704,15 @@
           "properties": {
             "boundary": {
               "$ref": "#/$defs/Name"
+            },
+            "also": {
+              "description": "Further boundaries ramped with the same values, e.g. the second axis of an equi-biaxial tension.",
+              "type": "array",
+              "minItems": 1,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/$defs/Name"
+              }
             },
             "start": {
               "type": "number"

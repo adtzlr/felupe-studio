@@ -9,7 +9,7 @@ of the commands:
 2. materials
 3. a region and a field container per section, merged into the top-level field
 4. solid bodies (created after the merge, see :func:`felupe.field.merge`)
-5. point sets and boundaries on the merged field
+5. point sets, load cases (``fem.dof``) and boundaries on the merged field
 6. steps and jobs
 """
 
@@ -19,6 +19,7 @@ from textwrap import dedent
 
 from .__about__ import __version__
 from .commands import SCHEMA_VERSION, ValidationError, validate
+from .loadcases import loadcase_call, moving
 from .materials import material_call
 
 HEADER = '''\
@@ -62,13 +63,29 @@ class _List:
         return f"{self.prefix}[\n{items}{pad}]"
 
 
+class _Dict:
+    """A dict argument ``prefix{key: value, ...}`` that ruff format may explode."""
+
+    def __init__(self, items, prefix=""):
+        self.items = list(items)
+        self.prefix = prefix
+
+    def __str__(self):
+        return f"{self.prefix}{{{', '.join(self.items)}}}"
+
+    def exploded(self, level):
+        pad = "    " * level
+        items = "".join(f"{pad}    {item},\n" for item in self.items)
+        return f"{self.prefix}{{\n{items}{pad}}}"
+
+
 def _explode(args, level=1):
     """One argument per line with a trailing comma, like ruff format."""
     pad = "    " * level
     lines = []
     for arg in args:
         line = f"{pad}{arg},"
-        if len(line) > LINE_LENGTH and isinstance(arg, _List):
+        if len(line) > LINE_LENGTH and isinstance(arg, (_List, _Dict)):
             line = f"{pad}{arg.exploded(level)},"
         lines.append(line + "\n")
     return "".join(lines)
@@ -196,7 +213,7 @@ def codegen(document, evaluate=True):
                 )
             )
 
-    # 5. point sets and boundaries on the merged field
+    # 5. point sets, load cases (``fem.dof``) and boundaries on the merged field
     if pointsets:
         out.append("\n# point sets of the merged mesh")
         out.append("points = field.mesh_container.points")
@@ -214,9 +231,16 @@ def codegen(document, evaluate=True):
                 out.append(_call(ps["name"], "np.zeros", ["len(points)", "dtype=bool"]))
                 out.append(f"{ps['name']}[{sel['ids']!r}] = True")
 
+    loadcases = {lc["name"]: lc for lc in get("loadcase.add")}
+    if loadcases:
+        out.append("\n# load cases (fem.dof), ramped by the steps")
+        for lc in loadcases.values():
+            func, args = loadcase_call(lc)
+            out.append(_call(lc["name"], func, args))
+
     boundaries = get("boundary.add")
     out.append("\n# boundaries")
-    if boundaries:
+    if boundaries or loadcases:
         out.append("boundaries = {")
         for bc in boundaries:
             args = ["field[0]", f"mask={bc['pointset']}"]
@@ -227,9 +251,26 @@ def codegen(document, evaluate=True):
                 args.append(f"value={bc['value']!r}")
             head = f"{_str(bc['name'])}: fem.Boundary"
             out.append(_wrap(head, args, level=1, end=","))
+        for name in loadcases:
+            out.append(f'    **{{f"{name}/{{k}}": v for k, v in {name}.items()}},')
         out.append("}")
     else:
         out.append("boundaries = {}")
+
+    def ramped(name, values):
+        """Items of a ramp: a boundary, or the moving boundaries of a load case."""
+        if name not in loadcases:
+            return [f"boundaries[{_str(name)}]: {values}"]
+        return [
+            f"boundaries[{_str(name + '/' + key)}]: {'' if sign > 0 else '-'}{values}"
+            for key, sign in moving(loadcases[name])
+        ]
+
+    def curve(name):
+        """The boundary of a characteristic curve (of a load case: its first move)."""
+        if name in loadcases:
+            name = f"{name}/{moving(loadcases[name])[0][0]}"
+        return f"boundaries[{_str(name)}]"
 
     # 6. steps and jobs
     steps = get("step.add")
@@ -244,7 +285,9 @@ def codegen(document, evaluate=True):
                 ramp = f"ramp_{step['name']}"
                 num = f"num={r['num']!r}"
                 out.append(_call(ramp, "fem.math.linsteps", [values, num]))
-                lines.append(f"ramp={{boundaries[{_str(r['boundary'])}]: {ramp}}}")
+                names = [r["boundary"], *r.get("also", [])]
+                items = [item for b in names for item in ramped(b, ramp)]
+                lines.append(_Dict(items, prefix="ramp="))
             lines.append("boundaries=boundaries")
             out.append(f"{step['name']} = fem.Step(\n{_explode(lines)})")
 
@@ -254,7 +297,7 @@ def codegen(document, evaluate=True):
         for job in jobs:
             args = [_List(job["steps"], prefix="steps=")]
             if "curve" in job:
-                args.append(f"boundary=boundaries[{_str(job['curve'])}]")
+                args.append(f"boundary={curve(job['curve'])}")
                 out.append(_call(job["name"], "fem.CharacteristicCurve", args))
             else:
                 out.append(_call(job["name"], "fem.Job", args))

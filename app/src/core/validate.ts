@@ -2,6 +2,7 @@
 // (felupe_studio.commands); both are tested with tests/data/validation_cases.json,
 // so the messages are identical.
 import type { Command } from "./commands";
+import { loadcaseProblems } from "./loadcases";
 import { needsBulk } from "./materials";
 import {
   NAME_MAX_LENGTH,
@@ -34,6 +35,8 @@ export const KINDS: Record<CommandType, Kind> = {
   "section.add": "section",
   "pointset.add": "pointset",
   "boundary.add": "boundary",
+  // a load case is referenced like a boundary (ramps of steps, curves of jobs)
+  "loadcase.add": "boundary",
   "step.add": "step",
   "job.add": "job",
 };
@@ -72,7 +75,8 @@ export function references(
     result.push(...names.map((name) => ({ field, name })));
   }
   if (command.command === "step.add" && command.ramp) {
-    result.push({ field: "ramp", name: command.ramp.boundary });
+    for (const name of [command.ramp.boundary, ...(command.ramp.also ?? [])])
+      result.push({ field: "ramp", name });
   }
   return result;
 }
@@ -92,9 +96,11 @@ export function renameReferences(
       copy[field] = value.map((n) => (n === from ? to : n));
     else if (value === from) copy[field] = to;
   }
-  const ramp = copy.ramp as { boundary: string } | undefined;
-  if (command.command === "step.add" && ramp?.boundary === from)
-    ramp.boundary = to;
+  const ramp = copy.ramp as { boundary: string; also?: string[] } | undefined;
+  if (command.command === "step.add" && ramp) {
+    if (ramp.boundary === from) ramp.boundary = to;
+    if (ramp.also) ramp.also = ramp.also.map((n) => (n === from ? to : n));
+  }
   return copy as unknown as Command;
 }
 
@@ -152,9 +158,10 @@ export function validate(commands: readonly Command[]): Issue[] {
 
     // the ramped boundary of a step
     if (cmd.command === "step.add" && cmd.ramp) {
-      const ref = cmd.ramp.boundary;
-      if (kindOf(ref) !== "boundary") {
-        add(`step '${name}' ramps unknown boundary '${ref}'.`);
+      for (const ref of [cmd.ramp.boundary, ...(cmd.ramp.also ?? [])]) {
+        if (kindOf(ref) !== "boundary") {
+          add(`step '${name}' ramps unknown boundary '${ref}'.`);
+        }
       }
     }
 
@@ -166,6 +173,10 @@ export function validate(commands: readonly Command[]): Issue[] {
           `cell set '${name}' uses tag values, but mesh '${mesh.name}' was imported without a tag.`,
         );
       }
+    }
+
+    if (cmd.command === "loadcase.add") {
+      for (const problem of loadcaseProblems(cmd)) add(problem);
     }
 
     // a model with an optional bulk modulus has no volumetric part without it

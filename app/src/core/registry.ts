@@ -30,6 +30,8 @@ export interface CommandInfo {
   options?: Record<string, Record<string, string>>;
   /** At most one object of this command per model. */
   single?: boolean;
+  /** Noun of a new object in dialogs, if not its kind (a load case is a boundary). */
+  noun?: string;
   /**
    * Adjust the defaults of a new object to the model, e.g. a section takes a cell
    * set without a section. Values of a preset are applied afterwards.
@@ -195,6 +197,48 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       constrained: AXES,
     },
   },
+  "loadcase.add": {
+    label: "Load case",
+    tab: "loads",
+    prefix: "loadcase",
+    noun: "load case",
+    fields: {
+      type: { label: "Type", default: "uniaxial" },
+      axis: {
+        label: "Axis",
+        hint: "Direction of the loading, or of the shear",
+        placeholder: "x",
+      },
+      second: {
+        label: "Second axis",
+        hint: "Biaxial: also loaded; planar: constant width",
+        placeholder: "y",
+      },
+      normal: {
+        label: "Normal",
+        hint: "Normal of the sheared end faces",
+        placeholder: "y",
+      },
+      clamped: {
+        label: "Clamped",
+        hint: "Rigid end faces, without transversal displacements",
+      },
+      symmetry: {
+        label: "Symmetry planes",
+        hint: "At x = 0, y = 0 and z = 0; without, the opposite faces are at the smallest coordinates",
+      },
+      compression: {
+        label: "Compression",
+        hint: "Displacement of the moving face along the normal, held",
+        placeholder: "0",
+      },
+    },
+    options: {
+      axis: AXES,
+      second: AXES,
+      normal: AXES,
+    },
+  },
   "step.add": {
     label: "Step",
     tab: "steps",
@@ -203,6 +247,11 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       sections: { label: "Sections", placeholder: "all" },
       ramp: { label: "Ramp a boundary" },
       "ramp.boundary": { label: "Boundary" },
+      "ramp.also": {
+        label: "Also ramped",
+        hint: "Further boundaries with the same values, e.g. equi-biaxial",
+        placeholder: "none",
+      },
       "ramp.start": { label: "Start", placeholder: "0" },
       "ramp.end": { label: "End", default: 1 },
       "ramp.num": { label: "Increments", default: 5 },

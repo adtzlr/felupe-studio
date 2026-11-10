@@ -33,22 +33,39 @@ The JSON schema [`python/felupe_studio/commands.schema.json`](../python/felupe_s
 | `cellset.from_tag`  | cell set                    | mesh (imported with a tag)               | `fem.Mesh(points, cells[tag == value], cell_type)`                                                                                                                   |
 | `cellset.from_file` | cell set                    | mesh                                     | all cells of the mesh                                                                                                                                                |
 | `material.add`      | material                    |                                          | a model of the material registry, see below                                                                                                                          |
-| `section.add`       | section                     | cell set, material                       | `u`: `FieldContainer` + `SolidBody`; `u-p-J`: `FieldsMixed` + `NearlyIncompressible(bulk)`, linear tetrahedra as MINI element                                         |
+| `section.add`       | section                     | cell set, material                       | `u`: `FieldContainer` + `SolidBody`; `u-p-J`: `FieldsMixed` + `NearlyIncompressible(bulk)`, linear tetrahedra as MINI element                                        |
 | `pointset.add`      | point set                   |                                          | coordinate (`x == 0`, with `atol`) or point ids                                                                                                                      |
 | `boundary.add`      | boundary                    | point set                                | `fem.Boundary` on the merged field, `constrained` components                                                                                                         |
+| `loadcase.add`      | boundary (a group)          |                                          | `fem.dof.uniaxial`, `fem.dof.biaxial` (also planar), `fem.dof.shear` on the merged field                                                                             |
 | `step.add`          | step                        | sections (default: all), ramped boundary | `fem.Step`, `fem.math.linsteps([start, end], num)`                                                                                                                   |
 | `job.add`           | job                         | steps, curve boundary                    | `fem.Job` or `fem.CharacteristicCurve`                                                                                                                               |
+
+## Load cases
+
+A `loadcase.add` creates the boundaries of a standard test with `fem.dof` on the merged field, created without a displacement (`move=0`). It is referenced like a boundary: the ramp of a step moves its moving end faces, and a job records the reaction force over the displacement of its first moving end face.
+
+| Type       | FElupe                              | Moving end faces (ramped)                           | Options                                    |
+| ---------- | ----------------------------------- | --------------------------------------------------- | ------------------------------------------ |
+| `uniaxial` | `fem.dof.uniaxial(field, axis)`     | `move` at the largest coordinate                    | `clamped`, `symmetry`                      |
+| `biaxial`  | `fem.dof.biaxial(field, axes)`      | `move-right-<axis>` of both axes                    | `second`, `clamped`, `symmetry`            |
+| `planar`   | `fem.dof.biaxial(field, axes)`      | `move-right-<axis>`; the second axis is held        | `second`, `clamped`, `symmetry`            |
+| `shear`    | `fem.dof.shear(field, axes, moves)` | `move` of the face at the largest normal coordinate | `normal`, `compression` (held), `symmetry` |
+
+- `symmetry` (default true, like FElupe) adds symmetry planes at x = 0, y = 0 and z = 0: the model is a quarter or an eighth. Without, the opposite end faces are at the smallest coordinates; a biaxial or planar test then moves them backwards (`move-left-<axis>`, ramped with negative values).
+- `clamped` (default false) keeps the end faces rigid in the transversal directions. A uniaxial, biaxial or planar test needs symmetry planes or clamped end faces; the two axes of a test must differ. Like `fem.dof.biaxial`, the edges of clamped faces keep the transversal components.
+- A ramp of a step may also move further boundaries with the same values (`ramp.also`), e.g. two explicit boundaries of an equi-biaxial test.
+- Tests: an eighth of a cube of an incompressible Neo-Hookean material gives the analytical nominal stress of uniaxial (λ − λ⁻²), planar (λ − λ⁻³) and equi-biaxial (λ − λ⁻⁵) tension within 0.2 %, and a clamped uniaxial test equals explicit boundaries.
 
 ## Material models
 
 The material models are the definitions `Material<Model>` of `material.add` in the command schema, the material registry. Every definition holds the label of the model (`x-label`), how FElupe creates it (`x-felupe`: a `class`, or a `function` of tensortrax for `fem.Hyperelastic`) and its parameters with label, description, bounds and default. The forms, the ribbon, the validation and the generated script read them from there (`felupe_studio.materials` in Python), so a new model needs a schema definition and tests, but no code in the app.
 
-| Model                      | Label                         | FElupe                                                       | Parameters                                    |
-| -------------------------- | ----------------------------- | ------------------------------------------------------------ | --------------------------------------------- |
-| `NeoHooke`                 | Neo-Hooke                     | `fem.NeoHooke(mu, bulk)`                                     | μ `mu`, optional K `bulk`                     |
-| `NeoHookeCompressible`     | Neo-Hooke (compressible)      | `fem.NeoHookeCompressible(mu, lmbda)`                        | μ `mu`, λ `lmbda`                             |
-| `MooneyRivlin`             | Mooney-Rivlin                 | `fem.Hyperelastic(fem.mooney_rivlin, C10, C01)` (tensortrax) | C₁₀ `C10`, C₀₁ `C01`, optional K `bulk`       |
-| `LinearElasticLargeStrain` | Linear elastic (large strain) | `fem.LinearElasticLargeStrain(E, nu)`                        | E `E`, ν `nu`                                 |
+| Model                      | Label                         | FElupe                                                       | Parameters                              |
+| -------------------------- | ----------------------------- | ------------------------------------------------------------ | --------------------------------------- |
+| `NeoHooke`                 | Neo-Hooke                     | `fem.NeoHooke(mu, bulk)`                                     | μ `mu`, optional K `bulk`               |
+| `NeoHookeCompressible`     | Neo-Hooke (compressible)      | `fem.NeoHookeCompressible(mu, lmbda)`                        | μ `mu`, λ `lmbda`                       |
+| `MooneyRivlin`             | Mooney-Rivlin                 | `fem.Hyperelastic(fem.mooney_rivlin, C10, C01)` (tensortrax) | C₁₀ `C10`, C₀₁ `C01`, optional K `bulk` |
+| `LinearElasticLargeStrain` | Linear elastic (large strain) | `fem.LinearElasticLargeStrain(E, nu)`                        | E `E`, ν `nu`                           |
 
 A model with an optional bulk modulus is incompressible without it: a section with this material needs the `u-p-J` formulation (`fem.NearlyIncompressible(..., bulk)`). A bulk modulus marked `"x-felupe": "volumetric"` is added as `fem.Volumetric(bulk=...)`, e.g. `umat &= fem.Volumetric(bulk=5000.0)` for Mooney-Rivlin. The models of tensortrax need the package `tensortrax` in the generated script; the shear modulus of Mooney-Rivlin is 2 (C₁₀ + C₀₁).
 
@@ -78,7 +95,7 @@ Example messages: `192 / 192 cells assigned once.` and `Interface left_body / ri
 2. materials
 3. a region and a field container per section, merged with `fem.field.merge([...])` into the top-level `field`. The region follows the cell type (`REGIONS`); for `u-p-J`, `mixed_region()` gives linear tetrahedra a bubble point (`tetra5`, `fem.RegionTetraMINI`), the other cell types keep their region (Q1/P0, Q2/P1, P2/P1 with the dual fields of `fem.FieldsMixed`). A test runs every cell type in both formulations.
 4. solid bodies, created after the merge (required for items with an internal state)
-5. point sets on `field.mesh_container.points` and `boundaries` on `field[0]`
+5. point sets on `field.mesh_container.points`, load cases of `fem.dof` on `field` and `boundaries` on `field[0]`; the boundaries of a load case are added as `<load case>/<key>`
 6. steps and jobs, evaluated with `job.evaluate(x0=field)` (skip with `evaluate=False`)
 
 Generated scripts pass `ruff check` and `ruff format --check`. The tests run them with FElupe and compare with hand-written FElupe models.
@@ -167,7 +184,7 @@ The files are kept in the browser (`app/src/core/meshfiles.ts`) and written into
 The viewport draws the imported meshes with the WebGL2 viewer of FElupe ([ADR 0004](adr/0004-viewer.md)), a pinned copy in `app/src/vendor/felupe-viewer/`.
 
 - `felupe_studio.scene.surface()` triangulates the outer surface of the solid cells with FElupe (`triangulate_surface`), like `mesh.plot()`: flat faces for linear cells, subdivided curved faces for quadratic cells, and the edges of the faces. Every region of cells with the same values of all cell tags is triangulated on its own, so its surface is closed also at the interfaces to other regions (cell sets and sections take the cells of a tag value or all cells). The arrays, with the values of the cell tags per cell, go to the main thread as little-endian bytes (`float32` coordinates, `uint32` indices, `int32` tags) and are drawn without copies.
-- **Color by** (toolbar) colors the cells by mesh, cell set or section. By default, the viewport takes sections if the model has any, else cell sets, else meshes, until another one is chosen. Colors follow the position of an object in the model, so hiding an object does not repaint the others. The legend names the cell sets or sections with visible cells, and *No cell set* or *No section* for the other cells. Later cell sets win for cells in more than one. A ninth and further object is gray instead of a generated color.
+- **Color by** (toolbar) colors the cells by mesh, cell set or section. By default, the viewport takes sections if the model has any, else cell sets, else meshes, until another one is chosen. Colors follow the position of an object in the model, so hiding an object does not repaint the others. The legend names the cell sets or sections with visible cells, and _No cell set_ or _No section_ for the other cells. Later cell sets win for cells in more than one. A ninth and further object is gray instead of a generated color.
 - **Visibility:** the eye of a mesh, a cell set or a section in the browser hides its cells (and their edges). The surfaces of the remaining regions stay closed.
 - **Point sets** are shown as markers on the nodes of the drawn meshes that they select, with the tolerances of `np.isclose` in the generated script (`atol` and the default `rtol = 1e-5`); the selected point set is highlighted, its eye hides it. Point sets of point ids refer to the merged mesh of the script and are not shown.
 - **Picking:** a click (not a drag) on a face highlights all drawn faces in its plane and previews its points. A face normal to x, y or z offers **Create point set**: the coordinate is the exact coordinate of the nodes in the plane (not of the float32 surface), with a larger `atol` only if their spread needs it, and the name is `x_min`, `x_max` or e.g. `y_0_5`. Other faces are explained; point sets select planes normal to an axis. Escape or × clears the pick. A tip in the viewport explains the click until the first pick (or until it is dismissed; remembered in the browser).

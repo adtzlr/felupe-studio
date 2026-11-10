@@ -317,6 +317,7 @@ export function CommandForm({
         );
       }
       case "toggle":
+      case "boolean":
         return null;
     }
   };
@@ -331,6 +332,38 @@ export function CommandForm({
       {specs.map((spec) => {
         const id = fieldId(spec.key);
         const error = errorOf(spec.key);
+        if (spec.input.type === "boolean") {
+          const value = getValue(draft, spec.path);
+          const checked =
+            typeof value === "boolean" ? value : spec.input.default;
+          return (
+            <div
+              key={spec.key}
+              class={spec.path.length > 1 ? "form-row nested" : "form-row"}
+            >
+              <span class="form-label" />
+              <div class="form-control">
+                <label class="check" title={spec.description}>
+                  <input
+                    id={id}
+                    type="checkbox"
+                    checked={checked}
+                    aria-describedby={spec.hint ? `${id}-hint` : undefined}
+                    onChange={(event) =>
+                      change(spec, event.currentTarget.checked)
+                    }
+                  />
+                  {spec.label}
+                </label>
+                {spec.hint && (
+                  <small id={`${id}-hint`} class="muted">
+                    {spec.hint}
+                  </small>
+                )}
+              </div>
+            </div>
+          );
+        }
         if (spec.input.type === "toggle") {
           const on = getValue(draft, spec.path) !== undefined;
           return (
