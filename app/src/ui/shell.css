@@ -699,6 +699,26 @@ button {
   font-weight: 600;
 }
 
+.pick-panel {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 88px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 12px;
+  width: fit-content;
+  max-width: calc(100% - 16px);
+  margin: 0 auto;
+  padding: 6px 6px 6px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: rgba(32, 37, 47, 0.92);
+  font-size: 13px;
+}
+
 .view-toolbar .toolbar-separator {
   width: 1px;
   margin: 4px 2px;

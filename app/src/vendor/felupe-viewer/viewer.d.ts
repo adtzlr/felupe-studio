@@ -54,6 +54,14 @@ export interface Scene {
 /** Without WebGL2, the viewer shows a message and has no camera. */
 export interface ViewerHandle {
   root: HTMLElement;
+  /** The camera (rotation, target, size, zoom), changed in place by the viewer. */
+  camera?: {
+    basis: number[][];
+    target: number[];
+    radius: number;
+    zoom: number;
+    parallel: boolean;
+  };
   update(scene: Scene, options?: { keepView?: boolean }): void;
   /** Set a view of the camera (or keep the rotation if null) and fit the scene. */
   setView?(view: string | null): void;

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+import type { Command, PointSetAdd } from "../core/commands";
 import type { MeshFiles } from "../core/meshfiles";
 import type { ModelStore } from "../core/store";
 import {
@@ -7,21 +8,66 @@ import {
   defaultColorBy,
   viewportContent,
 } from "../viewer/layers";
-import { type CreateViewer, Viewer, VIEWS } from "../viewer/viewer";
+import { axisOf, type Vec3 } from "../viewer/picking";
+import {
+  type CoordinateSelect,
+  outlined,
+  planeName,
+  planeSelect,
+  selectedPoints,
+} from "../viewer/pointsets";
+import type { Markers } from "../viewer/scene";
+import {
+  type CreateViewer,
+  HIGHLIGHT,
+  type Pick,
+  Viewer,
+  VIEWS,
+} from "../viewer/viewer";
 
 interface Props {
   store: ModelStore;
   files: MeshFiles;
   /** Names of the objects hidden in the viewport. */
   hidden: ReadonlySet<string>;
+  /** The selected object, e.g. a point set to highlight. */
+  selected?: string;
+  /** Create a point set, e.g. of a picked face (opens the dialog). */
+  onCreatePointSet?: (preset: {
+    name: string;
+    select: CoordinateSelect;
+  }) => void;
   /** Creates the viewer; the default is the vendored FElupe viewer. */
   createViewer?: CreateViewer;
 }
 
-export function Viewport({ store, files, hidden, createViewer }: Props) {
+/** A picked face: its plane, and the point set of the plane if it is normal to x, y or z. */
+interface Picked {
+  point: Vec3;
+  normal: Vec3;
+  select?: CoordinateSelect;
+}
+
+/** Color of the markers of point sets, the selected one is highlighted. */
+const POINTS = "#f2f4f8";
+
+const isPointSet = (c: Command): c is PointSetAdd =>
+  c.command === "pointset.add";
+
+const formatNumber = (value: number) => String(+value.toPrecision(6));
+
+export function Viewport({
+  store,
+  files,
+  hidden,
+  selected,
+  onCreatePointSet,
+  createViewer,
+}: Props) {
   const host = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
   const [available, setAvailable] = useState(true);
+  const [picked, setPicked] = useState<Picked | undefined>();
   // chosen by the user, else sections, cell sets or meshes, as the model has them
   const [chosen, setChosen] = useState<ColorBy | undefined>();
   const commands = store.commands;
@@ -33,16 +79,69 @@ export function Viewport({ store, files, hidden, createViewer }: Props) {
     [commands, files, revision, hidden, colorBy],
   );
 
+  // the nodes of the drawn meshes, for previews of point sets
+  const nodes = useMemo(
+    () =>
+      content.meshes.flatMap((m) => (m.surface.nodes ? [m.surface.nodes] : [])),
+    [content],
+  );
+  const preview = useMemo(
+    () => (picked?.select ? selectedPoints(picked.select, nodes) : undefined),
+    [picked, nodes],
+  );
+  const markers = useMemo((): Markers[] => {
+    const sets = commands.filter(isPointSet).filter((c) => !hidden.has(c.name));
+    const others = sets.filter((c) => c.name !== selected);
+    const chosen = sets.find((c) => c.name === selected);
+    const points = (list: PointSetAdd[]) => {
+      const all = list.map((c) => selectedPoints(c.select, nodes));
+      return Float64Array.from(all.flatMap((p) => [...p]));
+    };
+    return [
+      ...outlined(points(others), POINTS),
+      ...(chosen ? outlined(points([chosen]), HIGHLIGHT, 9) : []),
+      ...(preview ? outlined(preview, HIGHLIGHT, 9) : []),
+    ];
+  }, [commands, hidden, selected, nodes, preview]);
+
+  // the plane of a picked face, and its point set if it is normal to an axis (the
+  // viewer calls it with the nodes of the latest render)
+  const nodesRef = useRef(nodes);
+  nodesRef.current = nodes;
+  const planeOf = (pick: Pick): Picked => {
+    const axis = axisOf(pick.normal);
+    return {
+      point: pick.point,
+      normal: pick.normal,
+      ...(axis === undefined
+        ? {}
+        : { select: planeSelect(axis, pick.point, nodesRef.current) }),
+    };
+  };
+
   // the viewer (and its WebGL context) is created when there is a mesh to show
   useEffect(() => {
     if (!viewer.current) {
       if (content.meshes.length === 0 || !host.current) return;
       viewer.current = new Viewer(host.current, createViewer);
+      viewer.current.onPick((pick) => setPicked(pick && planeOf(pick)));
       setAvailable(viewer.current.available);
     }
     viewer.current.setMeshes(content.meshes);
     viewer.current.setLegend(content.legend);
-  }, [content, createViewer]);
+    viewer.current.setMarkers(markers);
+    viewer.current.setPlane(picked);
+  }, [content, markers, picked, createViewer]);
+
+  // Escape clears a picked face
+  useEffect(() => {
+    if (!picked) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setPicked(undefined);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [picked]);
 
   useEffect(
     () => () => {
@@ -91,6 +190,54 @@ export function Viewport({ store, files, hidden, createViewer }: Props) {
               </option>
             ))}
           </select>
+        </div>
+      )}
+      {shown && picked && (
+        <div class="pick-panel" role="status" aria-label="Picked face">
+          {picked.select ? (
+            <>
+              <span>
+                Plane{" "}
+                <strong>
+                  {picked.select.axis} = {formatNumber(picked.select.value)}
+                </strong>{" "}
+                <span class="muted">
+                  · {(preview?.length ?? 0) / 3} points
+                  {picked.select.atol !== undefined &&
+                    ` · tolerance ${picked.select.atol}`}
+                </span>
+              </span>
+              {onCreatePointSet && (
+                <button
+                  type="button"
+                  class="button primary"
+                  onClick={() => {
+                    const select = picked.select!;
+                    onCreatePointSet({
+                      name: planeName(select, nodes, commands),
+                      select,
+                    });
+                    setPicked(undefined);
+                  }}
+                >
+                  Create point set
+                </button>
+              )}
+            </>
+          ) : (
+            <span class="muted">
+              This face is not normal to x, y or z. Point sets select planes
+              normal to an axis.
+            </span>
+          )}
+          <button
+            type="button"
+            class="icon-button"
+            aria-label="Clear the picked face"
+            onClick={() => setPicked(undefined)}
+          >
+            ×
+          </button>
         </div>
       )}
       {content.message && (

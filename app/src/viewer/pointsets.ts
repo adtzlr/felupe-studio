@@ -1,0 +1,142 @@
+// Point sets in the viewport: the points a point set selects by a coordinate (a
+// preview on the nodes of the drawn meshes, like `np.isclose` in the generated
+// script), and the point set of a picked face normal to x, y or z.
+import type { Command, PointSetAdd } from "../core/commands";
+import { toName } from "../core/importmesh";
+import type { Vec3 } from "./picking";
+import type { Markers } from "./scene";
+
+export const AXES = ["x", "y", "z"] as const;
+export type Axis = (typeof AXES)[number];
+
+export interface CoordinateSelect {
+  axis: Axis;
+  value: number;
+  atol?: number;
+}
+
+/** The default tolerances of the generated script (`np.isclose`). */
+export const ATOL = 1e-8;
+const RTOL = 1e-5;
+
+const isClose = (a: number, b: number, atol: number) =>
+  Math.abs(a - b) <= atol + RTOL * Math.abs(b);
+
+/**
+ * The points of the nodes (three coordinates each, without duplicates) that a point
+ * set selects. Point ids refer to the merged mesh of the script and are not shown.
+ */
+export function selectedPoints(
+  select: PointSetAdd["select"],
+  nodes: readonly Float64Array[],
+): Float64Array {
+  if (!("axis" in select)) return new Float64Array();
+  const k = AXES.indexOf(select.axis);
+  const atol = select.atol ?? ATOL;
+  const seen = new Set<string>();
+  const result: number[] = [];
+  for (const array of nodes) {
+    for (let p = 0; p < array.length; p += 3) {
+      if (!isClose(array[p + k], select.value, atol)) continue;
+      const key = `${array[p]} ${array[p + 1]} ${array[p + 2]}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      result.push(array[p], array[p + 1], array[p + 2]);
+    }
+  }
+  return Float64Array.from(result);
+}
+
+/**
+ * The distance of a hit (on float32 coordinates) to the nodes in its plane: relative
+ * to the size of the model and to the magnitude of its coordinates.
+ */
+export function tolerance(nodes: readonly Float64Array[]): number {
+  let size = 0;
+  let magnitude = 0;
+  for (const k of [0, 1, 2]) {
+    const [min, max] = range(nodes, k);
+    if (!Number.isFinite(min)) continue;
+    size = Math.hypot(size, max - min);
+    magnitude = Math.max(magnitude, Math.abs(min), Math.abs(max));
+  }
+  return 1e-6 * size + 1e-6 * magnitude || 1e-9;
+}
+
+/** The bounds of the nodes along an axis. */
+function range(nodes: readonly Float64Array[], k: number): [number, number] {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const array of nodes) {
+    for (let p = k; p < array.length; p += 3) {
+      min = Math.min(min, array[p]);
+      max = Math.max(max, array[p]);
+    }
+  }
+  return [min, max];
+}
+
+/**
+ * The selection of the plane of a picked face normal to an axis. The coordinate is
+ * taken from the nodes in the plane (exact, not the coordinate of the hit), with a
+ * tolerance that covers their spread.
+ */
+export function planeSelect(
+  k: 0 | 1 | 2,
+  point: Vec3,
+  nodes: readonly Float64Array[],
+): CoordinateSelect {
+  const near = tolerance(nodes);
+  const counts = new Map<number, number>();
+  for (const array of nodes) {
+    for (let p = k; p < array.length; p += 3) {
+      if (Math.abs(array[p] - point[k]) <= near) {
+        counts.set(array[p], (counts.get(array[p]) ?? 0) + 1);
+      }
+    }
+  }
+  const axis = AXES[k];
+  if (counts.size === 0) {
+    return { axis, value: Number(point[k].toPrecision(7)) };
+  }
+  // the most frequent coordinate, and the largest deviation of the others
+  const value = [...counts].sort((a, b) => b[1] - a[1])[0][0];
+  const spread = Math.max(
+    ...[...counts.keys()].map((v) => Math.abs(v - value)),
+  );
+  if (spread === 0 || isClose(value + spread, value, ATOL))
+    return { axis, value };
+  const atol = 10 ** Math.ceil(Math.log10(2 * spread));
+  return { axis, value, atol };
+}
+
+/** A name for the point set of a plane, e.g. `x_min`, `x_max` or `y_0_5`. */
+export function planeName(
+  select: CoordinateSelect,
+  nodes: readonly Float64Array[],
+  commands: readonly Command[],
+): string {
+  const k = AXES.indexOf(select.axis);
+  const [min, max] = range(nodes, k);
+  const atol = select.atol ?? ATOL;
+  const text = isClose(min, select.value, atol)
+    ? `${select.axis}_min`
+    : isClose(max, select.value, atol)
+      ? `${select.axis}_max`
+      : `${select.axis}_${select.value}`;
+  return toName(text, new Set(commands.map((c) => c.name)), "points");
+}
+
+/** Markers with a dark outline, visible on every color of the meshes. */
+export function outlined(
+  points: Float64Array,
+  color: string,
+  size = 7,
+): Markers[] {
+  if (points.length === 0) return [];
+  const positions = Float32Array.from(points);
+  return [
+    { positions, color: "#11151c", size: size + 4 },
+    { positions, color, size },
+  ];
+}

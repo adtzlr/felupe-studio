@@ -226,7 +226,20 @@ export function App({
           onSelect={setSelection}
           onToggleVisible={toggleVisible}
         />
-        <Viewport store={store} files={files} hidden={hidden} />
+        <Viewport
+          store={store}
+          files={files}
+          hidden={hidden}
+          selected={selected}
+          onCreatePointSet={(preset) =>
+            setCreating({
+              id: "pointset.add",
+              type: "pointset.add",
+              label: REGISTRY["pointset.add"].label,
+              preset,
+            })
+          }
+        />
       </div>
       <Footer
         store={store}

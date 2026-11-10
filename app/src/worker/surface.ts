@@ -10,10 +10,15 @@ export interface RawSurface {
   edges: Uint8Array;
   owners: Uint8Array;
   tags?: Record<string, Uint8Array>;
+  nodes?: Uint8Array;
   cells: number;
 }
 
-type Typed = typeof Float32Array | typeof Uint32Array | typeof Int32Array;
+type Typed =
+  | typeof Float32Array
+  | typeof Float64Array
+  | typeof Uint32Array
+  | typeof Int32Array;
 
 function view<T extends Typed>(Type: T, bytes: Uint8Array): InstanceType<T> {
   const size = Type.BYTES_PER_ELEMENT;
@@ -39,6 +44,7 @@ export function toSurface(raw: RawSurface): MeshSurface {
     cells: raw.cells,
   };
   if (raw.faces) surface.faces = view(Uint32Array, raw.faces);
+  if (raw.nodes) surface.nodes = view(Float64Array, raw.nodes);
   if (raw.tags) {
     surface.tags = Object.fromEntries(
       Object.entries(raw.tags).map(([name, b]) => [name, view(Int32Array, b)]),
@@ -68,6 +74,7 @@ export function transferables(
       surface.faces,
       surface.edges,
       surface.owners,
+      surface.nodes,
       ...Object.values(surface.tags ?? {}),
     ]) {
       if (array) buffers.add(array.buffer as ArrayBuffer);

@@ -79,6 +79,8 @@ export interface MeshSurface {
   owners: Uint32Array;
   /** The values of the cell tags per cell, by tag name. */
   tags?: Record<string, Int32Array>;
+  /** Exact coordinates of the points of the cells (three per point). */
+  nodes?: Float64Array;
   /** Number of solid cells. */
   cells: number;
 }
