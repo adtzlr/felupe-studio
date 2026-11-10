@@ -438,3 +438,81 @@ def test_every_cell_type_and_formulation(cell_type, formulation, tmp_path, monke
     if (cell_type, formulation) == ("tetra", "u-p-J"):
         # MINI element: a bubble point in every cell
         assert namespace["region_body"].mesh.cell_type == "tetra5"
+
+
+@pytest.mark.parametrize("cell_type", ["hexahedron", "tetra", "tetra10"])
+@pytest.mark.parametrize("formulations", [("u", "u-p-J"), ("u-p-J", "u-p-J")])
+def test_mixed_sections_of_one_mesh(cell_type, formulations, tmp_path, monkeypatch):
+    """Two sections of one mesh file with u-p-J: the dual fields of tetrahedra are
+    fields of the points, so a section must not hold the points of the other one."""
+    hexahedra = fem.Cube(b=(3, 1, 1), n=(7, 3, 3))
+    meshes = {
+        "hexahedron": hexahedra,
+        "tetra": hexahedra.triangulate(),
+        "tetra10": fem.mesh.add_midpoints_edges(
+            hexahedra.triangulate(), cell_type_new="tetra10"
+        ),
+    }
+    mesh = meshes[cell_type]
+    tag = np.where(mesh.points[mesh.cells].mean(axis=1)[:, 0] < 1.5, 1, 2)
+    meshio.Mesh(
+        mesh.points, [(cell_type, mesh.cells)], cell_data={"material": [tag]}
+    ).write(tmp_path / "bar.vtu")
+    commands = [
+        {"command": "mesh.import", "name": "bar", "file": "bar.vtu", "tag": "material"},
+        {"command": "cellset.from_tag", "name": "a", "mesh": "bar", "value": 1},
+        {"command": "cellset.from_tag", "name": "b", "mesh": "bar", "value": 2},
+        {
+            "command": "material.add",
+            "name": "compressible",
+            "model": "NeoHookeCompressible",
+            "parameters": {"mu": 1, "lmbda": 20},
+        },
+        {
+            "command": "material.add",
+            "name": "rubber",
+            "model": "NeoHooke",
+            "parameters": {"mu": 1},
+        },
+    ]
+    for name, cellset, formulation in zip(
+        ["left", "right"], "ab", formulations, strict=True
+    ):
+        section = {
+            "command": "section.add",
+            "name": name,
+            "cellset": cellset,
+            "material": "compressible" if formulation == "u" else "rubber",
+            "formulation": formulation,
+        }
+        if formulation == "u-p-J":
+            section["bulk"] = 5000
+        commands.append(section)
+    commands += [
+        {"command": "pointset.add", "name": "l", "select": {"axis": "x", "value": 0}},
+        {"command": "pointset.add", "name": "r", "select": {"axis": "x", "value": 3}},
+        {
+            "command": "boundary.add",
+            "name": "fixed",
+            "pointset": "l",
+            "constrained": ["x", "y", "z"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "move",
+            "pointset": "r",
+            "constrained": ["x"],
+        },
+        {
+            "command": "step.add",
+            "name": "step_1",
+            "ramp": {"boundary": "move", "end": 0.3, "num": 3},
+        },
+        {"command": "job.add", "name": "job_1", "steps": ["step_1"], "curve": "move"},
+    ]
+    namespace = run({"schema_version": 1, "commands": commands}, tmp_path, monkeypatch)
+    force = namespace["job_1"].y[-1][0]
+    # the force of the linear hexahedra with the same formulations (the quadratic
+    # tetrahedra are softer and closer to the quadratic hexahedra, about 0.283)
+    reference = {("u", "u-p-J"): 0.3066, ("u-p-J", "u-p-J"): 0.2853}[formulations]
+    assert force == pytest.approx(reference, rel=0.1)
