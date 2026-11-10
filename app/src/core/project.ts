@@ -26,7 +26,36 @@ type SchemaNode = {
 export const MIGRATIONS: Record<
   number,
   (document: Record<string, unknown>) => Record<string, unknown>
-> = {};
+> = { 1: rampItems };
+
+/**
+ * Schema version 1 → 2: the ramp of a step has items with their own values
+ * (`boundary` and `also` become items with the same `start` and `end`, #90).
+ */
+function rampItems(document: Record<string, unknown>): Record<string, unknown> {
+  const commands = Array.isArray(document.commands) ? document.commands : [];
+  return {
+    ...document,
+    schema_version: 2,
+    commands: commands.map((command: unknown) => {
+      if (typeof command !== "object" || command === null) return command;
+      const cmd = command as Record<string, unknown>;
+      const ramp = cmd.ramp as Record<string, unknown> | undefined;
+      if (cmd.command !== "step.add" || typeof ramp !== "object" || !ramp)
+        return cmd;
+      const values = Object.fromEntries(
+        ["start", "end"].filter((k) => k in ramp).map((k) => [k, ramp[k]]),
+      );
+      const also = Array.isArray(ramp.also) ? ramp.also : [];
+      const items = [ramp.boundary, ...also].map((target) => ({
+        target,
+        ...values,
+      }));
+      const num = "num" in ramp ? { num: ramp.num } : {};
+      return { ...cmd, ramp: { ...num, items } };
+    }),
+  };
+}
 
 const defs = (schema as unknown as { $defs: Record<string, SchemaNode> }).$defs;
 

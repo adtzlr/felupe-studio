@@ -4,7 +4,7 @@ Every action in FElupe Studio is a command. A project is a command list:
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "commands": [
     {
       "command": "mesh.import",
@@ -24,21 +24,21 @@ Every action in FElupe Studio is a command. A project is a command list:
 
 The JSON schema [`python/felupe_studio/commands.schema.json`](../python/felupe_studio/commands.schema.json) is the single source of truth ([ADR 0003](adr/0003-command-interpretation.md)). The TypeScript types in `app/src/core/commands.ts` are generated from it with `npm run schema:types`; CI checks that they are up to date.
 
-## Commands of schema version 1
+## Commands of schema version 2
 
-| Command             | Creates                     | References                               | FElupe                                                                                                                                                               |
-| ------------------- | --------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mesh.import`       | mesh                        |                                          | meshio, optional integer cell data `tag` and `cell_type` (one mesh per type of solid cells)                                                                          |
-| `mesh.merge`        | merge setting (at most one) |                                          | `fem.field.merge([...], decimals=...)`: merges points that agree to `decimals`, e.g. files of different mesh generators; without it only identical points are merged |
-| `cellset.from_tag`  | cell set                    | mesh (imported with a tag)               | `fem.Mesh(points, cells[tag == value], cell_type)`                                                                                                                   |
-| `cellset.from_file` | cell set                    | mesh                                     | all cells of the mesh                                                                                                                                                |
-| `material.add`      | material                    |                                          | a model of the material registry, see below                                                                                                                          |
-| `section.add`       | section                     | cell set, material                       | `u`: `FieldContainer` + `SolidBody`; `u-p-J`: `FieldsMixed` + `NearlyIncompressible(bulk)`, linear tetrahedra as MINI element                                        |
-| `pointset.add`      | point set                   |                                          | coordinate (`x == 0`, with `atol`) or point ids                                                                                                                      |
-| `boundary.add`      | boundary                    | point set                                | `fem.Boundary` on the merged field, `constrained` components                                                                                                         |
-| `loadcase.add`      | boundary (a group)          |                                          | `fem.dof.uniaxial`, `fem.dof.biaxial` (also planar), `fem.dof.shear` on the merged field                                                                             |
-| `step.add`          | step                        | sections (default: all), ramped boundary | `fem.Step`, `fem.math.linsteps([start, end], num)`                                                                                                                   |
-| `job.add`           | job                         | steps, curve boundary                    | `fem.Job` or `fem.CharacteristicCurve`, with `cutback`: `plugins=[fem.CutbackPlugin()]`, with `tol`: `evaluate(x0=field, tol=...)`                                   |
+| Command             | Creates                     | References                            | FElupe                                                                                                                                                               |
+| ------------------- | --------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `mesh.import`       | mesh                        |                                       | meshio, optional integer cell data `tag` and `cell_type` (one mesh per type of solid cells)                                                                          |
+| `mesh.merge`        | merge setting (at most one) |                                       | `fem.field.merge([...], decimals=...)`: merges points that agree to `decimals`, e.g. files of different mesh generators; without it only identical points are merged |
+| `cellset.from_tag`  | cell set                    | mesh (imported with a tag)            | `fem.Mesh(points, cells[tag == value], cell_type)`                                                                                                                   |
+| `cellset.from_file` | cell set                    | mesh                                  | all cells of the mesh                                                                                                                                                |
+| `material.add`      | material                    |                                       | a model of the material registry, see below                                                                                                                          |
+| `section.add`       | section                     | cell set, material                    | `u`: `FieldContainer` + `SolidBody`; `u-p-J`: `FieldsMixed` + `NearlyIncompressible(bulk)`, linear tetrahedra as MINI element                                        |
+| `pointset.add`      | point set                   |                                       | coordinate (`x == 0`, with `atol`) or point ids                                                                                                                      |
+| `boundary.add`      | boundary                    | point set                             | `fem.Boundary` on the merged field, `constrained` components                                                                                                         |
+| `loadcase.add`      | boundary (a group)          |                                       | `fem.dof.uniaxial`, `fem.dof.biaxial` (also planar), `fem.dof.shear` on the merged field                                                                             |
+| `step.add`          | step                        | sections (default: all), ramped items | `fem.Step`, `fem.math.linsteps([start, end], num)` per item                                                                                                          |
+| `job.add`           | job                         | steps, curve boundary                 | `fem.Job` or `fem.CharacteristicCurve`, with `cutback`: `plugins=[fem.CutbackPlugin()]`, with `tol`: `evaluate(x0=field, tol=...)`                                   |
 
 ## Load cases
 
@@ -53,7 +53,7 @@ A `loadcase.add` creates the boundaries of a standard test with `fem.dof` on the
 
 - `symmetry` (default true, like FElupe) adds symmetry planes at x = 0, y = 0 and z = 0: the model is a quarter or an eighth. Without, the opposite end faces are at the smallest coordinates; a biaxial or planar test then moves them backwards (`move-left-<axis>`, ramped with negative values).
 - `clamped` (default false) keeps the end faces rigid in the transversal directions. A uniaxial, biaxial or planar test needs symmetry planes or clamped end faces; the two axes of a test must differ. Like `fem.dof.biaxial`, the edges of clamped faces keep the transversal components.
-- A ramp of a step may also move further boundaries with the same values (`ramp.also`), e.g. two explicit boundaries of an equi-biaxial test.
+- A step ramps a list of items (`ramp.items`), each with its own `start` (default 0) and `end`, and the same number of increments (`ramp.num`): `fem.math.linsteps([start, end], num)` per item in the `ramp` of `fem.Step`, one array for items with the same values. An item (`target`) is a boundary (its value) or a load case (the displacement of its moving faces), at most once per step. FElupe ramps every item with `update(value)`, so further kinds of items (point loads, pressures) only extend the kinds that `target` may reference (#90).
 - Tests: an eighth of a cube of an incompressible Neo-Hookean material gives the analytical nominal stress of uniaxial (λ − λ⁻²), planar (λ − λ⁻³) and equi-biaxial (λ − λ⁻⁵) tension within 0.2 %, and a clamped uniaxial test equals explicit boundaries.
 
 ## Material models
@@ -123,6 +123,10 @@ The app (`app/src/core/project.ts`: `serialize`, `parse`) and Python (`felupe_st
 
 Older files are brought to the current schema with `MIGRATIONS[version]`, one step per schema version; a file of a newer schema version is rejected with a hint to update FElupe Studio.
 
+| From | To  | Migration                                                                                                                                         |
+| ---- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | 2   | The ramp of a step gets items with their own values: `{boundary, also, start, end, num}` becomes `{num, items: [{target, start, end}, …]}` (#90). |
+
 ## Forms (app)
 
 The form of the selected object is shown in the **properties panel** on the right of the viewport (#83). It opens when an object is selected (in the browser, in the history bar, with `select <name>` and after an object was created) and closes with ×; the selection stays, and a click on the object opens the panel again. The panel belongs to the Model workspace; on narrow screens it is shown below the browser.
@@ -137,6 +141,7 @@ The forms of the app are not written per command. `app/src/core/form.ts` derives
 | `enum`, array of an `enum`                                                | selection, checkboxes                                                                                    |
 | `oneOf` of definitions with a constant (`model`) or of objects (`select`) | variant selection that switches the fields below                                                         |
 | optional object (`ramp`)                                                  | checkbox that switches a group of fields on and off                                                      |
+| array of objects (`ramp.items`)                                           | rows with a field per property, add and remove; a `unique` column offers an object in one row only       |
 | `if` / `then` / `else` (`bulk` of a section)                              | field that is only shown and required for a condition                                                    |
 
 `app/src/core/registry.ts` adds what the schema does not know: labels, hints, placeholders, defaults of new objects, the ribbon tab of a command and the prefix of suggested names (`material_1`). A test checks that every field of every variant has a label (from the registry or, for the material registry, from the schema), and that the form validation rejects what the schema rejects. An `initial` function adapts the defaults of a new object to the model: a new section takes the first cell set without a section, and `u-p-J` if its material is incompressible (no bulk modulus).

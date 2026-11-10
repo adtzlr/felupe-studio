@@ -17,6 +17,7 @@ import felupe as fem
 import meshio
 import numpy as np
 
+from felupe_studio.commands import SCHEMA_VERSION
 from felupe_studio.project import dumps
 
 HERE = Path(__file__).parents[1] / "public" / "samples"
@@ -64,7 +65,7 @@ def write(folder, commands, meshes):
     for name, mesh in meshes.items():
         kwargs = {"file_format": "gmsh22"} if name.endswith(".msh") else {}
         mesh.write(folder / name, binary=False, **kwargs)
-    document = {"schema_version": 1, "commands": commands}
+    document = {"schema_version": SCHEMA_VERSION, "commands": commands}
     (folder / "model.felupe.json").write_text(dumps(document), encoding="utf-8")
 
 
@@ -149,7 +150,7 @@ def rubber_mount():
         {
             "command": "step.add",
             "name": "shearing",
-            "ramp": {"boundary": "shear", "end": 20, "num": 10},
+            "ramp": {"num": 10, "items": [{"target": "shear", "end": 20}]},
         },
         {"command": "job.add", "name": "job", "steps": ["shearing"], "curve": "shear"},
     ]
@@ -226,7 +227,7 @@ def two_materials():
         {
             "command": "step.add",
             "name": "tension",
-            "ramp": {"boundary": "pull", "end": 15, "num": 10},
+            "ramp": {"num": 10, "items": [{"target": "pull", "end": 15}]},
         },
         {"command": "job.add", "name": "job", "steps": ["tension"], "curve": "pull"},
     ]
@@ -258,7 +259,7 @@ def material_test():
         {
             "command": "step.add",
             "name": "stretch",
-            "ramp": {"boundary": "tension", "end": 1, "num": 10},
+            "ramp": {"num": 10, "items": [{"target": "tension", "end": 1}]},
         },
         {"command": "job.add", "name": "job", "steps": ["stretch"], "curve": "tension"},
     ]
@@ -352,7 +353,7 @@ def hex_tet():
         {
             "command": "step.add",
             "name": "tension",
-            "ramp": {"boundary": "pull", "end": 15, "num": 5},
+            "ramp": {"num": 5, "items": [{"target": "pull", "end": 15}]},
         },
         {"command": "job.add", "name": "job", "steps": ["tension"], "curve": "pull"},
     ]

@@ -21,7 +21,7 @@ describe("project files", () => {
       commands: document.commands.map((c) =>
         Object.fromEntries(Object.entries(c).reverse()),
       ),
-      schema_version: 1,
+      schema_version: 2,
     } as unknown as CommandList;
     expect(serialize(document)).toBe(twoSections);
     expect(serialize(shuffled)).toBe(twoSections);
@@ -36,11 +36,11 @@ describe("project files", () => {
     expect(() => parse("{")).toThrow("not valid JSON");
     expect(() => parse("[]")).toThrow("does not contain");
     expect(() => parse('{"commands": []}')).toThrow("no valid schema_version");
-    expect(() => parse('{"schema_version": 2, "commands": []}')).toThrow(
+    expect(() => parse('{"schema_version": 3, "commands": []}')).toThrow(
       "Please update",
     );
     try {
-      parse('{"schema_version": 1, "commands": [{"command": "mesh.import"}]}');
+      parse('{"schema_version": 2, "commands": [{"command": "mesh.import"}]}');
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(ProjectError);
@@ -51,7 +51,7 @@ describe("project files", () => {
   it("checks parameters per material model", () => {
     const text = (parameters: object) =>
       JSON.stringify({
-        schema_version: 1,
+        schema_version: 2,
         commands: [
           { command: "material.add", name: "m", model: "NeoHooke", parameters },
         ],
@@ -62,7 +62,7 @@ describe("project files", () => {
 
   it("does not check references when loading", () => {
     const text = JSON.stringify({
-      schema_version: 1,
+      schema_version: 2,
       commands: [{ command: "cellset.from_file", name: "a", mesh: "missing" }],
     });
     expect(parse(text).commands[0]).toMatchObject({ mesh: "missing" });
@@ -90,6 +90,32 @@ describe("migrations", () => {
       commands: [{ command: "mesh.import", id: "m", file: "m.vtu" }],
     };
     expect(parse(JSON.stringify(old)).commands[0].name).toBe("m");
+  });
+
+  it("turn the ramp of version 1 into items (#90)", () => {
+    const old = structuredClone(fixture) as unknown as {
+      schema_version: number;
+      commands: Record<string, unknown>[];
+    };
+    old.schema_version = 1;
+    const step = old.commands.find((c) => c.command === "step.add")!;
+    step.ramp = { boundary: "move", also: ["fixed"], end: 0.5, num: 5 };
+    const document = parse(JSON.stringify(old));
+    expect(document.schema_version).toBe(2);
+    expect(document.commands.find((c) => c.name === "step_1")).toEqual({
+      command: "step.add",
+      name: "step_1",
+      ramp: {
+        num: 5,
+        items: [
+          { target: "move", end: 0.5 },
+          { target: "fixed", end: 0.5 },
+        ],
+      },
+    });
+    expect(document.commands.slice(0, -2)).toEqual(
+      (fixture as CommandList).commands.slice(0, -2),
+    );
   });
 
   it("must exist for older files", () => {

@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "commands": [
     {
       "command": "mesh.import",
@@ -77,9 +77,13 @@
       "command": "step.add",
       "name": "shearing",
       "ramp": {
-        "boundary": "shear",
-        "end": 20,
-        "num": 10
+        "num": 10,
+        "items": [
+          {
+            "target": "shear",
+            "end": 20
+          }
+        ]
       }
     },
     {

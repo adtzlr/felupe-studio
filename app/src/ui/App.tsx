@@ -8,6 +8,7 @@ import { fileNotes, MeshFiles } from "../core/meshfiles";
 import { REGISTRY } from "../core/registry";
 import type { RibbonItem } from "../core/ribbon";
 import type { ModelStore } from "../core/store";
+import { SCHEMA_VERSION } from "../core/schema";
 import type { UpdateWatcher } from "../updates";
 import type { PyodideClient } from "../worker/client";
 import { CreateDialog } from "./CreateDialog";
@@ -219,7 +220,7 @@ export function App({
   const [confirmNew, setConfirmNew] = useState(false);
   const newProject = () => {
     jobs?.forget();
-    store.load({ schema_version: 1, commands: [] });
+    store.load({ schema_version: SCHEMA_VERSION as 2, commands: [] });
     files.clear();
     setFileName(`untitled${SUFFIX}`);
     setSaved(store.commands);

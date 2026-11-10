@@ -192,11 +192,33 @@ describe("editing in the properties panel", () => {
 
     const step = edit("step_1");
     expect(step.field("Increments").value).toBe("5");
-    // the ramped boundary is not offered as a further boundary
-    const also = step.field<HTMLElement>("Also ramped");
-    expect(within(also).queryByLabelText("move")).toBeNull();
-    expect(within(also).getByLabelText("fixed")).toBeTruthy();
-    fireEvent.click(step.field("Ramp a boundary"));
+    // the ramped items are rows: a new row takes the other boundary
+    expect(step.field<HTMLSelectElement>("Boundary 1").value).toBe("move");
+    expect(step.field("End 1").value).toBe("0.5");
+    const add = step.button("+ Add row");
+    fireEvent.click(add);
+    expect(step.field<HTMLSelectElement>("Boundary 2").value).toBe("fixed");
+    expect(add.disabled).toBe(true);
+    // a boundary is offered in one row only
+    const options = (label: string) =>
+      [...step.field<HTMLSelectElement>(label).options].map((o) => o.value);
+    expect(options("Boundary 1")).toEqual(["move"]);
+    step.type("End 2", "-0.1");
+    fireEvent.click(step.button("Apply"));
+    expect(step.store.get("step_1")).toMatchObject({
+      ramp: {
+        num: 5,
+        items: [
+          { target: "move", start: 0, end: 0.5 },
+          { target: "fixed", end: -0.1 },
+        ],
+      },
+    });
+    fireEvent.click(step.button("Remove row 1"));
+    expect(step.button("Remove row 1").disabled).toBe(true);
+    step.type("End 1", "");
+    expect(step.properties.textContent).toContain("End 1: Required.");
+    fireEvent.click(step.field("Ramp"));
     expect(within(step.properties).queryByLabelText("Increments")).toBeNull();
     fireEvent.click(step.field("section_soft"));
     fireEvent.click(step.button("Apply"));

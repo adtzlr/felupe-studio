@@ -40,6 +40,11 @@ export type Input =
   | { type: "multichoice"; options: Option[]; minItems: number }
   | { type: "integers"; minItems: number; min?: number }
   | { type: "reference"; kind: Kind; multiple: boolean; minItems: number }
+  /**
+   * A list of objects, edited as rows; `columns` are the fields of a row, with
+   * paths relative to the row (see `cells`).
+   */
+  | { type: "rows"; columns: FieldSpec[]; minItems: number }
   /** Switches an optional group of fields on or off. */
   | { type: "toggle" }
   /** A flag; without a value, the default of the schema applies. */
@@ -57,6 +62,10 @@ export interface FieldSpec {
   placeholder?: string;
   required: boolean;
   input: Input;
+  /** Index of the row of a cell of rows (see `cells`). */
+  row?: number;
+  /** A column of rows whose objects may appear only once (registry `unique`). */
+  unique?: boolean;
 }
 
 export interface Context {
@@ -166,9 +175,16 @@ function variantOf(node: Node, value: Draft): Node {
   );
 }
 
+/** Key of a field in the registry: without the indices of rows. */
+const columnKey = (key: string) =>
+  key
+    .split(".")
+    .filter((part) => !/^\d+$/.test(part))
+    .join(".");
+
 /** Kind of object a reference field points to. */
 function referenceKind(type: CommandType, key: string): Kind {
-  if (type === "step.add" && (key === "ramp.boundary" || key === "ramp.also"))
+  if (type === "step.add" && columnKey(key) === "ramp.items.target")
     return "boundary";
   const reference = REFERENCES[type]?.[key];
   if (!reference) throw new Error(`No reference kind for ${type} ${key}.`);
@@ -216,6 +232,7 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
         field?.placeholder ?? (labelled && !required ? "none" : undefined),
       required,
       input,
+      ...(field && "unique" in field && field.unique ? { unique: true } : {}),
     });
   };
 
@@ -285,7 +302,20 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
       } else if (property.type === "array") {
         const items = property.items!;
         const minItems = property.minItems ?? 0;
-        if (refName(items) === "Name") {
+        if (resolve(items).type === "object") {
+          // the fields of a row, collected by walking the object of an item
+          const before = specs.length;
+          walk(resolve(items), {}, path);
+          const columns = specs
+            .splice(before)
+            .map((c) => ({ ...c, path: c.path.slice(path.length) }));
+          push(
+            path,
+            isRequired,
+            { type: "rows", columns, minItems },
+            raw.description,
+          );
+        } else if (refName(items) === "Name") {
           const kind = referenceKind(type, key);
           push(path, isRequired, {
             type: "reference",
@@ -389,6 +419,13 @@ export function normalize(
           result[name] = available(context, referenceKind(type, key)).at(-1);
         } else if (
           property.type === "array" &&
+          resolve(property.items!).type === "object"
+        ) {
+          result[name] = [
+            seedRow(type, key, resolve(property.items!), [], context),
+          ];
+        } else if (
+          property.type === "array" &&
           refName(property.items!) === "Name"
         ) {
           const all = available(context, referenceKind(type, key));
@@ -409,45 +446,95 @@ export function normalize(
     return result;
   };
 
-  return withoutTaken(type, fill(definition(type, source).node, source, []));
+  return fill(definition(type, source).node, source, []);
 }
 
-/** Names that the field excluded by a reference field holds (registry `excludes`). */
-function taken(type: CommandType, key: string, draft: Draft): string[] {
-  const other = info(type, key)?.excludes;
-  const value = other ? getValue(draft, other.split(".")) : undefined;
-  if (typeof value === "string") return [value];
-  return Array.isArray(value) ? (value as string[]) : [];
-}
-
-/** Remove the names of reference lists that their excluded field holds. */
-function withoutTaken(type: CommandType, draft: Draft): Draft {
-  for (const [key, field] of Object.entries(REGISTRY[type].fields)) {
-    if (!field.excludes) continue;
-    const path = key.split(".");
-    const value = getValue(draft, path);
-    if (!Array.isArray(value)) continue;
-    const not = taken(type, key, draft);
-    const kept = value.filter((name) => !not.includes(name));
-    if (kept.length < value.length)
-      assign(draft, path, kept.length ? kept : undefined);
+/** A new row of rows: the defaults, and the latest object that is not used yet. */
+function seedRow(
+  type: CommandType,
+  key: string,
+  item: Node,
+  rows: readonly Draft[],
+  context: Context,
+): Draft {
+  const row: Draft = {};
+  for (const [name, raw] of Object.entries(item.properties ?? {})) {
+    if (!(item.required ?? []).includes(name)) continue;
+    const column = `${key}.${name}`;
+    const fallback = info(type, column)?.default ?? raw.default;
+    if (fallback !== undefined) row[name] = structuredClone(fallback);
+    else if (refName(raw) === "Name") {
+      const used = info(type, column)?.unique ? rows.map((r) => r[name]) : [];
+      row[name] = available(context, referenceKind(type, column))
+        .filter((n) => !used.includes(n))
+        .at(-1);
+      if (row[name] === undefined) delete row[name];
+    }
   }
-  return draft;
+  return row;
+}
+
+/** The schema of the value at a path of a draft. */
+function nodeAt(type: CommandType, draft: Draft, path: string[]): Node {
+  let node = resolve(definition(type, draft).node);
+  let value: unknown = draft;
+  for (const key of path) {
+    if (node.type === "array") node = resolve(node.items!);
+    else {
+      if (node.oneOf) node = variantOf(node, isObject(value) ? value : {});
+      node = resolve(node.properties![key]);
+    }
+    value = getValue(value as Draft, [key]);
+  }
+  return node;
+}
+
+/** The rows of a rows field with a new row at the end (see `seedRow`). */
+export function addRow(
+  type: CommandType,
+  spec: FieldSpec,
+  draft: Draft,
+  context: Context,
+): Draft[] {
+  const value = getValue(draft, spec.path);
+  const rows = Array.isArray(value) ? (value as Draft[]) : [];
+  const item = resolve(nodeAt(type, draft, spec.path).items!);
+  return [...rows, seedRow(type, spec.key, item, rows, context)];
+}
+
+/** The fields of the rows of a rows field, by row, with their full paths. */
+export function cells(spec: FieldSpec, draft: Draft): FieldSpec[][] {
+  if (spec.input.type !== "rows") return [];
+  const value = getValue(draft, spec.path);
+  const rows = Array.isArray(value) ? value : [];
+  const { columns } = spec.input;
+  return rows.map((_, row) =>
+    columns.map((column) => {
+      const path = [...spec.path, String(row), ...column.path];
+      return { ...column, path, key: path.join("."), row };
+    }),
+  );
 }
 
 /**
- * Names a reference field offers: the objects of its kind, without the edited one
- * and without the ones of the field it excludes (a boundary is ramped only once).
+ * Names a reference field offers: the objects of its kind, without the edited one;
+ * in a column of rows with unique objects, without the ones of the other rows.
  */
 export function offered(
-  type: CommandType,
   spec: FieldSpec,
   draft: Draft,
   context: Context,
 ): string[] {
   if (spec.input.type !== "reference") return [];
-  const not = taken(type, spec.key, draft);
-  return available(context, spec.input.kind).filter((n) => !not.includes(n));
+  const names = available(context, spec.input.kind);
+  if (spec.row === undefined || !spec.unique) return names;
+  const rowsPath = spec.path.slice(0, -2);
+  const name = spec.path.at(-1)!;
+  const rows = getValue(draft, rowsPath);
+  const used = (Array.isArray(rows) ? (rows as Draft[]) : [])
+    .filter((_, i) => i !== spec.row)
+    .map((r) => r[name]);
+  return names.filter((n) => !used.includes(n));
 }
 
 /**
@@ -504,8 +591,9 @@ export function initialDraft(
 export function getValue(draft: Draft, path: string[]): unknown {
   let value: unknown = draft;
   for (const key of path) {
-    if (!isObject(value)) return undefined;
-    value = value[key];
+    if (Array.isArray(value)) value = value[Number(key)];
+    else if (isObject(value)) value = value[key];
+    else return undefined;
   }
   return value;
 }
@@ -533,7 +621,8 @@ export function setValue(
 function assign(draft: Draft, path: string[], value: unknown) {
   let target = draft;
   for (const key of path.slice(0, -1)) {
-    if (!isObject(target[key])) target[key] = {};
+    const next = target[key];
+    if (typeof next !== "object" || next === null) target[key] = {};
     target = target[key] as Draft;
   }
   const last = path[path.length - 1];
@@ -645,6 +734,18 @@ function fieldError(
         ? undefined
         : `There is no ${kind} '${String(value)}'.`;
     }
+    case "rows": {
+      const rows = Array.isArray(value) ? (value as Draft[]) : [];
+      if (rows.length < Math.max(input.minItems, required ? 1 : 0))
+        return "Add at least one row.";
+      for (const column of input.columns) {
+        const name = column.path.at(-1)!;
+        const values = rows.map((r) => r[name]).filter((v) => v !== undefined);
+        if (column.unique && new Set(values).size < values.length)
+          return `Each ${column.label.toLowerCase()} may appear only once.`;
+      }
+      return undefined;
+    }
     default:
       return undefined;
   }
@@ -660,6 +761,12 @@ export function draftErrors(
   for (const spec of fieldSpecs(type, draft)) {
     const error = fieldError(spec, getValue(draft, spec.path), context);
     if (error) errors[spec.key] = error;
+    for (const row of cells(spec, draft)) {
+      for (const cell of row) {
+        const message = fieldError(cell, getValue(draft, cell.path), context);
+        if (message) errors[cell.key] = message;
+      }
+    }
   }
   if (type === "loadcase.add" && typeof draft.type === "string") {
     Object.assign(errors, loadcaseFieldErrors(draft as unknown as Loadcase));

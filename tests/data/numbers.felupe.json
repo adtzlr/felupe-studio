@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "commands": [
     {
       "command": "mesh.import",
@@ -76,10 +76,14 @@
       "command": "step.add",
       "name": "step_1",
       "ramp": {
-        "boundary": "fixed",
-        "start": 0.0000025,
-        "end": 0.30000000000000004,
-        "num": 5
+        "num": 5,
+        "items": [
+          {
+            "target": "fixed",
+            "start": 0.0000025,
+            "end": 0.30000000000000004
+          }
+        ]
       }
     },
     {

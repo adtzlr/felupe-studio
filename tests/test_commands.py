@@ -62,7 +62,7 @@ def test_valid_document(document):
 @pytest.mark.parametrize(
     "change",
     [
-        lambda d: d.update(schema_version=2),
+        lambda d: d.update(schema_version=3),
         lambda d: d["commands"].append({"command": "mesh.delete", "name": "a"}),
         lambda d: find(d, "hard").update(name="1hard"),
         lambda d: find(d, "hard").update(name="h" * 25),
@@ -103,7 +103,10 @@ def test_schema_errors(document, change):
         ),
         (lambda d: find(d, "fixed").update(pointset="right2"), "unknown pointset"),
         (lambda d: find(d, "step_1").update(sections=["hard"]), "is a cellset"),
-        (lambda d: find(d, "step_1")["ramp"].update(boundary="left"), "ramps unknown"),
+        (
+            lambda d: find(d, "step_1")["ramp"]["items"][0].update(target="left"),
+            "ramps unknown",
+        ),
         (lambda d: find(d, "job_1").update(curve="fixed2"), "unknown boundary"),
         (lambda d: find(d, "soft").update(name="hard"), "already used"),
         (lambda d: find(d, "job_1").update(name="lambda"), "reserved"),

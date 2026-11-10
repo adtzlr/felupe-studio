@@ -9,7 +9,7 @@
   "properties": {
     "schema_version": {
       "description": "Version of this schema.",
-      "const": 1
+      "const": 2
     },
     "commands": {
       "type": "array",
@@ -676,7 +676,7 @@
       }
     },
     "StepAdd": {
-      "description": "A step with all boundaries, optionally ramping one boundary (fem.Step).",
+      "description": "A step with all boundaries, optionally ramping items, each with its own values (fem.Step).",
       "type": "object",
       "required": ["command", "name"],
       "additionalProperties": false,
@@ -697,34 +697,41 @@
           }
         },
         "ramp": {
-          "description": "Ramp the value of a boundary with fem.math.linsteps([start, end], num).",
+          "description": "Ramp the values of items with fem.math.linsteps([start, end], num), with the same number of increments for all items.",
           "type": "object",
-          "required": ["boundary", "end", "num"],
+          "required": ["num", "items"],
           "additionalProperties": false,
           "properties": {
-            "boundary": {
-              "$ref": "#/$defs/Name"
-            },
-            "also": {
-              "description": "Further boundaries ramped with the same values, e.g. the second axis of an equi-biaxial tension.",
-              "type": "array",
-              "minItems": 1,
-              "uniqueItems": true,
-              "items": {
-                "$ref": "#/$defs/Name"
-              }
-            },
-            "start": {
-              "type": "number"
-            },
-            "end": {
-              "type": "number"
-            },
             "num": {
+              "description": "Increments of the step.",
               "type": "integer",
               "minimum": 1
+            },
+            "items": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "$ref": "#/$defs/RampItem"
+              }
             }
           }
+        }
+      }
+    },
+    "RampItem": {
+      "description": "A ramped item: a boundary (its value, e.g. a displacement) or a load case (the displacement of its moving faces).",
+      "type": "object",
+      "required": ["target", "end"],
+      "additionalProperties": false,
+      "properties": {
+        "target": {
+          "$ref": "#/$defs/Name"
+        },
+        "start": {
+          "type": "number"
+        },
+        "end": {
+          "type": "number"
         }
       }
     },

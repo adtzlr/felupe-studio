@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "commands": [
     {
       "command": "mesh.import",
@@ -84,10 +84,14 @@
       "command": "step.add",
       "name": "step_1",
       "ramp": {
-        "boundary": "move",
-        "start": 0,
-        "end": 0.5,
-        "num": 5
+        "num": 5,
+        "items": [
+          {
+            "target": "move",
+            "start": 0,
+            "end": 0.5
+          }
+        ]
       }
     },
     {

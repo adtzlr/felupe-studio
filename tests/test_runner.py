@@ -66,7 +66,8 @@ def test_cutback_of_a_failing_substep(monkeypatch):
     monkeypatch.chdir(GOLDEN / "bar_two_materials")
     document = copy.deepcopy(load("bar_two_materials"))
     step = next(c for c in document["commands"] if c["command"] == "step.add")
-    step["ramp"].update(end=3.0, num=1)
+    step["ramp"]["num"] = 1
+    step["ramp"]["items"][0]["end"] = 3.0
 
     with pytest.raises(fem.NewtonConvergenceError):
         run(document)

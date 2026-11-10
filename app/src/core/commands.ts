@@ -56,7 +56,7 @@ export interface CommandList {
   /**
    * Version of this schema.
    */
-  schema_version: 1;
+  schema_version: 2;
   commands: Command[];
 }
 /**
@@ -378,7 +378,7 @@ export interface LoadcaseShear {
   symmetry?: boolean;
 }
 /**
- * A step with all boundaries, optionally ramping one boundary (fem.Step).
+ * A step with all boundaries, optionally ramping items, each with its own values (fem.Step).
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "StepAdd".
@@ -393,20 +393,29 @@ export interface StepAdd {
    */
   sections?: [Name, ...Name[]];
   /**
-   * Ramp the value of a boundary with fem.math.linsteps([start, end], num).
+   * Ramp the values of items with fem.math.linsteps([start, end], num), with the same number of increments for all items.
    */
   ramp?: {
-    boundary: Name;
     /**
-     * Further boundaries ramped with the same values, e.g. the second axis of an equi-biaxial tension.
-     *
+     * Increments of the step.
+     */
+    num: number;
+    /**
      * @minItems 1
      */
-    also?: [Name, ...Name[]];
-    start?: number;
-    end: number;
-    num: number;
+    items: [RampItem, ...RampItem[]];
   };
+}
+/**
+ * A ramped item: a boundary (its value, e.g. a displacement) or a load case (the displacement of its moving faces).
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "RampItem".
+ */
+export interface RampItem {
+  target: Name;
+  start?: number;
+  end: number;
 }
 /**
  * A job evaluating steps (fem.Job). With a curve boundary, the reaction force of this boundary is recorded over its displacement (fem.CharacteristicCurve).

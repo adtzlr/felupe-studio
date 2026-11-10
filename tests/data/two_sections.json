@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "commands": [
     { "command": "mesh.import", "name": "specimen", "file": "specimen.vtu", "tag": "material" },
     { "command": "cellset.from_tag", "name": "hard", "mesh": "specimen", "value": 1 },
@@ -24,7 +24,7 @@
     { "command": "pointset.add", "name": "right", "select": { "axis": "x", "value": 3 } },
     { "command": "boundary.add", "name": "fixed", "pointset": "left", "constrained": ["x", "y", "z"] },
     { "command": "boundary.add", "name": "move", "pointset": "right", "constrained": ["x"] },
-    { "command": "step.add", "name": "step_1", "ramp": { "boundary": "move", "start": 0, "end": 0.5, "num": 5 } },
+    { "command": "step.add", "name": "step_1", "ramp": { "num": 5, "items": [{ "target": "move", "start": 0, "end": 0.5 }] } },
     { "command": "job.add", "name": "job_1", "steps": ["step_1"], "curve": "move" }
   ]
 }

@@ -43,7 +43,7 @@ export class ModelStore {
   /** The command list as a document (schema version and commands). */
   get document(): CommandList {
     return {
-      schema_version: SCHEMA_VERSION as 1,
+      schema_version: SCHEMA_VERSION as 2,
       commands: structuredClone([...this.list]),
     };
   }

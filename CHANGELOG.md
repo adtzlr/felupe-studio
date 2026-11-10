@@ -13,6 +13,10 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 - The properties of the selected object are shown in a panel on the right of the viewport, which opens on selection and can be closed; the browser has the left sidebar for itself (#83).
 - The project and its mesh files are kept in the browser (IndexedDB), so a reload restores them; **New project** in the header starts an empty project and clears them (#57).
 
+### Changed
+
+- Schema version 2: a step ramps a list of items, each with its own start and end value and the same increments, e.g. a displacement and a rotation; *Also ramped* is gone. The properties edit them as rows. Projects of schema version 1 are migrated when they are opened, in the app and in `felupe_studio` (#90).
+
 ### Fixed
 
 - The panel of a running job keeps its size: fixed lines for the position, the Newton iteration and the retries of a cutback, without wrapping (#108).

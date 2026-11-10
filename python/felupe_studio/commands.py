@@ -1,6 +1,6 @@
 """Command schema and validation of command lists.
 
-A command list is a JSON document ``{"schema_version": 1, "commands": [...]}``. Every
+A command list is a JSON document ``{"schema_version": 2, "commands": [...]}``. Every
 command creates one named object; other commands reference it by its name. The
 validation first checks the JSON schema and then the references between commands.
 """
@@ -9,7 +9,7 @@ import json
 from functools import cache
 from importlib.resources import files
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 # kind of object created by each command
 KINDS = {
@@ -26,6 +26,9 @@ KINDS = {
     "step.add": "step",
     "job.add": "job",
 }
+
+# kinds of objects that a step can ramp (a load case is a boundary)
+RAMPED = ("boundary",)
 
 # references of a command: field name -> (kind, is a list)
 REFERENCES = {
@@ -101,15 +104,17 @@ def _reference_errors(commands):
                         f"{other}, not a {ref_kind}."
                     )
 
-        # the ramped boundaries of a step
+        # the ramped items of a step
         if cmd["command"] == "step.add" and "ramp" in cmd:
-            ramp = cmd["ramp"]
-            for ref in [ramp["boundary"], *ramp.get("also", [])]:
+            targets = [item["target"] for item in cmd["ramp"]["items"]]
+            for ref in targets:
                 kind = KINDS[defined[ref][1]["command"]] if ref in defined else None
-                if kind != "boundary":
+                if kind not in RAMPED:
                     messages.append(
                         f"commands/{i}: step '{name}' ramps unknown boundary '{ref}'."
                     )
+            for ref in sorted({t for t in targets if targets.count(t) > 1}):
+                messages.append(f"commands/{i}: step '{name}' ramps '{ref}' twice.")
 
         # cell sets from tags need a mesh imported with a tag
         if cmd["command"] == "cellset.from_tag" and cmd["mesh"] in defined:
