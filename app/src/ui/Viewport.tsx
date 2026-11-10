@@ -20,6 +20,7 @@ import type { Markers } from "../viewer/scene";
 import {
   type CreateViewer,
   HIGHLIGHT,
+  type Capture,
   type Pick,
   Viewer,
   VIEWS,
@@ -41,6 +42,8 @@ interface Props {
   createViewer?: CreateViewer;
   /** The viewport is shown (default); hidden in the Results workspace. */
   active?: boolean;
+  /** Set to a function that returns a PNG of the view (none without a view). */
+  capture?: Capture;
 }
 
 /** A picked face: its plane, and the point set of the plane if it is normal to x, y or z. */
@@ -85,9 +88,13 @@ export function Viewport({
   onCreatePointSet,
   createViewer,
   active = true,
+  capture,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
+  if (capture) {
+    capture.current = async () => viewer.current?.snapshot();
+  }
   const [available, setAvailable] = useState(true);
   const [picked, setPicked] = useState<Picked | undefined>();
   const [tip, setTip] = useState(() => !tipSeen());

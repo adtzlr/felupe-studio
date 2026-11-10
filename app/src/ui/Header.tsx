@@ -1,5 +1,6 @@
 import { APP_NAME, formatVersion } from "../app";
 import type { ModelStore } from "../core/store";
+import { type ExportItem, ExportMenu } from "./ExportMenu";
 import { Icon } from "./icons";
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
   modified: boolean;
   onOpen: () => void;
   onSave: () => void;
+  exports: ExportItem[];
   solve: {
     /** Why the jobs cannot be run, if so. */
     blocker?: string;
@@ -23,6 +25,7 @@ export function Header({
   modified,
   onOpen,
   onSave,
+  exports,
   solve,
 }: Props) {
   return (
@@ -50,6 +53,7 @@ export function Header({
         >
           <Icon name="save" />
         </button>
+        <ExportMenu items={exports} />
         <button
           type="button"
           class="icon-button"

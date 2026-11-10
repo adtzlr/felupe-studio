@@ -168,6 +168,16 @@ function result(id: number, job: string, substep: number, quantity: Quantity) {
   }
 }
 
+/** The FElupe script of a command list (validated by the app with Ajv). */
+function script(id: number, document: string) {
+  const runner = python().pyimport("felupe_studio.runner");
+  try {
+    post({ type: "text", id, text: runner.script(document) as string });
+  } finally {
+    runner.destroy();
+  }
+}
+
 function benchmark(id: number, sizes: number[]) {
   const module = python().pyimport("felupe_studio.benchmark");
   try {
@@ -205,6 +215,8 @@ ctx.onmessage = async (event: MessageEvent<ToWorker>) => {
         return inspectMesh(message.id, message.name);
       case "run":
         return await run(message.id, message.document);
+      case "script":
+        return script(message.id, message.document);
       case "result":
         return result(
           message.id,

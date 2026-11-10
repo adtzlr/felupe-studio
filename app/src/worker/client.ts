@@ -158,6 +158,12 @@ export class PyodideClient {
     return (message as Extract<FromWorker, { type: "job-result" }>).results;
   }
 
+  /** The FElupe script of a command list (JSON text). */
+  async script(document: string): Promise<string> {
+    const message = await this.request({ type: "script", document }, "text");
+    return (message as Extract<FromWorker, { type: "text" }>).text;
+  }
+
   /** The result of a substep of a job of the last run (substeps count from 1). */
   async resultScene(
     job: string,

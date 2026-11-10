@@ -174,6 +174,13 @@ def run(document, report=lambda event: None):
     return results
 
 
+def script(text):
+    """Return the FElupe script of a command list (JSON text) for the export of the
+    app. The app validated the command list against the schema with Ajv (see
+    :func:`run`)."""
+    return codegen(json.loads(text), check_schema=False)
+
+
 def run_json(text, report):
     """:func:`run` with JSON texts for the worker: the command list, the events (given
     to ``report``) and the results."""

@@ -175,6 +175,20 @@ describe("jobs", () => {
     expect(onEvent).toHaveBeenCalledWith(event);
   });
 
+  it("generates the script of a model", async () => {
+    const { worker, client } = start();
+    worker.reply(ready);
+    const script = client.script('{"commands": []}');
+    await vi.waitFor(() => expect(worker.sent).toHaveLength(2));
+    expect(worker.sent[1]).toEqual({
+      type: "script",
+      id: 1,
+      document: '{"commands": []}',
+    });
+    worker.reply({ type: "text", id: 1, text: "import felupe as fem\n" });
+    await expect(script).resolves.toBe("import felupe as fem\n");
+  });
+
   it("loads the result scene of a substep", async () => {
     const { worker, client } = start();
     worker.reply(ready);
