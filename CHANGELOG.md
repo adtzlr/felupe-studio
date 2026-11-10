@@ -12,6 +12,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 ### Fixed
 
 - `u-p-J` with tetrahedrons in a model with more than one section (#76).
+- An object created later can be chosen in an existing object, e.g. a new material in a section; the command list is reordered so that every reference points to an object before (#80).
 
 ## [0.1.0] - 2026-11-10
 

@@ -81,6 +81,34 @@ export function references(
   return result;
 }
 
+/**
+ * The commands in an order in which every reference points to an object before
+ * (a stable topological order): a command that references a later object moves
+ * behind it, with the commands that depend on it; all other commands keep their
+ * order. References to names that do not exist do not move a command (the
+ * validation reports them).
+ */
+export function order(commands: readonly Command[]): Command[] {
+  const names = new Set(commands.map((c) => c.name));
+  const placed = new Set<string>();
+  const rest = [...commands];
+  const result: Command[] = [];
+  while (rest.length) {
+    // the first command whose references are all placed
+    let index = rest.findIndex((c) =>
+      references(c).every(
+        (r) => placed.has(r.name) || !names.has(r.name) || r.name === c.name,
+      ),
+    );
+    // a cycle cannot be ordered: keep the rest as it is
+    if (index < 0) index = 0;
+    const [command] = rest.splice(index, 1);
+    result.push(command);
+    placed.add(command.name);
+  }
+  return result;
+}
+
 /** A copy of the command in which references to one name point to another. */
 export function renameReferences(
   command: Command,

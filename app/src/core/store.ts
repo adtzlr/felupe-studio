@@ -3,7 +3,13 @@ import type { CheckReport } from "./checks";
 import type { Command, CommandList } from "./commands";
 import { SCHEMA_VERSION } from "./schema";
 import { type TreeNode, deriveTree } from "./tree";
-import { type Issue, references, renameReferences, validate } from "./validate";
+import {
+  type Issue,
+  order,
+  references,
+  renameReferences,
+  validate,
+} from "./validate";
 
 export type Edit =
   | { type: "add"; command: Command; index?: number }
@@ -81,12 +87,16 @@ export class ModelStore {
       .map((c) => c.name);
   }
 
-  /** Apply one edit or several edits as one undo step. */
+  /**
+   * Apply one edit or several edits as one undo step. A command that references an
+   * object after it moves behind it, with the commands that depend on it (#80).
+   */
   apply(edits: Edit | Edit[]): void {
     let list = [...this.list];
     for (const edit of Array.isArray(edits) ? edits : [edits]) {
       list = applyEdit(list, edit);
     }
+    list = order(list);
     this.past.push(this.list);
     if (this.past.length > HISTORY_LIMIT) this.past.shift();
     this.future = [];
