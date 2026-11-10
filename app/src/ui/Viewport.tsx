@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import type { Command, PointAdd, PointSetAdd } from "../core/commands";
+import type { Command, MpcAdd, PointAdd, PointSetAdd } from "../core/commands";
+import {
+  constraintLines,
+  constraintShapes,
+  overConstrained,
+} from "../viewer/constraints";
 import type { MeshFiles } from "../core/meshfiles";
 import type { ModelStore } from "../core/store";
 import { NodesButton, useShowNodes } from "./NodesButton";
@@ -235,11 +240,32 @@ export function Viewport({
     [commands, nodes],
   );
   const size = useMemo(() => modelSize(nodes), [nodes]);
-  const lines = useMemo(
-    () =>
-      boundaryLines(symbols, { size, hidden, selected, highlight: HIGHLIGHT }),
-    [symbols, size, hidden, selected],
+  // the multi-point constraints: lines from the center to the connected points (#99)
+  const shapes = useMemo(
+    () => constraintShapes(commands, nodes),
+    [commands, nodes],
   );
+  const lines = useMemo(
+    () => [
+      ...boundaryLines(symbols, {
+        size,
+        hidden,
+        selected,
+        highlight: HIGHLIGHT,
+      }),
+      ...constraintLines(shapes, { hidden, selected, highlight: HIGHLIGHT }),
+    ],
+    [symbols, size, hidden, selected, shapes],
+  );
+  // the points of the selected constraint that a boundary prescribes as well
+  const overlaps = useMemo(() => {
+    const constraint = commands.find(
+      (c): c is MpcAdd => c.name === selected && c.command === "mpc.add",
+    );
+    if (!constraint) return [];
+    const shape = shapes.find((s) => s.name === constraint.name);
+    return overConstrained(constraint, shape, symbols);
+  }, [commands, selected, shapes, symbols]);
 
   // the plane of a picked face, and its point set if it is normal to an axis (the
   // viewer calls it with the nodes of the latest render)
@@ -575,6 +601,18 @@ export function Viewport({
             .map((p) => `(${p.map(formatNumber).join(", ")})`)
             .join(", ")}
           {missing.length > 3 && ` and ${missing.length - 3} more`}
+        </p>
+      )}
+      {shown && content.reading.length === 0 && overlaps.length > 0 && (
+        <p class="viewport-status warning" role="status">
+          {selected}:{" "}
+          {overlaps
+            .map(
+              (o) =>
+                `${o.points} ${o.points === 1 ? "point is" : "points are"} also in ${o.boundary} (${o.components.join(", ")})`,
+            )
+            .join("; ")}
+          : over-constrained.
         </p>
       )}
       {shown && content.reading.length === 0 && atNode && (
