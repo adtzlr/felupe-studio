@@ -63,7 +63,8 @@ export interface MeshInfo {
 
 /**
  * Outer surface of the solid cells of a mesh file for the viewer, triangulated by
- * FElupe like `mesh.plot()` (`felupe_studio.scene.surface()`).
+ * FElupe like `mesh.plot()` (`felupe_studio.scene.surface()`). Every region of cells
+ * with the same tag values has a closed surface of its own.
  */
 export interface MeshSurface {
   /** Three coordinates per point of the surface. */
@@ -76,6 +77,8 @@ export interface MeshSurface {
   edges: Uint32Array;
   /** The solid cell of every triangle. */
   owners: Uint32Array;
+  /** The values of the cell tags per cell, by tag name. */
+  tags?: Record<string, Int32Array>;
   /** Number of solid cells. */
   cells: number;
 }

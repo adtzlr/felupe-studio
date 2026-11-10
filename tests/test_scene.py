@@ -8,7 +8,7 @@ from felupe.view._surface import triangulate_surface
 
 from felupe_studio._helpers import volume_cells
 from felupe_studio.meshes import load
-from felupe_studio.scene import surface
+from felupe_studio.scene import regions, surface
 
 GOLDEN = Path(__file__).parent / "golden"
 
@@ -81,3 +81,32 @@ def test_load_unusable_file(tmp_path):
     text, result = load(tmp_path / "broken.vtu")
     assert '"error"' in text
     assert result == {}
+
+
+def test_closed_regions_of_tags():
+    mesh = meshio.read(GOLDEN / "bar_sections_tag" / "bar.vtu")
+    solid = volume_cells(mesh, tag="material")
+    result = surface(solid, {"material": solid.tags})
+    decoded = arrays(result)
+    positions = decoded["positions"].reshape(-1, 3).astype(float)
+    triangles = decoded["triangles"].reshape(-1, 3)
+    material = np.frombuffer(result["tags"]["material"], dtype="<i4")
+    np.testing.assert_array_equal(material, solid.tags)
+
+    # every region is closed: the interface at x = 1.5 belongs to both halves
+    for value in (1, 2):
+        mine = material[decoded["owners"]] == value
+        assert enclosed_volume(positions, triangles[mine]) == pytest.approx(1.5)
+    assert enclosed_volume(positions, triangles) == pytest.approx(3.0)
+    assert decoded["edges"].max() < len(positions)
+    assert decoded["faces"].max() < len(triangles)
+
+    # without tags, the interface is an inner face
+    single = arrays(surface(solid))
+    assert len(single["triangles"]) < len(decoded["triangles"])
+
+
+def test_regions():
+    tags = {"a": np.array([1, 1, 2, 2]), "b": np.array([5, 6, 6, 6])}
+    np.testing.assert_array_equal(regions(4, tags), [0, 1, 2, 2])
+    np.testing.assert_array_equal(regions(3, {}), [0, 0, 0])

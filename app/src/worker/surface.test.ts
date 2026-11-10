@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { toSurface, toSurfaces, transferables } from "./surface";
 
-const bytes = (array: Float32Array | Uint32Array) =>
+const bytes = (array: Float32Array | Uint32Array | Int32Array) =>
   new Uint8Array(array.buffer.slice(0));
 
 describe("surface of Python", () => {
@@ -11,6 +11,7 @@ describe("surface of Python", () => {
     faces: bytes(new Uint32Array([0])),
     edges: bytes(new Uint32Array([0, 1, 1, 2, 2, 0])),
     owners: bytes(new Uint32Array([0])),
+    tags: { material: bytes(new Int32Array([-3])) },
     cells: 1,
   };
 
@@ -22,7 +23,8 @@ describe("surface of Python", () => {
     expect([...surface.edges]).toEqual([0, 1, 1, 2, 2, 0]);
     expect(surface.positions.buffer).toBe(raw.positions.buffer);
     expect(surface.cells).toBe(1);
-    expect(transferables(surface)).toHaveLength(5);
+    expect([...surface.tags!.material]).toEqual([-3]);
+    expect(transferables(surface)).toHaveLength(6);
   });
 
   it("copies unaligned bytes and leaves out missing faces", () => {
@@ -35,7 +37,7 @@ describe("surface of Python", () => {
     });
     expect([...surface.triangles]).toEqual([0, 1, 2]);
     expect(surface.faces).toBeUndefined();
-    expect(transferables(surface)).toHaveLength(4);
+    expect(transferables(surface)).toHaveLength(5);
   });
 
   it("converts the surfaces of all cell types", () => {
@@ -43,7 +45,7 @@ describe("surface of Python", () => {
     expect(Object.keys(surfaces)).toEqual(["hexahedron", "tetra"]);
     expect(toSurfaces(undefined)).toEqual({});
     // shared buffers are transferred once
-    expect(transferables(...Object.values(surfaces))).toHaveLength(5);
+    expect(transferables(...Object.values(surfaces))).toHaveLength(6);
   });
 
   it("rejects truncated arrays", () => {

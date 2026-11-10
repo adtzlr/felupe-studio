@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { MeshFiles } from "../core/meshfiles";
 import type { ModelStore } from "../core/store";
-import { viewportContent } from "../viewer/layers";
+import {
+  COLOR_BY,
+  type ColorBy,
+  defaultColorBy,
+  viewportContent,
+} from "../viewer/layers";
 import { type CreateViewer, Viewer, VIEWS } from "../viewer/viewer";
 
 interface Props {
@@ -17,12 +22,15 @@ export function Viewport({ store, files, hidden, createViewer }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
   const [available, setAvailable] = useState(true);
+  // chosen by the user, else sections, cell sets or meshes, as the model has them
+  const [chosen, setChosen] = useState<ColorBy | undefined>();
   const commands = store.commands;
+  const colorBy = chosen ?? defaultColorBy(commands);
   const revision = files.revision;
   const content = useMemo(
-    () => viewportContent(commands, files, hidden),
+    () => viewportContent(commands, files, hidden, colorBy),
     // the files change in place, their revision tells when
-    [commands, files, revision, hidden],
+    [commands, files, revision, hidden, colorBy],
   );
 
   // the viewer (and its WebGL context) is created when there is a mesh to show
@@ -33,6 +41,7 @@ export function Viewport({ store, files, hidden, createViewer }: Props) {
       setAvailable(viewer.current.available);
     }
     viewer.current.setMeshes(content.meshes);
+    viewer.current.setLegend(content.legend);
   }, [content, createViewer]);
 
   useEffect(
@@ -67,6 +76,21 @@ export function Viewport({ store, files, hidden, createViewer }: Props) {
               {view.label}
             </button>
           ))}
+          <span class="toolbar-separator" aria-hidden="true" />
+          <select
+            aria-label="Color by"
+            title="Color the cells by mesh, cell set or section"
+            value={colorBy}
+            onChange={(event) =>
+              setChosen(event.currentTarget.value as ColorBy)
+            }
+          >
+            {COLOR_BY.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
       )}
       {content.message && (
