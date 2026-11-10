@@ -12,7 +12,9 @@ import {
 import { axisOf, type Vec3 } from "../viewer/picking";
 import {
   type CoordinateSelect,
+  exactNode,
   missingPoints,
+  nodesName,
   outlined,
   planeName,
   planeSelect,
@@ -40,10 +42,10 @@ interface Props {
   hidden: ReadonlySet<string>;
   /** The selected object, e.g. a point set to highlight. */
   selected?: string;
-  /** Create a point set, e.g. of a picked face (opens the dialog). */
+  /** Create a point set, e.g. of a picked face or nodes (opens the dialog). */
   onCreatePointSet?: (preset: {
     name: string;
-    select: CoordinateSelect;
+    select: PointSetAdd["select"];
   }) => void;
   /** Creates the viewer; the default is the vendored FElupe viewer. */
   createViewer?: CreateViewer;
@@ -70,6 +72,11 @@ const isPointSet = (c: Command): c is PointSetAdd =>
   c.command === "pointset.add";
 
 const formatNumber = (value: number) => String(+value.toPrecision(6));
+
+type Node3 = [number, number, number];
+
+const sameNode = (a: readonly number[], b: readonly number[]) =>
+  a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
 
 /** The tip about picking is shown until the first pick or until it is dismissed. */
 const TIP = "felupe-studio.tip.pick";
@@ -110,6 +117,9 @@ export function Viewport({
   }
   const [available, setAvailable] = useState(true);
   const [picked, setPicked] = useState<Picked | undefined>();
+  // the picked nodes, with their exact coordinates (#93)
+  const [pickedNodes, setPickedNodes] = useState<Node3[]>([]);
+  const [copied, setCopied] = useState(false);
   const [tip, setTip] = useState(() => !tipSeen());
   const hideTip = () => {
     setTip(false);
@@ -148,8 +158,9 @@ export function Viewport({
       ...outlined(points(others), POINTS),
       ...(chosen ? outlined(points([chosen]), HIGHLIGHT, 9) : []),
       ...(preview ? outlined(preview, HIGHLIGHT, 9) : []),
+      ...outlined(Float64Array.from(pickedNodes.flat()), HIGHLIGHT, 9),
     ];
-  }, [commands, hidden, selected, nodes, preview]);
+  }, [commands, hidden, selected, nodes, preview, pickedNodes]);
 
   // the nodes of the selected point set (by nodes) that the meshes do not have; the
   // script raises an error for them (#92)
@@ -191,7 +202,22 @@ export function Viewport({
     if (!viewer.current) {
       if (content.meshes.length === 0 || !host.current) return;
       viewer.current = new Viewer(host.current, createViewer);
-      viewer.current.onPick((pick) => {
+      viewer.current.onPick((pick, click) => {
+        setCopied(false);
+        if (click.node) {
+          // a node: Shift adds or removes it, else it replaces the picked ones
+          const node = exactNode(click.node, nodesRef.current);
+          setPicked(undefined);
+          setPickedNodes((nodes) => {
+            if (!click.shift) return [node];
+            const others = nodes.filter((n) => !sameNode(n, node));
+            return others.length < nodes.length ? others : [...nodes, node];
+          });
+          hideTip();
+          return;
+        }
+        if (click.shift) return;
+        setPickedNodes([]);
         setPicked(pick && planeOf(pick));
         if (pick) hideTip();
       });
@@ -205,15 +231,51 @@ export function Viewport({
     viewer.current.setNodes(nodesShown);
   }, [content, markers, lines, picked, nodesShown, createViewer]);
 
-  // Escape clears a picked face
+  // Escape clears a picked face or picked nodes
   useEffect(() => {
-    if (!picked) return;
+    if (!picked && !pickedNodes.length) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setPicked(undefined);
+      if (event.key !== "Escape") return;
+      setPicked(undefined);
+      setPickedNodes([]);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [picked]);
+  }, [picked, pickedNodes]);
+
+  // hidden nodes cannot stay picked
+  useEffect(() => {
+    if (!nodesShown) setPickedNodes([]);
+  }, [nodesShown]);
+
+  // the selected point set by nodes can take the picked nodes
+  const target = commands.find(
+    (c): c is PointSetAdd =>
+      c.name === selected && isPointSet(c) && "points" in c.select,
+  );
+  const addToTarget = () => {
+    if (!target || !("points" in target.select)) return;
+    const points = [...target.select.points];
+    for (const node of pickedNodes)
+      if (!points.some((p) => sameNode(p, node))) points.push(node);
+    store.update(target.name, {
+      ...target,
+      select: {
+        ...target.select,
+        points: points as typeof target.select.points,
+      },
+    });
+    setPickedNodes([]);
+  };
+  const copyNodes = async () => {
+    const text = pickedNodes.map((n) => n.join(", ")).join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+    } catch {
+      // the clipboard may be unavailable, e.g. without a secure context
+    }
+  };
 
   useEffect(
     () => () => {
@@ -266,11 +328,12 @@ export function Viewport({
           </select>
         </div>
       )}
-      {shown && available && tip && !picked && (
+      {shown && available && tip && !picked && !pickedNodes.length && (
         <div class="pick-panel tip" role="note" aria-label="Tip">
           <span class="muted">
-            Tip: click a face to create a point set of its plane. Drag to
-            rotate.
+            {nodesShown
+              ? "Tip: click a node to pick it, Shift+click for more nodes. Drag to rotate."
+              : "Tip: click a face to create a point set of its plane. Drag to rotate."}
           </span>
           <button
             type="button"
@@ -325,6 +388,54 @@ export function Viewport({
             class="icon-button"
             aria-label="Clear the picked face"
             onClick={() => setPicked(undefined)}
+          >
+            ×
+          </button>
+        </div>
+      )}
+      {shown && pickedNodes.length > 0 && (
+        <div class="pick-panel" role="status" aria-label="Picked nodes">
+          <span>
+            {pickedNodes.length === 1 ? (
+              <>
+                Node{" "}
+                <strong>({pickedNodes[0].map(formatNumber).join(", ")})</strong>
+              </>
+            ) : (
+              <strong>{pickedNodes.length} nodes</strong>
+            )}{" "}
+            <span class="muted">· Shift+click for more</span>
+          </span>
+          <button type="button" class="button" onClick={copyNodes}>
+            {copied ? "Copied" : "Copy"}
+          </button>
+          {target && (
+            <button type="button" class="button" onClick={addToTarget}>
+              Add to {target.name}
+            </button>
+          )}
+          {onCreatePointSet && (
+            <button
+              type="button"
+              class="button primary"
+              onClick={() => {
+                onCreatePointSet({
+                  name: nodesName(pickedNodes.length, commands),
+                  select: {
+                    points: pickedNodes as [Node3, ...Node3[]],
+                  },
+                });
+                setPickedNodes([]);
+              }}
+            >
+              Create point set
+            </button>
+          )}
+          <button
+            type="button"
+            class="icon-button"
+            aria-label="Clear the picked nodes"
+            onClick={() => setPickedNodes([])}
           >
             ×
           </button>

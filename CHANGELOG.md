@@ -6,6 +6,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Added
 
+- Picking nodes: with **Nodes** shown, a click picks a node, Shift+click more; create a point set of them, add them to the selected one or copy their coordinates (#93).
 - Point sets by nodes: the coordinates of points, one per line, stored by coordinates instead of ids of the merged mesh; the viewport warns about coordinates without a node (#92).
 - **Nodes** in the view toolbar shows the nodes of the visible meshes, also in the results (#91).
 - A tolerance of the Newton-Raphson method per job (`tol`), e.g. 0.05 to loosen it (#106).

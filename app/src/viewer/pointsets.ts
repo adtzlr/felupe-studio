@@ -172,3 +172,35 @@ export function outlined(
     { positions, color, size },
   ];
 }
+
+/**
+ * The exact coordinates (of the nodes of the meshes) of a picked node: the drawn
+ * nodes have float32 coordinates (#93).
+ */
+export function exactNode(
+  point: readonly number[],
+  nodes: readonly Float64Array[],
+): [number, number, number] {
+  let best: [number, number, number] = [point[0], point[1], point[2]];
+  let distance = Infinity;
+  for (const array of nodes) {
+    for (let p = 0; p < array.length; p += 3) {
+      const d = Math.hypot(
+        array[p] - point[0],
+        array[p + 1] - point[1],
+        array[p + 2] - point[2],
+      );
+      if (d < distance) {
+        distance = d;
+        best = [array[p], array[p + 1], array[p + 2]];
+      }
+    }
+  }
+  return best;
+}
+
+/** A name for a point set of picked nodes, e.g. `node` or `nodes_2`. */
+export function nodesName(count: number, commands: readonly Command[]): string {
+  const names = new Set(commands.map((c) => c.name));
+  return toName(count === 1 ? "node" : "nodes", names, "points");
+}

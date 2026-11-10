@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { Command, PointSetAdd } from "../core/commands";
 import {
+  exactNode,
   missingPoints,
+  nodesName,
   outlined,
   planeName,
   planeSelect,
@@ -41,6 +43,21 @@ describe("point sets", () => {
     expect(near()).toEqual([[2.001, 1, 0]]);
     expect(near(1e-2)).toEqual([]);
     expect(missingPoints({ axis: "x", value: 7 }, [right])).toEqual([]);
+  });
+
+  it("take the exact coordinates of a picked node and name it (#93)", () => {
+    const exact = Float64Array.from([0.1, 0.2, 0.3, 1, 1, 1]);
+    expect(exactNode([...Float32Array.from([0.1, 0.2, 0.3])], [exact])).toEqual(
+      [0.1, 0.2, 0.3],
+    );
+    const node: Command = {
+      command: "pointset.add",
+      name: "node",
+      select: { points: [[0, 0, 0]] },
+    };
+    expect(nodesName(1, [])).toBe("node");
+    expect(nodesName(1, [node])).toBe("node_2");
+    expect(nodesName(3, [node])).toBe("nodes");
   });
 
   it("use the tolerances of np.isclose", () => {
