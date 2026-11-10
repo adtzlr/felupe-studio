@@ -1,6 +1,8 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { NodesButton, useShowNodes } from "./NodesButton";
+import { CONTROL_COLOR } from "../viewer/palette";
+import { outlined } from "../viewer/pointsets";
 import { formatValue, type ResultView } from "../core/results";
 import { type ProbeInfo, probeInfo } from "../viewer/probe";
 import {
@@ -193,6 +195,16 @@ export function ResultsView({
         : undefined,
     );
     viewer.current.setNodes(nodesShown);
+    // the control points, displaced like the surfaces (#95)
+    const scale = view?.scale ?? 1;
+    const points = (scene?.points ?? []).flatMap((p) =>
+      p.position.map((x, k) => x + scale * p.displacement[k]),
+    );
+    viewer.current.setMarkers(
+      scene && view
+        ? outlined(Float64Array.from(points), CONTROL_COLOR, 10)
+        : [],
+    );
   }, [scene, view?.scale, view?.undeformed, nodesShown, createViewer]);
 
   useEffect(

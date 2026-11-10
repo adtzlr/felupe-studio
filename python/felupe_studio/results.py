@@ -50,10 +50,12 @@ CORNERS = {"tetra5": ("tetra", 4)}
 _state = {"namespace": None, "sections": [], "records": {}, "surfaces": {}}
 
 
-def reset(namespace, sections):
-    """Start the results of a run: the namespace of its script and the names of the
-    sections."""
-    _state.update(namespace=namespace, sections=list(sections), records={})
+def reset(namespace, sections, points=()):
+    """Start the results of a run: the namespace of its script, the names of the
+    sections and the names of the control points."""
+    _state.update(
+        namespace=namespace, sections=list(sections), points=list(points), records={}
+    )
     _state["surfaces"] = {}
 
 
@@ -147,8 +149,9 @@ def scene(job, substep, quantity):
     -------
     tuple of str and list of dict
         The JSON text of the label, of where the values are given (``"point"`` or
-        ``"cell"``) and of their ``range`` over all cells of all sections (``None``
-        without finite values), and the surface of every section: its ``name``,
+        ``"cell"``), of their ``range`` over all cells of all sections (``None``
+        without finite values) and of the control ``points`` (``name``, ``position``
+        and ``displacement``), and the surface of every section: its ``name``,
         ``positions`` (three coordinates per point of the surface), ``displacement``
         (three components per point), ``triangles``, ``faces`` (to shade the faces of
         linear cells flat; ``None`` for curved faces), ``edges``, ``values``,
@@ -201,8 +204,27 @@ def scene(job, substep, quantity):
         "label": label,
         "at": at,
         "range": [float(low), float(high)] if low <= high else None,
+        "points": _control_points(),
     }
     return json.dumps(meta), surfaces
+
+
+def _control_points():
+    """Return the control points with their positions and current displacements."""
+    namespace = _state["namespace"]
+    field = namespace["field"]
+    points = field.mesh_container.points
+    result = []
+    for name in _state.get("points", []):
+        index = np.flatnonzero(namespace[name])[0]
+        result.append(
+            {
+                "name": name,
+                "position": points[index].tolist(),
+                "displacement": field[0].values[index].tolist(),
+            }
+        )
+    return result
 
 
 # the cell data of the exports (like the names of felupe.ViewSolid) by kind

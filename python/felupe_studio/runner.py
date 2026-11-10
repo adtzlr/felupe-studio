@@ -148,7 +148,8 @@ def run(document, report=lambda event: None):
     sections = [
         c["name"] for c in document["commands"] if c["command"] == "section.add"
     ]
-    results_.reset(namespace, sections)
+    points = [c["name"] for c in document["commands"] if c["command"] == "point.add"]
+    results_.reset(namespace, sections, points)
 
     commands = {c["name"]: c for c in document["commands"] if c["command"] == "job.add"}
     jobs = list(commands)

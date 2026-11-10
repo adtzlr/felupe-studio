@@ -26,6 +26,9 @@ export const EDGE_COLOR = "#000000";
 /** Color of the nodes of the meshes (toggle **Nodes**), like the edges. */
 export const NODE_COLOR = "#000000";
 
+/** Color of the markers of control points (#95). */
+export const CONTROL_COLOR = "#5ce1e6";
+
 /** Color of point markers and arrows (boundaries and loads). */
 export const MARKER_COLOR = "#f5a524";
 

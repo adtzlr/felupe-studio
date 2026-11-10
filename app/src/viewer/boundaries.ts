@@ -3,7 +3,7 @@
 // the lines that draw them. The boundaries of the load cases follow `fem.dof`
 // (`symmetry`, `uniaxial`, `biaxial`, `shear`) on the nodes of the drawn meshes; a
 // test compares them with FElupe (`boundaries.fixture.json`).
-import type { Command, PointSetAdd } from "../core/commands";
+import type { Command } from "../core/commands";
 import { type Loadcase, LOADCASE_DEFAULTS } from "../core/loadcases";
 import { MARKER_COLOR } from "./palette";
 import { AXES, selectedPoints } from "./pointsets";
@@ -220,21 +220,24 @@ export function boundarySymbols(
   nodes: readonly Float64Array[],
 ): BoundarySymbol[] {
   if (!nodes.length) return [];
-  const pointsets = new Map(
-    commands.flatMap((c) =>
-      c.command === "pointset.add" ? [[c.name, c as PointSetAdd] as const] : [],
-    ),
-  );
+  // the points of the point sets; a control point is a point set of one point (#94)
+  const points = new Map<string, Float64Array>();
+  for (const c of commands) {
+    if (c.command === "pointset.add")
+      points.set(c.name, selectedPoints(c.select, nodes));
+    else if (c.command === "point.add")
+      points.set(c.name, Float64Array.from(c.coordinates));
+  }
   const ramped = rampedValues(commands);
   const symbols: BoundarySymbol[] = [];
   for (const c of commands) {
     if (c.command === "boundary.add") {
-      const pointset = pointsets.get(c.pointset);
-      if (!pointset) continue;
+      const at = points.get(c.pointset);
+      if (!at) continue;
       symbols.push({
         owner: c.name,
         name: c.name,
-        points: selectedPoints(pointset.select, nodes),
+        points: at,
         components: c.constrained.map((a) => AXES.indexOf(a)),
         value:
           ramped.get(c.name) ?? (c as unknown as { value?: number }).value ?? 0,

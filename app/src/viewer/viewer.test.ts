@@ -203,6 +203,25 @@ describe("Viewer", () => {
     expect(viewer.nodeAt(84, 61, 100, 100)).toEqual([1, 0, 0]);
   });
 
+  it("picks a target by its name, e.g. a control point (#95)", () => {
+    const { handle, create } = fake();
+    const viewer = new Viewer(document.createElement("div"), create);
+    viewer.setMeshes([{ name: "bar", surface, color: "#3987e5" }]);
+    viewer.setTargets([{ name: "control", position: [-0.5, 0, 0] }]);
+    const picks = vi.fn();
+    viewer.onPick(picks);
+    const canvas = handle.root.querySelector("canvas")!;
+    // (-0.5, 0, 0) is drawn at (15.9, 61.4) of the view, beside the triangle
+    canvas.dispatchEvent(
+      new MouseEvent("click", { bubbles: true, clientX: 26, clientY: 81 }),
+    );
+    expect(picks.mock.lastCall![1]).toEqual({
+      shift: false,
+      target: "control",
+    });
+    expect(viewer.targetAt(60, 20, 100, 100)).toBeUndefined();
+  });
+
   it("highlights the drawn faces of a plane", async () => {
     const { handle, create } = fake();
     const viewer = new Viewer(document.createElement("div"), create);

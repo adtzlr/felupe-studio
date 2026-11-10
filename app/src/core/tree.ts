@@ -16,15 +16,19 @@ export interface TreeNode {
   detail?: string;
   /** Number of children of a group. */
   count?: number;
+  /** An icon other than the one of the kind, e.g. of a control point. */
+  icon?: string;
   /** Validation issues and check messages of this object. */
   issues: string[];
   children: TreeNode[];
 }
 
-const GROUPS: { kind: Kind; label: string }[] = [
+/** The groups of the browser: by kind, the control points in a group of their own. */
+const GROUPS: { kind: Kind | "point"; label: string }[] = [
   { kind: "mesh", label: "Meshes" },
   { kind: "merge", label: "Merge" },
   { kind: "pointset", label: "Point Sets" },
+  { kind: "point", label: "Points" },
   { kind: "material", label: "Materials" },
   { kind: "section", label: "Sections" },
   { kind: "boundary", label: "Boundaries" },
@@ -122,6 +126,7 @@ export function deriveTree(
     id: cmd.name,
     label: cmd.name,
     kind: KINDS[cmd.command],
+    ...(cmd.command === "point.add" ? { icon: "point" } : {}),
     detail: detail(cmd),
     issues: messages.get(cmd.name) ?? [],
     children: [],
@@ -139,7 +144,8 @@ export function deriveTree(
     issues: [],
     children: [] as TreeNode[],
   }));
-  const groupOf = (kind: Kind) => groups.find((g) => g.id === `group:${kind}`);
+  const groupOf = (kind: Kind | "point") =>
+    groups.find((g) => g.id === `group:${kind}`);
 
   const placed = new Set<string>();
   for (const cmd of commands) {
@@ -154,12 +160,18 @@ export function deriveTree(
       }
     }
     // cell sets without a valid mesh are shown at the top of the mesh group
-    groupOf(
-      child.kind === "cellset" ? "mesh" : (child.kind as Kind),
-    )!.children.push(child);
+    const group =
+      cmd.command === "point.add"
+        ? "point"
+        : child.kind === "cellset"
+          ? "mesh"
+          : (child.kind as Kind);
+    groupOf(group)!.children.push(child);
   }
 
+  // the groups of the merge setting and of the control points only if they are used
+  const optional = new Set(["group:merge", "group:point"]);
   return groups
-    .filter((g) => g.id !== "group:merge" || g.children.length > 0)
+    .filter((g) => !optional.has(g.id) || g.children.length > 0)
     .map((g) => ({ ...g, count: g.children.length }));
 }

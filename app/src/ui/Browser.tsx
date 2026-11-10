@@ -183,7 +183,7 @@ export function Browser({
             )}
             {!isGroup && (
               <span class="tree-icon">
-                <Icon name={node.kind as IconName} size={14} />
+                <Icon name={(node.icon ?? node.kind) as IconName} size={14} />
               </span>
             )}
             <span class="tree-label">{node.label}</span>

@@ -499,6 +499,7 @@ export function App({
             capture={captureModel}
             showNodes={showNodes}
             onShowNodes={setShowNodes}
+            onSelect={select}
             onCreatePointSet={(preset) =>
               setCreating({
                 id: "pointset.add",

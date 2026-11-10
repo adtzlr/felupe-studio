@@ -61,7 +61,15 @@ export const HIGHLIGHT = "#ffd23f";
 export interface Click {
   /** The drawn node within a few pixels of the click, if the nodes are shown. */
   node?: Vec3;
+  /** The name of a target (a control point, #95) within a few pixels. */
+  target?: string;
   shift: boolean;
+}
+
+/** A point that a click picks by its name, e.g. a control point (#95). */
+export interface Target {
+  name: string;
+  position: Vec3;
 }
 
 /** A drag of more pixels is a rotation, not a click. */
@@ -137,6 +145,7 @@ export class Viewer {
   };
   private plane: { point: Vec3; normal: Vec3 } | undefined;
   private nodes = false;
+  private targets: readonly Target[] = [];
   private scheduled = false;
   private down: { x: number; y: number } | undefined;
   private pickListeners = new Set<
@@ -297,6 +306,11 @@ export class Viewer {
     return best && { mesh: best.mesh, point: best.point, normal: best.normal };
   }
 
+  /** Points that a click picks by their name, e.g. the control points (#95). */
+  setTargets(targets: readonly Target[]): void {
+    this.targets = targets;
+  }
+
   /**
    * The drawn node within a few pixels of a point of the view, if the nodes are
    * shown; nodes behind the drawn faces are not picked.
@@ -307,17 +321,46 @@ export class Viewer {
     width: number,
     height: number,
   ): Vec3 | undefined {
+    if (!this.nodes) return undefined;
+    const nodes = this.meshes.map((m) => meshNodes(m).positions);
+    return this.nearest(x, y, width, height, nodes);
+  }
+
+  /** The name of the target within a few pixels of a point of the view. */
+  targetAt(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ): string | undefined {
+    if (!this.targets.length) return undefined;
+    const positions = Float64Array.from(
+      this.targets.flatMap((t) => t.position),
+    );
+    const point = this.nearest(x, y, width, height, [positions]);
+    if (!point) return undefined;
+    return this.targets.find((t) => t.position.every((v, k) => v === point[k]))
+      ?.name;
+  }
+
+  /** The point nearest to a point of the view that is not behind drawn faces. */
+  private nearest(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    points: readonly ArrayLike<number>[],
+  ): Vec3 | undefined {
     this.flush();
     const camera = this.handle.camera;
     const ray = this.rayAt(x, y, width, height);
-    if (!this.nodes || !camera || !ray) return undefined;
+    if (!camera || !ray) return undefined;
     let hit: number | undefined;
     for (const layer of this.meshes) {
       const h = firstHit(ray, layer.surface.positions, drawnTriangles(layer));
       if (h && (hit === undefined || h.distance < hit)) hit = h.distance;
     }
-    const nodes = this.meshes.map((m) => meshNodes(m).positions);
-    // a node on the hit face may be a little further away along the ray
+    // a point on the hit face may be a little further away along the ray
     const depth = 0.02 * extent(this.meshes);
     return nearestNode(
       camera,
@@ -326,7 +369,7 @@ export class Viewer {
       y,
       width,
       height,
-      nodes,
+      points,
       NODE_RADIUS,
       hit === undefined ? undefined : { distance: hit, depth },
     );
@@ -362,8 +405,15 @@ export class Viewer {
     const rect = canvas.getBoundingClientRect();
     const [x, y] = [event.clientX - rect.left, event.clientY - rect.top];
     const pick = this.pickAt(x, y, rect.width, rect.height);
-    const node = this.nodeAt(x, y, rect.width, rect.height);
-    const click: Click = { shift: event.shiftKey, ...(node ? { node } : {}) };
+    const target = this.targetAt(x, y, rect.width, rect.height);
+    const node = target
+      ? undefined
+      : this.nodeAt(x, y, rect.width, rect.height);
+    const click: Click = {
+      shift: event.shiftKey,
+      ...(node ? { node } : {}),
+      ...(target ? { target } : {}),
+    };
     for (const listener of this.pickListeners) listener(pick, click);
   }
 

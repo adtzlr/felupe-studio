@@ -77,6 +77,7 @@ def test_substeps_restore_the_fields(two_materials):
             "label": "Displacement x",
             "at": "point",
             "range": [0.0, pytest.approx(moved)],
+            "points": [],
         }
         for surface in surfaces:
             data = arrays(surface)
@@ -261,6 +262,10 @@ def test_control_points_are_left_out_of_the_results(monkeypatch, tmp_path):
     meta, surfaces = results.scene("job_1", 6, "displacement")
     assert json.loads(meta)["range"][1] == pytest.approx(0.5, rel=0.05)
     assert {s["name"] for s in surfaces} == {"hard_body", "soft_body"}
+    # the control point with its position and displacement (pinned)
+    assert json.loads(meta)["points"] == [
+        {"name": "control", "position": [4, 0.5, 0.5], "displacement": [0, 0, 0]}
+    ]
     mesh = meshio.read(read(results.export("job_1", "vtu"), ".vtu", tmp_path))
     # the points of the cells, without the control point
     assert len(mesh.points) == len(field[0].values) - 1
