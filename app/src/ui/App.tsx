@@ -3,6 +3,7 @@ import { exportName, mediaType, SUFFIX } from "../core/files";
 import { JobRunner, solveBlocker } from "../core/jobs";
 import { type ResultView, viewOf } from "../core/results";
 import { type Sample, sampleFiles } from "../core/samples";
+import type { Session, SessionStorage } from "../core/session";
 import { fileNotes, MeshFiles } from "../core/meshfiles";
 import { REGISTRY } from "../core/registry";
 import type { RibbonItem } from "../core/ribbon";
@@ -17,7 +18,9 @@ import { ImportMeshDialog } from "./ImportMeshDialog";
 import { JobPanel } from "./JobPanel";
 import type { Capture } from "../viewer/viewer";
 import { CurveCard } from "./CurveCard";
+import { NewProjectDialog } from "./NewProjectDialog";
 import { SamplesDialog } from "./SamplesDialog";
+import { useSession } from "./useSession";
 import type { ExportItem } from "./ExportMenu";
 import { ResultsControls } from "./ResultsControls";
 import { ResultsView } from "./ResultsView";
@@ -39,6 +42,8 @@ interface Props {
   reload?: () => void;
   /** Fetch the files of the samples; the default is the fetch of the browser. */
   fetchSample?: typeof fetch;
+  /** Keeps the session in the browser, so that a reload restores it (#57). */
+  session?: SessionStorage;
 }
 
 function downloadFile(name: string, data: string | Blob) {
@@ -71,6 +76,7 @@ export function App({
   updates,
   reload = () => window.location.reload(),
   fetchSample,
+  session,
 }: Props) {
   useStore(store);
   const [files] = useState(() => given ?? new MeshFiles());
@@ -89,7 +95,12 @@ export function App({
   const [workspace, setWorkspace] = useState<Workspace>("model");
   const [tab, setTab] = useState("mesh");
   const [fileName, setFileName] = useState(`untitled${SUFFIX}`);
-  const [saved, setSaved] = useState(store.commands);
+  // the command list of the last saved or opened project file; none for a restored
+  // session with unsaved changes
+  const [saved, setSaved] = useState<typeof store.commands | undefined>(
+    store.commands,
+  );
+  const modified = store.commands !== saved;
   const [error, setError] = useState<{ title: string; lines: string[] }>();
   const [importing, setImporting] = useState<{ file?: File }>();
   const [dragging, setDragging] = useState(false);
@@ -177,6 +188,36 @@ export function App({
     },
     [files, openProject],
   );
+
+  const restoreSession = async (restored: Session) => {
+    const { parse } = await import("../core/project");
+    store.load(parse(restored.project));
+    setFileName(restored.fileName);
+    setSaved(restored.modified ? undefined : store.commands);
+    await files.addFiles(
+      restored.files.map((f) => new File([f.data as BlobPart], f.name)),
+    );
+  };
+  const kept = useSession(session, {
+    store,
+    files,
+    fileName,
+    modified,
+    onRestore: restoreSession,
+  });
+
+  const [confirmNew, setConfirmNew] = useState(false);
+  const newProject = () => {
+    jobs?.forget();
+    store.load({ schema_version: 1, commands: [] });
+    files.clear();
+    setFileName(`untitled${SUFFIX}`);
+    setSaved(store.commands);
+    setSelection(undefined);
+    setHidden(new Set());
+    setError(undefined);
+    setConfirmNew(false);
+  };
 
   const [samplesOpen, setSamplesOpen] = useState(false);
   const openSample = async (sample: Sample) => {
@@ -325,7 +366,12 @@ export function App({
       <Header
         store={store}
         fileName={fileName}
-        modified={store.commands !== saved}
+        modified={modified}
+        onNew={() =>
+          store.commands.length > 0 && modified
+            ? setConfirmNew(true)
+            : newProject()
+        }
         onOpen={() => fileInput.current?.click()}
         onSamples={() => setSamplesOpen(true)}
         onSave={() => void save()}
@@ -483,6 +529,7 @@ export function App({
       <Footer
         store={store}
         runtime={runtime}
+        kept={kept}
         selected={selected}
         onSelect={setSelection}
         onOpen={(type) =>
@@ -496,9 +543,16 @@ export function App({
               })
         }
       />
+      {confirmNew && (
+        <NewProjectDialog
+          fileName={fileName}
+          onConfirm={newProject}
+          onClose={() => setConfirmNew(false)}
+        />
+      )}
       {samplesOpen && (
         <SamplesDialog
-          modified={store.commands.length > 0 && store.commands !== saved}
+          modified={store.commands.length > 0 && modified}
           onOpen={openSample}
           onClose={() => setSamplesOpen(false)}
         />

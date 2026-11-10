@@ -52,6 +52,18 @@ export class MeshFiles {
     return this.files.has(name);
   }
 
+  /** The content of a file. */
+  dataOf(name: string): Uint8Array | undefined {
+    return this.files.get(name)?.data;
+  }
+
+  /** Forget all files, e.g. for a new project. */
+  clear(): void {
+    if (!this.files.size) return;
+    this.files.clear();
+    this.notify();
+  }
+
   get names(): string[] {
     return [...this.files.keys()];
   }

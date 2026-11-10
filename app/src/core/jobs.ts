@@ -220,6 +220,13 @@ export class JobRunner {
     if (this.running) this.client.restart();
   }
 
+  /** Forget the results, e.g. for a new project; a running job is cancelled. */
+  forget(): void {
+    this.cancel();
+    this.last = undefined;
+    this.set({ state: "idle" });
+  }
+
   /** Hide the state of a run that is over. */
   dismiss(): void {
     if (!this.running) this.set({ state: "idle" });
