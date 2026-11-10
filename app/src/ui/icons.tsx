@@ -21,6 +21,8 @@ const PATHS = {
   section:
     "M6 4 H18 Q20 4 20 6 V18 Q20 20 18 20 H6 Q4 20 4 18 V6 Q4 4 6 4 Z M8 12 H16",
   boundary: "M12 4 L19 16 H5 Z M4 20 H20",
+  constraint:
+    "M10 12 a2 2 0 1 0 4 0 a2 2 0 1 0 -4 0 M10.6 10.6 L5 5 M13.4 10.6 L19 5 M10.6 13.4 L5 19 M13.4 13.4 L19 19 M4 4 h2 v2 h-2 z M18 4 h2 v2 h-2 z M4 18 h2 v2 h-2 z M18 18 h2 v2 h-2 z",
   point:
     "M12 7 a5 5 0 1 0 0.01 0 M12 2 V7 M12 17 V22 M2 12 H7 M17 12 H22 M11 12 a1 1 0 1 0 2 0 a1 1 0 1 0 -2 0",
   step: "M4 20 H9 V15 H14 V10 H19 V5",

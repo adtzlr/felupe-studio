@@ -69,6 +69,64 @@ CHANGES = {
             },
         ),
     ),
+    "constraint of a control point": lambda d: (
+        d["commands"].insert(
+            9, {"command": "point.add", "name": "pin", "coordinates": [4, 0, 0]}
+        ),
+        d["commands"].insert(
+            12,
+            {
+                "command": "mpc.add",
+                "name": "glue",
+                "points": "right",
+                "center": "pin",
+                "constrained": ["x", "y"],
+            },
+        ),
+    ),
+    "constraint with a rotation point": lambda d: (
+        d["commands"].insert(
+            9, {"command": "point.add", "name": "pin", "coordinates": [4, 0, 0]}
+        ),
+        d["commands"].insert(
+            10, {"command": "point.add", "name": "turn", "coordinates": [4, 0, 0]}
+        ),
+        d["commands"].insert(
+            13,
+            {
+                "command": "mpc.add",
+                "name": "glue",
+                "points": "right",
+                "center": "pin",
+                "constrained": ["x"],
+                "multiplier": 100,
+                "rotation": "turn",
+            },
+        ),
+    ),
+    "constraint of a cell set": lambda d: d["commands"].insert(
+        11,
+        {
+            "command": "mpc.add",
+            "name": "glue",
+            "points": "hard",
+            "center": "right",
+            "constrained": ["x", "y", "z"],
+        },
+    ),
+    "step with a constraint": lambda d: (
+        d["commands"].insert(
+            11,
+            {
+                "command": "mpc.add",
+                "name": "glue",
+                "points": "right",
+                "center": "left",
+                "constrained": ["x", "y", "z"],
+            },
+        ),
+        find(d, "step_1").update(constraints=["glue", "fixed"]),
+    ),
     "duplicate name": lambda d: find(d, "soft").update(name="hard"),
     "mesh without tag": lambda d: find(d, "specimen").pop("tag"),
     "mesh with cell type": lambda d: find(d, "specimen").update(cell_type="tetra10"),

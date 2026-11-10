@@ -83,6 +83,14 @@ describe("fieldSpecs", () => {
       "constrained:multichoice*",
       "value:number",
     ]);
+    expect(summary("mpc.add", {} as Draft)).toEqual([
+      "name:name*",
+      "points:reference*",
+      "center:reference*",
+      "constrained:multichoice*",
+      "multiplier:number",
+      "rotation:reference",
+    ]);
     expect(summary("point.add", {} as Draft)).toEqual([
       "name:name*",
       "coordinates:numbers*",
@@ -90,6 +98,7 @@ describe("fieldSpecs", () => {
     expect(summary("step.add", find("step_1"))).toEqual([
       "name:name*",
       "sections:reference",
+      "constraints:reference",
       "ramp:toggle",
       "ramp.num:number*",
       "ramp.items:rows*",
@@ -485,6 +494,7 @@ describe("editing a draft", () => {
     expect(summary("step.add", off)).toEqual([
       "name:name*",
       "sections:reference",
+      "constraints:reference",
       "ramp:toggle",
     ]);
     const on = setValue("step.add", off, ["ramp"], {}, context);
@@ -557,6 +567,22 @@ describe("editing a draft", () => {
         "Enter 3 numbers, separated by commas, with a point as decimal separator.",
     });
     expect(errors([4, Number.NaN, 0])).toHaveProperty("coordinates");
+  });
+
+  it("connects a new constraint to the latest point set and control point", () => {
+    const control: Command = {
+      command: "point.add",
+      name: "plate",
+      coordinates: [4, 0.5, 0.5],
+    };
+    const draft = initialDraft("mpc.add", { commands: [...commands, control] });
+    expect(draft).toEqual({
+      command: "mpc.add",
+      name: "mpc_1",
+      points: "right",
+      center: "plate",
+      constrained: ["x", "y", "z"],
+    });
   });
 
   it("labels the empty option of an axis by its default", () => {

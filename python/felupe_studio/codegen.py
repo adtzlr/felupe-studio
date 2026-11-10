@@ -315,13 +315,35 @@ def codegen(document, evaluate=True, check_schema=True):
             name = f"{name}/{moving(loadcases[name])[0][0]}"
         return f"boundaries[{_str(name)}]"
 
+    constraints = get("mpc.add")
+    if constraints:
+        out.append("\n# multi-point constraints")
+        for mpc in constraints:
+            args = [
+                "field",
+                f"points=np.flatnonzero({mpc['points']})",
+                f"centerpoint=single_point({mpc['center']}, {_str(mpc['center'])})",
+            ]
+            skip = tuple(a not in mpc["constrained"] for a in AXES)
+            if any(skip):
+                args.append(f"skip={skip!r}")
+            if "multiplier" in mpc:
+                args.append(f"multiplier={mpc['multiplier']!r}")
+            if "rotation" in mpc:
+                point = f"single_point({mpc['rotation']}, {_str(mpc['rotation'])})"
+                args.append(f"rotationpoint={point}")
+            out.append(_call(mpc["name"], "fem.MultiPointConstraint", args))
+
     # 6. steps and jobs
     steps = get("step.add")
     if steps:
         out.append("\n# steps")
         for step in steps:
             names = step.get("sections", [s["name"] for s in sections])
-            lines = [_List(("solid_" + n for n in names), prefix="items=")]
+            items = ["solid_" + n for n in names] + step.get(
+                "constraints", [c["name"] for c in constraints]
+            )
+            lines = [_List(items, prefix="items=")]
             if "ramp" in step:
                 r = step["ramp"]
                 ramp = f"ramp_{step['name']}"

@@ -47,6 +47,23 @@ export interface CommandInfo {
   ) => Record<string, unknown>;
 }
 
+/**
+ * A new constraint connects the latest point set (of the mesh) to the latest
+ * control point, if there are such objects.
+ */
+function initialConstraint(
+  draft: Record<string, unknown>,
+  commands: readonly Command[],
+): Record<string, unknown> {
+  const sets = commands.filter((c) => c.command === "pointset.add");
+  const points = commands.filter((c) => c.command === "point.add");
+  return {
+    ...draft,
+    ...(sets.length ? { points: sets.at(-1)!.name } : {}),
+    ...(points.length ? { center: points.at(-1)!.name } : {}),
+  };
+}
+
 /** The first cell set without a section, and u-p-J for incompressible materials. */
 function initialSection(
   draft: Record<string, unknown>,
@@ -77,6 +94,7 @@ export const KIND_LABELS: Record<Kind, string> = {
   section: "Section",
   pointset: "Point set",
   boundary: "Boundary",
+  constraint: "Constraint",
   step: "Step",
   job: "Job",
 };
@@ -266,12 +284,43 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       },
     },
   },
+  "mpc.add": {
+    label: "Multi-point constraint",
+    tab: "loads",
+    prefix: "mpc",
+    noun: "constraint",
+    fields: {
+      points: { label: "Points", hint: "The connected points" },
+      center: {
+        label: "Center point",
+        hint: "A control point (or a point set of one point)",
+      },
+      constrained: {
+        label: "Connected",
+        hint: "Components that follow the center point; all with a rotation point",
+        default: ["x", "y", "z"],
+      },
+      multiplier: {
+        label: "Multiplier",
+        hint: "Penalty of the relative displacements",
+        placeholder: "1000",
+      },
+      rotation: {
+        label: "Rotation point",
+        hint: "A control point whose values are the rotations in rad",
+        placeholder: "none (rotations locked)",
+      },
+    },
+    options: { constrained: AXES },
+    initial: initialConstraint,
+  },
   "step.add": {
     label: "Step",
     tab: "steps",
     prefix: "step",
     fields: {
       sections: { label: "Sections", placeholder: "all" },
+      constraints: { label: "Constraints", placeholder: "all" },
       ramp: { label: "Ramp" },
       "ramp.num": { label: "Increments", default: 5 },
       "ramp.items": {
