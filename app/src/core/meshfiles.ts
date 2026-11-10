@@ -1,13 +1,14 @@
 // Mesh files of the project, kept in the browser. A project file only references
 // mesh files by name; their content is loaded here and written into the file system
-// of the Python worker, which reads them with meshio (felupe_studio.meshes).
+// of the Python worker, which reads them with meshio (felupe_studio.meshes) and
+// triangulates their outer surface for the viewer (felupe_studio.scene).
 import type { Command } from "./commands";
-import type { MeshInfo } from "../worker/protocol";
+import type { MeshInfo, MeshSurface } from "../worker/protocol";
 import { safeName } from "../worker/files";
 
 export type FileState =
   | { state: "reading" }
-  | { state: "ready"; info: MeshInfo }
+  | { state: "ready"; info: MeshInfo; surface?: MeshSurface }
   | { state: "error"; message: string };
 
 export interface MeshFile {
@@ -16,8 +17,14 @@ export interface MeshFile {
   status: FileState;
 }
 
+/** The summary of a mesh file and its outer surface (for usable files). */
+export interface Inspection {
+  info: MeshInfo;
+  surface?: MeshSurface;
+}
+
 /** Writes a file into the project directory of Python and inspects it. */
-export type Inspector = (name: string, data: Uint8Array) => Promise<MeshInfo>;
+export type Inspector = (name: string, data: Uint8Array) => Promise<Inspection>;
 
 export class MeshFiles {
   private files = new Map<string, { data: Uint8Array; file: MeshFile }>();
@@ -59,12 +66,12 @@ export class MeshFiles {
     if (!this.inspector)
       return set({ state: "error", message: "Python is not available." });
     try {
-      const info = await this.inspector(key, data);
+      const { info, surface } = await this.inspector(key, data);
       // a newer version of the file may have arrived meanwhile
       if (this.files.get(key)?.data !== data) return this.get(key)!;
       return info.error
         ? set({ state: "error", message: info.error })
-        : set({ state: "ready", info });
+        : set({ state: "ready", info, surface });
     } catch (error) {
       return set({ state: "error", message: (error as Error).message });
     }

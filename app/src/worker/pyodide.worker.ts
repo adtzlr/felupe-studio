@@ -1,6 +1,7 @@
 // Web Worker that runs Pyodide and FElupe (ADR 0005).
 import type { PyodideInterface } from "pyodide";
 import { safeName } from "./files";
+import { type RawSurface, toSurface, transferables } from "./surface";
 import type {
   BenchmarkResult,
   FromWorker,
@@ -23,8 +24,8 @@ const HOME = "/home/pyodide";
 /** Working directory of Python: the mesh files of the project. */
 const PROJECT = `${HOME}/project`;
 
-function post(message: FromWorker): void {
-  ctx.postMessage(message);
+function post(message: FromWorker, transfer: Transferable[] = []): void {
+  ctx.postMessage(message, transfer);
 }
 
 function python(): PyodideInterface {
@@ -84,11 +85,21 @@ function writeFile(id: number, name: string, data: ArrayBuffer) {
   post({ type: "done", id });
 }
 
+/** Inspect a mesh file and triangulate its outer surface (one read of the file). */
 function inspectMesh(id: number, name: string) {
   const meshes = python().pyimport("felupe_studio.meshes");
   try {
-    const info = JSON.parse(meshes.inspect_json(safeName(name))) as MeshInfo;
-    post({ type: "mesh-info", id, info });
+    const result = meshes.load(safeName(name));
+    const [text, raw] = result.toJs({
+      dict_converter: Object.fromEntries,
+    }) as [string, RawSurface | undefined];
+    result.destroy();
+    const info = JSON.parse(text) as MeshInfo;
+    const surface = raw ? toSurface(raw) : undefined;
+    post(
+      { type: "mesh-info", id, info, surface },
+      surface ? transferables(surface) : [],
+    );
   } finally {
     meshes.destroy();
   }

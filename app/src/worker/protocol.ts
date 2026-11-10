@@ -1,6 +1,7 @@
 // Messages between the main thread and the Pyodide worker (ADR 0005). Requests carry
 // an id; the worker answers with messages of the same id and ends with a final one
 // (`done`, `mesh-info`) or an `error`. `benchmark` is a spike-only message (#9).
+// The arrays of a surface are transferred, not copied.
 
 export interface Versions {
   python: string;
@@ -48,6 +49,25 @@ export interface MeshInfo {
   error?: string;
 }
 
+/**
+ * Outer surface of the solid cells of a mesh file for the viewer, triangulated by
+ * FElupe like `mesh.plot()` (`felupe_studio.scene.surface()`).
+ */
+export interface MeshSurface {
+  /** Three coordinates per point of the surface. */
+  positions: Float32Array;
+  /** Three points per triangle, oriented outwards. */
+  triangles: Uint32Array;
+  /** The face of a cell of every triangle, to shade faces flat (linear cells). */
+  faces?: Uint32Array;
+  /** Two points per segment of the edges of the faces. */
+  edges: Uint32Array;
+  /** The solid cell of every triangle. */
+  owners: Uint32Array;
+  /** Number of solid cells. */
+  cells: number;
+}
+
 export type ToWorker =
   | { type: "init"; pyodideVersion: string; wheels: string[] }
   | { type: "benchmark"; id: number; sizes: number[] }
@@ -58,6 +78,6 @@ export type FromWorker =
   | { type: "ready"; versions: Versions; timings: LoadTimings }
   | { type: "progress"; id: number; message: string }
   | { type: "benchmark-result"; id: number; result: BenchmarkResult }
-  | { type: "mesh-info"; id: number; info: MeshInfo }
+  | { type: "mesh-info"; id: number; info: MeshInfo; surface?: MeshSurface }
   | { type: "done"; id: number }
   | { type: "error"; id?: number; message: string };

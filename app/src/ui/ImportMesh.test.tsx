@@ -77,7 +77,7 @@ function setup(store = new ModelStore()) {
   const inspector = vi.fn(async (name: string) => {
     if (name === "slow.vtu")
       await new Promise<void>((resolve) => (release = resolve));
-    return INFO[name] ?? { ...INFO["plain.vtu"], file: name };
+    return { info: INFO[name] ?? { ...INFO["plain.vtu"], file: name } };
   });
   const files = new MeshFiles(inspector);
   render(<App store={store} files={files} />);

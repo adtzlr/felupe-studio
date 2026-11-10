@@ -3,7 +3,8 @@
 :func:`inspect` reads a mesh file with meshio, like the generated script does (see
 ``volume_cells`` in :mod:`felupe_studio._helpers`), and returns a JSON-serializable
 summary: the number of points and solid cells, the ignored cell blocks, the bounds
-and the cell data arrays that can be used as tags for cell sets.
+and the cell data arrays that can be used as tags for cell sets. :func:`load` adds
+the outer surface for the viewer (:mod:`felupe_studio.scene`), from the same read.
 """
 
 import json
@@ -13,6 +14,7 @@ import meshio
 import numpy as np
 
 from ._helpers import DIMENSIONS, REGIONS, volume_cells
+from .scene import surface
 
 # a cell data array with more distinct values is not offered as a tag
 MAX_TAG_VALUES = 64
@@ -76,6 +78,11 @@ def inspect(filename):
         groups as ``label``). Otherwise ``error`` explains
         what is wrong.
     """
+    return _read(filename)[0]
+
+
+def _read(filename):
+    """:func:`inspect` and the solid cells (None if the file cannot be used)."""
     path = Path(filename)
     result = {"file": path.name}
     try:
@@ -84,13 +91,13 @@ def inspect(filename):
         # meshio raises many different errors, and calls sys.exit() if no reader fits
         reason = "" if isinstance(error, SystemExit) else f": {error}"
         result["error"] = f"meshio could not read the file{reason}".rstrip(".") + "."
-        return result
+        return result, None
 
     result["points"] = len(mesh.points)
     result["blocks"] = [{"type": b.type, "cells": len(b.data)} for b in mesh.cells]
     if not mesh.cells:
         result["error"] = "The file has no cells."
-        return result
+        return result, None
 
     try:
         solid = volume_cells(mesh)
@@ -101,7 +108,7 @@ def inspect(filename):
             f"The file needs one type of solid cells ({supported}); "
             f"found {', '.join(found)}."
         )
-        return result
+        return result, None
 
     dim = max(DIMENSIONS.get(b.type, 0) for b in mesh.cells)
     blocks = [i for i, b in enumerate(mesh.cells) if DIMENSIONS.get(b.type) == dim]
@@ -115,9 +122,12 @@ def inspect(filename):
         bounds=[points.min(axis=0).tolist(), points.max(axis=0).tolist()],
         tags=_tags(mesh, blocks),
     )
-    return result
+    return result, solid
 
 
-def inspect_json(filename):
-    """:func:`inspect` as a JSON string (for the Pyodide worker)."""
-    return json.dumps(inspect(filename))
+def load(filename):
+    """:func:`inspect` as a JSON string and the outer surface of the solid cells
+    (:func:`felupe_studio.scene.surface`, None if the file cannot be used), from one
+    read of the file (for the Pyodide worker)."""
+    info, solid = _read(filename)
+    return json.dumps(info), None if solid is None else surface(solid)

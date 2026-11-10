@@ -148,4 +148,13 @@ A project file references mesh files by name; their content lives next to it. In
 - **Open** accepts a project file together with its mesh files (select several files, or drop them on the window). Several mesh files without a project are offered in the import dialog.
 - A mesh whose file is not loaded, cannot be read or lacks its cell tag is marked in the browser; its properties show the file state with **Choose file…**, which stores the chosen file under the name the mesh references.
 
-The files are kept in the browser (`app/src/core/meshfiles.ts`) and written into the working directory of Python in the worker, where `felupe_studio.meshes.inspect()` reads them with meshio exactly like the generated script (`volume_cells`). meshio is served as a pinned wheel next to FElupe (`config.wheels` in `app/package.json`). The files are not kept across a reload of the page yet.
+The files are kept in the browser (`app/src/core/meshfiles.ts`) and written into the working directory of Python in the worker, where `felupe_studio.meshes.load()` reads them with meshio exactly like the generated script (`volume_cells`): a summary for the dialog (`inspect()`) and the outer surface for the viewport, from one read. meshio is served as a pinned wheel next to FElupe (`config.wheels` in `app/package.json`). The files are not kept across a reload of the page yet (#57).
+
+## Viewport (app)
+
+The viewport draws the imported meshes with the WebGL2 viewer of FElupe ([ADR 0004](adr/0004-viewer.md)), a pinned copy in `app/src/vendor/felupe-viewer/`.
+
+- `felupe_studio.scene.surface()` triangulates the outer surface of the solid cells with FElupe (`triangulate_surface`), like `mesh.plot()`: flat faces for linear cells, subdivided curved faces for quadratic cells, and the edges of the faces. The arrays go to the main thread as little-endian bytes (`float32` coordinates, `uint32` indices) and are drawn without copies.
+- Every mesh has a categorical color by its position in the model, so hiding a mesh (eye in the browser) does not repaint the others. With more than one mesh, a legend names them. A ninth and further mesh is gray instead of a generated color.
+- The toolbar fits the model into the view and sets the camera onto the xy-, xz- or yz-plane or isometric. Drag to rotate, shift-drag (or right-drag) to pan, scroll to zoom, double-click to reset. The camera fits the model when it is first shown and keeps its rotation, zoom and pan while the model changes.
+- The app talks to the viewer only through the adapter `app/src/viewer/viewer.ts`: meshes with colors of groups of cells, point markers, arrows and camera presets. The scenes are built by pure functions (`app/src/viewer/scene.ts`), tested without WebGL.
