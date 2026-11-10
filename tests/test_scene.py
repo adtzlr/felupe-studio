@@ -77,6 +77,16 @@ def test_outward_and_closed(mesh):
     assert decoded["edges"].max() < len(positions)
     # flat faces of linear cells, curved (subdivided) faces of quadratic cells
     assert (result["faces"] is None) == (mesh.cell_type in ("tetra10", "hexahedron20"))
+    # the points of the surface that are points of the mesh: all of them, except the
+    # points inside the subdivided faces of quadratic hexahedrons
+    isnode = np.frombuffer(result["isnode"], dtype="u1").astype(bool)
+    assert len(isnode) == len(positions)
+    assert isnode.all() == (mesh.cell_type != "hexahedron20")
+    points = np.unique(np.round(positions[isnode], 5), axis=0)
+    outer = np.isclose(mesh.points, 0).any(axis=1) | np.isclose(mesh.points, 1).any(
+        axis=1
+    )
+    assert len(points) == outer.sum()
 
 
 def test_load_unusable_file(tmp_path):

@@ -1,5 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
+import { NodesButton, useShowNodes } from "./NodesButton";
 import { formatValue, type ResultView } from "../core/results";
 import { type ProbeInfo, probeInfo } from "../viewer/probe";
 import {
@@ -34,6 +35,9 @@ interface Props {
   children?: ComponentChildren;
   /** Set to a function that returns a PNG of the view (none without a view). */
   capture?: Capture;
+  /** Show the nodes of the result (#91); without, the view keeps its own. */
+  showNodes?: boolean;
+  onShowNodes?: (show: boolean) => void;
 }
 
 /** The value under the pointer, at a position of the view. */
@@ -143,7 +147,10 @@ export function ResultsView({
   createViewer,
   children,
   capture,
+  showNodes,
+  onShowNodes,
 }: Props) {
+  const [nodesShown, toggleNodes] = useShowNodes(showNodes, onShowNodes);
   const host = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
   if (capture) {
@@ -185,7 +192,8 @@ export function ResultsView({
         ? { scene, scale: view.scale, undeformed: view.undeformed }
         : undefined,
     );
-  }, [scene, view?.scale, view?.undeformed, createViewer]);
+    viewer.current.setNodes(nodesShown);
+  }, [scene, view?.scale, view?.undeformed, nodesShown, createViewer]);
 
   useEffect(
     () => () => {
@@ -272,6 +280,8 @@ export function ResultsView({
               {v.label}
             </button>
           ))}
+          <span class="toolbar-separator" aria-hidden="true" />
+          <NodesButton pressed={nodesShown} onToggle={toggleNodes} />
         </div>
       )}
       {message && <p class="viewport-message muted">{message}</p>}

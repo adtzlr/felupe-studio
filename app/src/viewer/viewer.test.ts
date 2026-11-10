@@ -94,6 +94,20 @@ describe("Viewer", () => {
     expect(handle.dispose).toHaveBeenCalled();
   });
 
+  it("shows the nodes of the meshes", async () => {
+    const { handle, create } = fake();
+    const viewer = new Viewer(document.createElement("div"), create);
+    viewer.setMeshes([{ name: "bar", surface, color: "#3987e5" }]);
+    viewer.setNodes(true);
+    await tick();
+    const scene = handle.update.mock.calls.at(-1)![0];
+    expect(scene.objects.map((o) => o.type)).toEqual(["surface", "points"]);
+    expect(scene.objects[1].positions.size).toBe(9);
+    viewer.setNodes(false);
+    await tick();
+    expect(handle.update.mock.calls.at(-1)![0].objects).toHaveLength(1);
+  });
+
   it("sets the legend", async () => {
     const { handle, create } = fake();
     const viewer = new Viewer(document.createElement("div"), create);

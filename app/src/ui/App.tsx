@@ -115,6 +115,8 @@ export function App({
   };
   const [creating, setCreating] = useState<RibbonItem | undefined>();
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
+  // the nodes of the meshes in both workspaces (#91)
+  const [showNodes, setShowNodes] = useState(false);
   const [update, setUpdate] = useState<"available" | "dismissed">();
   // a selection that was removed (or renamed) is gone
   const selected = selection && store.get(selection) ? selection : undefined;
@@ -495,6 +497,8 @@ export function App({
             selected={selected}
             active={workspace === "model"}
             capture={captureModel}
+            showNodes={showNodes}
+            onShowNodes={setShowNodes}
             onCreatePointSet={(preset) =>
               setCreating({
                 id: "pointset.add",
@@ -511,6 +515,8 @@ export function App({
             active={workspace === "results"}
             running={run.state === "running"}
             capture={captureResults}
+            showNodes={showNodes}
+            onShowNodes={setShowNodes}
           >
             {finished && resultView?.curve && (
               <CurveCard

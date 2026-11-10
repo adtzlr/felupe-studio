@@ -25,6 +25,8 @@ import numpy as np
 from felupe.math import eigvalsh, equivalent_von_mises
 from felupe.view._surface import polynomial_order, triangulate_surface
 
+from .scene import surface_nodes
+
 # the quantities by key: the kind of data, the component (None for the magnitude of
 # vectors) and the label of the scalar bar
 QUANTITIES = {
@@ -105,19 +107,6 @@ def _restore(job, substep):
     field = _state["namespace"]["field"]
     for f, values in zip(field.fields, records[substep - 1], strict=True):
         f.values[:] = values
-
-
-def _nodes(surface):
-    """Return the point of the mesh of every point of a surface, or -1 for a point
-    inside a subdivided face (interpolated from several points of the mesh)."""
-    interpolation = surface.interpolation.tocsr()
-    nodes = np.full(interpolation.shape[0], -1)
-    counts = np.diff(interpolation.indptr)
-    single = counts == 1
-    rows = interpolation.indptr[:-1][single]
-    exact = np.isclose(interpolation.data[rows], 1.0)
-    nodes[np.flatnonzero(single)[exact]] = interpolation.indices[rows][exact]
-    return nodes
 
 
 def _data(kind, section):
@@ -204,7 +193,7 @@ def scene(job, substep, quantity):
                 "edges": _bytes(surface.edges, "<u4"),
                 "values": _bytes(values, "<f4"),
                 "owners": _bytes(surface.owners, "<u4"),
-                "nodes": _bytes(_nodes(surface), "<i4"),
+                "nodes": _bytes(surface_nodes(surface), "<i4"),
             }
         )
 

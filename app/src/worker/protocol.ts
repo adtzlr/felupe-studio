@@ -81,6 +81,11 @@ export interface MeshSurface {
   tags?: Record<string, Int32Array>;
   /** Exact coordinates of the points of the cells (three per point). */
   nodes?: Float64Array;
+  /**
+   * 1 for a point of the surface that is a point of the mesh, 0 for a point inside
+   * a subdivided face of a quadratic cell (one per point of the surface).
+   */
+  isNode?: Uint8Array;
   /** Number of solid cells. */
   cells: number;
 }

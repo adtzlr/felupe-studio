@@ -787,6 +787,11 @@ button {
   color: var(--text);
 }
 
+.view-toolbar button[aria-pressed="true"] {
+  background: var(--panel);
+  color: var(--accent);
+}
+
 .view-toolbar select {
   height: 28px;
   padding: 0 6px;
