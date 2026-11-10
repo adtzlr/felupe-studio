@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { SUFFIX } from "../core/files";
 import { JobRunner, solveBlocker } from "../core/jobs";
+import { type ResultView, viewOf } from "../core/results";
 import { fileNotes, MeshFiles } from "../core/meshfiles";
 import { REGISTRY } from "../core/registry";
 import type { RibbonItem } from "../core/ribbon";
@@ -13,6 +14,8 @@ import { Header } from "./Header";
 import { useJobs, useMeshFiles, useRuntime, useStore } from "./hooks";
 import { ImportMeshDialog } from "./ImportMeshDialog";
 import { JobPanel } from "./JobPanel";
+import { ResultsControls } from "./ResultsControls";
+import { ResultsView } from "./ResultsView";
 import { Ribbon, type Workspace } from "./Ribbon";
 import { Sidebar } from "./Sidebar";
 import { Viewport } from "./Viewport";
@@ -65,6 +68,13 @@ export function App({
   const runtime = useRuntime(client);
   const [jobs] = useState(() => client && new JobRunner(client));
   const run = useJobs(jobs);
+  const finished = jobs?.results;
+  const [resultView, setResultView] = useState<ResultView>();
+  // a finished run shows its last substep, with the choices of the previous view
+  useEffect(
+    () => setResultView((previous) => finished && viewOf(finished, previous)),
+    [finished],
+  );
   const notes = fileNotes(store.commands, files);
   const [workspace, setWorkspace] = useState<Workspace>("model");
   const [tab, setTab] = useState("mesh");
@@ -270,6 +280,18 @@ export function App({
         onCreate={(item) =>
           item.type === "mesh.import" ? setImporting({}) : setCreating(item)
         }
+        results={
+          <ResultsControls
+            store={store}
+            results={
+              finished && resultView
+                ? { run: finished, view: resultView }
+                : undefined
+            }
+            running={run.state === "running"}
+            onChange={setResultView}
+          />
+        }
       />
       <div class="body">
         <Sidebar
@@ -281,21 +303,43 @@ export function App({
           onSelect={setSelection}
           onToggleVisible={toggleVisible}
         />
-        <Viewport
+        <div class="views">
+          <Viewport
+            store={store}
+            files={files}
+            hidden={hidden}
+            selected={selected}
+            active={workspace === "model"}
+            onCreatePointSet={(preset) =>
+              setCreating({
+                id: "pointset.add",
+                type: "pointset.add",
+                label: REGISTRY["pointset.add"].label,
+                preset,
+              })
+            }
+          />
+          <ResultsView
+            source={client}
+            view={finished && resultView}
+            generation={jobs?.generation ?? 0}
+            active={workspace === "results"}
+            running={run.state === "running"}
+          />
+        </div>
+        <JobPanel
+          run={run}
           store={store}
-          files={files}
-          hidden={hidden}
-          selected={selected}
-          onCreatePointSet={(preset) =>
-            setCreating({
-              id: "pointset.add",
-              type: "pointset.add",
-              label: REGISTRY["pointset.add"].label,
-              preset,
-            })
+          onDismiss={() => jobs?.dismiss()}
+          onShowResults={
+            workspace === "results"
+              ? undefined
+              : () => {
+                  setWorkspace("results");
+                  jobs?.dismiss();
+                }
           }
         />
-        <JobPanel run={run} store={store} onDismiss={() => jobs?.dismiss()} />
       </div>
       <Footer
         store={store}

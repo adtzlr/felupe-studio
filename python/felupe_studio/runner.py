@@ -4,7 +4,8 @@
 executes it without evaluating its jobs and evaluates every job with a plugin that
 reports the progress: the steps and substeps, the iterations of the Newton-Raphson
 method and failed substeps. An optional :class:`felupe.CutbackPlugin` subdivides
-failed substeps. The namespace of the last run is kept for the results (M5).
+failed substeps. The fields of every substep are recorded for the results, see
+:mod:`felupe_studio.results`.
 
 The hyperelastic models of tensortrax (e.g. Mooney-Rivlin) need the package
 tensortrax, which the app loads only for these models: :func:`load_tensortrax` makes
@@ -18,6 +19,7 @@ import time
 
 import felupe as fem
 
+from . import results as results_
 from .codegen import codegen
 from .materials import models
 
@@ -143,6 +145,10 @@ def run(document, report=lambda event: None):
     exec(compile(script, "model.py", "exec"), namespace)
     LAST.clear()
     LAST.update(namespace)
+    sections = [
+        c["name"] for c in document["commands"] if c["command"] == "section.add"
+    ]
+    results_.reset(namespace, sections)
 
     jobs = [c["name"] for c in document["commands"] if c["command"] == "job.add"]
     substeps = {
@@ -153,6 +159,7 @@ def run(document, report=lambda event: None):
     for name in jobs:
         job = namespace[name]
         job.dispatcher.add_plugin(Progress(report, name, substeps[name]))
+        job.dispatcher.add_plugin(results_.Recorder(name, namespace["field"]))
         started = time.perf_counter()
         job.evaluate(x0=namespace["field"], verbose=False)
         result = {

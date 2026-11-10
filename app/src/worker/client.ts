@@ -10,6 +10,8 @@ import type {
   LoadTimings,
   MeshInfo,
   MeshSurface,
+  Quantity,
+  ResultScene,
   ToWorker,
   Versions,
 } from "./protocol";
@@ -154,6 +156,19 @@ export class PyodideClient {
       },
     );
     return (message as Extract<FromWorker, { type: "job-result" }>).results;
+  }
+
+  /** The result of a substep of a job of the last run (substeps count from 1). */
+  async resultScene(
+    job: string,
+    substep: number,
+    quantity: Quantity,
+  ): Promise<ResultScene> {
+    const message = await this.request(
+      { type: "result", job, substep, quantity },
+      "result-scene",
+    );
+    return (message as Extract<FromWorker, { type: "result-scene" }>).scene;
   }
 
   private async write(name: string, data: Uint8Array): Promise<void> {

@@ -24,6 +24,11 @@ export interface SurfaceObject {
   valuesAt?: "point" | "cell";
   range?: [number, number];
   label?: string;
+  /** Show a scalar bar of the values (default is true), one per label. */
+  scalarBar?: boolean;
+  /** Displacements of the points, drawn scaled by `factor` (default is 1). */
+  displacement?: SceneArray;
+  factor?: number;
 }
 
 export interface PointsObject {
