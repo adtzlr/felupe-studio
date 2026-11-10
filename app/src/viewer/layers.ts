@@ -2,6 +2,7 @@
 // colored by their position in the model (hiding a mesh keeps the other colors).
 import type { Command } from "../core/commands";
 import type { MeshFiles } from "../core/meshfiles";
+import { solidOf } from "../core/meshinfo";
 import { categorical } from "./palette";
 import type { MeshLayer } from "./scene";
 
@@ -28,12 +29,11 @@ export function viewportContent(
     const status = files.get(command.file)?.status;
     if (status?.state === "reading") reading.add(command.file);
     if (hidden.has(command.name) || status?.state !== "ready") return;
-    if (!status.surface) return;
-    meshes.push({
-      name: command.name,
-      surface: status.surface,
-      color: categorical(index),
-    });
+    const choice = solidOf(status.info, command.cell_type);
+    const surface =
+      "solid" in choice ? status.surfaces[choice.solid.cell_type] : undefined;
+    if (!surface) return;
+    meshes.push({ name: command.name, surface, color: categorical(index) });
   });
 
   const content: ViewportContent = { meshes, reading: [...reading] };

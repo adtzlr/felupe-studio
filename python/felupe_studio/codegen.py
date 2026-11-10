@@ -132,8 +132,9 @@ def codegen(document, evaluate=True):
         out.append("\n# meshes")
         for mesh in meshes:
             args = [f"meshio.read({_str(mesh['file'])})"]
-            if "tag" in mesh:
-                args.append(f"tag={_str(mesh['tag'])}")
+            for key in ("tag", "cell_type"):
+                if key in mesh:
+                    args.append(f"{key}={_str(mesh[key])}")
             out.append(_call(mesh["name"], "volume_cells", args))
 
     cellsets = [c for c in commands if c["command"].startswith("cellset.")]

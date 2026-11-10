@@ -137,6 +137,10 @@
           "description": "Name of an integer cell data array used to split the mesh into cell sets, e.g. material or gmsh:physical.",
           "type": "string",
           "minLength": 1
+        },
+        "cell_type": {
+          "description": "Type of the solid cells to import, if the file has more than one (one mesh per cell type).",
+          "enum": ["tetra", "tetra10", "hexahedron", "hexahedron20", "hexahedron27"]
         }
       }
     },

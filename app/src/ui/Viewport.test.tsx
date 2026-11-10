@@ -8,7 +8,7 @@ import {
 } from "@testing-library/preact";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Command } from "../core/commands";
-import { MeshFiles } from "../core/meshfiles";
+import { type Inspection, MeshFiles } from "../core/meshfiles";
 import { ModelStore } from "../core/store";
 import type { Scene, ViewerHandle } from "../vendor/felupe-viewer/viewer.js";
 import { viewportContent } from "../viewer/layers";
@@ -36,14 +36,35 @@ const mesh = (name: string, file: string): Command => ({
 /** Mesh files whose inspection waits for `release()` of slow.vtu. */
 function meshFiles() {
   let release: () => void = () => {};
-  const files = new MeshFiles(async (name) => {
+  const files = new MeshFiles(async (name): Promise<Inspection> => {
     if (name === "slow.vtu") {
       await new Promise<void>((resolve) => (release = resolve));
     }
     if (name === "broken.vtu") {
       return { info: { file: name, error: "meshio could not read it." } };
     }
-    return { info: { file: name, cells: 1 }, surface };
+    const solid = {
+      cell_type: "tetra",
+      cells: 1,
+      bounds: [
+        [0, 0, 0],
+        [1, 1, 0],
+      ] as [number[], number[]],
+      tags: [],
+    };
+    if (name === "hybrid.vtu") {
+      return {
+        info: {
+          file: name,
+          solids: [solid, { ...solid, cell_type: "hexahedron" }],
+        },
+        surfaces: { tetra: surface, hexahedron: surface },
+      };
+    }
+    return {
+      info: { file: name, solids: [solid] },
+      surfaces: { tetra: surface },
+    };
   });
   return { files, release: () => release() };
 }
@@ -79,6 +100,27 @@ describe("viewport content", () => {
     expect(viewportContent(commands, files, new Set(["a", "b"])).message).toBe(
       "All meshes are hidden.",
     );
+  });
+
+  it("shows the cells of the cell type of a mesh", async () => {
+    const { files } = meshFiles();
+    await files.add("hybrid.vtu", new Uint8Array());
+    const typed = (
+      name: string,
+      cell_type: "tetra" | "hexahedron",
+    ): Command => ({
+      command: "mesh.import",
+      name,
+      file: "hybrid.vtu",
+      cell_type,
+    });
+    const content = viewportContent(
+      [typed("a", "tetra"), typed("b", "hexahedron"), mesh("c", "hybrid.vtu")],
+      files,
+      new Set(),
+    );
+    // c has no cell type, but the file has two: not shown (a note explains it)
+    expect(content.meshes.map((m) => m.name)).toEqual(["a", "b"]);
   });
 
   it("explains why nothing is shown", async () => {

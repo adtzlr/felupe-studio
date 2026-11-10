@@ -28,7 +28,7 @@ The JSON schema [`python/felupe_studio/commands.schema.json`](../python/felupe_s
 
 | Command             | Creates                     | References                               | FElupe                                                                                                                                                               |
 | ------------------- | --------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `mesh.import`       | mesh                        |                                          | meshio, optional integer cell data `tag`                                                                                                                             |
+| `mesh.import`       | mesh                        |                                          | meshio, optional integer cell data `tag` and `cell_type` (one mesh per type of solid cells)                                                                          |
 | `mesh.merge`        | merge setting (at most one) |                                          | `fem.field.merge([...], decimals=...)`: merges points that agree to `decimals`, e.g. files of different mesh generators; without it only identical points are merged |
 | `cellset.from_tag`  | cell set                    | mesh (imported with a tag)               | `fem.Mesh(points, cells[tag == value], cell_type)`                                                                                                                   |
 | `cellset.from_file` | cell set                    | mesh                                     | all cells of the mesh                                                                                                                                                |
@@ -61,7 +61,7 @@ Example messages: `192 / 192 cells assigned once.` and `Interface left_body / ri
 
 `felupe_studio.codegen(document)` validates the command list and returns a FElupe script that only needs FElupe, NumPy and meshio. Its structure does not depend on the order of the commands:
 
-1. meshes (`volume_cells()` keeps the solid cells of a meshio file and ignores lower-dimensional blocks) and cell sets
+1. meshes (`volume_cells()` keeps the solid cells of a meshio file, of one cell type, and ignores lower-dimensional blocks) and cell sets
 2. materials
 3. a region and a field container per section, merged with `fem.field.merge([...])` into the top-level `field`
 4. solid bodies, created after the merge (required for items with an internal state)
@@ -145,10 +145,11 @@ The history bar below shows the command list in order: a click selects the objec
 A project file references mesh files by name; their content lives next to it. In the app:
 
 - **Import mesh** (ribbon, `mesh.import` on the command line, or opening/dropping a single mesh file) opens a dialog: choose or drop the file, see its cells, points, bounds and ignored lower-dimensional blocks, and create the mesh together with its cell sets in one undo step: one cell set per value of a cell tag (named after Gmsh physical groups if the file has them), one with all cells, or none.
+- **Files with more than one type of solid cells** (e.g. hexahedra and tetrahedra) give one mesh per cell type, like the meshes of the `MeshContainer` of `fem.mesh.read()`: a region of FElupe has one cell type. The dialog names them `<name>_<cell type>` and sets their `cell_type`; a tag value in cells of more than one type gives one cell set per type. The meshes share the points of the file, so `fem.field.merge()` connects them without `mesh.merge`. Wedges and pyramids have no region in FElupe; they are listed as not imported. A direct transition from hexahedra to tetrahedra shares the corner points, but a quad face meets two triangles: the displacements are not conforming inside these faces.
 - **Open** accepts a project file together with its mesh files (select several files, or drop them on the window). Several mesh files without a project are offered in the import dialog.
-- A mesh whose file is not loaded, cannot be read or lacks its cell tag is marked in the browser; its properties show the file state with **Choose file…**, which stores the chosen file under the name the mesh references.
+- A mesh whose file is not loaded, cannot be read, lacks its cell tag or needs a `cell_type` (or names one the file does not have) is marked in the browser; its properties show the file state with **Choose file…**, which stores the chosen file under the name the mesh references.
 
-The files are kept in the browser (`app/src/core/meshfiles.ts`) and written into the working directory of Python in the worker, where `felupe_studio.meshes.load()` reads them with meshio exactly like the generated script (`volume_cells`): a summary for the dialog (`inspect()`) and the outer surface for the viewport, from one read. meshio is served as a pinned wheel next to FElupe (`config.wheels` in `app/package.json`). The files are not kept across a reload of the page yet (#57).
+The files are kept in the browser (`app/src/core/meshfiles.ts`) and written into the working directory of Python in the worker, where `felupe_studio.meshes.load()` reads them with meshio exactly like the generated script (`volume_cells`): a summary for the dialog (`inspect()`, one entry per type of solid cells) and the outer surfaces for the viewport, from one read. meshio is served as a pinned wheel next to FElupe (`config.wheels` in `app/package.json`). The files are not kept across a reload of the page yet (#57).
 
 ## Viewport (app)
 

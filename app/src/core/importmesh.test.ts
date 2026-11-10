@@ -1,27 +1,60 @@
 import { describe, expect, it, vi } from "vitest";
 import fixture from "../../../tests/data/two_sections.json";
-import type { Command, CommandList } from "./commands";
-import { defaultMode, planImport, suggestMeshName, toName } from "./importmesh";
+import type { Command, CommandList, MeshImport } from "./commands";
+import {
+  defaultMode,
+  describePlanned,
+  planImport,
+  suggestMeshName,
+  toName,
+} from "./importmesh";
 import { fileNotes, MeshFiles } from "./meshfiles";
+import { fileTags, solidOf } from "./meshinfo";
 import { validate } from "./validate";
-import type { MeshInfo } from "../worker/protocol";
+import type { CellTag, MeshInfo } from "../worker/protocol";
 
 const commands = (fixture as CommandList).commands;
+
+/** A mesh file with solid cells of the given types. */
+function solids(
+  file: string,
+  ...list: { cell_type: string; cells: number; tags?: CellTag[] }[]
+): MeshInfo {
+  return {
+    file,
+    solids: list.map((s) => ({
+      tags: [],
+      bounds: [
+        [0, 0, 0],
+        [1, 1, 1],
+      ],
+      ...s,
+    })),
+  };
+}
 
 const tagged: MeshInfo = {
   file: "Bar 01.vtu",
   points: 325,
-  cell_type: "hexahedron",
-  cells: 192,
-  tags: [
+  solids: [
     {
-      name: "material",
-      values: [
-        { value: 1, cells: 96 },
-        { value: 2, cells: 96 },
+      cell_type: "hexahedron",
+      cells: 192,
+      bounds: [
+        [0, 0, 0],
+        [3, 1, 1],
+      ],
+      tags: [
+        {
+          name: "material",
+          values: [
+            { value: 1, cells: 96 },
+            { value: 2, cells: 96 },
+          ],
+        },
+        { name: "zone", values: [{ value: 7, cells: 192 }] },
       ],
     },
-    { name: "zone", values: [{ value: 7, cells: 192 }] },
   ],
 };
 
@@ -78,8 +111,9 @@ describe("planImport", () => {
   });
 
   it("uses the names of Gmsh physical groups and avoids taken names", () => {
-    const gmsh: MeshInfo = {
-      file: "part.msh",
+    const gmsh = solids("part.msh", {
+      cell_type: "hexahedron",
+      cells: 12,
       tags: [
         {
           name: "gmsh:physical",
@@ -90,7 +124,7 @@ describe("planImport", () => {
           ],
         },
       ],
-    };
+    });
     const plan = planImport(
       gmsh,
       "part",
@@ -107,11 +141,14 @@ describe("planImport", () => {
   });
 
   it("creates one cell set with all cells, or none", () => {
-    const plain: MeshInfo = { file: "bar.vtu", tags: [] };
+    const plain = solids("bar.vtu", { cell_type: "hexahedron", cells: 8 });
     expect(defaultMode(plain)).toEqual({ mode: "all" });
-    expect(defaultMode({ ...plain, tags: [tagged.tags![1]] })).toEqual({
-      mode: "all",
-    });
+    const zone = tagged.solids![0].tags[1];
+    expect(
+      defaultMode(
+        solids("bar.vtu", { cell_type: "hexahedron", cells: 8, tags: [zone] }),
+      ),
+    ).toEqual({ mode: "all" });
     expect(planImport(plain, "bar", { mode: "all" }, [])).toEqual([
       { command: "mesh.import", name: "bar", file: "bar.vtu" },
       { command: "cellset.from_file", name: "bar_cells", mesh: "bar" },
@@ -122,6 +159,124 @@ describe("planImport", () => {
     expect(() =>
       planImport(plain, "bar", { mode: "tag", tag: "x" }, []),
     ).toThrow("no cell tag");
+  });
+
+  it("creates one mesh per cell type", () => {
+    const physical = (values: [number, number][]): CellTag => ({
+      name: "gmsh:physical",
+      values: values.map(([value, cells]) => ({ value, cells })),
+    });
+    const info: MeshInfo = {
+      ...solids(
+        "hybrid.msh",
+        { cell_type: "hexahedron", cells: 4, tags: [physical([[1, 4]])] },
+        {
+          cell_type: "tetra",
+          cells: 9,
+          tags: [
+            physical([
+              [1, 6],
+              [2, 3],
+            ]),
+          ],
+        },
+      ),
+      unsupported: [{ type: "wedge", cells: 2 }],
+    };
+    expect(defaultMode(info)).toEqual({ mode: "tag", tag: "gmsh:physical" });
+    expect(fileTags(info)).toEqual([
+      physical([
+        [1, 10],
+        [2, 3],
+      ]),
+    ]);
+
+    const all = planImport(info, "part", { mode: "all" }, commands);
+    expect(all).toEqual([
+      {
+        command: "mesh.import",
+        name: "part_hexahedron",
+        file: "hybrid.msh",
+        cell_type: "hexahedron",
+      },
+      {
+        command: "cellset.from_file",
+        name: "part_hexahedron_cells",
+        mesh: "part_hexahedron",
+      },
+      {
+        command: "mesh.import",
+        name: "part_tetra",
+        file: "hybrid.msh",
+        cell_type: "tetra",
+      },
+      {
+        command: "cellset.from_file",
+        name: "part_tetra_cells",
+        mesh: "part_tetra",
+      },
+    ]);
+    expect(validate([...commands, ...all])).toEqual([]);
+    expect(all.map((c) => describePlanned(c, all, info))).toEqual([
+      "hexahedron, 4 cells",
+      "4 cells",
+      "tetra, 9 cells",
+      "9 cells",
+    ]);
+
+    // a tag value of both cell types gets the cell type in its name
+    const tag = { mode: "tag", tag: "gmsh:physical" } as const;
+    const byTag = planImport(info, "part", tag, commands);
+    expect(byTag.map((c) => c.name)).toEqual([
+      "part_hexahedron",
+      "physical_1_hexahedron",
+      "part_tetra",
+      "physical_1_tetra",
+      "physical_2",
+    ]);
+    expect(validate([...commands, ...byTag])).toEqual([]);
+    expect(describePlanned(byTag[4], byTag, info)).toBe(
+      "gmsh:physical = 2, 3 cells",
+    );
+  });
+
+  it("names the cell type also with one supported type of several", () => {
+    const info: MeshInfo = {
+      ...solids("hybrid.vtu", { cell_type: "hexahedron", cells: 4 }),
+      unsupported: [{ type: "pyramid", cells: 2 }],
+    };
+    expect(planImport(info, "part", { mode: "none" }, [])).toEqual([
+      {
+        command: "mesh.import",
+        name: "part",
+        file: "hybrid.vtu",
+        cell_type: "hexahedron",
+      },
+    ]);
+  });
+});
+
+describe("solid cells of a mesh", () => {
+  const info: MeshInfo = solids(
+    "hybrid.vtu",
+    { cell_type: "hexahedron", cells: 4 },
+    { cell_type: "tetra", cells: 9 },
+  );
+
+  it("takes the cells of the given type, or the only type", () => {
+    expect(solidOf(info, "tetra")).toMatchObject({ solid: { cells: 9 } });
+    expect(solidOf(tagged)).toMatchObject({ solid: { cells: 192 } });
+  });
+
+  it("explains a missing or unknown cell type", () => {
+    expect(solidOf(info)).toEqual({
+      problem:
+        "The file 'hybrid.vtu' has more than one type of solid cells " +
+        "(hexahedron, tetra). Choose the cell type.",
+    });
+    expect(solidOf(info, "tetra10")).toEqual({
+      problem: "The file 'hybrid.vtu' has no tetra10 cells.",
+    });
   });
 });
 
@@ -185,12 +340,20 @@ describe("MeshFiles", () => {
       info:
         name === "broken.vtu"
           ? { file: name, error: "meshio could not read the file." }
-          : tagged,
+          : { ...tagged, file: name },
     }));
-    const mesh = (name: string, file: string, tag?: string): Command =>
-      tag
-        ? { command: "mesh.import", name, file, tag }
-        : { command: "mesh.import", name, file };
+    const mesh = (
+      name: string,
+      file: string,
+      tag?: string,
+      cell_type?: MeshImport["cell_type"],
+    ): Command => ({
+      command: "mesh.import",
+      name,
+      file,
+      ...(tag ? { tag } : {}),
+      ...(cell_type ? { cell_type } : {}),
+    });
     await files.add("bar.vtu", new Uint8Array());
     await files.add("broken.vtu", new Uint8Array());
     const notes = fileNotes(
@@ -199,6 +362,9 @@ describe("MeshFiles", () => {
         mesh("b", "missing.vtu"),
         mesh("c", "broken.vtu"),
         mesh("d", "bar.vtu", "color"),
+        mesh("e", "bar.vtu", "material", "hexahedron"),
+        mesh("f", "bar.vtu", undefined, "tetra"),
+        mesh("g", "bar.vtu", "color", "hexahedron"),
       ],
       files,
     );
@@ -206,6 +372,10 @@ describe("MeshFiles", () => {
       b: ["The file 'missing.vtu' is not loaded. Choose it in the properties."],
       c: ["broken.vtu: meshio could not read the file."],
       d: ["The file 'bar.vtu' has no cell tag 'color'."],
+      f: ["The file 'bar.vtu' has no tetra cells."],
+      g: [
+        "The hexahedron cells of the file 'bar.vtu' have no cell tag 'color'.",
+      ],
     });
   });
 });

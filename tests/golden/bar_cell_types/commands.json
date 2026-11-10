@@ -1,0 +1,102 @@
+{
+  "schema_version": 1,
+  "commands": [
+    {
+      "command": "mesh.import",
+      "name": "bar_hexahedron",
+      "file": "bar.vtu",
+      "cell_type": "hexahedron"
+    },
+    {
+      "command": "mesh.import",
+      "name": "bar_tetra",
+      "file": "bar.vtu",
+      "cell_type": "tetra"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "left_half",
+      "mesh": "bar_hexahedron"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "right_half",
+      "mesh": "bar_tetra"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHookeCompressible",
+      "parameters": {
+        "mu": 1.0,
+        "lmbda": 2.0
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "left_body",
+      "cellset": "left_half",
+      "material": "rubber",
+      "formulation": "u"
+    },
+    {
+      "command": "section.add",
+      "name": "right_body",
+      "cellset": "right_half",
+      "material": "rubber",
+      "formulation": "u"
+    },
+    {
+      "command": "pointset.add",
+      "name": "left",
+      "select": {
+        "axis": "x",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "right",
+      "select": {
+        "axis": "x",
+        "value": 3
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "left",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "move",
+      "pointset": "right",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "step.add",
+      "name": "step_1",
+      "ramp": {
+        "boundary": "move",
+        "start": 0,
+        "end": 0.5,
+        "num": 5
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "step_1"
+      ],
+      "curve": "move"
+    }
+  ]
+}

@@ -66,6 +66,11 @@ export interface MeshImport {
    * Name of an integer cell data array used to split the mesh into cell sets, e.g. material or gmsh:physical.
    */
   tag?: string;
+  /**
+   * Type of the solid cells to import, if the file has more than one (one mesh per cell type).
+   */
+  cell_type?:
+    "tetra" | "tetra10" | "hexahedron" | "hexahedron20" | "hexahedron27";
 }
 /**
  * Merge points of the sections whose coordinates agree to the given number of decimals (fem.field.merge(..., decimals)). Without this command, only identical points are merged. Merged points take the rounded coordinates.

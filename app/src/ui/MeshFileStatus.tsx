@@ -26,8 +26,10 @@ export function MeshFileStatus({
         {status?.state === "reading" && <span class="muted">reading …</span>}
         {info && (
           <span class="muted">
-            {info.cells?.toLocaleString("en")} {info.cell_type} cells ·{" "}
-            {info.points?.toLocaleString("en")} points
+            {(info.solids ?? [])
+              .map((s) => `${s.cells.toLocaleString("en")} ${s.cell_type}`)
+              .join(", ")}{" "}
+            cells · {info.points?.toLocaleString("en")} points
           </span>
         )}
         {status?.state === "error" && (

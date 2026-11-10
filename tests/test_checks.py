@@ -65,6 +65,15 @@ def test_conforming_sections(case):
     assert interface["hanging"] == 0
 
 
+def test_meshes_of_cell_types_of_one_file():
+    # hexahedra and tetrahedra on the same points: connected at their corner points
+    report = check(load("bar_cell_types"), GOLDEN / "bar_cell_types")
+    assert report["ok"], report["messages"]
+    assert report["cells"]["total"] == 96 + 576
+    (interface,) = report["interfaces"]
+    assert (interface["shared"], interface["hanging"]) == (25, 0)
+
+
 def test_non_conforming_interface(tmp_path):
     # the right half is finer: 9 x 9 points at the interface, 5 x 5 of them shared
     write(tmp_path / "left.vtu", fem.Cube(b=(1.5, 1, 1), n=(7, 5, 5)))

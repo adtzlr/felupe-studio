@@ -20,26 +20,35 @@ REGIONS = {
     "hexahedron27": fem.RegionTriQuadraticHexahedron,
 }
 
-# topological dimension of meshio cell types
+# topological dimension of meshio cell types (wedges and pyramids are solid cells
+# without a region in FElupe)
 DIMENSIONS = {
     **dict.fromkeys(["line", "line3"], 1),
     **dict.fromkeys(["triangle", "triangle6", "quad", "quad8", "quad9"], 2),
-    **dict.fromkeys(REGIONS, 3),
+    **dict.fromkeys(["wedge", "wedge15", "pyramid", "pyramid13", *REGIONS], 3),
 }
 
 
-def volume_cells(mesh, tag=None):
+def solid_types(mesh):
+    """Return the types of the solid cells of a meshio mesh, in the order of blocks."""
+    types = [b.type for b in mesh.cells if DIMENSIONS.get(b.type) == 3]
+    return list(dict.fromkeys(types))
+
+
+def volume_cells(mesh, tag=None, cell_type=None):
     """Return the points, the cell type, the solid cells and their tags (optional) of
-    a meshio mesh. Lower-dimensional cell blocks (e.g. boundary faces) are ignored."""
-    dim = max(DIMENSIONS.get(block.type, 0) for block in mesh.cells)
-    blocks = [i for i, b in enumerate(mesh.cells) if DIMENSIONS.get(b.type) == dim]
-    cell_types = {mesh.cells[i].type for i in blocks}
-    if dim != 3 or len(cell_types) != 1:
-        raise ValueError(f"Expected one type of solid cells, got {cell_types}.")
+    a meshio mesh. Lower-dimensional cell blocks (e.g. boundary faces) are ignored. A
+    mesh with more than one type of solid cells needs the cell type to take."""
+    types = solid_types(mesh)
+    if cell_type is None and len(types) == 1:
+        cell_type = types[0]
+    if cell_type not in types:
+        raise ValueError(f"Expected the type of solid cells to take, one of {types}.")
+    blocks = [i for i, b in enumerate(mesh.cells) if b.type == cell_type]
     cells = np.vstack([mesh.cells[i].data for i in blocks])
     tags = None
     if tag is not None:
         tags = np.concatenate([np.ravel(mesh.cell_data[tag][i]) for i in blocks])
     return SimpleNamespace(
-        points=mesh.points, cell_type=cell_types.pop(), cells=cells, tags=tags
+        points=mesh.points, cell_type=cell_type, cells=cells, tags=tags
     )

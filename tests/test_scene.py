@@ -80,4 +80,4 @@ def test_load_unusable_file(tmp_path):
     (tmp_path / "broken.vtu").write_text("not a mesh")
     text, result = load(tmp_path / "broken.vtu")
     assert '"error"' in text
-    assert result is None
+    assert result == {}

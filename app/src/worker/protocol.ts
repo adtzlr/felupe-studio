@@ -31,20 +31,32 @@ export interface BenchmarkResult {
   force: number;
 }
 
+/** Integer cell data of solid cells, offered to create cell sets. */
+export interface CellTag {
+  name: string;
+  /** The values with their number of cells; `label` is a Gmsh physical name. */
+  values: { value: number; cells: number; label?: string }[];
+}
+
+/** The solid cells of one cell type of a mesh file. */
+export interface SolidInfo {
+  cell_type: string;
+  cells: number;
+  bounds: [number[], number[]];
+  tags: CellTag[];
+}
+
 /** Result of `felupe_studio.meshes.inspect()`. */
 export interface MeshInfo {
   file: string;
   points?: number;
   blocks?: { type: string; cells: number }[];
-  cell_type?: string;
-  cells?: number;
+  /** One entry per type of solid cells that FElupe supports, in file order. */
+  solids?: SolidInfo[];
+  /** Solid cells without a region in FElupe, e.g. wedges. */
+  unsupported?: { type: string; cells: number }[];
   /** Lower-dimensional cell types that are ignored, e.g. boundary faces. */
   ignored?: string[];
-  bounds?: [number[], number[]];
-  tags?: {
-    name: string;
-    values: { value: number; cells: number; label?: string }[];
-  }[];
   /** Why the file cannot be used. */
   error?: string;
 }
@@ -78,6 +90,12 @@ export type FromWorker =
   | { type: "ready"; versions: Versions; timings: LoadTimings }
   | { type: "progress"; id: number; message: string }
   | { type: "benchmark-result"; id: number; result: BenchmarkResult }
-  | { type: "mesh-info"; id: number; info: MeshInfo; surface?: MeshSurface }
+  | {
+      type: "mesh-info";
+      id: number;
+      info: MeshInfo;
+      /** Outer surfaces by cell type. */
+      surfaces: Record<string, MeshSurface>;
+    }
   | { type: "done"; id: number }
   | { type: "error"; id?: number; message: string };

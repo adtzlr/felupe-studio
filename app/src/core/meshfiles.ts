@@ -3,12 +3,18 @@
 // of the Python worker, which reads them with meshio (felupe_studio.meshes) and
 // triangulates their outer surface for the viewer (felupe_studio.scene).
 import type { Command } from "./commands";
+import { solidOf } from "./meshinfo";
 import type { MeshInfo, MeshSurface } from "../worker/protocol";
 import { safeName } from "../worker/files";
 
 export type FileState =
   | { state: "reading" }
-  | { state: "ready"; info: MeshInfo; surface?: MeshSurface }
+  | {
+      state: "ready";
+      info: MeshInfo;
+      /** Outer surfaces of the solid cells by cell type, for the viewer. */
+      surfaces: Record<string, MeshSurface>;
+    }
   | { state: "error"; message: string };
 
 export interface MeshFile {
@@ -17,10 +23,10 @@ export interface MeshFile {
   status: FileState;
 }
 
-/** The summary of a mesh file and its outer surface (for usable files). */
+/** The summary of a mesh file and the outer surfaces of its solid cells. */
 export interface Inspection {
   info: MeshInfo;
-  surface?: MeshSurface;
+  surfaces?: Record<string, MeshSurface>;
 }
 
 /** Writes a file into the project directory of Python and inspects it. */
@@ -66,12 +72,12 @@ export class MeshFiles {
     if (!this.inspector)
       return set({ state: "error", message: "Python is not available." });
     try {
-      const { info, surface } = await this.inspector(key, data);
+      const { info, surfaces = {} } = await this.inspector(key, data);
       // a newer version of the file may have arrived meanwhile
       if (this.files.get(key)?.data !== data) return this.get(key)!;
       return info.error
         ? set({ state: "error", message: info.error })
-        : set({ state: "ready", info, surface });
+        : set({ state: "ready", info, surfaces });
     } catch (error) {
       return set({ state: "error", message: (error as Error).message });
     }
@@ -123,12 +129,18 @@ export function fileNotes(
       ]);
     } else if (file.status.state === "error") {
       notes.set(command.name, [`${command.file}: ${file.status.message}`]);
-    } else if (file.status.state === "ready" && command.tag) {
-      const tags = file.status.info.tags ?? [];
-      if (!tags.some((t) => t.name === command.tag)) {
-        notes.set(command.name, [
-          `The file '${command.file}' has no cell tag '${command.tag}'.`,
-        ]);
+    } else if (file.status.state === "ready") {
+      const choice = solidOf(file.status.info, command.cell_type);
+      if ("problem" in choice) {
+        notes.set(command.name, [choice.problem]);
+      } else if (
+        command.tag &&
+        !choice.solid.tags.some((t) => t.name === command.tag)
+      ) {
+        const subject = command.cell_type
+          ? `The ${command.cell_type} cells of the file '${command.file}' have`
+          : `The file '${command.file}' has`;
+        notes.set(command.name, [`${subject} no cell tag '${command.tag}'.`]);
       }
     }
   }

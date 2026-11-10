@@ -72,7 +72,7 @@ def evaluate(case, tmp_path, monkeypatch):
 
 def test_cases_exist():
     assert set(SAME_BODY) <= set(CASES)
-    assert "bar_two_materials" in CASES
+    assert {"bar_two_materials", "bar_cell_types"} <= set(CASES)
 
 
 @pytest.mark.parametrize("case", CASES)
@@ -128,3 +128,16 @@ def test_two_materials_reference():
         (HERE / "bar_two_materials" / "results.json").read_text(encoding="utf-8")
     )
     assert np.isclose(results["jobs"]["job_1"]["force"][-1], 0.66322, rtol=1e-5)
+
+
+def test_cell_types_close_to_hexahedra():
+    # the same bar, its right half of tetrahedra: one mesh per cell type of a file
+    hexahedra, mixed = (
+        json.loads((HERE / case / "results.json").read_text(encoding="utf-8"))
+        for case in ("bar_single_body", "bar_cell_types")
+    )
+    np.testing.assert_allclose(
+        mixed["jobs"]["job_1"]["force"],
+        hexahedra["jobs"]["job_1"]["force"],
+        rtol=1e-3,
+    )

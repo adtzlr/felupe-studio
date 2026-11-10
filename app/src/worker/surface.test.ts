@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toSurface, transferables } from "./surface";
+import { toSurface, toSurfaces, transferables } from "./surface";
 
 const bytes = (array: Float32Array | Uint32Array) =>
   new Uint8Array(array.buffer.slice(0));
@@ -36,6 +36,14 @@ describe("surface of Python", () => {
     expect([...surface.triangles]).toEqual([0, 1, 2]);
     expect(surface.faces).toBeUndefined();
     expect(transferables(surface)).toHaveLength(4);
+  });
+
+  it("converts the surfaces of all cell types", () => {
+    const surfaces = toSurfaces({ hexahedron: raw, tetra: raw });
+    expect(Object.keys(surfaces)).toEqual(["hexahedron", "tetra"]);
+    expect(toSurfaces(undefined)).toEqual({});
+    // shared buffers are transferred once
+    expect(transferables(...Object.values(surfaces))).toHaveLength(5);
   });
 
   it("rejects truncated arrays", () => {

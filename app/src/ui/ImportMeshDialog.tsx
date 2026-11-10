@@ -4,10 +4,12 @@ import { useEffect, useState } from "preact/hooks";
 import {
   type CellSetMode,
   defaultMode,
+  describePlanned,
   planImport,
   suggestMeshName,
 } from "../core/importmesh";
 import type { MeshFiles } from "../core/meshfiles";
+import { fileTags } from "../core/meshinfo";
 import type { ModelStore } from "../core/store";
 import { nameProblem } from "../core/validate";
 import { safeName } from "../worker/files";
@@ -31,21 +33,38 @@ const range = (a: number, b: number) =>
   `${+a.toPrecision(4)} … ${+b.toPrecision(4)}`;
 
 function Summary({ info }: { info: MeshInfo }) {
-  const [min, max] = info.bounds ?? [[], []];
+  const solids = info.solids ?? [];
+  const min = [0, 1, 2].map((i) =>
+    Math.min(...solids.map((s) => s.bounds[0][i])),
+  );
+  const max = [0, 1, 2].map((i) =>
+    Math.max(...solids.map((s) => s.bounds[1][i])),
+  );
   return (
     <dl class="summary">
       <dt>Cells</dt>
       <dd>
-        {plural(info.cells ?? 0, `${info.cell_type} cell`)} ·{" "}
+        {solids.map((s) => plural(s.cells, `${s.cell_type} cell`)).join(", ")} ·{" "}
         {plural(info.points ?? 0, "point")}
       </dd>
-      {min.length > 0 && (
+      {solids.length > 0 && (
         <>
           <dt>Bounds</dt>
           <dd>
             {["x", "y", "z"]
               .map((axis, i) => `${axis} ${range(min[i], max[i])}`)
               .join(", ")}
+          </dd>
+        </>
+      )}
+      {(info.unsupported?.length ?? 0) > 0 && (
+        <>
+          <dt>Not imported</dt>
+          <dd>
+            {info
+              .unsupported!.map((u) => plural(u.cells, `${u.type} cell`))
+              .join(", ")}{" "}
+            (FElupe has no region for them)
           </dd>
         </>
       )}
@@ -111,14 +130,10 @@ export function ImportMeshDialog({
     ? "Required."
     : (nameProblem(name) ??
       (store.get(name) ? `The name '${name}' is already used.` : undefined));
-  const plan =
-    info && !nameError
-      ? planImport(info, name, mode, store.commands)
-      : undefined;
-  const tag =
-    mode.mode === "tag"
-      ? info?.tags?.find((t) => t.name === mode.tag)
-      : undefined;
+  const planned =
+    info && !nameError ? planImport(info, name, mode, store.commands) : [];
+  const plan = planned.length > 0 ? planned : undefined;
+  const tags = info ? fileTags(info) : [];
 
   const submit = (event: Event) => {
     event.preventDefault();
@@ -213,14 +228,14 @@ export function ImportMeshDialog({
               </div>
               <fieldset class="choices">
                 <legend class="form-label">Cell sets</legend>
-                {(info.tags?.length ?? 0) > 0 && (
+                {tags.length > 0 && (
                   <label class="check">
                     <input
                       type="radio"
                       name="cellsets"
                       checked={mode.mode === "tag"}
                       onChange={() =>
-                        setMode({ mode: "tag", tag: info.tags![0].name })
+                        setMode({ mode: "tag", tag: tags[0].name })
                       }
                     />
                     One per value of the cell tag
@@ -228,7 +243,7 @@ export function ImportMeshDialog({
                 )}
                 {mode.mode === "tag" && (
                   <div class="choice-detail">
-                    {info.tags!.length > 1 && (
+                    {tags.length > 1 && (
                       <select
                         aria-label="Cell tag"
                         value={mode.tag}
@@ -239,14 +254,14 @@ export function ImportMeshDialog({
                           })
                         }
                       >
-                        {info.tags!.map((t) => (
+                        {tags.map((t) => (
                           <option key={t.name} value={t.name}>
                             {t.name} ({plural(t.values.length, "value")})
                           </option>
                         ))}
                       </select>
                     )}
-                    {info.tags!.length === 1 && <code>{mode.tag}</code>}
+                    {tags.length === 1 && <code>{mode.tag}</code>}
                   </div>
                 )}
                 <label class="check">
@@ -272,25 +287,18 @@ export function ImportMeshDialog({
                 <div class="plan" aria-label="Will be created">
                   <span class="muted">Creates</span>
                   <ul>
-                    <li>
-                      mesh <strong>{plan[0].name}</strong>
-                    </li>
-                    {plan.slice(1).map((c) => {
-                      const value =
-                        c.command === "cellset.from_tag" ? c.value : undefined;
-                      const entry = tag?.values.find((v) => v.value === value);
-                      const cells = entry?.cells ?? info.cells ?? 0;
-                      return (
-                        <li key={c.name}>
-                          cell set <strong>{c.name}</strong>{" "}
-                          <span class="muted">
-                            {value !== undefined &&
-                              `${mode.mode === "tag" ? mode.tag : ""} = ${value}, `}
-                            {plural(cells, "cell")}
-                          </span>
-                        </li>
-                      );
-                    })}
+                    {plan.map((c) => (
+                      <li
+                        key={c.name}
+                        class={c.command === "mesh.import" ? "" : "nested"}
+                      >
+                        {c.command === "mesh.import" ? "mesh" : "cell set"}{" "}
+                        <strong>{c.name}</strong>{" "}
+                        <span class="muted">
+                          {describePlanned(c, plan, info)}
+                        </span>
+                      </li>
+                    ))}
                   </ul>
                 </div>
               )}
