@@ -174,6 +174,8 @@ describe("results", () => {
       faces: surface.faces,
       edges: surface.edges,
       values: new Float32Array([0, 0.1, 0.2, 0.5]),
+      owners: new Uint32Array([0, 0]),
+      nodes: new Int32Array([0, 1, 2, 3]),
     })),
   };
 

@@ -73,6 +73,8 @@ describe("result scene of Python", () => {
       faces: null,
       edges: bytes(new Uint32Array([0, 1])),
       values: bytes(new Float32Array([0, 0.5, 0])),
+      owners: bytes(new Uint32Array([4])),
+      nodes: bytes(new Int32Array([7, -1, 9])),
     };
     const meta = {
       label: "Displacement",
@@ -87,6 +89,8 @@ describe("result scene of Python", () => {
     expect([...surface.values]).toEqual([0, 0.5, 0]);
     expect(surface.faces).toBeUndefined();
     expect(surface.positions.buffer).toBe(raw.positions.buffer);
-    expect(resultTransferables(scene)).toHaveLength(5);
+    expect([...surface.owners]).toEqual([4]);
+    expect([...surface.nodes]).toEqual([7, -1, 9]);
+    expect(resultTransferables(scene)).toHaveLength(7);
   });
 });

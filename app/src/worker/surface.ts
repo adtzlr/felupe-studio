@@ -92,6 +92,8 @@ export interface RawResultSurface {
   faces?: Uint8Array | null;
   edges: Uint8Array;
   values: Uint8Array;
+  owners: Uint8Array;
+  nodes: Uint8Array;
 }
 
 export function toResultScene(
@@ -106,6 +108,8 @@ export function toResultScene(
       triangles: view(Uint32Array, s.triangles),
       edges: view(Uint32Array, s.edges),
       values: view(Float32Array, s.values),
+      owners: view(Uint32Array, s.owners),
+      nodes: view(Int32Array, s.nodes),
     };
     if (s.faces) surface.faces = view(Uint32Array, s.faces);
     return surface;
@@ -124,6 +128,8 @@ export function resultTransferables(scene: ResultScene): ArrayBuffer[] {
       s.faces,
       s.edges,
       s.values,
+      s.owners,
+      s.nodes,
     ]) {
       if (array) buffers.add(array.buffer as ArrayBuffer);
     }

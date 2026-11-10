@@ -23,6 +23,7 @@ import {
   type MeshLayer,
   type ResultContent,
 } from "./scene";
+import { deformedPositions, type Probe, probeAt, projectPoint } from "./probe";
 import { snapshot } from "./snapshot";
 
 export type CreateViewer = typeof createViewer;
@@ -94,6 +95,11 @@ export class Viewer {
   private arrows: readonly Arrows[] = [];
   private legend: readonly LegendEntry[] | undefined;
   private result: ResultContent | undefined;
+  /** The drawn surfaces of the result, for probing (cached per scene and scale). */
+  private drawn?: {
+    result: ResultContent;
+    surfaces: { positions: Float32Array; triangles: Uint32Array }[];
+  };
   private plane: { point: Vec3; normal: Vec3 } | undefined;
   private scheduled = false;
   private down: { x: number; y: number } | undefined;
@@ -132,6 +138,49 @@ export class Viewer {
     const redraw = this.handle.redraw;
     if (!this.available || !redraw) return undefined;
     return snapshot(this.handle.root, () => redraw());
+  }
+
+  /**
+   * The point of the result under a point of the view (pixels from its top left
+   * corner): the hit triangle of a section and its nearest point (#85).
+   */
+  probeAt(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ): Probe | undefined {
+    const result = this.result;
+    if (!result) return undefined;
+    const ray = this.rayAt(x, y, width, height);
+    if (!ray) return undefined;
+    if (
+      this.drawn?.result.scene !== result.scene ||
+      this.drawn.result.scale !== result.scale
+    ) {
+      this.drawn = {
+        result,
+        surfaces: result.scene.surfaces.map((s) => ({
+          positions: deformedPositions(
+            s.positions,
+            s.displacement,
+            result.scale,
+          ),
+          triangles: s.triangles,
+        })),
+      };
+    }
+    return probeAt(ray, this.drawn.surfaces);
+  }
+
+  /** The position of a point in the view of the given size, in pixels. */
+  project(
+    point: Vec3,
+    width: number,
+    height: number,
+  ): [number, number] | undefined {
+    const camera = this.handle.camera;
+    return camera ? projectPoint(camera, point, width, height) : undefined;
   }
 
   /** Show the result of a substep (deformed surfaces with a contour), or none. */

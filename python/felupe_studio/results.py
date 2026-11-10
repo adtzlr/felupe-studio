@@ -107,6 +107,19 @@ def _restore(job, substep):
         f.values[:] = values
 
 
+def _nodes(surface):
+    """Return the point of the mesh of every point of a surface, or -1 for a point
+    inside a subdivided face (interpolated from several points of the mesh)."""
+    interpolation = surface.interpolation.tocsr()
+    nodes = np.full(interpolation.shape[0], -1)
+    counts = np.diff(interpolation.indptr)
+    single = counts == 1
+    rows = interpolation.indptr[:-1][single]
+    exact = np.isclose(interpolation.data[rows], 1.0)
+    nodes[np.flatnonzero(single)[exact]] = interpolation.indices[rows][exact]
+    return nodes
+
+
 def _data(kind, section):
     """Return the data of a section of the current values of the fields: at the
     points (displacements) or at the cells (the means of the quadrature points)."""
@@ -149,8 +162,10 @@ def scene(job, substep, quantity):
         without finite values), and the surface of every section: its ``name``,
         ``positions`` (three coordinates per point of the surface), ``displacement``
         (three components per point), ``triangles``, ``faces`` (to shade the faces of
-        linear cells flat; ``None`` for curved faces), ``edges`` and ``values`` as
-        bytes.
+        linear cells flat; ``None`` for curved faces), ``edges``, ``values``,
+        ``owners`` (the cell of the section of every triangle) and ``nodes`` (the
+        point of the mesh of every point of the surface, -1 inside a subdivided
+        face) as bytes.
     """
     kind, component, label = QUANTITIES[quantity]
     _restore(job, substep)
@@ -188,6 +203,8 @@ def scene(job, substep, quantity):
                 "faces": _bytes(surface.faces, "<u4") if order == 1 else None,
                 "edges": _bytes(surface.edges, "<u4"),
                 "values": _bytes(values, "<f4"),
+                "owners": _bytes(surface.owners, "<u4"),
+                "nodes": _bytes(_nodes(surface), "<i4"),
             }
         )
 

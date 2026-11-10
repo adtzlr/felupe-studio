@@ -1,6 +1,7 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import type { ResultView } from "../core/results";
+import { formatValue, type ResultView } from "../core/results";
+import { type ProbeInfo, probeInfo } from "../viewer/probe";
 import {
   type Capture,
   type CreateViewer,
@@ -33,6 +34,51 @@ interface Props {
   children?: ComponentChildren;
   /** Set to a function that returns a PNG of the view (none without a view). */
   capture?: Capture;
+}
+
+/** The value under the pointer, at a position of the view. */
+interface Hover {
+  x: number;
+  y: number;
+  /** The width of the view, to keep the tooltip inside. */
+  width: number;
+  info: ProbeInfo;
+  /** The position of the point of a value at the points, in the view. */
+  ring?: [number, number];
+}
+
+const value = (v: number | null) => (v === null ? "–" : formatValue(v));
+
+/** The tooltip of the value under the pointer, and the ring of its point. */
+function ProbeTooltip({ hover }: { hover: Hover }) {
+  const { x, y, width, info, ring } = hover;
+  const left = x + 14 + 240 > width ? Math.max(x - 254, 0) : x + 14;
+  return (
+    <>
+      {ring && (
+        <div
+          class="probe-ring"
+          style={{ left: `${ring[0]}px`, top: `${ring[1]}px` }}
+        />
+      )}
+      <div
+        class="probe-tooltip"
+        role="tooltip"
+        style={{ left: `${left}px`, top: `${y + 14}px` }}
+      >
+        <strong>
+          {info.label} = {value(info.value)}
+        </strong>
+        {info.displacement && (
+          <>
+            <br />u = ({info.displacement.map((c) => value(c)).join(", ")})
+          </>
+        )}
+        <br />
+        <span class="muted">{info.where}</span>
+      </div>
+    </>
+  );
 }
 
 type Loaded =
@@ -149,6 +195,50 @@ export function ResultsView({
     [],
   );
 
+  // the value under the pointer, once per frame; none while the view is moved
+  const [hover, setHover] = useState<Hover>();
+  useEffect(() => {
+    setHover(undefined);
+    const element = host.current;
+    if (!element || !scene) return;
+    let frame = 0;
+    let last: { x: number; y: number } | undefined;
+    const update = () => {
+      frame = 0;
+      const canvas = element.querySelector("canvas");
+      if (!last || !canvas || !viewer.current) return;
+      const { width, height } = canvas.getBoundingClientRect();
+      const probe = viewer.current.probeAt(last.x, last.y, width, height);
+      if (!probe) return setHover(undefined);
+      const info = probeInfo(scene, probe);
+      const ring = info.atPoint
+        ? viewer.current.project(probe.position, width, height)
+        : undefined;
+      setHover({ ...last, width, info, ring });
+    };
+    const clear = () => {
+      last = undefined;
+      setHover(undefined);
+    };
+    const move = (event: PointerEvent) => {
+      if (event.buttons) return clear();
+      const rect = element.getBoundingClientRect();
+      last = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+      frame ||= requestAnimationFrame(update);
+    };
+    element.addEventListener("pointermove", move);
+    element.addEventListener("pointerleave", clear);
+    element.addEventListener("pointerdown", clear);
+    element.addEventListener("wheel", clear, { passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      element.removeEventListener("pointermove", move);
+      element.removeEventListener("pointerleave", clear);
+      element.removeEventListener("pointerdown", clear);
+      element.removeEventListener("wheel", clear);
+    };
+  }, [scene, view?.scale]);
+
   const message = running
     ? "Solving …"
     : !view
@@ -186,6 +276,7 @@ export function ResultsView({
       )}
       {message && <p class="viewport-message muted">{message}</p>}
       {view && !running && children}
+      {shown && hover && <ProbeTooltip hover={hover} />}
       {shown && loading && (
         <p class="viewport-status muted" role="status">
           Loading …
