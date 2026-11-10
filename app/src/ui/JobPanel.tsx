@@ -4,6 +4,7 @@ import {
   type JobProgress,
   type JobRun,
 } from "../core/jobs";
+import type { Command } from "../core/commands";
 import { curvePoint, formatValue as format } from "../core/results";
 import type { ModelStore } from "../core/store";
 
@@ -17,9 +18,45 @@ interface Props {
 
 const seconds = (time: number) => `${time.toFixed(time < 10 ? 2 : 1)} s`;
 
-function Running({ progress }: { progress: JobProgress }) {
+/** Whether a job of a command list retries substeps with a cutback. */
+const usesCutback = (commands: readonly Command[]) =>
+  commands.some((c) => c.command === "job.add" && c.cutback);
+
+/** A line of the running job that does not wrap, so the panel keeps its size. */
+const Line = ({ text, class: name }: { text: string; class?: string }) => (
+  <p class={`job-line ${name ?? ""}`.trim()} title={text || undefined}>
+    {text || "\u00a0"}
+  </p>
+);
+
+/**
+ * The progress of the running job in a fixed number of lines (#108): the position,
+ * the Newton iteration (empty between iterations) and, with a cutback, its retries.
+ */
+function Running({
+  progress,
+  cutback,
+}: {
+  progress: JobProgress;
+  cutback: boolean;
+}) {
   const percent = Math.round(fraction(progress) * 100);
-  const { job, jobs } = progress;
+  const { job, jobs, failed } = progress;
+  const position = job
+    ? `${jobs.length > 1 ? `Job ${jobs.indexOf(job) + 1} of ${jobs.length} · ` : ""}` +
+      `Step ${progress.step} of ${progress.steps} · substep ${progress.substep} of ${progress.substeps}`
+    : "Preparing the model …";
+  const newton =
+    job && progress.iteration > 0
+      ? `Newton iteration ${progress.iteration}` +
+        (progress.fnorm !== null
+          ? ` · residuals ${progress.fnorm.toExponential(2)}`
+          : "")
+      : "";
+  const n = failed.length;
+  const retries = n
+    ? `Cutback: ${n === 1 ? "1 attempt" : `${n} attempts`} retried with smaller increments`
+    : "Cutback: no retries";
   return (
     <>
       <div
@@ -32,23 +69,15 @@ function Running({ progress }: { progress: JobProgress }) {
       >
         <div style={{ width: `${percent}%` }} />
       </div>
-      {job ? (
-        <p>
-          {jobs.length > 1 &&
-            `Job ${jobs.indexOf(job) + 1} of ${jobs.length} · `}
-          Step {progress.step} of {progress.steps} · substep {progress.substep}{" "}
-          of {progress.substeps}
-          {progress.iteration > 0 && (
-            <>
-              <br />
-              Newton iteration {progress.iteration}
-              {progress.fnorm !== null &&
-                ` · residuals ${progress.fnorm.toExponential(2)}`}
-            </>
-          )}
+      <Line text={position} />
+      <Line text={newton} class="muted" />
+      {(cutback || n > 0) && (
+        <p
+          class={`job-line ${n ? "warning" : "muted"}`}
+          title={n ? failed.join("\n") : undefined}
+        >
+          {retries}
         </p>
-      ) : (
-        <p>Preparing the model …</p>
       )}
     </>
   );
@@ -90,10 +119,7 @@ export function JobPanel({ run, store, onDismiss, onShowResults }: Props) {
         )}
       </div>
       {run.state === "running" && (
-        <>
-          <Running progress={run.progress} />
-          <Cutbacks progress={run.progress} />
-        </>
+        <Running progress={run.progress} cutback={usesCutback(run.commands)} />
       )}
       {run.state === "finished" && (
         <>
