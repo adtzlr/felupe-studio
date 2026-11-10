@@ -19,8 +19,26 @@ from .commands import SCHEMA_VERSION, schema, schema_errors
 
 SUFFIX = ".felupe.json"
 
+
+def _ramp_items(document):
+    """Schema version 1 → 2: the ramp of a step has items with their own values
+    (``boundary`` and ``also`` become items with the same ``start`` and ``end``)."""
+    commands = []
+    for cmd in document.get("commands", []):
+        ramp = cmd.get("ramp") if isinstance(cmd, dict) else None
+        if cmd.get("command") == "step.add" and isinstance(ramp, dict):
+            values = {k: ramp[k] for k in ("start", "end") if k in ramp}
+            also = ramp.get("also", [])
+            targets = [ramp.get("boundary"), *(also if isinstance(also, list) else [])]
+            ramp = {k: ramp[k] for k in ("num",) if k in ramp}
+            ramp["items"] = [{"target": t, **values} for t in targets]
+            cmd = {**cmd, "ramp": ramp}
+        commands.append(cmd)
+    return {**document, "schema_version": 2, "commands": commands}
+
+
 # migrations from a schema version to the next one: {version: function(document)}
-MIGRATIONS = {}
+MIGRATIONS = {1: _ramp_items}
 
 
 class ProjectError(ValueError):

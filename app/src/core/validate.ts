@@ -41,6 +41,9 @@ export const KINDS: Record<CommandType, Kind> = {
   "job.add": "job",
 };
 
+/** Kinds of objects that a step can ramp (a load case is a boundary). */
+export const RAMPED: readonly Kind[] = ["boundary"];
+
 /** References of a command: field → [kind, is a list]. */
 export const REFERENCES: Partial<
   Record<CommandType, Record<string, [Kind, boolean]>>
@@ -75,8 +78,8 @@ export function references(
     result.push(...names.map((name) => ({ field, name })));
   }
   if (command.command === "step.add" && command.ramp) {
-    for (const name of [command.ramp.boundary, ...(command.ramp.also ?? [])])
-      result.push({ field: "ramp", name });
+    for (const item of command.ramp.items)
+      result.push({ field: "ramp", name: item.target });
   }
   return result;
 }
@@ -124,10 +127,9 @@ export function renameReferences(
       copy[field] = value.map((n) => (n === from ? to : n));
     else if (value === from) copy[field] = to;
   }
-  const ramp = copy.ramp as { boundary: string; also?: string[] } | undefined;
+  const ramp = copy.ramp as { items: { target: string }[] } | undefined;
   if (command.command === "step.add" && ramp) {
-    if (ramp.boundary === from) ramp.boundary = to;
-    if (ramp.also) ramp.also = ramp.also.map((n) => (n === from ? to : n));
+    for (const item of ramp.items) if (item.target === from) item.target = to;
   }
   return copy as unknown as Command;
 }
@@ -184,12 +186,18 @@ export function validate(commands: readonly Command[]): Issue[] {
       }
     }
 
-    // the ramped boundary of a step
+    // the ramped items of a step
     if (cmd.command === "step.add" && cmd.ramp) {
-      for (const ref of [cmd.ramp.boundary, ...(cmd.ramp.also ?? [])]) {
-        if (kindOf(ref) !== "boundary") {
+      const targets = cmd.ramp.items.map((item) => item.target);
+      for (const ref of targets) {
+        const kind = kindOf(ref);
+        if (kind === undefined || !RAMPED.includes(kind)) {
           add(`step '${name}' ramps unknown boundary '${ref}'.`);
         }
+      }
+      const twice = targets.filter((t, i) => targets.indexOf(t) !== i);
+      for (const ref of [...new Set(twice)].sort()) {
+        add(`step '${name}' ramps '${ref}' twice.`);
       }
     }
 

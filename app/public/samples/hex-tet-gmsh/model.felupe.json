@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "commands": [
     {
       "command": "mesh.import",
@@ -85,9 +85,13 @@
       "command": "step.add",
       "name": "tension",
       "ramp": {
-        "boundary": "pull",
-        "end": 15,
-        "num": 5
+        "num": 5,
+        "items": [
+          {
+            "target": "pull",
+            "end": 15
+          }
+        ]
       }
     },
     {

@@ -21,7 +21,7 @@ def test_layout_does_not_depend_on_key_order():
     document = json.loads((DATA / "two_sections.json").read_text(encoding="utf-8"))
     shuffled = {
         "commands": [dict(reversed(list(c.items()))) for c in document["commands"]],
-        "schema_version": 1,
+        "schema_version": 2,
     }
     text = (DATA / "two_sections.felupe.json").read_text(encoding="utf-8")
     assert dumps(document) == text
@@ -31,7 +31,7 @@ def test_layout_does_not_depend_on_key_order():
 def test_one_command_per_block():
     text = (DATA / "two_sections.felupe.json").read_text(encoding="utf-8")
     lines = text.splitlines()
-    assert lines[:3] == ["{", '  "schema_version": 1,', '  "commands": [']
+    assert lines[:3] == ["{", '  "schema_version": 2,', '  "commands": [']
     starts = [i for i, line in enumerate(lines) if line == "    {"]
     assert len(starts) == 13
     assert all(lines[i + 1].startswith('      "command": ') for i in starts)
@@ -81,14 +81,14 @@ def test_invalid_files():
     with pytest.raises(ProjectError, match="no valid schema_version"):
         loads('{"commands": []}')
     with pytest.raises(ProjectError, match="Please update"):
-        loads('{"schema_version": 2, "commands": []}')
+        loads('{"schema_version": 3, "commands": []}')
     with pytest.raises(ProjectError) as error:
-        loads('{"schema_version": 1, "commands": [{"command": "mesh.import"}]}')
+        loads('{"schema_version": 2, "commands": [{"command": "mesh.import"}]}')
     assert error.value.errors
 
 
 def test_references_are_not_checked_when_loading():
-    text = '{"schema_version": 1, "commands": [{"command": "cellset.from_file", '
+    text = '{"schema_version": 2, "commands": [{"command": "cellset.from_file", '
     text += '"name": "a", "mesh": "missing"}]}'
     assert loads(text)["commands"][0]["mesh"] == "missing"
 
@@ -110,3 +110,22 @@ def test_migration_hook(monkeypatch):
     monkeypatch.delitem(project.MIGRATIONS, 0)
     with pytest.raises(ProjectError, match="No migration from schema version 0"):
         loads(json.dumps(old))
+
+
+def test_migration_of_ramps_from_version_1():
+    old = json.loads((DATA / "two_sections.json").read_text(encoding="utf-8"))
+    old["schema_version"] = 1
+    step = next(c for c in old["commands"] if c["command"] == "step.add")
+    step["ramp"] = {"boundary": "move", "also": ["fixed"], "end": 0.5, "num": 5}
+    new = loads(json.dumps(old))
+    assert new["schema_version"] == 2
+    step = next(c for c in new["commands"] if c["command"] == "step.add")
+    assert step["ramp"] == {
+        "num": 5,
+        "items": [
+            {"target": "move", "end": 0.5},
+            {"target": "fixed", "end": 0.5},
+        ],
+    }
+    # the other commands are unchanged
+    assert new["commands"][:-2] == old["commands"][:-2]

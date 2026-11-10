@@ -14,10 +14,10 @@ export interface FieldInfo {
   /** Initial value of a required field of a new object. */
   default?: unknown;
   /**
-   * Key of another reference field: its objects are not offered here, e.g. the
-   * ramped boundary in the further boundaries of a ramp.
+   * A column of rows (an array of objects) whose objects may appear only once,
+   * e.g. a step ramps a boundary only once.
    */
-  excludes?: string;
+  unique?: boolean;
 }
 
 export type Tab = "mesh" | "materials" | "sections" | "loads" | "steps";
@@ -250,17 +250,15 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     prefix: "step",
     fields: {
       sections: { label: "Sections", placeholder: "all" },
-      ramp: { label: "Ramp a boundary" },
-      "ramp.boundary": { label: "Boundary" },
-      "ramp.also": {
-        label: "Also ramped",
-        hint: "Further boundaries with the same values, e.g. equi-biaxial",
-        placeholder: "none",
-        excludes: "ramp.boundary",
-      },
-      "ramp.start": { label: "Start", placeholder: "0" },
-      "ramp.end": { label: "End", default: 1 },
+      ramp: { label: "Ramp" },
       "ramp.num": { label: "Increments", default: 5 },
+      "ramp.items": {
+        label: "Ramped",
+        hint: "Boundaries or load cases, each from its start to its end value",
+      },
+      "ramp.items.target": { label: "Boundary", unique: true },
+      "ramp.items.start": { label: "Start", placeholder: "0" },
+      "ramp.items.end": { label: "End", default: 1 },
     },
   },
   "job.add": {

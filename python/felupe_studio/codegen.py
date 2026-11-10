@@ -296,12 +296,33 @@ def codegen(document, evaluate=True, check_schema=True):
             lines = [_List(("solid_" + n for n in names), prefix="items=")]
             if "ramp" in step:
                 r = step["ramp"]
-                values = f"[{r.get('start', 0)!r}, {r['end']!r}]"
                 ramp = f"ramp_{step['name']}"
                 num = f"num={r['num']!r}"
-                out.append(_call(ramp, "fem.math.linsteps", [values, num]))
-                names = [r["boundary"], *r.get("also", [])]
-                items = [item for b in names for item in ramped(b, ramp)]
+
+                def linsteps(item):
+                    return f"[{item.get('start', 0)!r}, {item['end']!r}]"
+
+                if len({linsteps(item) for item in r["items"]}) == 1:
+                    # the same values for all items: one array
+                    args = [linsteps(r["items"][0]), num]
+                    out.append(_call(ramp, "fem.math.linsteps", args))
+                    values = {item["target"]: ramp for item in r["items"]}
+                else:
+                    # an array per item, in the order of the items
+                    out.append(f"{ramp} = [")
+                    for item in r["items"]:
+                        call = f"fem.math.linsteps({linsteps(item)}, {num})"
+                        out.append(f"    {call},  # {item['target']}")
+                    out.append("]")
+                    values = {
+                        item["target"]: f"{ramp}[{i}]"
+                        for i, item in enumerate(r["items"])
+                    }
+                items = [
+                    entry
+                    for target, value in values.items()
+                    for entry in ramped(target, value)
+                ]
                 lines.append(_Dict(items, prefix="ramp="))
             lines.append("boundaries=boundaries")
             out.append(f"{step['name']} = fem.Step(\n{_explode(lines)})")

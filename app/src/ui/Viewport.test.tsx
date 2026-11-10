@@ -345,7 +345,7 @@ describe("Viewport", () => {
         {
           command: "step.add",
           name: "step_1",
-          ramp: { boundary: "move", end: 0.5, num: 2 },
+          ramp: { num: 2, items: [{ target: "move", end: 0.5 }] },
         },
       ].map((command) => ({
         type: "add" as const,

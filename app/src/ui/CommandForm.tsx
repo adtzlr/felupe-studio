@@ -1,9 +1,11 @@
 // Form of a command. Its fields come from the schema and the registry (form.ts);
 // this component only renders them and collects the input.
-import type { ComponentChildren } from "preact";
+import { type ComponentChildren, Fragment } from "preact";
 import { useState } from "preact/hooks";
 import type { Command } from "../core/commands";
 import {
+  addRow,
+  cells,
   choiceOptions,
   type Context,
   type Draft,
@@ -131,6 +133,9 @@ export function CommandForm({
         .join(" ") || undefined;
     const common = {
       id,
+      // a cell of rows has no visible label of its own
+      "aria-label":
+        spec.row === undefined ? undefined : `${spec.label} ${spec.row + 1}`,
       "aria-invalid": error ? true : undefined,
       "aria-describedby": describedBy,
     };
@@ -247,7 +252,7 @@ export function CommandForm({
         );
       }
       case "reference": {
-        const names = offered(type, spec, draft, context);
+        const names = offered(spec, draft, context);
         const kind = KIND_LABELS[input.kind].toLowerCase();
         if (!input.multiple) {
           const current = typeof value === "string" ? value : "";
@@ -319,6 +324,7 @@ export function CommandForm({
       }
       case "toggle":
       case "boolean":
+      case "rows":
         return null;
     }
   };
@@ -383,6 +389,112 @@ export function CommandForm({
               />
               {spec.label}
             </label>
+          );
+        }
+        if (spec.input.type === "rows") {
+          const { columns, minItems } = spec.input;
+          const rows = cells(spec, draft);
+          const seed = addRow(type, spec, draft, context).at(-1)!;
+          // a new row needs an object that is not used yet
+          const full = columns.some(
+            (c) => c.unique && c.required && seed[c.path.at(-1)!] === undefined,
+          );
+          const template = [
+            ...columns.map((c) =>
+              c.input.type === "reference"
+                ? "minmax(0, 1.6fr)"
+                : "minmax(0, 1fr)",
+            ),
+            "28px",
+          ].join(" ");
+          return (
+            <div
+              key={spec.key}
+              id={id}
+              tabIndex={-1}
+              class={spec.path.length > 1 ? "form-rows nested" : "form-rows"}
+              role="group"
+              aria-labelledby={`${id}-label`}
+              aria-describedby={spec.hint ? `${id}-hint` : undefined}
+            >
+              <span
+                id={`${id}-label`}
+                class="form-label"
+                title={spec.description}
+              >
+                {spec.label}
+              </span>
+              <div class="rows" style={{ gridTemplateColumns: template }}>
+                {columns.map((c) => (
+                  <span key={c.key} class="rows-head" aria-hidden="true">
+                    {c.label}
+                  </span>
+                ))}
+                <span />
+                {rows.map((row, i) => (
+                  <Fragment key={i}>
+                    {row.map((cell) => (
+                      <div key={cell.key} class="rows-cell">
+                        {control(cell)}
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      class="icon-button"
+                      aria-label={`Remove row ${i + 1}`}
+                      title="Remove"
+                      disabled={rows.length <= Math.max(minItems, 1)}
+                      onClick={() => {
+                        const value = getValue(draft, spec.path) as Draft[];
+                        change(
+                          spec,
+                          value.filter((_, j) => j !== i),
+                        );
+                      }}
+                    >
+                      ×
+                    </button>
+                    {row.map((cell) => {
+                      const message = errorOf(cell.key);
+                      return (
+                        message && (
+                          <small
+                            key={`${cell.key}-error`}
+                            id={`${fieldId(cell.key)}-error`}
+                            class="field-error rows-error"
+                          >
+                            {cell.label} {i + 1}: {message}
+                          </small>
+                        )
+                      );
+                    })}
+                  </Fragment>
+                ))}
+              </div>
+              <div class="rows-actions">
+                <button
+                  type="button"
+                  class="button"
+                  disabled={full}
+                  title={full ? "Every object is used" : undefined}
+                  onClick={() =>
+                    change(spec, addRow(type, spec, draft, context))
+                  }
+                >
+                  + Add row
+                </button>
+              </div>
+              {spec.hint && (
+                <small id={`${id}-hint`} class="muted">
+                  {spec.hint}
+                </small>
+              )}
+              {error && (
+                <small id={`${id}-error`} class="field-error">
+                  {error}
+                </small>
+              )}
+            </div>
           );
         }
         const group =

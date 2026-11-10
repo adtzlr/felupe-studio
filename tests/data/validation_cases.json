@@ -2,7 +2,7 @@
   {
     "name": "valid",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -92,10 +92,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {
@@ -113,7 +117,7 @@
   {
     "name": "unknown mesh",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -203,10 +207,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {
@@ -226,7 +234,7 @@
   {
     "name": "wrong kind",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -316,10 +324,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {
@@ -339,7 +351,7 @@
   {
     "name": "unknown point set",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -429,10 +441,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {
@@ -452,7 +468,7 @@
   {
     "name": "step with a cell set",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -542,10 +558,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           },
           "sections": [
             "hard"
@@ -568,7 +588,7 @@
   {
     "name": "ramp of a point set",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -658,10 +678,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "left",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "left",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {
@@ -681,7 +705,7 @@
   {
     "name": "unknown curve",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -771,10 +795,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {
@@ -792,9 +820,9 @@
     ]
   },
   {
-    "name": "ramp also",
+    "name": "ramp of two items",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -884,12 +912,17 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
             "num": 5,
-            "also": [
-              "fixed"
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              },
+              {
+                "target": "fixed",
+                "end": 0
+              }
             ]
           }
         },
@@ -906,9 +939,9 @@
     "errors": []
   },
   {
-    "name": "ramp also unknown",
+    "name": "ramp of an unknown item",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -998,13 +1031,21 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
             "num": 5,
-            "also": [
-              "fixed",
-              "left"
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              },
+              {
+                "target": "fixed",
+                "end": 0
+              },
+              {
+                "target": "left",
+                "end": 0
+              }
             ]
           }
         },
@@ -1023,9 +1064,130 @@
     ]
   },
   {
+    "name": "ramp of an item twice",
+    "document": {
+      "schema_version": 2,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              },
+              {
+                "target": "move",
+                "end": 1
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/11: step 'step_1' ramps 'move' twice."
+    ]
+  },
+  {
     "name": "duplicate name",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -1115,10 +1277,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {
@@ -1139,7 +1305,7 @@
   {
     "name": "mesh without tag",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -1228,10 +1394,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {
@@ -1252,7 +1422,7 @@
   {
     "name": "mesh with cell type",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -1343,10 +1513,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {
@@ -1364,7 +1538,7 @@
   {
     "name": "NeoHooke without bulk",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -1453,10 +1627,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {
@@ -1476,7 +1654,7 @@
   {
     "name": "NeoHooke with bulk",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -1566,10 +1744,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {
@@ -1587,7 +1769,7 @@
   {
     "name": "MooneyRivlin without bulk",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -1677,10 +1859,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {
@@ -1700,7 +1886,7 @@
   {
     "name": "load case ramped and recorded",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -1795,10 +1981,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "tension",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "tension",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {
@@ -1816,7 +2006,7 @@
   {
     "name": "load case with the same axes",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -1912,10 +2102,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {
@@ -1935,7 +2129,7 @@
   {
     "name": "load case without support",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -2031,10 +2225,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {
@@ -2054,7 +2252,7 @@
   {
     "name": "keyword",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -2144,10 +2342,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {
@@ -2167,7 +2369,7 @@
   {
     "name": "reserved name",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -2257,10 +2459,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {
@@ -2280,7 +2486,7 @@
   {
     "name": "reserved prefix",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -2370,10 +2576,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {
@@ -2393,7 +2603,7 @@
   {
     "name": "used before defined",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "job.add",
@@ -2491,10 +2701,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         }
       ]
@@ -2507,7 +2721,7 @@
   {
     "name": "removed material",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -2588,10 +2802,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {
@@ -2611,7 +2829,7 @@
   {
     "name": "two merges",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -2711,10 +2929,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {
@@ -2734,7 +2956,7 @@
   {
     "name": "several errors",
     "document": {
-      "schema_version": 1,
+      "schema_version": 2,
       "commands": [
         {
           "command": "mesh.import",
@@ -2824,10 +3046,14 @@
           "command": "step.add",
           "name": "step_1",
           "ramp": {
-            "boundary": "move",
-            "start": 0,
-            "end": 0.5,
-            "num": 5
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
           }
         },
         {

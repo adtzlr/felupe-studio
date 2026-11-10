@@ -65,7 +65,9 @@ function detail(cmd: Command): string {
       return describeLoadcase(cmd);
     case "step.add":
       return cmd.ramp
-        ? `${cmd.ramp.boundary}: ${cmd.ramp.start ?? 0} → ${cmd.ramp.end} (${cmd.ramp.num})`
+        ? cmd.ramp.items
+            .map((i) => `${i.target}: ${i.start ?? 0} → ${i.end}`)
+            .join(", ") + ` (${cmd.ramp.num})`
         : "no ramp";
     case "job.add":
       return [

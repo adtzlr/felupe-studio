@@ -112,12 +112,18 @@ describe("boundary symbols", () => {
     {
       command: "step.add",
       name: "load",
-      ramp: { boundary: "move", end: 0.5, num: 2, also: ["tension"] },
+      ramp: {
+        num: 2,
+        items: [
+          { target: "move", end: 0.5 },
+          { target: "tension", end: 0.5 },
+        ],
+      },
     },
     {
       command: "step.add",
       name: "unload",
-      ramp: { boundary: "move", end: -0.25, num: 2 },
+      ramp: { num: 2, items: [{ target: "move", end: -0.25 }] },
     },
   ] as unknown as Command[];
 

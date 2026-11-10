@@ -21,7 +21,7 @@ describe("validate", () => {
 
 describe("schema values", () => {
   it("are read from the schema", () => {
-    expect(SCHEMA_VERSION).toBe(1);
+    expect(SCHEMA_VERSION).toBe(2);
     expect(NAME_MAX_LENGTH).toBe(24);
     expect(RESERVED_KEYWORDS.has("lambda")).toBe(true);
   });
@@ -49,12 +49,19 @@ describe("references", () => {
       command: "step.add",
       name: "step_1",
       sections: ["a", "b"],
-      ramp: { boundary: "move", end: 1, num: 2 },
+      ramp: {
+        num: 2,
+        items: [
+          { target: "move", end: 1 },
+          { target: "pull", end: 2 },
+        ],
+      },
     };
     expect(references(step)).toEqual([
       { field: "sections", name: "a" },
       { field: "sections", name: "b" },
       { field: "ramp", name: "move" },
+      { field: "ramp", name: "pull" },
     ]);
   });
 });
@@ -86,7 +93,7 @@ describe("order", () => {
       command("fixed", "boundary.add", { pointset: "left" }),
       command("step", "step.add", {
         sections: ["body"],
-        ramp: { boundary: "fixed" },
+        ramp: { items: [{ target: "fixed" }] },
       }),
       command("job", "job.add", { steps: ["step"] }),
       command("steel", "material.add"),

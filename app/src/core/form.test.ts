@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import fixture from "../../../tests/data/two_sections.json";
 import type { Command, CommandList } from "./commands";
 import {
+  addRow,
   available,
+  cells,
   choiceOptions,
   type Context,
   type Draft,
   draftErrors,
   fieldSpecs,
+  getValue,
   initialDraft,
   normalize,
   offered,
@@ -30,7 +33,7 @@ const TYPES = Object.keys(KINDS) as CommandType[];
 /** Whether the schema (Ajv) accepts the command. */
 function schemaAccepts(command: unknown): boolean {
   try {
-    parse(JSON.stringify({ schema_version: 1, commands: [command] }));
+    parse(JSON.stringify({ schema_version: 2, commands: [command] }));
     return true;
   } catch {
     return false;
@@ -84,11 +87,8 @@ describe("fieldSpecs", () => {
       "name:name*",
       "sections:reference",
       "ramp:toggle",
-      "ramp.boundary:reference*",
-      "ramp.also:reference",
-      "ramp.start:number",
-      "ramp.end:number*",
       "ramp.num:number*",
+      "ramp.items:rows*",
     ]);
     expect(
       summary("loadcase.add", { type: "biaxial", name: "pull" } as Draft),
@@ -154,13 +154,19 @@ describe("fieldSpecs", () => {
       ],
     });
     const ramp = fieldSpecs("step.add", find("step_1")).find(
-      (s) => s.key === "ramp.boundary",
+      (s) => s.key === "ramp.items",
     )!;
-    expect(ramp.input).toMatchObject({
-      type: "reference",
-      kind: "boundary",
-      multiple: false,
-    });
+    expect(ramp.input).toMatchObject({ type: "rows", minItems: 1 });
+    const columns = ramp.input.type === "rows" ? ramp.input.columns : [];
+    expect(
+      columns.map((c) => [c.path.join("."), c.key, c.input.type, c.required]),
+    ).toEqual([
+      ["target", "ramp.items.target", "reference", true],
+      ["start", "ramp.items.start", "number", false],
+      ["end", "ramp.items.end", "number", true],
+    ]);
+    expect(columns[0]).toMatchObject({ unique: true, label: "Boundary" });
+    expect(columns[0].input).toMatchObject({ kind: "boundary" });
   });
 
   it("has a label for every field of every variant", () => {
@@ -478,42 +484,58 @@ describe("editing a draft", () => {
       "ramp:toggle",
     ]);
     const on = setValue("step.add", off, ["ramp"], {}, context);
-    expect(on.ramp).toEqual({ boundary: "move", end: 1, num: 5 });
+    expect(on.ramp).toEqual({ num: 5, items: [{ target: "move", end: 1 }] });
     expect(draftErrors("step.add", on, editing("step_1"))).toEqual({});
   });
 
-  it("does not offer the ramped boundary as a further boundary", () => {
+  it("edits the ramped items of a step as rows", () => {
     const step = find("step_1");
-    const spec = (draft: Draft) =>
-      fieldSpecs("step.add", draft).find((s) => s.key === "ramp.also")!;
-    expect(offered("step.add", spec(step), step, editing("step_1"))).toEqual([
-      "fixed",
-    ]);
-    const both = setValue(
-      "step.add",
-      step,
-      ["ramp", "also"],
-      ["fixed"],
-      context,
-    );
-    expect(both.ramp).toMatchObject({ boundary: "move", also: ["fixed"] });
-    // ramping a further boundary removes it from the further ones
-    const swapped = setValue(
-      "step.add",
-      both,
-      ["ramp", "boundary"],
-      "fixed",
-      context,
-    );
-    expect(swapped.ramp).toEqual({
-      boundary: "fixed",
-      start: 0,
-      end: 0.5,
-      num: 5,
+    const spec = fieldSpecs("step.add", step).find(
+      (s) => s.key === "ramp.items",
+    )!;
+    const [[target, start, end]] = cells(spec, step);
+    expect(target).toMatchObject({
+      key: "ramp.items.0.target",
+      path: ["ramp", "items", "0", "target"],
+      row: 0,
     });
-    expect(offered("step.add", spec(swapped), swapped, context)).toEqual([
-      "move",
-    ]);
+    expect(getValue(step, end.path)).toBe(0.5);
+    expect(getValue(step, start.path)).toBe(0);
+
+    // a new row takes the boundary that is not ramped yet
+    const rows = addRow("step.add", spec, step, editing("step_1"));
+    expect(rows.at(-1)).toEqual({ target: "fixed", end: 1 });
+    const two = setValue("step.add", step, spec.path, rows, context);
+    expect(draftErrors("step.add", two, editing("step_1"))).toEqual({});
+    const second = cells(spec, two)[1];
+    expect(offered(second[0], two, editing("step_1"))).toEqual(["fixed"]);
+    expect(offered(target, two, editing("step_1"))).toEqual(["move"]);
+    // every boundary is ramped: no further row
+    expect(addRow("step.add", spec, two, editing("step_1")).at(-1)).toEqual({
+      end: 1,
+    });
+
+    // a cell is set by its path; a boundary ramped twice is an error
+    const changed = setValue("step.add", two, second[2].path, -0.1, context);
+    expect(changed.ramp).toEqual({
+      num: 5,
+      items: [
+        { target: "move", start: 0, end: 0.5 },
+        { target: "fixed", end: -0.1 },
+      ],
+    });
+    const twice = setValue("step.add", two, second[0].path, "move", context);
+    expect(draftErrors("step.add", twice, editing("step_1"))).toEqual({
+      "ramp.items": "Each boundary may appear only once.",
+    });
+    const empty = setValue("step.add", two, second[2].path, undefined, context);
+    expect(draftErrors("step.add", empty, editing("step_1"))).toEqual({
+      "ramp.items.1.end": "Required.",
+    });
+    const none = setValue("step.add", two, spec.path, [], context);
+    expect(draftErrors("step.add", none, editing("step_1"))).toMatchObject({
+      "ramp.items": "Add at least one row.",
+    });
   });
 
   it("labels the empty option of an axis by its default", () => {
@@ -672,7 +694,9 @@ describe("renaming", () => {
     const store = new ModelStore(fixture as CommandList);
     const move = store.get("move") as Command;
     store.update("move", { ...move, name: "pull" });
-    expect(store.get("step_1")).toMatchObject({ ramp: { boundary: "pull" } });
+    expect(store.get("step_1")).toMatchObject({
+      ramp: { items: [{ target: "pull" }] },
+    });
     expect(store.get("job_1")).toMatchObject({ curve: "pull" });
     expect(store.issues).toEqual([]);
 

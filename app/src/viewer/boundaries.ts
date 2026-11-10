@@ -200,14 +200,14 @@ function rampedValues(commands: readonly Command[]): Map<string, number> {
   const values = new Map<string, number>();
   for (const c of commands) {
     if (c.command !== "step.add" || !c.ramp) continue;
-    for (const name of [c.ramp.boundary, ...(c.ramp.also ?? [])]) {
+    for (const { target: name, end } of c.ramp.items) {
       const loadcase = loadcases.get(name);
       if (!loadcase) {
-        values.set(name, c.ramp.end);
+        values.set(name, end);
         continue;
       }
       for (const [key, sign] of moving(loadcase)) {
-        values.set(`${name}/${key}`, sign * c.ramp.end);
+        values.set(`${name}/${key}`, sign * end);
       }
     }
   }

@@ -28,11 +28,18 @@ CHANGES = {
     "wrong kind": lambda d: find(d, "section_hard").update(cellset="umat_hard"),
     "unknown point set": lambda d: find(d, "fixed").update(pointset="right2"),
     "step with a cell set": lambda d: find(d, "step_1").update(sections=["hard"]),
-    "ramp of a point set": lambda d: find(d, "step_1")["ramp"].update(boundary="left"),
+    "ramp of a point set": lambda d: find(d, "step_1")["ramp"]["items"][0].update(
+        target="left"
+    ),
     "unknown curve": lambda d: find(d, "job_1").update(curve="fixed2"),
-    "ramp also": lambda d: find(d, "step_1")["ramp"].update(also=["fixed"]),
-    "ramp also unknown": lambda d: find(d, "step_1")["ramp"].update(
-        also=["fixed", "left"]
+    "ramp of two items": lambda d: find(d, "step_1")["ramp"]["items"].append(
+        {"target": "fixed", "end": 0}
+    ),
+    "ramp of an unknown item": lambda d: find(d, "step_1")["ramp"]["items"].extend(
+        [{"target": "fixed", "end": 0}, {"target": "left", "end": 0}]
+    ),
+    "ramp of an item twice": lambda d: find(d, "step_1")["ramp"]["items"].append(
+        {"target": "move", "end": 1}
     ),
     "duplicate name": lambda d: find(d, "soft").update(name="hard"),
     "mesh without tag": lambda d: find(d, "specimen").pop("tag"),
@@ -58,7 +65,7 @@ CHANGES = {
             -2,
             {"command": "loadcase.add", "name": "tension", "type": "uniaxial"},
         ),
-        find(d, "step_1")["ramp"].update(boundary="tension"),
+        find(d, "step_1")["ramp"]["items"][0].update(target="tension"),
         find(d, "job_1").update(curve="tension"),
     ),
     "load case with the same axes": lambda d: d["commands"].insert(

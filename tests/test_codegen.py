@@ -75,7 +75,7 @@ def uniaxial(name="job_1"):
         {
             "command": "step.add",
             "name": "step_1",
-            "ramp": {"boundary": "move", "end": 0.5, "num": 5},
+            "ramp": {"num": 5, "items": [{"target": "move", "end": 0.5}]},
         },
         {"command": "job.add", "name": name, "steps": ["step_1"], "curve": "move"},
     ]
@@ -125,7 +125,7 @@ def single_body(tmp_path, monkeypatch):
     mesh, _ = bar()
     write(tmp_path / "bar.vtu", mesh)
     document = {
-        "schema_version": 1,
+        "schema_version": 2,
         "commands": [
             {"command": "mesh.import", "name": "specimen", "file": "bar.vtu"},
             {"command": "cellset.from_file", "name": "all_cells", "mesh": "specimen"},
@@ -161,7 +161,7 @@ def test_sections_from_tags_and_files_match_single_body(tmp_path, monkeypatch):
     mesh, tag = bar()
     write(tmp_path / "tagged.vtu", mesh, tag)
     tagged = {
-        "schema_version": 1,
+        "schema_version": 2,
         "commands": [
             {
                 "command": "mesh.import",
@@ -183,7 +183,7 @@ def test_sections_from_tags_and_files_match_single_body(tmp_path, monkeypatch):
     write(tmp_path / "left.vtu", fem.Cube(b=(1.5, 1, 1), n=(7, 5, 5)))
     write(tmp_path / "right.vtu", fem.Cube(a=(1.5, 0, 0), b=(3, 1, 1), n=(7, 5, 5)))
     files = {
-        "schema_version": 1,
+        "schema_version": 2,
         "commands": [
             {"command": "mesh.import", "name": "ml", "file": "left.vtu"},
             {"command": "mesh.import", "name": "mr", "file": "right.vtu"},
@@ -214,7 +214,7 @@ def test_lower_dimensional_and_split_cell_blocks(tmp_path, monkeypatch):
     ).write(tmp_path / "tetra.vtu")
 
     document = {
-        "schema_version": 1,
+        "schema_version": 2,
         "commands": [
             {
                 "command": "mesh.import",
@@ -289,7 +289,7 @@ def test_evaluate_false(two_sections):
 def rename(document, length):
     """Extend every name of the command list to the given length."""
     names = {c["name"]: c["name"].ljust(length, "x") for c in document["commands"]}
-    refs = ("mesh", "cellset", "material", "pointset", "boundary", "curve")
+    refs = ("mesh", "cellset", "material", "pointset", "target", "curve")
 
     def replace(obj):
         if isinstance(obj, dict):
@@ -312,19 +312,25 @@ def test_longest_names_are_wrapped(two_sections, tmp_path, monkeypatch):
     # a ramp of more boundaries is exploded like ruff format would do it
     ramped = copy.deepcopy(document)
     step = next(c for c in ramped["commands"] if c["command"] == "step.add")
+    items = step["ramp"]["items"]
     fixed = next(
         c["name"]
         for c in ramped["commands"]
-        if c["command"] == "boundary.add" and c["name"] != step["ramp"]["boundary"]
+        if c["command"] == "boundary.add" and c["name"] != items[0]["target"]
     )
-    step["ramp"]["also"] = [fixed]
+    items.append({**items[0], "target": fixed})
     long = codegen(ramped)
     assert "    ramp={\n" in long
     assert max(len(line) for line in long.splitlines()) <= 88
 
+    # and with their own values
+    items[1]["end"] = 0.25
+    own = codegen(ramped)
+    assert max(len(line) for line in own.splitlines()) <= 88
+
     ruff = shutil.which("ruff")
     if ruff:
-        for text in (script, long):
+        for text in (script, long, own):
             path = tmp_path / "script.py"
             path.write_text(text, encoding="utf-8")
             fmt = [ruff, "format", "--isolated", "--check", str(path)]
@@ -340,10 +346,10 @@ def test_longest_names_are_wrapped(two_sections, tmp_path, monkeypatch):
 
 def test_invalid_documents(two_sections):
     with pytest.raises(ValidationError):
-        codegen({"schema_version": 1, "commands": [{"command": "mesh.import"}]})
+        codegen({"schema_version": 2, "commands": [{"command": "mesh.import"}]})
 
     without_sections = {
-        "schema_version": 1,
+        "schema_version": 2,
         "commands": [
             {
                 "command": "pointset.add",
@@ -366,7 +372,7 @@ def test_mooney_rivlin_like_neo_hooke(tmp_path, monkeypatch):
         ("MooneyRivlin", {"C10": 0.5, "C01": 0.0}),
     ]:
         document = {
-            "schema_version": 1,
+            "schema_version": 2,
             "commands": [
                 {"command": "mesh.import", "name": "m", "file": "bar.vtu"},
                 {"command": "cellset.from_file", "name": "all", "mesh": "m"},
@@ -422,7 +428,7 @@ def test_every_cell_type_and_formulation(cell_type, formulation, tmp_path, monke
         umat["parameters"] = {"mu": 1.0}
         body.update(formulation="u-p-J", bulk=5.0)
     document = {
-        "schema_version": 1,
+        "schema_version": 2,
         "commands": [
             {"command": "mesh.import", "name": "m", "file": "bar.vtu"},
             {"command": "cellset.from_file", "name": "all", "mesh": "m"},
@@ -506,11 +512,11 @@ def test_mixed_sections_of_one_mesh(cell_type, formulations, tmp_path, monkeypat
         {
             "command": "step.add",
             "name": "step_1",
-            "ramp": {"boundary": "move", "end": 0.3, "num": 3},
+            "ramp": {"num": 3, "items": [{"target": "move", "end": 0.3}]},
         },
         {"command": "job.add", "name": "job_1", "steps": ["step_1"], "curve": "move"},
     ]
-    namespace = run({"schema_version": 1, "commands": commands}, tmp_path, monkeypatch)
+    namespace = run({"schema_version": 2, "commands": commands}, tmp_path, monkeypatch)
     force = namespace["job_1"].y[-1][0]
     # the force of the linear hexahedra with the same formulations (the quadratic
     # tetrahedra are softer and closer to the quadratic hexahedra, about 0.283)
@@ -527,3 +533,20 @@ def test_tolerance(two_sections, tmp_path, monkeypatch):
             cmd["tol"] = 0.05
     assert "job_1.evaluate(x0=field, tol=0.05)\n" in codegen(two_sections)
     run(two_sections, tmp_path, monkeypatch)
+
+
+def test_ramp_of_items_with_their_own_values(two_sections, tmp_path, monkeypatch):
+    mesh, tag = bar()
+    write(tmp_path / "specimen.vtu", mesh, tag)
+    step = next(c for c in two_sections["commands"] if c["command"] == "step.add")
+    step["ramp"]["items"].append({"target": "fixed", "start": 0, "end": 0})
+    script = codegen(two_sections)
+    assert "ramp_step_1 = [\n" in script
+    assert "    fem.math.linsteps([0, 0.5], num=5),  # move\n" in script
+    assert 'boundaries["fixed"]: ramp_step_1[1]}' in script
+    namespace = run(two_sections, tmp_path, monkeypatch)
+    ramp = namespace["step_1"].ramp
+    boundaries = namespace["boundaries"]
+    np.testing.assert_allclose(ramp[boundaries["move"]], np.linspace(0, 0.5, 6))
+    np.testing.assert_allclose(ramp[boundaries["fixed"]], 0)
+    assert force(namespace)[-1] > 0

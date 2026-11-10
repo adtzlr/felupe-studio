@@ -14,7 +14,7 @@ from felupe_studio.loadcases import loadcase_call, moving, problems
 def model(loadcase, end=0.2, mesh=None):
     """A cube of an incompressible Neo-Hookean material with a load case."""
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "commands": [
             {"command": "mesh.import", "name": "cube", "file": "cube.vtu"},
             {"command": "cellset.from_file", "name": "all", "mesh": "cube"},
@@ -36,7 +36,7 @@ def model(loadcase, end=0.2, mesh=None):
             {
                 "command": "step.add",
                 "name": "step_1",
-                "ramp": {"boundary": "test", "end": end, "num": 4},
+                "ramp": {"num": 4, "items": [{"target": "test", "end": end}]},
             },
             {
                 "command": "job.add",
@@ -164,7 +164,7 @@ def test_like_explicit_boundaries(tmp_path, monkeypatch):
         {
             "command": "step.add",
             "name": "step_1",
-            "ramp": {"boundary": "move", "end": 0.2, "num": 4},
+            "ramp": {"num": 4, "items": [{"target": "move", "end": 0.2}]},
         },
         {"command": "job.add", "name": "job_1", "steps": ["step_1"], "curve": "move"},
     ]

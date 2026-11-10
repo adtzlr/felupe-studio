@@ -205,8 +205,8 @@ describe("ribbon commands", () => {
       for (const axis of ["y", "z"]) fireEvent.click(field(axis));
     });
     add("Steps & Job", "Step", () => {
-      fireEvent.click(field("Ramp a boundary"));
-      fireEvent.input(field("End"), { target: { value: "0.5" } });
+      fireEvent.click(field("Ramp"));
+      fireEvent.input(field("End 1"), { target: { value: "0.5" } });
     });
     add("Steps & Job", "Job", () =>
       fireEvent.change(field("Curve boundary"), {
@@ -225,7 +225,7 @@ describe("ribbon commands", () => {
     expect(store.get("step_1")).toEqual({
       command: "step.add",
       name: "step_1",
-      ramp: { boundary: "boundary_2", end: 0.5, num: 5 },
+      ramp: { num: 5, items: [{ target: "boundary_2", end: 0.5 }] },
     });
     expect(store.get("job_1")).toMatchObject({
       steps: ["step_1"],
