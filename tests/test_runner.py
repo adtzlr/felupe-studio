@@ -116,12 +116,13 @@ import json, os, sys
 sys.modules["jsonschema"] = None
 sys.modules["tensortrax"] = None
 from felupe_studio.commands import ValidationError
-from felupe_studio.runner import run_json
+from felupe_studio.runner import run_json, script
 os.chdir({str(GOLDEN / "bar_single_body")!r})
 with open("commands.json") as file:
     text = file.read()
 results = json.loads(run_json(text, lambda event: None))
 assert results["job_1"]["substeps"] == 6
+assert "fem.CharacteristicCurve(" in script(text)
 document = json.loads(text)
 document["commands"].append(document["commands"][0])
 try:

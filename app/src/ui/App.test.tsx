@@ -531,6 +531,68 @@ describe("solve", () => {
     ).toBeTruthy();
   });
 
+  it("exports the script and a picture of the view", async () => {
+    const download = vi.fn();
+    const script = vi.fn(async (_document: string) => "import felupe as fem\n");
+    const store = new ModelStore(fixture as CommandList);
+    render(
+      <App
+        store={store}
+        client={client(Promise.resolve(readyValue), { script })}
+        download={download}
+      />,
+    );
+    const open = () =>
+      fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    const item = (name: RegExp) =>
+      within(screen.getByRole("list", { name: "Exports" })).getByRole(
+        "button",
+        { name },
+      );
+    open();
+    await waitFor(() =>
+      expect(item(/Python script/).getAttribute("aria-disabled")).toBeNull(),
+    );
+    expect(item(/Python script/).textContent).toContain(
+      "reads the mesh files from its folder",
+    );
+    fireEvent.click(item(/Python script/));
+    expect(screen.queryByRole("list", { name: "Exports" })).toBeNull();
+    await waitFor(() =>
+      expect(download).toHaveBeenCalledWith(
+        "untitled.py",
+        "import felupe as fem\n",
+      ),
+    );
+    expect(JSON.parse(script.mock.calls[0]![0] as string).commands).toEqual(
+      store.commands,
+    );
+
+    // without a view, the picture is not exported
+    open();
+    fireEvent.click(item(/Picture of the view/));
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain(
+        "The picture could not be exported.The view shows nothing yet.",
+      ),
+    );
+
+    // a model with an issue has no script; Escape closes the list
+    act(() => store.apply({ type: "remove", name: "umat_soft" }));
+    open();
+    expect(item(/Python script/).getAttribute("aria-disabled")).toBe("true");
+    expect(item(/Python script/).textContent).toContain(
+      "Fix the issues of the model first.",
+    );
+    fireEvent.click(item(/Python script/));
+    expect(script).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("list", { name: "Exports" })).toBeNull();
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "Export" }),
+    );
+  });
+
   it("explains why the jobs cannot be run", () => {
     render(<App store={new ModelStore(fixture as CommandList)} />);
     expect(solveButton().getAttribute("aria-disabled")).toBe("true");

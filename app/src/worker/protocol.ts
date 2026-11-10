@@ -177,6 +177,7 @@ export type ToWorker =
   | { type: "write-file"; id: number; name: string; data: ArrayBuffer }
   | { type: "inspect-mesh"; id: number; name: string }
   | { type: "run"; id: number; document: string }
+  | { type: "script"; id: number; document: string }
   | {
       type: "result";
       id: number;
@@ -199,5 +200,6 @@ export type FromWorker =
   | { type: "job-progress"; id: number; event: JobEvent }
   | { type: "job-result"; id: number; results: Record<string, JobResult> }
   | { type: "result-scene"; id: number; scene: ResultScene }
+  | { type: "text"; id: number; text: string }
   | { type: "done"; id: number }
   | { type: "error"; id?: number; message: string };

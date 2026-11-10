@@ -212,3 +212,10 @@ The viewport draws the imported meshes with the WebGL2 viewer of FElupe ([ADR 00
 - Only one scene is loaded at a time: while the slider of the substeps moves, the latest substep is loaded next. Scenes are loaded only while the Results workspace is shown. A new run replaces the results (also if it fails or is cancelled); results stay available after a change of the model, with a note.
 - The recorded fields take memory in the worker: the values of all fields (float64) per substep.
 - **Force-displacement curve** (a job with a curve boundary, `fem.CharacteristicCurve`): a card over the results shows the reaction force over the displacement of the curve boundary per substep, for a component (by default the one with the largest displacement at the end). The current substep is marked; hovering shows the values of the nearest substep, a click selects it. **Table** lists the values (a click on a row selects the substep), **CSV** downloads all components with the substeps and steps. **Curve** in the ribbon shows or hides the card.
+
+## Exports (app)
+
+**Export** (header) lists the exports of the project; an export that is not possible says why.
+
+- **Python script** (`<project>.py`): the FElupe script of the model, generated in the worker (`felupe_studio.runner.script()`, without the schema check, see _Running jobs_). It reads the mesh files from its folder, so it runs next to them with FElupe, meshio and NumPy (and tensortrax for Mooney-Rivlin).
+- **Picture of the view** (`<project>.png`, or `<project>-<job>-<substep>.png` in the Results workspace): the 3D view at the resolution of the screen, with the scalar bar, the legend and the axis triad on the background of the viewport. The vendored viewer does not keep its drawing buffer, so the canvas is copied in the animation frame after its next draw (`app/src/viewer/snapshot.ts`) and the overlays are drawn on top.

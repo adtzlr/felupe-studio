@@ -1,7 +1,12 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { ResultView } from "../core/results";
-import { type CreateViewer, Viewer, VIEWS } from "../viewer/viewer";
+import {
+  type Capture,
+  type CreateViewer,
+  Viewer,
+  VIEWS,
+} from "../viewer/viewer";
 import type { Quantity, ResultScene } from "../worker/protocol";
 
 /** Loads the result scenes of substeps (the worker client). */
@@ -26,6 +31,8 @@ interface Props {
   createViewer?: CreateViewer;
   /** Panels over the results, e.g. the force-displacement curve. */
   children?: ComponentChildren;
+  /** Set to a function that returns a PNG of the view (none without a view). */
+  capture?: Capture;
 }
 
 type Loaded =
@@ -89,9 +96,13 @@ export function ResultsView({
   running,
   createViewer,
   children,
+  capture,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
+  if (capture) {
+    capture.current = async () => viewer.current?.snapshot();
+  }
   const [available, setAvailable] = useState(true);
   const wanted =
     view && active && !running

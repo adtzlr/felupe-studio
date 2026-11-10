@@ -23,6 +23,7 @@ import {
   type MeshLayer,
   type ResultContent,
 } from "./scene";
+import { snapshot } from "./snapshot";
 
 export type CreateViewer = typeof createViewer;
 
@@ -81,6 +82,11 @@ function drawnTriangles(layer: MeshLayer): Uint32Array {
   return Uint32Array.from(kept);
 }
 
+/** A slot for a function that returns a PNG of a view (none without a view). */
+export interface Capture {
+  current?: () => Promise<Blob | undefined>;
+}
+
 export class Viewer {
   private handle: ViewerHandle;
   private meshes: readonly MeshLayer[] = [];
@@ -116,6 +122,16 @@ export class Viewer {
   setMeshes(meshes: readonly MeshLayer[]): void {
     this.meshes = meshes;
     this.schedule();
+  }
+
+  /**
+   * A PNG of the view with the scalar bars, the legend and the axis triad, or none
+   * without WebGL2.
+   */
+  async snapshot(): Promise<Blob | undefined> {
+    const redraw = this.handle.redraw;
+    if (!this.available || !redraw) return undefined;
+    return snapshot(this.handle.root, () => redraw());
   }
 
   /** Show the result of a substep (deformed surfaces with a contour), or none. */

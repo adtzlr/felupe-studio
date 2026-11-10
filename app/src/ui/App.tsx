@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
-import { SUFFIX } from "../core/files";
+import { exportName, mediaType, SUFFIX } from "../core/files";
 import { JobRunner, solveBlocker } from "../core/jobs";
 import { type ResultView, viewOf } from "../core/results";
 import { fileNotes, MeshFiles } from "../core/meshfiles";
@@ -14,7 +14,9 @@ import { Header } from "./Header";
 import { useJobs, useMeshFiles, useRuntime, useStore } from "./hooks";
 import { ImportMeshDialog } from "./ImportMeshDialog";
 import { JobPanel } from "./JobPanel";
+import type { Capture } from "../viewer/viewer";
 import { CurveCard } from "./CurveCard";
+import type { ExportItem } from "./ExportMenu";
 import { ResultsControls } from "./ResultsControls";
 import { ResultsView } from "./ResultsView";
 import { Ribbon, type Workspace } from "./Ribbon";
@@ -28,18 +30,18 @@ interface Props {
   /** Mesh files of the project; read with the client. */
   files?: MeshFiles;
   /** Save a file; the default downloads it in the browser. */
-  download?: (name: string, text: string) => void;
+  download?: (name: string, data: string | Blob) => void;
   /** Reports a newer deployment of the app (see updates.ts). */
   updates?: UpdateWatcher;
   /** Reload the page; the default reloads the browser window. */
   reload?: () => void;
 }
 
-function downloadFile(name: string, text: string) {
+function downloadFile(name: string, data: string | Blob) {
   const url = URL.createObjectURL(
-    new Blob([text], {
-      type: name.endsWith(".csv") ? "text/csv" : "application/json",
-    }),
+    typeof data === "string"
+      ? new Blob([data], { type: mediaType(name) })
+      : data,
   );
   const link = Object.assign(document.createElement("a"), {
     href: url,
@@ -183,6 +185,62 @@ export function App({
     setSaved(store.commands);
   };
 
+  const captureModel = useRef<Capture>({}).current;
+  const captureResults = useRef<Capture>({}).current;
+  const failed = (title: string) => (reason: unknown) =>
+    setError({
+      title,
+      lines: [reason instanceof Error ? reason.message : String(reason)],
+    });
+
+  const exportScript = async () => {
+    if (!client) return;
+    const { serialize } = await import("../core/project");
+    const text = await client.script(serialize(store.document));
+    download(exportName(fileName, ".py"), text);
+  };
+
+  const exportPicture = async () => {
+    const results = workspace === "results" && resultView;
+    const capture = results ? captureResults : captureModel;
+    const png = await capture.current?.();
+    if (!png) throw new Error("The view shows nothing yet.");
+    const suffix = results
+      ? `-${resultView.job}-${resultView.substep}.png`
+      : ".png";
+    download(exportName(fileName, suffix), png);
+  };
+
+  const exports: ExportItem[] = [
+    {
+      id: "script",
+      label: "Python script",
+      hint: "The FElupe script of the model; it reads the mesh files from its folder.",
+      blocker: !client
+        ? "Python is not available."
+        : store.issues.length
+          ? "Fix the issues of the model first."
+          : run.state === "running"
+            ? "Wait until the jobs have run."
+            : runtime.state === "loading"
+              ? "Python is still loading."
+              : runtime.state === "error"
+                ? "Python could not be loaded."
+                : undefined,
+      onSelect: () =>
+        void exportScript().catch(failed("The script could not be exported.")),
+    },
+    {
+      id: "picture",
+      label: "Picture of the view",
+      hint: "A PNG of the 3D view with its scalar bar, legend and axes.",
+      onSelect: () =>
+        void exportPicture().catch(
+          failed("The picture could not be exported."),
+        ),
+    },
+  ];
+
   return (
     <div
       class={dragging ? "shell dragging" : "shell"}
@@ -206,6 +264,7 @@ export function App({
         modified={store.commands !== saved}
         onOpen={() => fileInput.current?.click()}
         onSave={() => void save()}
+        exports={exports}
         solve={{
           blocker: solveBlocker({
             commands: store.commands,
@@ -313,6 +372,7 @@ export function App({
             hidden={hidden}
             selected={selected}
             active={workspace === "model"}
+            capture={captureModel}
             onCreatePointSet={(preset) =>
               setCreating({
                 id: "pointset.add",
@@ -328,6 +388,7 @@ export function App({
             generation={jobs?.generation ?? 0}
             active={workspace === "results"}
             running={run.state === "running"}
+            capture={captureResults}
           >
             {finished && resultView?.curve && (
               <CurveCard
