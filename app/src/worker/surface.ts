@@ -41,18 +41,30 @@ export function toSurface(raw: RawSurface): MeshSurface {
   return surface;
 }
 
-/** The buffers of a surface, to transfer it to another thread. */
-export function transferables(surface: MeshSurface): ArrayBuffer[] {
-  const arrays = [
-    surface.positions,
-    surface.triangles,
-    surface.faces,
-    surface.edges,
-    surface.owners,
-  ];
+/** The surfaces by cell type of `felupe_studio.meshes.load()`. */
+export function toSurfaces(
+  raw: Record<string, RawSurface> | undefined,
+): Record<string, MeshSurface> {
+  return Object.fromEntries(
+    Object.entries(raw ?? {}).map(([type, s]) => [type, toSurface(s)]),
+  );
+}
+
+/** The buffers of surfaces, to transfer them to another thread. */
+export function transferables(
+  ...surfaces: readonly MeshSurface[]
+): ArrayBuffer[] {
   const buffers = new Set<ArrayBuffer>();
-  for (const array of arrays) {
-    if (array) buffers.add(array.buffer as ArrayBuffer);
+  for (const surface of surfaces) {
+    for (const array of [
+      surface.positions,
+      surface.triangles,
+      surface.faces,
+      surface.edges,
+      surface.owners,
+    ]) {
+      if (array) buffers.add(array.buffer as ArrayBuffer);
+    }
   }
   return [...buffers];
 }

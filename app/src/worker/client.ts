@@ -91,21 +91,21 @@ export class PyodideClient {
   }
 
   /**
-   * Inspect a mesh file of the project directory. The outer surface is given for
-   * files that can be used.
+   * Inspect a mesh file of the project directory, with the outer surfaces of its
+   * solid cells by cell type.
    */
   async inspectMesh(
     name: string,
-  ): Promise<{ info: MeshInfo; surface?: MeshSurface }> {
+  ): Promise<{ info: MeshInfo; surfaces: Record<string, MeshSurface> }> {
     const message = await this.request(
       { type: "inspect-mesh", name },
       "mesh-info",
     );
-    const { info, surface } = message as Extract<
+    const { info, surfaces } = message as Extract<
       FromWorker,
       { type: "mesh-info" }
     >;
-    return { info, surface };
+    return { info, surfaces };
   }
 
   terminate(): void {

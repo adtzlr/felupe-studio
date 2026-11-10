@@ -56,6 +56,11 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         hint: "Integer cell data for cell sets, e.g. material or gmsh:physical",
         placeholder: "none",
       },
+      cell_type: {
+        label: "Cell type",
+        hint: "Type of the solid cells, if the file has more than one",
+        placeholder: "the only one",
+      },
     },
   },
   "mesh.merge": {

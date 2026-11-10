@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from felupe_studio import commands
+from felupe_studio._helpers import REGIONS
 
 DATA = Path(__file__).parent / "data"
 
@@ -40,6 +41,11 @@ def test_every_command_has_a_kind():
     assert set(consts(defs["Command"])) == set(commands.KINDS)
 
 
+def test_cell_types_have_a_region():
+    mesh = commands.schema()["$defs"]["MeshImport"]["properties"]
+    assert mesh["cell_type"]["enum"] == list(REGIONS)
+
+
 def test_reserved_keywords_are_python_keywords():
     import keyword
 
@@ -67,6 +73,7 @@ def test_valid_document(document):
         lambda d: find(d, "section_soft").pop("bulk"),
         lambda d: find(d, "section_hard").update(bulk=100),
         lambda d: find(d, "section_hard").update(formulation="u-p"),
+        lambda d: find(d, "specimen").update(cell_type="wedge"),
         lambda d: find(d, "left").update(select={"axis": "w", "value": 0}),
         lambda d: find(d, "left").update(select={"ids": []}),
         lambda d: find(d, "fixed").update(constrained=[]),

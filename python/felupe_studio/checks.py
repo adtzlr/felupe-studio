@@ -127,7 +127,11 @@ def check(document, directory="."):
     directory = Path(directory)
 
     meshes = {
-        c["name"]: volume_cells(meshio.read(directory / c["file"]), tag=c.get("tag"))
+        c["name"]: volume_cells(
+            meshio.read(directory / c["file"]),
+            tag=c.get("tag"),
+            cell_type=c.get("cell_type"),
+        )
         for c in commands
         if c["command"] == "mesh.import"
     }

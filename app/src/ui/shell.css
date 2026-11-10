@@ -1012,6 +1012,11 @@ button {
   padding-left: 18px;
 }
 
+/* the cell sets below their mesh */
+.plan li.nested {
+  margin-left: 16px;
+}
+
 .file-status {
   display: flex;
   flex-direction: column;

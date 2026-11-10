@@ -62,6 +62,17 @@ def main():
     write_vtu(shifted / "left.vtu", bar(b=(1.5, 1, 1), n=(7, 5, 5)))
     write_vtu(shifted / "right.vtu", right)
 
+    # one file with hexahedra (x < 1.5) and tetrahedra (x > 1.5) on the same points,
+    # and the quads of the left end face: one mesh per type of solid cells
+    hexahedra = mesh.cells[tag == 1]
+    tetra = fem.Mesh(mesh.points, mesh.cells[tag == 2], "hexahedron").triangulate()
+    faces = hexahedra[:, [0, 3, 7, 4]]
+    left_face = faces[np.all(mesh.points[faces, 0] == 0, axis=1)]
+    meshio.Mesh(
+        mesh.points,
+        [("quad", left_face), ("hexahedron", hexahedra), ("tetra", tetra.cells)],
+    ).write(HERE / "bar_cell_types" / "bar.vtu", binary=False)
+
 
 if __name__ == "__main__":
     main()

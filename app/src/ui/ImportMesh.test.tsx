@@ -17,58 +17,93 @@ import { App } from "./App";
 
 afterEach(cleanup);
 
+const MATERIAL = {
+  name: "material",
+  values: [
+    { value: 1, cells: 96 },
+    { value: 2, cells: 96 },
+  ],
+};
+
+const BAR = {
+  cell_type: "hexahedron",
+  cells: 192,
+  bounds: [
+    [0, 0, 0],
+    [3, 1, 1],
+  ] as [number[], number[]],
+  tags: [MATERIAL],
+};
+
 const INFO: Record<string, MeshInfo> = {
   "bar.vtu": {
     file: "bar.vtu",
     points: 325,
     blocks: [{ type: "hexahedron", cells: 192 }],
-    cell_type: "hexahedron",
-    cells: 192,
+    solids: [BAR],
+    unsupported: [],
     ignored: [],
-    bounds: [
-      [0, 0, 0],
-      [3, 1, 1],
-    ],
-    tags: [
-      {
-        name: "material",
-        values: [
-          { value: 1, cells: 96 },
-          { value: 2, cells: 96 },
-        ],
-      },
-    ],
   },
-  "specimen.vtu": {
-    file: "specimen.vtu",
-    points: 325,
-    cell_type: "hexahedron",
-    cells: 192,
-    tags: [
-      {
-        name: "material",
-        values: [
-          { value: 1, cells: 96 },
-          { value: 2, cells: 96 },
-        ],
-      },
-    ],
-  },
+  "specimen.vtu": { file: "specimen.vtu", points: 325, solids: [BAR] },
   "plain.vtu": {
     file: "plain.vtu",
     points: 8,
-    cell_type: "hexahedron",
-    cells: 1,
-    ignored: ["quad"],
-    bounds: [
-      [0, 0, 0],
-      [1, 1, 1],
+    solids: [
+      {
+        cell_type: "hexahedron",
+        cells: 1,
+        bounds: [
+          [0, 0, 0],
+          [1, 1, 1],
+        ],
+        tags: [],
+      },
     ],
-    tags: [],
+    ignored: ["quad"],
+  },
+  // hexahedra and tetrahedra, both with a physical group 1, and wedges
+  "hybrid.msh": {
+    file: "hybrid.msh",
+    points: 400,
+    solids: [
+      {
+        cell_type: "hexahedron",
+        cells: 96,
+        bounds: [
+          [0, 0, 0],
+          [1.5, 1, 1],
+        ],
+        tags: [
+          {
+            name: "gmsh:physical",
+            values: [{ value: 1, cells: 96, label: "rubber" }],
+          },
+        ],
+      },
+      {
+        cell_type: "tetra",
+        cells: 576,
+        bounds: [
+          [1.5, 0, 0],
+          [3, 1, 1],
+        ],
+        tags: [
+          {
+            name: "gmsh:physical",
+            values: [
+              { value: 1, cells: 500, label: "rubber" },
+              { value: 2, cells: 76, label: "steel" },
+            ],
+          },
+        ],
+      },
+    ],
+    unsupported: [{ type: "wedge", cells: 8 }],
+    ignored: ["triangle"],
   },
   "surface.vtu": {
     file: "surface.vtu",
-    error: "The file needs one type of solid cells; found quad.",
+    error: "The file needs solid cells (tetra, …); found quad.",
   },
 };
 
@@ -182,7 +217,7 @@ describe("import dialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Import mesh" }));
     pick("surface.vtu");
     expect(await within(dialog()).findByRole("alert")).toBeTruthy();
-    expect(dialog().textContent).toContain("needs one type of solid cells");
+    expect(dialog().textContent).toContain("needs solid cells");
     expect(importButton().disabled).toBe(true);
 
     fireEvent.click(
@@ -196,6 +231,67 @@ describe("import dialog", () => {
     fireEvent.input(name, { target: { value: "bar" } });
     expect(dialog().textContent).toContain("The name 'bar' is already used.");
     expect(importButton().disabled).toBe(true);
+  });
+
+  it("creates one mesh per cell type of a file", async () => {
+    const { store, dialog, pick, importButton } = setup();
+    fireEvent.click(screen.getByRole("button", { name: "Import mesh" }));
+    pick("hybrid.msh");
+    await waitFor(() => expect(importButton().disabled).toBe(false));
+    const text = dialog().textContent;
+    expect(text).toContain("96 hexahedron cells, 576 tetra cells · 400 points");
+    expect(text).toContain("x 0 … 3, y 0 … 1, z 0 … 1");
+    expect(text).toContain("8 wedge cells (FElupe has no region for them)");
+    const plan = within(dialog()).getByLabelText("Will be created");
+    expect(plan.textContent).toContain(
+      "mesh hybrid_hexahedron hexahedron, 96 cells",
+    );
+    expect(plan.textContent).toContain(
+      "cell set rubber_tetra gmsh:physical = 1, 500 cells",
+    );
+
+    fireEvent.click(importButton());
+    expect(store.commands).toEqual([
+      {
+        command: "mesh.import",
+        name: "hybrid_hexahedron",
+        file: "hybrid.msh",
+        tag: "gmsh:physical",
+        cell_type: "hexahedron",
+      },
+      {
+        command: "cellset.from_tag",
+        name: "rubber_hexahedron",
+        mesh: "hybrid_hexahedron",
+        value: 1,
+      },
+      {
+        command: "mesh.import",
+        name: "hybrid_tetra",
+        file: "hybrid.msh",
+        tag: "gmsh:physical",
+        cell_type: "tetra",
+      },
+      {
+        command: "cellset.from_tag",
+        name: "rubber_tetra",
+        mesh: "hybrid_tetra",
+        value: 1,
+      },
+      {
+        command: "cellset.from_tag",
+        name: "steel",
+        mesh: "hybrid_tetra",
+        value: 2,
+      },
+    ]);
+    expect(validate(store.commands)).toEqual([]);
+    // the first mesh is selected
+    const properties = screen.getByRole("region", { name: "Properties" });
+    expect(
+      (within(properties).getByLabelText("Cell type") as HTMLSelectElement)
+        .value,
+    ).toBe("hexahedron");
   });
 
   it("shows that it waits for Python", async () => {

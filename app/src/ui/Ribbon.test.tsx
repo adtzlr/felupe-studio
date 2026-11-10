@@ -23,9 +23,17 @@ function setup(store = new ModelStore()) {
     info: {
       file: name,
       points: 325,
-      cell_type: "hexahedron",
-      cells: 192,
-      tags: [],
+      solids: [
+        {
+          cell_type: "hexahedron",
+          cells: 192,
+          bounds: [
+            [0, 0, 0],
+            [3, 1, 1],
+          ] as [number[], number[]],
+          tags: [],
+        },
+      ],
     },
   }));
   render(<App store={store} files={files} />);

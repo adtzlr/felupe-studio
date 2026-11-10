@@ -132,11 +132,11 @@ describe("files", () => {
       type: "mesh-info",
       id: 2,
       info: { file: "bar.vtu", points: 8 },
-      surface,
+      surfaces: { hexahedron: surface },
     });
     await expect(inspected).resolves.toEqual({
       info: { file: "bar.vtu", points: 8 },
-      surface,
+      surfaces: { hexahedron: surface },
     });
   });
 

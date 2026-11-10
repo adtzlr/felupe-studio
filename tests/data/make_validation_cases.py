@@ -32,6 +32,7 @@ CHANGES = {
     "unknown curve": lambda d: find(d, "job_1").update(curve="fixed2"),
     "duplicate name": lambda d: find(d, "soft").update(name="hard"),
     "mesh without tag": lambda d: find(d, "specimen").pop("tag"),
+    "mesh with cell type": lambda d: find(d, "specimen").update(cell_type="tetra10"),
     "NeoHooke without bulk": lambda d: (
         find(d, "section_soft").update(formulation="u"),
         find(d, "section_soft").pop("bulk"),

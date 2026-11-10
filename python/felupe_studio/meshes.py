@@ -2,9 +2,11 @@
 
 :func:`inspect` reads a mesh file with meshio, like the generated script does (see
 ``volume_cells`` in :mod:`felupe_studio._helpers`), and returns a JSON-serializable
-summary: the number of points and solid cells, the ignored cell blocks, the bounds
-and the cell data arrays that can be used as tags for cell sets. :func:`load` adds
-the outer surface for the viewer (:mod:`felupe_studio.scene`), from the same read.
+summary: the number of points, the solid cells of every cell type with their bounds
+and the cell data arrays that can be used as tags for cell sets, and the ignored cell
+blocks. Like ``fem.mesh.read()`` gives one mesh per cell block, a file with more than
+one type of solid cells becomes one mesh per cell type in the app. :func:`load` adds
+the outer surfaces for the viewer (:mod:`felupe_studio.scene`), from the same read.
 """
 
 import json
@@ -13,7 +15,7 @@ from pathlib import Path
 import meshio
 import numpy as np
 
-from ._helpers import DIMENSIONS, REGIONS, volume_cells
+from ._helpers import REGIONS, solid_types, volume_cells
 from .scene import surface
 
 # a cell data array with more distinct values is not offered as a tag
@@ -72,17 +74,19 @@ def inspect(filename):
     -------
     dict
         ``file``, ``points``, ``blocks`` (type and number of cells of every cell
-        block) and, if the file has one type of solid cells, ``cell_type``,
-        ``cells``, ``ignored`` (lower-dimensional blocks), ``bounds`` and ``tags``
-        (name and values with their number of cells, and the names of Gmsh physical
-        groups as ``label``). Otherwise ``error`` explains
-        what is wrong.
+        block) and, if the file has solid cells that FElupe supports, ``solids``: one
+        entry per type of solid cells in the order of the file with ``cell_type``,
+        ``cells``, ``bounds`` and ``tags`` (name and values with their number of
+        cells, and the names of Gmsh physical groups as ``label``). ``unsupported``
+        lists solid cells without a region in FElupe (e.g. wedges) and ``ignored``
+        the lower-dimensional cell types. Otherwise ``error`` explains what is wrong.
     """
     return _read(filename)[0]
 
 
 def _read(filename):
-    """:func:`inspect` and the solid cells (None if the file cannot be used)."""
+    """:func:`inspect` and the solid cells by cell type (empty if the file cannot be
+    used)."""
     path = Path(filename)
     result = {"file": path.name}
     try:
@@ -91,43 +95,56 @@ def _read(filename):
         # meshio raises many different errors, and calls sys.exit() if no reader fits
         reason = "" if isinstance(error, SystemExit) else f": {error}"
         result["error"] = f"meshio could not read the file{reason}".rstrip(".") + "."
-        return result, None
+        return result, {}
 
     result["points"] = len(mesh.points)
     result["blocks"] = [{"type": b.type, "cells": len(b.data)} for b in mesh.cells]
     if not mesh.cells:
         result["error"] = "The file has no cells."
-        return result, None
+        return result, {}
 
-    try:
-        solid = volume_cells(mesh)
-    except ValueError:
-        found = sorted({b.type for b in mesh.cells})
-        supported = ", ".join(REGIONS)
-        result["error"] = (
-            f"The file needs one type of solid cells ({supported}); "
-            f"found {', '.join(found)}."
-        )
-        return result, None
+    types = solid_types(mesh)
+    supported = ", ".join(REGIONS)
+    if not types:
+        found = ", ".join(sorted({b.type for b in mesh.cells}))
+        result["error"] = f"The file needs solid cells ({supported}); found {found}."
+        return result, {}
 
-    dim = max(DIMENSIONS.get(b.type, 0) for b in mesh.cells)
-    blocks = [i for i, b in enumerate(mesh.cells) if DIMENSIONS.get(b.type) == dim]
-    ignored = [b.type for i, b in enumerate(mesh.cells) if i not in blocks]
-    used = np.unique(solid.cells)
-    points = np.asarray(solid.points)[used]
+    solids = {t: volume_cells(mesh, cell_type=t) for t in types if t in REGIONS}
+    unsupported = [t for t in types if t not in REGIONS]
     result.update(
-        cell_type=solid.cell_type,
-        cells=len(solid.cells),
-        ignored=sorted(set(ignored)),
-        bounds=[points.min(axis=0).tolist(), points.max(axis=0).tolist()],
-        tags=_tags(mesh, blocks),
+        solids=[],
+        unsupported=[
+            {"type": t, "cells": len(volume_cells(mesh, cell_type=t).cells)}
+            for t in unsupported
+        ],
+        ignored=sorted({b.type for b in mesh.cells} - set(types)),
     )
-    return result, solid
+    if not solids:
+        result["error"] = (
+            f"FElupe has no region for {', '.join(unsupported)} cells; "
+            f"supported are {supported}."
+        )
+        return result, {}
+
+    for cell_type, solid in solids.items():
+        blocks = [i for i, b in enumerate(mesh.cells) if b.type == cell_type]
+        points = np.asarray(solid.points)[np.unique(solid.cells)]
+        result["solids"].append(
+            {
+                "cell_type": cell_type,
+                "cells": len(solid.cells),
+                "bounds": [points.min(axis=0).tolist(), points.max(axis=0).tolist()],
+                "tags": _tags(mesh, blocks),
+            }
+        )
+    return result, solids
 
 
 def load(filename):
-    """:func:`inspect` as a JSON string and the outer surface of the solid cells
-    (:func:`felupe_studio.scene.surface`, None if the file cannot be used), from one
-    read of the file (for the Pyodide worker)."""
-    info, solid = _read(filename)
-    return json.dumps(info), None if solid is None else surface(solid)
+    """:func:`inspect` as a JSON string and the outer surfaces of the solid cells by
+    cell type (:func:`felupe_studio.scene.surface`, empty if the file cannot be
+    used), from one read of the file (for the Pyodide worker)."""
+    info, solids = _read(filename)
+    surfaces = {cell_type: surface(solid) for cell_type, solid in solids.items()}
+    return json.dumps(info), surfaces
