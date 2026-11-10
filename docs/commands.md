@@ -33,7 +33,7 @@ The JSON schema [`python/felupe_studio/commands.schema.json`](../python/felupe_s
 | `cellset.from_tag`  | cell set                    | mesh (imported with a tag)               | `fem.Mesh(points, cells[tag == value], cell_type)`                                                                                                                   |
 | `cellset.from_file` | cell set                    | mesh                                     | all cells of the mesh                                                                                                                                                |
 | `material.add`      | material                    |                                          | a model of the material registry, see below                                                                                                                          |
-| `section.add`       | section                     | cell set, material                       | `u`: `FieldContainer` + `SolidBody`; `u-p-J`: `FieldsMixed` + `NearlyIncompressible(bulk)`                                                                           |
+| `section.add`       | section                     | cell set, material                       | `u`: `FieldContainer` + `SolidBody`; `u-p-J`: `FieldsMixed` + `NearlyIncompressible(bulk)`, linear tetrahedra as MINI element                                         |
 | `pointset.add`      | point set                   |                                          | coordinate (`x == 0`, with `atol`) or point ids                                                                                                                      |
 | `boundary.add`      | boundary                    | point set                                | `fem.Boundary` on the merged field, `constrained` components                                                                                                         |
 | `step.add`          | step                        | sections (default: all), ramped boundary | `fem.Step`, `fem.math.linsteps([start, end], num)`                                                                                                                   |
@@ -76,7 +76,7 @@ Example messages: `192 / 192 cells assigned once.` and `Interface left_body / ri
 
 1. meshes (`volume_cells()` keeps the solid cells of a meshio file, of one cell type, and ignores lower-dimensional blocks) and cell sets
 2. materials
-3. a region and a field container per section, merged with `fem.field.merge([...])` into the top-level `field`
+3. a region and a field container per section, merged with `fem.field.merge([...])` into the top-level `field`. The region follows the cell type (`REGIONS`); for `u-p-J`, `mixed_region()` gives linear tetrahedra a bubble point (`tetra5`, `fem.RegionTetraMINI`), the other cell types keep their region (Q1/P0, Q2/P1, P2/P1 with the dual fields of `fem.FieldsMixed`). A test runs every cell type in both formulations.
 4. solid bodies, created after the merge (required for items with an internal state)
 5. point sets on `field.mesh_container.points` and `boundaries` on `field[0]`
 6. steps and jobs, evaluated with `job.evaluate(x0=field)` (skip with `evaluate=False`)
@@ -120,7 +120,7 @@ The forms of the app are not written per command. `app/src/core/form.ts` derives
 | optional object (`ramp`)                                                  | checkbox that switches a group of fields on and off                          |
 | `if` / `then` / `else` (`bulk` of a section)                              | field that is only shown and required for a condition                        |
 
-`app/src/core/registry.ts` adds what the schema does not know: labels, hints, placeholders, defaults of new objects, the ribbon tab of a command and the prefix of suggested names (`material_1`). A test checks that every field of every variant has a registry entry, and that the form validation rejects what the schema rejects.
+`app/src/core/registry.ts` adds what the schema does not know: labels, hints, placeholders, defaults of new objects, the ribbon tab of a command and the prefix of suggested names (`material_1`). A test checks that every field of every variant has a label (from the registry or, for the material registry, from the schema), and that the form validation rejects what the schema rejects. An `initial` function adapts the defaults of a new object to the model: a new section takes the first cell set without a section, and `u-p-J` if its material is incompressible (no bulk modulus).
 
 The ribbon (`app/src/core/ribbon.ts`) shows one button per command of a tab (the `tab` of the registry), or one button per variant if the variant selects a schema definition, e.g. one button per material model. A button opens a dialog with the form of a new object: a suggested name, the defaults of the registry and the latest object of the right kind for references. A command whose required references do not exist yet is disabled with the reason ("Create a cell set and a material first."); commands marked `single` (the merge setting) are disabled once the model has one.
 
@@ -128,12 +128,10 @@ Changes are applied with the model store: `store.update(name, command)` is one u
 
 ### Adding a material model
 
-1. Schema: a definition `Material<Model>` with `model` as a constant and its `parameters`, added to `MaterialAdd.oneOf` (`python/felupe_studio/commands.schema.json`); run `npm run schema:types`.
-2. Code generation: an entry in `MATERIALS` (`python/felupe_studio/codegen.py`) with the FElupe class and the order of its arguments.
-3. Registry: the label of the model and labels, hints and defaults of new parameters (`app/src/core/registry.ts`).
-4. Tests: a golden case or a code generation test that runs the model with FElupe.
+1. Schema: a definition `Material<Model>` with `model` as a constant, `x-label`, `x-felupe` (`class` or tensortrax `function`) and its `parameters` with `x-label`, `description`, bounds and `default`, added to `MaterialAdd.oneOf` (`python/felupe_studio/commands.schema.json`); run `npm run schema:types`.
+2. Tests: the registry tests check the signature of FElupe and a stress-free state with a positive shear stiffness; add a golden case or a code generation test that runs the model with FElupe.
 
-The form appears without further code.
+The form, the ribbon button and the code generation follow without further code (see [Material models](#material-models)).
 
 ## Command line (app)
 

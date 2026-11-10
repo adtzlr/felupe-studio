@@ -160,7 +160,10 @@ def codegen(document, evaluate=True):
         for sec in sections:
             c = sec["cellset"]
             region = f"region_{sec['name']}"
-            out.append(_call(region, f"REGIONS[{c}.cell_type]", [c]))
+            if sec["formulation"] == "u":
+                out.append(_call(region, f"REGIONS[{c}.cell_type]", [c]))
+            else:
+                out.append(_call(region, "mixed_region", [c]))
             if sec["formulation"] == "u":
                 fields = f"[fem.Field({region}, dim=3)]"
                 out.append(

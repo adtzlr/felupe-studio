@@ -1,6 +1,8 @@
 // Registry of labels, hints and defaults for the commands. The structure of a form
 // (fields, types, ranges, variants) comes from the command schema, see form.ts; this
 // file only adds what the schema does not know.
+import type { Command } from "./commands";
+import { needsBulk } from "./materials";
 import type { CommandType, Kind } from "./validate";
 
 export interface FieldInfo {
@@ -28,6 +30,36 @@ export interface CommandInfo {
   options?: Record<string, Record<string, string>>;
   /** At most one object of this command per model. */
   single?: boolean;
+  /**
+   * Adjust the defaults of a new object to the model, e.g. a section takes a cell
+   * set without a section. Values of a preset are applied afterwards.
+   */
+  initial?: (
+    draft: Record<string, unknown>,
+    commands: readonly Command[],
+  ) => Record<string, unknown>;
+}
+
+/** The first cell set without a section, and u-p-J for incompressible materials. */
+function initialSection(
+  draft: Record<string, unknown>,
+  commands: readonly Command[],
+): Record<string, unknown> {
+  const used = new Set(
+    commands.flatMap((c) => (c.command === "section.add" ? [c.cellset] : [])),
+  );
+  const free = commands.find(
+    (c) =>
+      (c.command === "cellset.from_tag" || c.command === "cellset.from_file") &&
+      !used.has(c.name),
+  );
+  const next = { ...draft };
+  if (free) next.cellset = free.name;
+  const material = commands.find((c) => c.name === next.material);
+  if (material?.command === "material.add" && needsBulk(material)) {
+    next.formulation = "u-p-J";
+  }
+  return next;
 }
 
 export const KIND_LABELS: Record<Kind, string> = {
@@ -110,12 +142,21 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     fields: {
       cellset: { label: "Cell set" },
       material: { label: "Material" },
-      formulation: { label: "Formulation", default: "u" },
-      bulk: { label: "Bulk modulus", default: 5000 },
+      formulation: {
+        label: "Formulation",
+        hint: "u-p-J for (nearly) incompressible materials; linear tetrahedra get a bubble point (MINI)",
+        default: "u",
+      },
+      bulk: {
+        label: "Bulk modulus",
+        hint: "Of the volumetric part, fem.NearlyIncompressible",
+        default: 5000,
+      },
     },
     options: {
       formulation: { u: "Displacement (u)", "u-p-J": "Mixed (u, p, J)" },
     },
+    initial: initialSection,
   },
   "pointset.add": {
     label: "Point set",

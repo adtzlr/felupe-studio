@@ -176,6 +176,41 @@ describe("fieldSpecs", () => {
   });
 });
 
+describe("new sections", () => {
+  // the model up to its materials: two cell sets, two materials
+  const model = commands.slice(0, 5);
+
+  it("take a cell set without a section", () => {
+    const first = initialDraft("section.add", { commands: model });
+    expect(first.cellset).toBe("hard");
+    const withSection = [...model, find("section_hard") as unknown as Command];
+    expect(initialDraft("section.add", { commands: withSection }).cellset).toBe(
+      "soft",
+    );
+  });
+
+  it("use u-p-J for an incompressible material", () => {
+    // the latest material is NeoHooke without a bulk modulus
+    const draft = initialDraft("section.add", { commands: model });
+    expect(draft).toMatchObject({
+      material: "umat_soft",
+      formulation: "u-p-J",
+      bulk: 5000,
+    });
+    expect(
+      initialDraft(
+        "section.add",
+        { commands: model },
+        { material: "umat_hard" },
+      ),
+    ).toMatchObject({ formulation: "u" });
+    // a preset wins
+    expect(
+      initialDraft("section.add", { commands: model }, { formulation: "u" }),
+    ).not.toHaveProperty("bulk");
+  });
+});
+
 describe("drafts", () => {
   it("accepts the commands of the fixture, like the schema", () => {
     for (const command of commands) {
