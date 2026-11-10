@@ -110,6 +110,18 @@ def _call(target, func, args):
     return _wrap(f"{target} = {func}", args)
 
 
+def evaluate_options(job):
+    """Return the keyword arguments of ``Job.evaluate()`` of a ``job.add`` command,
+    besides ``x0``.
+
+    Examples
+    --------
+    >>> evaluate_options({"name": "job_1", "steps": ["step_1"], "tol": 0.05})
+    {'tol': 0.05}
+    """
+    return {"tol": float(job["tol"])} if "tol" in job else {}
+
+
 def codegen(document, evaluate=True, check_schema=True):
     """Return the FElupe script of a command list as a string.
 
@@ -307,6 +319,9 @@ def codegen(document, evaluate=True, check_schema=True):
             out.append(_call(job["name"], func, args))
         if evaluate:
             out.append("")
-            out.extend(f"{job['name']}.evaluate(x0=field)" for job in jobs)
+            for job in jobs:
+                args = ["x0=field"]
+                args += [f"{k}={v!r}" for k, v in evaluate_options(job).items()]
+                out.append(f"{job['name']}.evaluate({', '.join(args)})")
 
     return dedent("\n".join(out)).strip() + "\n"

@@ -278,6 +278,11 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         label: "Cutback",
         hint: "Retries a substep that does not converge with smaller increments",
       },
+      tol: {
+        label: "Tolerance",
+        hint: "Of the Newton iterations: residual forces relative to the reaction forces",
+        placeholder: "1.49e-8",
+      },
     },
   },
 };

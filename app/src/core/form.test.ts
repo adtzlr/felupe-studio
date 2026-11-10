@@ -115,6 +115,7 @@ describe("fieldSpecs", () => {
       "steps:reference*",
       "curve:reference",
       "cutback:boolean",
+      "tol:number",
     ]);
   });
 

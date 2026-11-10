@@ -516,3 +516,14 @@ def test_mixed_sections_of_one_mesh(cell_type, formulations, tmp_path, monkeypat
     # tetrahedra are softer and closer to the quadratic hexahedra, about 0.283)
     reference = {("u", "u-p-J"): 0.3066, ("u-p-J", "u-p-J"): 0.2853}[formulations]
     assert force == pytest.approx(reference, rel=0.1)
+
+
+def test_tolerance(two_sections, tmp_path, monkeypatch):
+    mesh, tag = bar()
+    write(tmp_path / "specimen.vtu", mesh, tag)
+    assert "job_1.evaluate(x0=field)\n" in codegen(two_sections)
+    for cmd in two_sections["commands"]:
+        if cmd["command"] == "job.add":
+            cmd["tol"] = 0.05
+    assert "job_1.evaluate(x0=field, tol=0.05)\n" in codegen(two_sections)
+    run(two_sections, tmp_path, monkeypatch)

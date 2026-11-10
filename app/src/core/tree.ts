@@ -72,6 +72,7 @@ function detail(cmd: Command): string {
         cmd.steps.join(", "),
         cmd.curve && `curve ${cmd.curve}`,
         cmd.cutback && "cutback",
+        cmd.tol !== undefined && `tol ${cmd.tol}`,
       ]
         .filter(Boolean)
         .join(" · ");
