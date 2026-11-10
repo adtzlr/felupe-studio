@@ -369,6 +369,96 @@ describe("Viewport", () => {
     expect(screen.getByText("corners: no node at (5, 5, 0.5)")).toBeTruthy();
   });
 
+  it("picks nodes and creates a point set of them (#93)", async () => {
+    localStorage.removeItem("felupe-studio.tip.pick");
+    const { files } = meshFiles();
+    await files.add("a.vtu", new Uint8Array());
+    const store = new ModelStore();
+    store.apply([
+      { type: "add", command: mesh("a", "a.vtu") },
+      {
+        type: "add",
+        command: {
+          command: "pointset.add",
+          name: "corners",
+          select: { points: [[0, 1, 0]] },
+        },
+      },
+    ]);
+    const viewer = fakeViewer();
+    const create = vi.fn();
+    const view = (selected?: string) => (
+      <Viewport
+        store={store}
+        files={files}
+        hidden={new Set()}
+        selected={selected}
+        onCreatePointSet={create}
+        createViewer={viewer.create}
+      />
+    );
+    const { rerender } = render(view());
+    await act(async () => {});
+    fireEvent.click(screen.getByRole("button", { name: "Nodes" }));
+    await act(async () => {});
+    expect(screen.getByRole("note", { name: "Tip" }).textContent).toContain(
+      "click a node",
+    );
+    const canvas = viewer.handle.root.querySelector("canvas")!;
+    // the nodes (0, 0, 0) and (1, 0, 0) are drawn at (38.6, 61.4) and (84.1, 61.4)
+    const click = (x: number, y: number, shiftKey = false) =>
+      act(async () => {
+        canvas.dispatchEvent(
+          new MouseEvent("click", {
+            bubbles: true,
+            clientX: x,
+            clientY: y,
+            shiftKey,
+          }),
+        );
+      });
+    await click(40, 60);
+    const panel = () => screen.getByRole("status", { name: "Picked nodes" });
+    expect(panel().textContent).toContain("Node (0, 0, 0)");
+    // the picked node is highlighted
+    const points = viewer.handle.update.mock.lastCall![0].objects.filter(
+      (o) => o.type === "points",
+    );
+    expect(points.at(-1)).toMatchObject({ color: HIGHLIGHT });
+    await click(83, 60, true);
+    expect(panel().textContent).toContain("2 nodes");
+    await click(39, 62, true);
+    expect(panel().textContent).toContain("Node (1, 0, 0)");
+    await click(40, 60, true);
+
+    // the selected point set by nodes takes the picked nodes
+    rerender(view("corners"));
+    await act(async () => {});
+    fireEvent.click(screen.getByRole("button", { name: "Add to corners" }));
+    expect(store.get("corners")).toMatchObject({
+      select: {
+        points: [
+          [0, 1, 0],
+          [1, 0, 0],
+          [0, 0, 0],
+        ],
+      },
+    });
+    expect(screen.queryByRole("status", { name: "Picked nodes" })).toBeNull();
+
+    await click(40, 60);
+    fireEvent.click(screen.getByRole("button", { name: "Create point set" }));
+    expect(create).toHaveBeenCalledWith({
+      name: "node",
+      select: { points: [[0, 0, 0]] },
+    });
+    // a click beside a node picks a face and clears the nodes
+    await click(40, 60);
+    await click(60, 45);
+    expect(screen.queryByRole("status", { name: "Picked nodes" })).toBeNull();
+    expect(screen.getByRole("status", { name: "Picked face" })).toBeTruthy();
+  });
+
   it("draws the boundaries and load cases (#82)", async () => {
     const { files } = meshFiles();
     await files.add("a.vtu", new Uint8Array());

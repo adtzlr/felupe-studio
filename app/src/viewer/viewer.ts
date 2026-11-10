@@ -26,7 +26,13 @@ import {
   type ResultContent,
   resultNodes,
 } from "./scene";
-import { deformedPositions, type Probe, probeAt, projectPoint } from "./probe";
+import {
+  deformedPositions,
+  nearestNode,
+  type Probe,
+  probeAt,
+  projectPoint,
+} from "./probe";
 import { snapshot } from "./snapshot";
 
 export type CreateViewer = typeof createViewer;
@@ -51,8 +57,33 @@ export interface Pick {
 /** Color of the faces of a picked plane. */
 export const HIGHLIGHT = "#ffd23f";
 
+/** How a click picked: a node (with **Nodes** shown, #93) and the Shift key. */
+export interface Click {
+  /** The drawn node within a few pixels of the click, if the nodes are shown. */
+  node?: Vec3;
+  shift: boolean;
+}
+
 /** A drag of more pixels is a rotation, not a click. */
 const CLICK = 4;
+
+/** A node is picked within this distance of the click, in pixels. */
+const NODE_RADIUS = 8;
+
+/** The diagonal of the bounding box of the meshes. */
+function extent(meshes: readonly MeshLayer[]): number {
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  for (const { surface } of meshes) {
+    const p = surface.positions;
+    for (let i = 0; i < p.length; i++) {
+      min[i % 3] = Math.min(min[i % 3], p[i]);
+      max[i % 3] = Math.max(max[i % 3], p[i]);
+    }
+  }
+  const size = Math.hypot(...max.map((m, k) => m - min[k]));
+  return Number.isFinite(size) ? size : 0;
+}
 
 /**
  * A tolerance of the coordinates of the meshes: relative to the size of the model
@@ -108,7 +139,9 @@ export class Viewer {
   private nodes = false;
   private scheduled = false;
   private down: { x: number; y: number } | undefined;
-  private pickListeners = new Set<(pick: Pick | undefined) => void>();
+  private pickListeners = new Set<
+    (pick: Pick | undefined, click: Click) => void
+  >();
   /** The camera fits the model on the next draw (e.g. after it was empty). */
   private fitNext = true;
 
@@ -229,8 +262,11 @@ export class Viewer {
     this.schedule();
   }
 
-  /** Listen to picks: a face, or undefined for a click beside the model. */
-  onPick(listener: (pick: Pick | undefined) => void): () => void {
+  /**
+   * Listen to picks: a face, or undefined for a click beside the model, and a node
+   * near the click if the nodes are shown.
+   */
+  onPick(listener: (pick: Pick | undefined, click: Click) => void): () => void {
     this.pickListeners.add(listener);
     return () => this.pickListeners.delete(listener);
   }
@@ -261,6 +297,41 @@ export class Viewer {
     return best && { mesh: best.mesh, point: best.point, normal: best.normal };
   }
 
+  /**
+   * The drawn node within a few pixels of a point of the view, if the nodes are
+   * shown; nodes behind the drawn faces are not picked.
+   */
+  nodeAt(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+  ): Vec3 | undefined {
+    this.flush();
+    const camera = this.handle.camera;
+    const ray = this.rayAt(x, y, width, height);
+    if (!this.nodes || !camera || !ray) return undefined;
+    let hit: number | undefined;
+    for (const layer of this.meshes) {
+      const h = firstHit(ray, layer.surface.positions, drawnTriangles(layer));
+      if (h && (hit === undefined || h.distance < hit)) hit = h.distance;
+    }
+    const nodes = this.meshes.map((m) => meshNodes(m).positions);
+    // a node on the hit face may be a little further away along the ray
+    const depth = 0.02 * extent(this.meshes);
+    return nearestNode(
+      camera,
+      ray,
+      x,
+      y,
+      width,
+      height,
+      nodes,
+      NODE_RADIUS,
+      hit === undefined ? undefined : { distance: hit, depth },
+    );
+  }
+
   /** Look at the model from a preset direction, fitted into the view. */
   setView(view: CameraView): void {
     this.flush();
@@ -289,13 +360,11 @@ export class Viewer {
     const canvas = this.handle.root.querySelector("canvas");
     if (!canvas || !this.available) return;
     const rect = canvas.getBoundingClientRect();
-    const pick = this.pickAt(
-      event.clientX - rect.left,
-      event.clientY - rect.top,
-      rect.width,
-      rect.height,
-    );
-    for (const listener of this.pickListeners) listener(pick);
+    const [x, y] = [event.clientX - rect.left, event.clientY - rect.top];
+    const pick = this.pickAt(x, y, rect.width, rect.height);
+    const node = this.nodeAt(x, y, rect.width, rect.height);
+    const click: Click = { shift: event.shiftKey, ...(node ? { node } : {}) };
+    for (const listener of this.pickListeners) listener(pick, click);
   }
 
   /** The faces of the meshes in the highlighted plane. */

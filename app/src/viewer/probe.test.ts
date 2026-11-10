@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { ResultScene } from "../worker/protocol";
 import { type Camera, rayAt, type Vec3 } from "./picking";
-import { deformedPositions, probeAt, probeInfo, projectPoint } from "./probe";
+import {
+  deformedPositions,
+  nearestNode,
+  probeAt,
+  probeInfo,
+  projectPoint,
+} from "./probe";
 
 // a unit square in the plane z = 0 of two triangles, and one in z = -1
 const square = (z: number) => ({
@@ -72,6 +78,26 @@ describe("probe", () => {
     }
     // behind the camera
     expect(projectPoint(camera, [0.5, 0.5, 100], 100, 100)).toBeUndefined();
+  });
+
+  it("finds the nearest node in front of the hit (#93)", () => {
+    // the corner (1, 1) of the front square and of the square behind it
+    const at = projectPoint(camera, [1, 1, 0], 100, 100)!;
+    const ray = rayAt(camera, at[0] + 2, at[1], 100, 100);
+    const nodes = [square(-1).positions, square(0).positions];
+    const near = (radius: number, hit?: { distance: number; depth: number }) =>
+      nearestNode(camera, ray, at[0] + 2, at[1], 100, 100, nodes, radius, hit);
+    expect(near(8)).toEqual([1, 1, 0]);
+    expect(near(1)).toBeUndefined();
+    // only the node behind is near: it is hidden behind a hit in front of it
+    const behind = [square(-1).positions];
+    const back = projectPoint(camera, [1, 1, -1], 100, 100)!;
+    const backRay = rayAt(camera, back[0], back[1], 100, 100);
+    const pick = (hit?: { distance: number; depth: number }) =>
+      nearestNode(camera, backRay, back[0], back[1], 100, 100, behind, 8, hit);
+    expect(pick()).toEqual([1, 1, -1]);
+    expect(pick({ distance: 3, depth: 0.01 })).toBeUndefined();
+    expect(pick({ distance: 10, depth: 0.01 })).toEqual([1, 1, -1]);
   });
 
   it("tells the value of a cell or of a point", () => {

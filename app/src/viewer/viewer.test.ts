@@ -169,6 +169,40 @@ describe("Viewer", () => {
     expect(picks.mock.lastCall![0]).toBeUndefined();
   });
 
+  it("picks a node near a click if the nodes are shown (#93)", () => {
+    const { handle, create } = fake();
+    const viewer = new Viewer(document.createElement("div"), create);
+    viewer.setMeshes([{ name: "bar", surface, color: "#3987e5" }]);
+    const picks = vi.fn();
+    viewer.onPick(picks);
+    const canvas = handle.root.querySelector("canvas")!;
+    const click = (x: number, y: number, shiftKey = false) =>
+      canvas.dispatchEvent(
+        new MouseEvent("click", {
+          bubbles: true,
+          clientX: 10 + x,
+          clientY: 20 + y,
+          shiftKey,
+        }),
+      );
+    // the node (0, 0, 0) is drawn at (38.6, 61.4) of the view
+    click(40, 60);
+    expect(picks.mock.lastCall![1]).toEqual({ shift: false });
+    viewer.setNodes(true);
+    click(40, 60, true);
+    const [pick, { node, shift }] = picks.mock.lastCall!;
+    expect(pick).toMatchObject({ mesh: "bar" });
+    expect(shift).toBe(true);
+    expect(node.map((x: number) => +x.toFixed(6))).toEqual([0, 0, 0]);
+    // beside the model, a node within 8 pixels; further away none
+    click(33, 64);
+    expect(picks.mock.lastCall![0]).toBeUndefined();
+    expect(picks.mock.lastCall![1].node).toBeDefined();
+    click(20, 80);
+    expect(picks.mock.lastCall![1].node).toBeUndefined();
+    expect(viewer.nodeAt(84, 61, 100, 100)).toEqual([1, 0, 0]);
+  });
+
   it("highlights the drawn faces of a plane", async () => {
     const { handle, create } = fake();
     const viewer = new Viewer(document.createElement("div"), create);

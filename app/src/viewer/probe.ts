@@ -129,3 +129,41 @@ export function probeInfo(scene: ResultScene, probe: Probe): ProbeInfo {
     atPoint: true,
   };
 }
+
+/**
+ * The drawn node nearest to a point of the view (pixels from its top left corner),
+ * within a radius in pixels (#93). With a hit of the ray on the drawn faces, nodes
+ * that are further away along the ray than the hit (by more than `depth`) are behind
+ * the faces and are left out.
+ */
+export function nearestNode(
+  camera: Camera,
+  ray: Ray,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  nodes: readonly ArrayLike<number>[],
+  radius: number,
+  hit?: { distance: number; depth: number },
+): Vec3 | undefined {
+  let best: { node: Vec3; distance: number } | undefined;
+  for (const positions of nodes) {
+    for (let p = 0; p < positions.length / 3; p++) {
+      const node = vertex(positions, p);
+      const at = projectPoint(camera, node, width, height);
+      if (!at) continue;
+      const distance = Math.hypot(at[0] - x, at[1] - y);
+      if (distance > radius || (best && distance >= best.distance)) continue;
+      if (hit) {
+        const along = [0, 1, 2].reduce(
+          (sum, k) => sum + (node[k] - ray.origin[k]) * ray.direction[k],
+          0,
+        );
+        if (along > hit.distance + hit.depth) continue;
+      }
+      best = { node, distance };
+    }
+  }
+  return best?.node;
+}
