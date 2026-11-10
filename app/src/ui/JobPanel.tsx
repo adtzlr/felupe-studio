@@ -141,8 +141,8 @@ export function JobPanel({ run, store, onDismiss, onShowResults }: Props) {
           <p class="error">{exceptionOf(run.message)}</p>
           {run.message.includes("NewtonConvergenceError") && (
             <p>
-              Use more substeps in the ramp of the step, or enable the cutback
-              of the job.
+              Use more substeps in the ramp of the step, enable the cutback of
+              the job or loosen its tolerance.
             </p>
           )}
           <details>

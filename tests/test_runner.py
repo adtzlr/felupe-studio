@@ -82,6 +82,23 @@ def test_cutback_of_a_failing_substep(monkeypatch):
     assert results["job_1"]["y"][-1][0] > 0
 
 
+def test_tolerance_of_a_job(monkeypatch):
+    monkeypatch.chdir(GOLDEN / "bar_two_materials")
+    document = copy.deepcopy(load("bar_two_materials"))
+
+    def iterations(document):
+        events = []
+        run(document, events.append)
+        return [e for e in events if e["event"] == "iteration"]
+
+    strict = iterations(document)
+    job = next(c for c in document["commands"] if c["command"] == "job.add")
+    job["tol"] = 0.05
+    loose = iterations(document)
+    assert len(loose) < len(strict)
+    assert loose[-1]["fnorm"] < 0.05
+
+
 def test_invalid_models_are_not_run():
     document = load("bar_single_body")
     document["commands"].append(document["commands"][0])

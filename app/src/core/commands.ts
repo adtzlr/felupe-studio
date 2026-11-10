@@ -426,4 +426,8 @@ export interface JobAdd {
    * Retry a substep that does not converge with smaller increments (fem.CutbackPlugin).
    */
   cutback?: boolean;
+  /**
+   * Tolerance of the Newton-Raphson method: the norm of the residual forces relative to the reaction forces (default: the square root of the machine epsilon, 1.49e-8).
+   */
+  tol?: number;
 }

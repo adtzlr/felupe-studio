@@ -20,7 +20,7 @@ import time
 import felupe as fem
 
 from . import results as results_
-from .codegen import codegen
+from .codegen import codegen, evaluate_options
 from .materials import models
 
 # the namespace of the last run, e.g. its field for results
@@ -150,7 +150,8 @@ def run(document, report=lambda event: None):
     ]
     results_.reset(namespace, sections)
 
-    jobs = [c["name"] for c in document["commands"] if c["command"] == "job.add"]
+    commands = {c["name"]: c for c in document["commands"] if c["command"] == "job.add"}
+    jobs = list(commands)
     substeps = {
         name: [step.nsubsteps for step in namespace[name].steps] for name in jobs
     }
@@ -161,7 +162,8 @@ def run(document, report=lambda event: None):
         job.dispatcher.add_plugin(Progress(report, name, substeps[name]))
         job.dispatcher.add_plugin(results_.Recorder(name, namespace["field"]))
         started = time.perf_counter()
-        job.evaluate(x0=namespace["field"], verbose=False)
+        options = evaluate_options(commands[name])
+        job.evaluate(x0=namespace["field"], verbose=False, **options)
         result = {
             "substeps": sum(substeps[name]),
             "time": time.perf_counter() - started,
