@@ -1,0 +1,1853 @@
+{
+ "corner": {
+  "points": [
+   0.0,
+   0.0,
+   0.0,
+   1.0,
+   0.0,
+   0.0,
+   2.0,
+   0.0,
+   0.0,
+   0.0,
+   1.0,
+   0.0,
+   1.0,
+   1.0,
+   0.0,
+   2.0,
+   1.0,
+   0.0,
+   0.0,
+   0.0,
+   0.5,
+   1.0,
+   0.0,
+   0.5,
+   2.0,
+   0.0,
+   0.5,
+   0.0,
+   1.0,
+   0.5,
+   1.0,
+   1.0,
+   0.5,
+   2.0,
+   1.0,
+   0.5,
+   0.0,
+   0.0,
+   1.0,
+   1.0,
+   0.0,
+   1.0,
+   2.0,
+   0.0,
+   1.0,
+   0.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   1.0,
+   2.0,
+   1.0,
+   1.0
+  ],
+  "cases": [
+   {
+    "loadcase": {
+     "type": "uniaxial"
+    },
+    "boundaries": {
+     "symx": {
+      "points": [
+       0,
+       3,
+       6,
+       9,
+       12,
+       15
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     },
+     "symy": {
+      "points": [
+       0,
+       1,
+       2,
+       6,
+       7,
+       8,
+       12,
+       13,
+       14
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "symz": {
+      "points": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5
+      ],
+      "components": [
+       2
+      ],
+      "value": 0.0
+     },
+     "move": {
+      "points": [
+       2,
+       5,
+       8,
+       11,
+       14,
+       17
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     }
+    }
+   },
+   {
+    "loadcase": {
+     "type": "uniaxial",
+     "axis": "y",
+     "clamped": true
+    },
+    "boundaries": {
+     "symx": {
+      "points": [
+       0,
+       3,
+       6,
+       9,
+       12,
+       15
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     },
+     "symy": {
+      "points": [
+       0,
+       1,
+       2,
+       6,
+       7,
+       8,
+       12,
+       13,
+       14
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "symz": {
+      "points": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5
+      ],
+      "components": [
+       2
+      ],
+      "value": 0.0
+     },
+     "right": {
+      "points": [
+       3,
+       4,
+       5,
+       9,
+       10,
+       11,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       0,
+       2
+      ],
+      "value": 0.0
+     },
+     "move": {
+      "points": [
+       3,
+       4,
+       5,
+       9,
+       10,
+       11,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     }
+    }
+   },
+   {
+    "loadcase": {
+     "type": "uniaxial",
+     "axis": "z",
+     "clamped": true,
+     "symmetry": false
+    },
+    "boundaries": {
+     "left-x": {
+      "points": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5
+      ],
+      "components": [
+       2
+      ],
+      "value": 0.0
+     },
+     "right": {
+      "points": [
+       12,
+       13,
+       14,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       0,
+       1
+      ],
+      "value": 0.0
+     },
+     "left-yz": {
+      "points": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5
+      ],
+      "components": [
+       0,
+       1
+      ],
+      "value": 0.0
+     },
+     "move": {
+      "points": [
+       12,
+       13,
+       14,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       2
+      ],
+      "value": 0.0
+     }
+    }
+   },
+   {
+    "loadcase": {
+     "type": "biaxial"
+    },
+    "boundaries": {
+     "symx": {
+      "points": [
+       0,
+       3,
+       6,
+       9,
+       12,
+       15
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     },
+     "symy": {
+      "points": [
+       0,
+       1,
+       2,
+       6,
+       7,
+       8,
+       12,
+       13,
+       14
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "symz": {
+      "points": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5
+      ],
+      "components": [
+       2
+      ],
+      "value": 0.0
+     },
+     "move-right-0": {
+      "points": [
+       2,
+       5,
+       8,
+       11,
+       14,
+       17
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     },
+     "move-right-1": {
+      "points": [
+       3,
+       4,
+       5,
+       9,
+       10,
+       11,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     }
+    }
+   },
+   {
+    "loadcase": {
+     "type": "biaxial",
+     "axis": "x",
+     "second": "z",
+     "clamped": true
+    },
+    "boundaries": {
+     "symx": {
+      "points": [
+       0,
+       3,
+       6,
+       9,
+       12,
+       15
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     },
+     "symy": {
+      "points": [
+       0,
+       1,
+       2,
+       6,
+       7,
+       8,
+       12,
+       13,
+       14
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "symz": {
+      "points": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5
+      ],
+      "components": [
+       2
+      ],
+      "value": 0.0
+     },
+     "right-0": {
+      "points": [
+       2,
+       5,
+       8,
+       11,
+       14,
+       17
+      ],
+      "components": [
+       1,
+       2
+      ],
+      "value": 0.0
+     },
+     "move-right-0": {
+      "points": [
+       2,
+       5,
+       8,
+       11,
+       14,
+       17
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     },
+     "right-2": {
+      "points": [
+       12,
+       13,
+       14,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       0,
+       1
+      ],
+      "value": 0.0
+     },
+     "move-right-2": {
+      "points": [
+       12,
+       13,
+       14,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       2
+      ],
+      "value": 0.0
+     }
+    }
+   },
+   {
+    "loadcase": {
+     "type": "biaxial",
+     "clamped": true,
+     "symmetry": false
+    },
+    "boundaries": {
+     "move-left-0": {
+      "points": [
+       0,
+       3,
+       6,
+       9,
+       12,
+       15
+      ],
+      "components": [
+       0
+      ],
+      "value": -0.0
+     },
+     "move-left-1": {
+      "points": [
+       0,
+       1,
+       2,
+       6,
+       7,
+       8,
+       12,
+       13,
+       14
+      ],
+      "components": [
+       1
+      ],
+      "value": -0.0
+     },
+     "right-0": {
+      "points": [
+       2,
+       5,
+       8,
+       11,
+       14,
+       17
+      ],
+      "components": [
+       1,
+       2
+      ],
+      "value": 0.0
+     },
+     "left-0": {
+      "points": [
+       0,
+       3,
+       6,
+       9,
+       12,
+       15
+      ],
+      "components": [
+       1,
+       2
+      ],
+      "value": 0.0
+     },
+     "move-right-0": {
+      "points": [
+       2,
+       5,
+       8,
+       11,
+       14,
+       17
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     },
+     "right-1": {
+      "points": [
+       3,
+       4,
+       5,
+       9,
+       10,
+       11,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       0,
+       2
+      ],
+      "value": 0.0
+     },
+     "left-1": {
+      "points": [
+       0,
+       1,
+       2,
+       6,
+       7,
+       8,
+       12,
+       13,
+       14
+      ],
+      "components": [
+       0,
+       2
+      ],
+      "value": 0.0
+     },
+     "move-right-1": {
+      "points": [
+       3,
+       4,
+       5,
+       9,
+       10,
+       11,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     }
+    }
+   },
+   {
+    "loadcase": {
+     "type": "planar",
+     "axis": "y",
+     "second": "x"
+    },
+    "boundaries": {
+     "symx": {
+      "points": [
+       0,
+       3,
+       6,
+       9,
+       12,
+       15
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     },
+     "symy": {
+      "points": [
+       0,
+       1,
+       2,
+       6,
+       7,
+       8,
+       12,
+       13,
+       14
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "symz": {
+      "points": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5
+      ],
+      "components": [
+       2
+      ],
+      "value": 0.0
+     },
+     "move-right-1": {
+      "points": [
+       3,
+       4,
+       5,
+       9,
+       10,
+       11,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "move-right-0": {
+      "points": [
+       2,
+       5,
+       8,
+       11,
+       14,
+       17
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     }
+    }
+   },
+   {
+    "loadcase": {
+     "type": "shear"
+    },
+    "boundaries": {
+     "symz": {
+      "points": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5
+      ],
+      "components": [
+       2
+      ],
+      "value": 0.0
+     },
+     "bottom": {
+      "points": [
+       0,
+       1,
+       2,
+       6,
+       7,
+       8,
+       12,
+       13,
+       14
+      ],
+      "components": [
+       0,
+       2
+      ],
+      "value": 0.0
+     },
+     "top": {
+      "points": [
+       3,
+       4,
+       5,
+       9,
+       10,
+       11,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       2
+      ],
+      "value": 0.0
+     },
+     "compression_bottom": {
+      "points": [
+       0,
+       1,
+       2,
+       6,
+       7,
+       8,
+       12,
+       13,
+       14
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "compression_top": {
+      "points": [
+       3,
+       4,
+       5,
+       9,
+       10,
+       11,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "move": {
+      "points": [
+       3,
+       4,
+       5,
+       9,
+       10,
+       11,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     }
+    }
+   },
+   {
+    "loadcase": {
+     "type": "shear",
+     "axis": "z",
+     "normal": "x",
+     "compression": -0.1
+    },
+    "boundaries": {
+     "symy": {
+      "points": [
+       0,
+       1,
+       2,
+       6,
+       7,
+       8,
+       12,
+       13,
+       14
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "bottom": {
+      "points": [
+       0,
+       3,
+       6,
+       9,
+       12,
+       15
+      ],
+      "components": [
+       1,
+       2
+      ],
+      "value": 0.0
+     },
+     "top": {
+      "points": [
+       2,
+       5,
+       8,
+       11,
+       14,
+       17
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "compression_bottom": {
+      "points": [
+       0,
+       3,
+       6,
+       9,
+       12,
+       15
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     },
+     "compression_top": {
+      "points": [
+       2,
+       5,
+       8,
+       11,
+       14,
+       17
+      ],
+      "components": [
+       0
+      ],
+      "value": -0.1
+     },
+     "move": {
+      "points": [
+       2,
+       5,
+       8,
+       11,
+       14,
+       17
+      ],
+      "components": [
+       2
+      ],
+      "value": 0.0
+     }
+    }
+   },
+   {
+    "loadcase": {
+     "type": "shear",
+     "axis": "x",
+     "normal": "z",
+     "symmetry": false
+    },
+    "boundaries": {
+     "bottom": {
+      "points": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5
+      ],
+      "components": [
+       0,
+       1
+      ],
+      "value": 0.0
+     },
+     "top": {
+      "points": [
+       12,
+       13,
+       14,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "compression_bottom": {
+      "points": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5
+      ],
+      "components": [
+       2
+      ],
+      "value": 0.0
+     },
+     "compression_top": {
+      "points": [
+       12,
+       13,
+       14,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       2
+      ],
+      "value": 0.0
+     },
+     "move": {
+      "points": [
+       12,
+       13,
+       14,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     }
+    }
+   }
+  ]
+ },
+ "shifted": {
+  "points": [
+   1.0,
+   -1.0,
+   0.5,
+   1.75,
+   -1.0,
+   0.5,
+   2.5,
+   -1.0,
+   0.5,
+   1.0,
+   0.0,
+   0.5,
+   1.75,
+   0.0,
+   0.5,
+   2.5,
+   0.0,
+   0.5,
+   1.0,
+   1.0,
+   0.5,
+   1.75,
+   1.0,
+   0.5,
+   2.5,
+   1.0,
+   0.5,
+   1.0,
+   -1.0,
+   2.0,
+   1.75,
+   -1.0,
+   2.0,
+   2.5,
+   -1.0,
+   2.0,
+   1.0,
+   0.0,
+   2.0,
+   1.75,
+   0.0,
+   2.0,
+   2.5,
+   0.0,
+   2.0,
+   1.0,
+   1.0,
+   2.0,
+   1.75,
+   1.0,
+   2.0,
+   2.5,
+   1.0,
+   2.0
+  ],
+  "cases": [
+   {
+    "loadcase": {
+     "type": "uniaxial"
+    },
+    "boundaries": {
+     "symx": {
+      "points": [],
+      "components": [],
+      "value": 0.0
+     },
+     "symy": {
+      "points": [
+       3,
+       4,
+       5,
+       12,
+       13,
+       14
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "symz": {
+      "points": [],
+      "components": [],
+      "value": 0.0
+     },
+     "move": {
+      "points": [
+       2,
+       5,
+       8,
+       11,
+       14,
+       17
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     }
+    }
+   },
+   {
+    "loadcase": {
+     "type": "uniaxial",
+     "axis": "y",
+     "clamped": true
+    },
+    "boundaries": {
+     "symx": {
+      "points": [],
+      "components": [],
+      "value": 0.0
+     },
+     "symy": {
+      "points": [
+       3,
+       4,
+       5,
+       12,
+       13,
+       14
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "symz": {
+      "points": [],
+      "components": [],
+      "value": 0.0
+     },
+     "right": {
+      "points": [
+       6,
+       7,
+       8,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       0,
+       2
+      ],
+      "value": 0.0
+     },
+     "move": {
+      "points": [
+       6,
+       7,
+       8,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     }
+    }
+   },
+   {
+    "loadcase": {
+     "type": "uniaxial",
+     "axis": "z",
+     "clamped": true,
+     "symmetry": false
+    },
+    "boundaries": {
+     "left-x": {
+      "points": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7,
+       8
+      ],
+      "components": [
+       2
+      ],
+      "value": 0.0
+     },
+     "right": {
+      "points": [
+       9,
+       10,
+       11,
+       12,
+       13,
+       14,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       0,
+       1
+      ],
+      "value": 0.0
+     },
+     "left-yz": {
+      "points": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7,
+       8
+      ],
+      "components": [
+       0,
+       1
+      ],
+      "value": 0.0
+     },
+     "move": {
+      "points": [
+       9,
+       10,
+       11,
+       12,
+       13,
+       14,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       2
+      ],
+      "value": 0.0
+     }
+    }
+   },
+   {
+    "loadcase": {
+     "type": "biaxial"
+    },
+    "boundaries": {
+     "symx": {
+      "points": [],
+      "components": [],
+      "value": 0.0
+     },
+     "symy": {
+      "points": [
+       3,
+       4,
+       5,
+       12,
+       13,
+       14
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "symz": {
+      "points": [],
+      "components": [],
+      "value": 0.0
+     },
+     "move-right-0": {
+      "points": [
+       2,
+       5,
+       8,
+       11,
+       14,
+       17
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     },
+     "move-right-1": {
+      "points": [
+       6,
+       7,
+       8,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     }
+    }
+   },
+   {
+    "loadcase": {
+     "type": "biaxial",
+     "axis": "x",
+     "second": "z",
+     "clamped": true
+    },
+    "boundaries": {
+     "symx": {
+      "points": [],
+      "components": [],
+      "value": 0.0
+     },
+     "symy": {
+      "points": [
+       3,
+       4,
+       5,
+       12,
+       13,
+       14
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "symz": {
+      "points": [],
+      "components": [],
+      "value": 0.0
+     },
+     "right-0": {
+      "points": [
+       2,
+       5,
+       8,
+       11,
+       14,
+       17
+      ],
+      "components": [
+       1,
+       2
+      ],
+      "value": 0.0
+     },
+     "move-right-0": {
+      "points": [
+       2,
+       5,
+       8,
+       11,
+       14,
+       17
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     },
+     "right-2": {
+      "points": [
+       9,
+       10,
+       11,
+       12,
+       13,
+       14,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       0,
+       1
+      ],
+      "value": 0.0
+     },
+     "move-right-2": {
+      "points": [
+       9,
+       10,
+       11,
+       12,
+       13,
+       14,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       2
+      ],
+      "value": 0.0
+     }
+    }
+   },
+   {
+    "loadcase": {
+     "type": "biaxial",
+     "clamped": true,
+     "symmetry": false
+    },
+    "boundaries": {
+     "move-left-0": {
+      "points": [
+       0,
+       3,
+       6,
+       9,
+       12,
+       15
+      ],
+      "components": [
+       0
+      ],
+      "value": -0.0
+     },
+     "move-left-1": {
+      "points": [
+       0,
+       1,
+       2,
+       9,
+       10,
+       11
+      ],
+      "components": [
+       1
+      ],
+      "value": -0.0
+     },
+     "right-0": {
+      "points": [
+       2,
+       5,
+       8,
+       11,
+       14,
+       17
+      ],
+      "components": [
+       1,
+       2
+      ],
+      "value": 0.0
+     },
+     "left-0": {
+      "points": [
+       0,
+       3,
+       6,
+       9,
+       12,
+       15
+      ],
+      "components": [
+       1,
+       2
+      ],
+      "value": 0.0
+     },
+     "move-right-0": {
+      "points": [
+       2,
+       5,
+       8,
+       11,
+       14,
+       17
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     },
+     "right-1": {
+      "points": [
+       6,
+       7,
+       8,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       0,
+       2
+      ],
+      "value": 0.0
+     },
+     "left-1": {
+      "points": [
+       0,
+       1,
+       2,
+       9,
+       10,
+       11
+      ],
+      "components": [
+       0,
+       2
+      ],
+      "value": 0.0
+     },
+     "move-right-1": {
+      "points": [
+       6,
+       7,
+       8,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     }
+    }
+   },
+   {
+    "loadcase": {
+     "type": "planar",
+     "axis": "y",
+     "second": "x"
+    },
+    "boundaries": {
+     "symx": {
+      "points": [],
+      "components": [],
+      "value": 0.0
+     },
+     "symy": {
+      "points": [
+       3,
+       4,
+       5,
+       12,
+       13,
+       14
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "symz": {
+      "points": [],
+      "components": [],
+      "value": 0.0
+     },
+     "move-right-1": {
+      "points": [
+       6,
+       7,
+       8,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "move-right-0": {
+      "points": [
+       2,
+       5,
+       8,
+       11,
+       14,
+       17
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     }
+    }
+   },
+   {
+    "loadcase": {
+     "type": "shear"
+    },
+    "boundaries": {
+     "symz": {
+      "points": [],
+      "components": [],
+      "value": 0.0
+     },
+     "bottom": {
+      "points": [
+       0,
+       1,
+       2,
+       9,
+       10,
+       11
+      ],
+      "components": [
+       0,
+       2
+      ],
+      "value": 0.0
+     },
+     "top": {
+      "points": [
+       6,
+       7,
+       8,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       2
+      ],
+      "value": 0.0
+     },
+     "compression_bottom": {
+      "points": [
+       0,
+       1,
+       2,
+       9,
+       10,
+       11
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "compression_top": {
+      "points": [
+       6,
+       7,
+       8,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "move": {
+      "points": [
+       6,
+       7,
+       8,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     }
+    }
+   },
+   {
+    "loadcase": {
+     "type": "shear",
+     "axis": "z",
+     "normal": "x",
+     "compression": -0.1
+    },
+    "boundaries": {
+     "symy": {
+      "points": [
+       3,
+       4,
+       5,
+       12,
+       13,
+       14
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "bottom": {
+      "points": [
+       0,
+       3,
+       6,
+       9,
+       12,
+       15
+      ],
+      "components": [
+       1,
+       2
+      ],
+      "value": 0.0
+     },
+     "top": {
+      "points": [
+       2,
+       5,
+       8,
+       11,
+       14,
+       17
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "compression_bottom": {
+      "points": [
+       0,
+       3,
+       6,
+       9,
+       12,
+       15
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     },
+     "compression_top": {
+      "points": [
+       2,
+       5,
+       8,
+       11,
+       14,
+       17
+      ],
+      "components": [
+       0
+      ],
+      "value": -0.1
+     },
+     "move": {
+      "points": [
+       2,
+       5,
+       8,
+       11,
+       14,
+       17
+      ],
+      "components": [
+       2
+      ],
+      "value": 0.0
+     }
+    }
+   },
+   {
+    "loadcase": {
+     "type": "shear",
+     "axis": "x",
+     "normal": "z",
+     "symmetry": false
+    },
+    "boundaries": {
+     "bottom": {
+      "points": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7,
+       8
+      ],
+      "components": [
+       0,
+       1
+      ],
+      "value": 0.0
+     },
+     "top": {
+      "points": [
+       9,
+       10,
+       11,
+       12,
+       13,
+       14,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       1
+      ],
+      "value": 0.0
+     },
+     "compression_bottom": {
+      "points": [
+       0,
+       1,
+       2,
+       3,
+       4,
+       5,
+       6,
+       7,
+       8
+      ],
+      "components": [
+       2
+      ],
+      "value": 0.0
+     },
+     "compression_top": {
+      "points": [
+       9,
+       10,
+       11,
+       12,
+       13,
+       14,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       2
+      ],
+      "value": 0.0
+     },
+     "move": {
+      "points": [
+       9,
+       10,
+       11,
+       12,
+       13,
+       14,
+       15,
+       16,
+       17
+      ],
+      "components": [
+       0
+      ],
+      "value": 0.0
+     }
+    }
+   }
+  ]
+ }
+}

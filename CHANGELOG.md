@@ -6,6 +6,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Added
 
+- Boundaries and load cases in the viewport: strokes of the fixed components and arrows of the moved boundaries, also of the load cases like `fem.dof` (#82).
 - Results: hovering shows the value under the pointer, of a cell (strains, stresses) or of a node (displacements), with its cell or node (#85).
 - Samples (header and empty model): four finished models with their mesh files, opened like a project file (#32).
 - The properties of the selected object are shown in a panel on the right of the viewport, which opens on selection and can be closed; the browser has the left sidebar for itself (#83).
