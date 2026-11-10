@@ -189,3 +189,42 @@ describe("App shell", () => {
     expect(screen.getByRole("status").textContent).toContain("1 issue");
   });
 });
+
+describe("updates", () => {
+  it("offers to reload when a newer version is deployed", () => {
+    let report: (build: string) => void = () => {};
+    const stop = vi.fn();
+    const updates = vi.fn((onUpdate: (build: string) => void) => {
+      report = onUpdate;
+      return stop;
+    });
+    const reload = vi.fn();
+    render(<App store={new ModelStore()} updates={updates} reload={reload} />);
+    expect(screen.queryByRole("status", { name: "Update" })).toBeNull();
+    act(() => report("new"));
+    const banner = screen.getByRole("status", { name: "Update" });
+    expect(banner.textContent).toContain("A new version of FElupe Studio");
+    expect(banner.textContent).toContain("Reload the page to use it.");
+    fireEvent.click(screen.getByRole("button", { name: "Reload" }));
+    expect(reload).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss the update" }));
+    expect(screen.queryByRole("status", { name: "Update" })).toBeNull();
+  });
+
+  it("asks to save a project first", () => {
+    let report: (build: string) => void = () => {};
+    render(
+      <App
+        store={new ModelStore(fixture as CommandList)}
+        updates={(onUpdate) => {
+          report = onUpdate;
+          return () => {};
+        }}
+      />,
+    );
+    act(() => report("new"));
+    expect(
+      screen.getByRole("status", { name: "Update" }).textContent,
+    ).toContain("Save your project first");
+  });
+});

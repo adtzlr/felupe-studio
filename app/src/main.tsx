@@ -4,6 +4,7 @@ import { ModelStore } from "./core/store";
 import { registerServiceWorker } from "./service-worker";
 import "./style.css";
 import { App } from "./ui/App";
+import { watchForUpdates } from "./updates";
 import { PyodideClient } from "./worker/client";
 
 void registerServiceWorker();
@@ -17,6 +18,16 @@ const files = new MeshFiles(async (name, data) => {
 });
 
 render(
-  <App store={store} client={client} files={files} />,
+  <App
+    store={store}
+    client={client}
+    files={files}
+    // a newer deployment (not in the development server)
+    updates={
+      import.meta.env.PROD
+        ? (onUpdate) => watchForUpdates(__BUILD_ID__, onUpdate)
+        : undefined
+    }
+  />,
   document.getElementById("app")!,
 );

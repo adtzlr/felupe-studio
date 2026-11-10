@@ -56,6 +56,25 @@ const isPointSet = (c: Command): c is PointSetAdd =>
 
 const formatNumber = (value: number) => String(+value.toPrecision(6));
 
+/** The tip about picking is shown until the first pick or until it is dismissed. */
+const TIP = "felupe-studio.tip.pick";
+
+function tipSeen(): boolean {
+  try {
+    return localStorage.getItem(TIP) === "seen";
+  } catch {
+    return false;
+  }
+}
+
+function rememberTip(): void {
+  try {
+    localStorage.setItem(TIP, "seen");
+  } catch {
+    // storage may be unavailable, e.g. in a private window
+  }
+}
+
 export function Viewport({
   store,
   files,
@@ -68,6 +87,11 @@ export function Viewport({
   const viewer = useRef<Viewer | null>(null);
   const [available, setAvailable] = useState(true);
   const [picked, setPicked] = useState<Picked | undefined>();
+  const [tip, setTip] = useState(() => !tipSeen());
+  const hideTip = () => {
+    setTip(false);
+    rememberTip();
+  };
   // chosen by the user, else sections, cell sets or meshes, as the model has them
   const [chosen, setChosen] = useState<ColorBy | undefined>();
   const commands = store.commands;
@@ -124,7 +148,10 @@ export function Viewport({
     if (!viewer.current) {
       if (content.meshes.length === 0 || !host.current) return;
       viewer.current = new Viewer(host.current, createViewer);
-      viewer.current.onPick((pick) => setPicked(pick && planeOf(pick)));
+      viewer.current.onPick((pick) => {
+        setPicked(pick && planeOf(pick));
+        if (pick) hideTip();
+      });
       setAvailable(viewer.current.available);
     }
     viewer.current.setMeshes(content.meshes);
@@ -190,6 +217,22 @@ export function Viewport({
               </option>
             ))}
           </select>
+        </div>
+      )}
+      {shown && available && tip && !picked && (
+        <div class="pick-panel tip" role="note" aria-label="Tip">
+          <span class="muted">
+            Tip: click a face to create a point set of its plane. Drag to
+            rotate.
+          </span>
+          <button
+            type="button"
+            class="icon-button"
+            aria-label="Dismiss the tip"
+            onClick={hideTip}
+          >
+            ×
+          </button>
         </div>
       )}
       {shown && picked && (

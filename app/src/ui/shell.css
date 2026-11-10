@@ -151,6 +151,20 @@ button {
   padding-left: 18px;
 }
 
+/* a notice, e.g. a new version of the app */
+.banner.info {
+  align-items: center;
+  background: #1f2d40;
+  border-bottom-color: #2f4a6b;
+}
+
+.banner .banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
 /* ribbon */
 .ribbon {
   display: flex;

@@ -8,6 +8,11 @@ const WHEELS = Object.entries(pkg.config.wheels).map(
 );
 const FELUPE_VERSION = pkg.config.wheels.felupe.version;
 
+// the build, e.g. the commit on GitHub Pages; written to version.json, so that an
+// open app finds out about a newer deployment
+const BUILD_ID =
+  process.env.GITHUB_SHA?.slice(0, 12) ?? new Date().toISOString();
+
 export default defineConfig({
   // Relative base: works on GitHub Pages below /felupe-studio/ and locally
   base: "./",
@@ -16,7 +21,21 @@ export default defineConfig({
     __PYODIDE_VERSION__: JSON.stringify(pkg.devDependencies.pyodide),
     __FELUPE_VERSION__: JSON.stringify(FELUPE_VERSION),
     __WHEELS__: JSON.stringify(WHEELS),
+    __BUILD_ID__: JSON.stringify(BUILD_ID),
   },
+  plugins: [
+    {
+      name: "version-file",
+      apply: "build",
+      generateBundle() {
+        this.emitFile({
+          type: "asset",
+          fileName: "version.json",
+          source: JSON.stringify({ build: BUILD_ID }) + "\n",
+        });
+      },
+    },
+  ],
   build: {
     rollupOptions: {
       input: {
