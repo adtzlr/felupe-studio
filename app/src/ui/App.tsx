@@ -4,6 +4,7 @@ import { fileNotes, MeshFiles } from "../core/meshfiles";
 import { REGISTRY } from "../core/registry";
 import type { RibbonItem } from "../core/ribbon";
 import type { ModelStore } from "../core/store";
+import type { UpdateWatcher } from "../updates";
 import type { PyodideClient } from "../worker/client";
 import { CreateDialog } from "./CreateDialog";
 import { Footer } from "./Footer";
@@ -22,6 +23,10 @@ interface Props {
   files?: MeshFiles;
   /** Save a file; the default downloads it in the browser. */
   download?: (name: string, text: string) => void;
+  /** Reports a newer deployment of the app (see updates.ts). */
+  updates?: UpdateWatcher;
+  /** Reload the page; the default reloads the browser window. */
+  reload?: () => void;
 }
 
 function downloadFile(name: string, text: string) {
@@ -49,6 +54,8 @@ export function App({
   client,
   files: given,
   download = downloadFile,
+  updates,
+  reload = () => window.location.reload(),
 }: Props) {
   useStore(store);
   const [files] = useState(() => given ?? new MeshFiles());
@@ -64,6 +71,7 @@ export function App({
   const [selection, setSelection] = useState<string | undefined>();
   const [creating, setCreating] = useState<RibbonItem | undefined>();
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
+  const [update, setUpdate] = useState<"available" | "dismissed">();
   // a selection that was removed (or renamed) is gone
   const selected = selection && store.get(selection) ? selection : undefined;
   const toggleVisible = (id: string) =>
@@ -88,6 +96,9 @@ export function App({
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [store, creating, importing]);
+
+  // a newer deployment of the app is offered once
+  useEffect(() => updates?.(() => setUpdate("available")), [updates]);
 
   // the project module (with the schema validator) is loaded on first use
   const openProject = useCallback(
@@ -186,6 +197,29 @@ export function App({
           void openFiles(list);
         }}
       />
+      {update === "available" && (
+        <div class="banner info" role="status" aria-label="Update">
+          <div>
+            <strong>A new version of FElupe Studio is available.</strong>{" "}
+            {store.commands.length > 0
+              ? "Save your project first; after the reload, open it again with its mesh files."
+              : "Reload the page to use it."}
+          </div>
+          <div class="banner-actions">
+            <button type="button" class="button" onClick={() => reload()}>
+              Reload
+            </button>
+            <button
+              type="button"
+              class="icon-button"
+              aria-label="Dismiss the update"
+              onClick={() => setUpdate("dismissed")}
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
       {error && (
         <div class="banner" role="alert">
           <div>

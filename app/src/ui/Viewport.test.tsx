@@ -313,6 +313,62 @@ describe("Viewport", () => {
     expect(screen.queryByRole("status", { name: "Picked face" })).toBeNull();
   });
 
+  it("shows a tip about picking until the first pick", async () => {
+    localStorage.removeItem("felupe-studio.tip.pick");
+    const { files } = meshFiles();
+    await files.add("a.vtu", new Uint8Array());
+    const store = new ModelStore();
+    store.apply({ type: "add", command: mesh("a", "a.vtu") });
+    const viewer = fakeViewer();
+    const view = (
+      <Viewport
+        store={store}
+        files={files}
+        hidden={new Set()}
+        createViewer={viewer.create}
+      />
+    );
+    render(view);
+    await act(async () => {});
+    expect(screen.getByRole("note", { name: "Tip" }).textContent).toContain(
+      "click a face to create a point set",
+    );
+    const canvas = viewer.handle.root.querySelector("canvas")!;
+    await act(async () => {
+      canvas.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, clientX: 50, clientY: 50 }),
+      );
+    });
+    expect(screen.queryByRole("note", { name: "Tip" })).toBeNull();
+    expect(localStorage.getItem("felupe-studio.tip.pick")).toBe("seen");
+
+    // not shown again
+    cleanup();
+    render(view);
+    await act(async () => {});
+    expect(screen.queryByRole("note", { name: "Tip" })).toBeNull();
+  });
+
+  it("forgets the tip when it is dismissed", async () => {
+    localStorage.removeItem("felupe-studio.tip.pick");
+    const { files } = meshFiles();
+    await files.add("a.vtu", new Uint8Array());
+    const store = new ModelStore();
+    store.apply({ type: "add", command: mesh("a", "a.vtu") });
+    render(
+      <Viewport
+        store={store}
+        files={files}
+        hidden={new Set()}
+        createViewer={fakeViewer().create}
+      />,
+    );
+    await act(async () => {});
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss the tip" }));
+    expect(screen.queryByRole("note", { name: "Tip" })).toBeNull();
+    expect(localStorage.getItem("felupe-studio.tip.pick")).toBe("seen");
+  });
+
   it("explains faces that are not normal to an axis", async () => {
     const { files } = meshFiles();
     await files.add("tilted.vtu", new Uint8Array());
