@@ -1,3 +1,4 @@
+import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { ResultView } from "../core/results";
 import { type CreateViewer, Viewer, VIEWS } from "../viewer/viewer";
@@ -23,6 +24,8 @@ interface Props {
   /** A run is going on. */
   running: boolean;
   createViewer?: CreateViewer;
+  /** Panels over the results, e.g. the force-displacement curve. */
+  children?: ComponentChildren;
 }
 
 type Loaded =
@@ -85,6 +88,7 @@ export function ResultsView({
   active,
   running,
   createViewer,
+  children,
 }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
@@ -170,6 +174,7 @@ export function ResultsView({
         </div>
       )}
       {message && <p class="viewport-message muted">{message}</p>}
+      {view && !running && children}
       {shown && loading && (
         <p class="viewport-status muted" role="status">
           Loading …

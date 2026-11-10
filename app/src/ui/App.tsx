@@ -14,6 +14,7 @@ import { Header } from "./Header";
 import { useJobs, useMeshFiles, useRuntime, useStore } from "./hooks";
 import { ImportMeshDialog } from "./ImportMeshDialog";
 import { JobPanel } from "./JobPanel";
+import { CurveCard } from "./CurveCard";
 import { ResultsControls } from "./ResultsControls";
 import { ResultsView } from "./ResultsView";
 import { Ribbon, type Workspace } from "./Ribbon";
@@ -36,7 +37,9 @@ interface Props {
 
 function downloadFile(name: string, text: string) {
   const url = URL.createObjectURL(
-    new Blob([text], { type: "application/json" }),
+    new Blob([text], {
+      type: name.endsWith(".csv") ? "text/csv" : "application/json",
+    }),
   );
   const link = Object.assign(document.createElement("a"), {
     href: url,
@@ -325,7 +328,16 @@ export function App({
             generation={jobs?.generation ?? 0}
             active={workspace === "results"}
             running={run.state === "running"}
-          />
+          >
+            {finished && resultView?.curve && (
+              <CurveCard
+                run={finished}
+                view={resultView}
+                onChange={setResultView}
+                download={download}
+              />
+            )}
+          </ResultsView>
         </div>
         <JobPanel
           run={run}

@@ -404,6 +404,7 @@ describe("solve", () => {
         return new Promise<ResultScene>((r) => (resolveScene = r));
       },
     );
+    const download = vi.fn();
     const scene = (label: string): ResultScene => ({
       label,
       at: "point",
@@ -415,6 +416,7 @@ describe("solve", () => {
         store={new ModelStore(fixture as CommandList)}
         files={await files()}
         client={client(Promise.resolve(readyValue), { ...jobs, resultScene })}
+        download={download}
       />,
     );
     const workspace = (name: string) =>
@@ -483,6 +485,50 @@ describe("solve", () => {
     });
     fireEvent.click(within(panel).getByLabelText("Undeformed"));
     expect(scenes).toHaveLength(3);
+
+    // the force-displacement curve of the job, with the current substep
+    const card = screen.getByRole("region", {
+      name: "Force-displacement curve",
+    });
+    expect(card.textContent).toContain("Force–displacement · move");
+    expect(within(card).getByRole("img").getAttribute("aria-label")).toBe(
+      "Force Fx over the displacement ux, 6 substeps",
+    );
+    expect(card.querySelector(".current-point")).not.toBeNull();
+    fireEvent.click(within(card).getByRole("button", { name: "Table" }));
+    const rows = within(card).getAllByRole("row");
+    expect(rows).toHaveLength(7);
+    expect(rows[3].getAttribute("aria-current")).toBe("true");
+    expect(rows[3].textContent).toBe("30.22");
+    fireEvent.click(rows[5]);
+    expect(panel.textContent).toContain("Substep 5 of 6");
+    expect(panel.textContent).toContain("ux = 0.4, Fx = 4");
+    await act(async () => resolveScene(scene("Von Mises")));
+
+    fireEvent.click(within(card).getByRole("button", { name: "CSV" }));
+    expect(download).toHaveBeenCalledWith(
+      "job_1.csv",
+      expect.stringContaining(
+        "substep,step,u_x,u_y,u_z,F_x,F_y,F_z\n1,step_1,0,0,0,0,0,0\n",
+      ),
+    );
+    fireEvent.change(within(card).getByLabelText("Component"), {
+      target: { value: "1" },
+    });
+    expect(panel.textContent).toContain("uy = 0, Fy = 0");
+
+    fireEvent.click(
+      within(card).getByRole("button", { name: "Close the curve" }),
+    );
+    expect(
+      screen.queryByRole("region", { name: "Force-displacement curve" }),
+    ).toBeNull();
+    const toggle = within(panel).getByLabelText("Curve") as HTMLInputElement;
+    expect(toggle.checked).toBe(false);
+    fireEvent.click(toggle);
+    expect(
+      screen.getByRole("region", { name: "Force-displacement curve" }),
+    ).toBeTruthy();
   });
 
   it("explains why the jobs cannot be run", () => {
