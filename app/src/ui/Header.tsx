@@ -31,7 +31,7 @@ export function Header({
           type="button"
           class="icon-button"
           aria-label="Open project"
-          title="Open project"
+          title="Open a project file with its mesh files, or mesh files to import"
           onClick={onOpen}
         >
           <Icon name="open" />

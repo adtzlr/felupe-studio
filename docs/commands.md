@@ -139,3 +139,13 @@ A created command is checked like a form (`draftErrors`), keys that are not part
 Tab or Enter accepts a suggestion: command names and keywords for the first word, object names after `delete` and `select`, and after a command a JSON template with the defaults (one per material model). ↑/↓ move through the suggestions, or through the entered lines if no suggestions are shown; Escape closes the suggestions, a second Escape clears the line.
 
 The history bar below shows the command list in order: a click selects the object, objects with issues are marked, and the arrows step back and forward (undo, redo).
+
+## Mesh files (app)
+
+A project file references mesh files by name; their content lives next to it. In the app:
+
+- **Import mesh** (ribbon, `mesh.import` on the command line, or opening/dropping a single mesh file) opens a dialog: choose or drop the file, see its cells, points, bounds and ignored lower-dimensional blocks, and create the mesh together with its cell sets in one undo step: one cell set per value of a cell tag (named after Gmsh physical groups if the file has them), one with all cells, or none.
+- **Open** accepts a project file together with its mesh files (select several files, or drop them on the window). Several mesh files without a project are offered in the import dialog.
+- A mesh whose file is not loaded, cannot be read or lacks its cell tag is marked in the browser; its properties show the file state with **Choose file…**, which stores the chosen file under the name the mesh references.
+
+The files are kept in the browser (`app/src/core/meshfiles.ts`) and written into the working directory of Python in the worker, where `felupe_studio.meshes.inspect()` reads them with meshio exactly like the generated script (`volume_cells`). meshio is served as a pinned wheel next to FElupe (`config.wheels` in `app/package.json`). The files are not kept across a reload of the page yet.

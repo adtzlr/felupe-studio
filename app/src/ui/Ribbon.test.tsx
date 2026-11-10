@@ -4,12 +4,14 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } from "@testing-library/preact";
 import { afterEach, describe, expect, it } from "vitest";
 import fixture from "../../../tests/data/two_sections.json";
 import type { CommandList } from "../core/commands";
 import { parse, serialize } from "../core/project";
+import { MeshFiles } from "../core/meshfiles";
 import { ModelStore } from "../core/store";
 import { validate } from "../core/validate";
 import { App } from "./App";
@@ -17,7 +19,14 @@ import { App } from "./App";
 afterEach(cleanup);
 
 function setup(store = new ModelStore()) {
-  render(<App store={store} />);
+  const files = new MeshFiles(async (name) => ({
+    file: name,
+    points: 325,
+    cell_type: "hexahedron",
+    cells: 192,
+    tags: [],
+  }));
+  render(<App store={store} files={files} />);
   const tab = (name: string) =>
     fireEvent.click(screen.getByRole("tab", { name }));
   const panel = () => screen.getByRole("tabpanel");
@@ -67,28 +76,37 @@ describe("ribbon commands", () => {
   });
 
   it("open a dialog that creates and selects the object", () => {
-    const { store, command, dialog, field, create } = setup();
-    const opener = command("Import mesh");
+    const { store, tab, command, dialog, field, create } = setup();
+    tab("Materials");
+    const opener = command("Neo-Hooke");
     opener.focus();
     fireEvent.click(opener);
-    expect(within(dialog()).getByRole("heading").textContent).toBe("New mesh");
+    expect(within(dialog()).getByRole("heading").textContent).toBe(
+      "New material",
+    );
     expect(document.activeElement).toBe(field("Name"));
-    expect(field("Name").value).toBe("mesh_1");
+    expect(field("Name").value).toBe("material_1");
 
+    fireEvent.input(field("Name"), { target: { value: "" } });
     create();
     expect(dialog().textContent).toContain("Required.");
     expect(store.commands).toHaveLength(0);
 
-    fireEvent.input(field("File"), { target: { value: "bar.vtu" } });
+    fireEvent.input(field("Name"), { target: { value: "rubber" } });
     create();
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(store.commands).toEqual([
-      { command: "mesh.import", name: "mesh_1", file: "bar.vtu" },
+      {
+        command: "material.add",
+        name: "rubber",
+        model: "NeoHooke",
+        parameters: { mu: 1 },
+      },
     ]);
     const tree = screen.getByRole("tree", { name: "Model" });
     expect(
       within(tree)
-        .getByRole("treeitem", { name: "mesh_1" })
+        .getByRole("treeitem", { name: "rubber" })
         .getAttribute("aria-selected"),
     ).toBe("true");
     // creating is one undo step
@@ -126,8 +144,8 @@ describe("ribbon commands", () => {
     expect(store.commands).toHaveLength(13);
   });
 
-  it("build a complete model from the ribbon", () => {
-    const { store, tab, command, field, create } = setup();
+  it("build a complete model from the ribbon", async () => {
+    const { store, tab, command, dialog, field, create } = setup();
     const add = (
       tabName: string,
       button: string,
@@ -140,10 +158,29 @@ describe("ribbon commands", () => {
       expect(screen.queryByRole("dialog"), button).toBeNull();
     };
 
-    add("Mesh", "Import mesh", () =>
-      fireEvent.input(field("File"), { target: { value: "bar.vtu" } }),
+    // the import dialog creates the mesh and a cell set with all cells
+    tab("Mesh");
+    fireEvent.click(command("Import mesh"));
+    const picker = within(dialog()).getByTestId("file-picker");
+    fireEvent.change(picker, {
+      target: { files: [new File(["x"], "bar.vtu")] },
+    });
+    await waitFor(() =>
+      expect(
+        within(dialog()).getByRole("button", { name: "Import" }),
+      ).toBeTruthy(),
     );
-    add("Mesh", "Cell set of a mesh");
+    await waitFor(() =>
+      expect(
+        (
+          within(dialog()).getByRole("button", {
+            name: "Import",
+          }) as HTMLButtonElement
+        ).disabled,
+      ).toBe(false),
+    );
+    fireEvent.click(within(dialog()).getByRole("button", { name: "Import" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
     add("Mesh", "Point set");
     add("Mesh", "Point set", () =>
       fireEvent.input(field("Coordinate"), { target: { value: "3" } }),
@@ -184,6 +221,10 @@ describe("ribbon commands", () => {
       curve: "boundary_2",
     });
     // the model is a valid project file
+    expect(store.commands.slice(0, 2)).toEqual([
+      { command: "mesh.import", name: "bar", file: "bar.vtu" },
+      { command: "cellset.from_file", name: "bar_cells", mesh: "bar" },
+    ]);
     expect(parse(serialize(store.document)).commands).toHaveLength(10);
     expect(screen.getByRole("status").textContent).toContain("0 issues");
   });

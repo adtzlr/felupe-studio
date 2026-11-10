@@ -67,7 +67,7 @@ client.ready.then(
     row(loadTable, ["Pyodide", seconds(timings.pyodide / 1000)]);
     row(loadTable, ["NumPy, SciPy", seconds(timings.packages / 1000)]);
     row(loadTable, [
-      "FElupe (wheel of the app)",
+      "FElupe, meshio (wheels of the app)",
       seconds(timings.felupe / 1000),
     ]);
     row(loadTable, ["Total", seconds(timings.total / 1000)]);

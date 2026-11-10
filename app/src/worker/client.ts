@@ -4,6 +4,7 @@ import type {
   BenchmarkResult,
   FromWorker,
   LoadTimings,
+  MeshInfo,
   ToWorker,
   Versions,
 } from "./protocol";
@@ -13,12 +14,19 @@ export interface Ready {
   timings: LoadTimings;
 }
 
-type Pending = {
-  onResult: (result: BenchmarkResult) => void;
-  onProgress: (message: string) => void;
-  resolve: () => void;
+type Request = Extract<ToWorker, { id: number }>;
+type RequestBody = Request extends infer R
+  ? R extends Request
+    ? Omit<R, "id">
+    : never
+  : never;
+
+interface Pending {
+  final: FromWorker["type"];
+  resolve: (message: FromWorker) => void;
   reject: (error: Error) => void;
-};
+  onMessage?: (message: FromWorker) => void;
+}
 
 export class PyodideClient {
   /** Resolves when Pyodide and FElupe are loaded. */
@@ -49,11 +57,13 @@ export class PyodideClient {
         }
       });
     });
-    this.post({
+    // avoid an unhandled rejection; callers see the error through `ready`
+    this.ready.catch(() => {});
+    this.worker.postMessage({
       type: "init",
       pyodideVersion: __PYODIDE_VERSION__,
-      felupeWheel: new URL(__FELUPE_WHEEL__, base).href,
-    });
+      wheels: __WHEELS__.map((wheel) => new URL(wheel, base).href),
+    } satisfies ToWorker);
   }
 
   /** Run the benchmark of the spike (#9) for the given mesh sizes. */
@@ -62,41 +72,62 @@ export class PyodideClient {
     onResult: (result: BenchmarkResult) => void,
     onProgress: (message: string) => void = () => {},
   ): Promise<void> {
-    await this.ready;
-    const id = this.nextId++;
-    return new Promise<void>((resolve, reject) => {
-      this.pending.set(id, { onResult, onProgress, resolve, reject });
-      this.post({ type: "benchmark", id, sizes });
+    await this.request({ type: "benchmark", sizes }, "done", (message) => {
+      if (message.type === "progress") onProgress(message.message);
+      if (message.type === "benchmark-result") onResult(message.result);
     });
+  }
+
+  /** Write a file into the project directory of Python (a copy of the data is sent). */
+  async writeFile(name: string, data: Uint8Array): Promise<void> {
+    const copy = data.slice().buffer;
+    await this.request(
+      { type: "write-file", name, data: copy },
+      "done",
+      undefined,
+      [copy],
+    );
+  }
+
+  /** Inspect a mesh file of the project directory. */
+  async inspectMesh(name: string): Promise<MeshInfo> {
+    const message = await this.request(
+      { type: "inspect-mesh", name },
+      "mesh-info",
+    );
+    return (message as Extract<FromWorker, { type: "mesh-info" }>).info;
   }
 
   terminate(): void {
     this.worker.terminate();
   }
 
-  private post(message: ToWorker): void {
-    this.worker.postMessage(message);
+  private async request(
+    body: RequestBody,
+    final: FromWorker["type"],
+    onMessage?: (message: FromWorker) => void,
+    transfer: Transferable[] = [],
+  ): Promise<FromWorker> {
+    await this.ready;
+    const id = this.nextId++;
+    return new Promise<FromWorker>((resolve, reject) => {
+      this.pending.set(id, { final, resolve, reject, onMessage });
+      this.worker.postMessage({ ...body, id } as Request, transfer);
+    });
   }
 
   private dispatch(message: FromWorker): void {
     if (!("id" in message) || message.id === undefined) return;
     const pending = this.pending.get(message.id);
     if (!pending) return;
-    switch (message.type) {
-      case "progress":
-        pending.onProgress(message.message);
-        break;
-      case "benchmark-result":
-        pending.onResult(message.result);
-        break;
-      case "done":
-        this.pending.delete(message.id);
-        pending.resolve();
-        break;
-      case "error":
-        this.pending.delete(message.id);
-        pending.reject(new Error(message.message));
-        break;
+    if (message.type === "error") {
+      this.pending.delete(message.id);
+      pending.reject(new Error(message.message));
+    } else if (message.type === pending.final) {
+      this.pending.delete(message.id);
+      pending.resolve(message);
+    } else {
+      pending.onMessage?.(message);
     }
   }
 }

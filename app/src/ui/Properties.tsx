@@ -1,17 +1,22 @@
 import type { Draft } from "../core/form";
+import type { MeshFiles } from "../core/meshfiles";
 import { KIND_LABELS } from "../core/registry";
 import type { ModelStore } from "../core/store";
 import { KINDS } from "../core/validate";
 import { CommandForm } from "./CommandForm";
 import { Icon, type IconName } from "./icons";
+import { MeshFileStatus } from "./MeshFileStatus";
 
 interface Props {
   store: ModelStore;
+  files: MeshFiles;
+  /** Messages about the mesh files, by object name. */
+  notes: Map<string, string[]>;
   selected?: string;
   onSelect: (id: string) => void;
 }
 
-export function Properties({ store, selected, onSelect }: Props) {
+export function Properties({ store, files, notes, selected, onSelect }: Props) {
   const command = selected ? store.get(selected) : undefined;
   if (!command) return <p class="muted">Select an object in the browser.</p>;
 
@@ -19,10 +24,15 @@ export function Properties({ store, selected, onSelect }: Props) {
   const issues = store.issues
     .filter((i) => i.name === command.name)
     .map((i) => i.message);
-  const notes =
+  const reported =
     findNode(store, command.name)?.issues.filter((m) => !issues.includes(m)) ??
     [];
-  const messages = [...issues, ...notes];
+  // a missing file is shown by the file status
+  const messages = [
+    ...issues,
+    ...reported,
+    ...(notes.get(command.name) ?? []),
+  ].filter((message) => !message.includes("is not loaded"));
   const dependents = store.dependents(command.name);
 
   return (
@@ -32,6 +42,9 @@ export function Properties({ store, selected, onSelect }: Props) {
         <strong>{KIND_LABELS[kind]}</strong>
         <code class="muted">{command.command}</code>
       </div>
+      {command.command === "mesh.import" && (
+        <MeshFileStatus command={command} files={files} />
+      )}
       <CommandForm
         // a new form whenever the command changes, e.g. by undo
         key={JSON.stringify(command)}

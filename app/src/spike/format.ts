@@ -53,7 +53,7 @@ export function toMarkdown(
     "| --- | ---: |",
     `| Pyodide | ${seconds(timings.pyodide / 1000)} |`,
     `| NumPy, SciPy | ${seconds(timings.packages / 1000)} |`,
-    `| FElupe (wheel of the app) | ${seconds(timings.felupe / 1000)} |`,
+    `| FElupe, meshio (wheels of the app) | ${seconds(timings.felupe / 1000)} |`,
     `| **Total** | **${seconds(timings.total / 1000)}** |`,
     "",
     "| n | DOF | Cells | Setup in s | Solve in s | Force |",
