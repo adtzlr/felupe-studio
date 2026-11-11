@@ -154,6 +154,75 @@ def test_single_body_matches_felupe(tmp_path, monkeypatch):
     assert np.allclose(single_body(tmp_path, monkeypatch), np.array(job.y)[:, 0])
 
 
+def volumetric_bar(volumetric):
+    """The bar of a rubber in the u-p-J formulation with a small bulk modulus."""
+    upj = {**section("body", "all_cells", "rubber"), "formulation": "u-p-J"}
+    upj["bulk"] = 10
+    if volumetric is not None:
+        upj["volumetric"] = volumetric
+    return {
+        "schema_version": 3,
+        "commands": [
+            {"command": "mesh.import", "name": "specimen", "file": "bar.vtu"},
+            {"command": "cellset.from_file", "name": "all_cells", "mesh": "specimen"},
+            {
+                "command": "material.add",
+                "name": "rubber",
+                "model": "NeoHooke",
+                "parameters": {"mu": 1.0},
+            },
+            upj,
+            *uniaxial(),
+        ],
+    }
+
+
+@pytest.mark.parametrize("volumetric", ["volume-ratio", "stretch", "log"])
+def test_volumetric_matches_felupe(volumetric, tmp_path, monkeypatch):
+    # the volumetric part of the strain energy of the u-p-J formulation (#134)
+    mesh, _ = bar()
+    write(tmp_path / "bar.vtu", mesh)
+    document = volumetric_bar(volumetric)
+    script = codegen(document)
+    if volumetric == "volume-ratio":
+        assert "fem.NearlyIncompressible(rubber, bulk=10)" in script
+        assert codegen(volumetric_bar(None)) == script
+    else:
+        assert f'bulk=10, volumetric="{volumetric}")' in script
+    curve = force(run(document, tmp_path, monkeypatch))
+
+    field = fem.FieldsMixed(fem.RegionHexahedron(mesh), n=3)
+    x = mesh.points[:, 0]
+    boundaries = {
+        "fixed": fem.Boundary(field[0], mask=np.isclose(x, 0)),
+        "move": fem.Boundary(field[0], mask=np.isclose(x, 3), skip=(0, 1, 1)),
+    }
+    umat = fem.NearlyIncompressible(
+        fem.NeoHooke(mu=1.0), bulk=10, volumetric=volumetric
+    )
+    solid = fem.SolidBody(umat, field)
+    move = fem.math.linsteps([0, 0.5], num=5)
+    step = fem.Step([solid], ramp={boundaries["move"]: move}, boundaries=boundaries)
+    job = fem.CharacteristicCurve(steps=[step], boundary=boundaries["move"])
+    job.evaluate(verbose=0)
+    reference = np.array(job.y)[:, 0]
+    np.testing.assert_allclose(curve, reference, rtol=1e-8, atol=1e-12)
+
+    # the kinds differ: the derivatives of U(J) at J = 1.2
+    default = fem.NearlyIncompressible(fem.NeoHooke(mu=1.0), bulk=10)
+    J = np.array([1.2])
+    same = np.isclose(umat.volumetric.dUdJ(J), default.volumetric.dUdJ(J))
+    assert same.all() == (volumetric == "volume-ratio")
+
+
+def test_volumetric_needs_u_p_j(tmp_path):
+    document = volumetric_bar("log")
+    document["commands"][3]["formulation"] = "u"
+    del document["commands"][3]["bulk"]
+    with pytest.raises(ValidationError):
+        codegen(document)
+
+
 def test_sections_from_tags_and_files_match_single_body(tmp_path, monkeypatch):
     reference = single_body(tmp_path, monkeypatch)
 
@@ -365,9 +434,18 @@ def test_longest_names_are_wrapped(two_sections, tmp_path, monkeypatch):
     own = codegen(ramped)
     assert max(len(line) for line in own.splitlines()) <= 88
 
+    # the material of a section in a nested call that is exploded (#134)
+    for cmd in ramped["commands"]:
+        if cmd["command"] == "section.add" and cmd["formulation"] == "u-p-J":
+            cmd["volumetric"] = "stretch"
+            cmd["bulk"] = 5000.0
+    nested = codegen(ramped)
+    assert "    fem.NearlyIncompressible(\n" in nested
+    assert max(len(line) for line in nested.splitlines()) <= 88
+
     ruff = shutil.which("ruff")
     if ruff:
-        for text in (script, long, own):
+        for text in (script, long, own, nested):
             path = tmp_path / "script.py"
             path.write_text(text, encoding="utf-8")
             fmt = [ruff, "format", "--isolated", "--check", str(path)]

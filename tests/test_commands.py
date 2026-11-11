@@ -73,6 +73,8 @@ def test_valid_document(document):
         lambda d: find(d, "section_soft").pop("bulk"),
         lambda d: find(d, "section_hard").update(bulk=100),
         lambda d: find(d, "section_hard").update(formulation="u-p"),
+        lambda d: find(d, "section_hard").update(volumetric="log"),
+        lambda d: find(d, "section_soft").update(volumetric="quadratic"),
         lambda d: find(d, "specimen").update(cell_type="wedge"),
         lambda d: find(d, "left").update(select={"axis": "w", "value": 0}),
         lambda d: find(d, "left").update(select={"ids": []}),

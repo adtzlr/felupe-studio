@@ -143,6 +143,7 @@ Assign a material and a formulation to a cell set. Each section becomes a solid 
 | `material` | name of a material | yes |  |
 | `formulation` | `u` or `u-p-J` | yes | u: displacement field only. u-p-J: mixed fields (fem.FieldsMixed) for nearly incompressible materials. |
 | `bulk` | number > 0 | if `formulation` is `u-p-J` | Bulk modulus of the nearly incompressible formulation (required for u-p-J). |
+| `volumetric` | `volume-ratio`, `stretch` or `log` |  | The volumetric part U(J) of the strain energy of the u-p-J formulation with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)². Default `volume-ratio`. |
 
 ### `pointset.add`
 

@@ -83,13 +83,32 @@ class _Dict:
         return f"{self.prefix}{{\n{items}{pad}}}"
 
 
+class _Call:
+    """A call argument ``func(arg, ...)`` that ruff format may explode."""
+
+    def __init__(self, func, args):
+        self.func = func
+        self.args = list(args)
+
+    def __str__(self):
+        return f"{self.func}({', '.join(self.args)})"
+
+    def exploded(self, level):
+        pad = "    " * level
+        inner = f"{pad}    {', '.join(self.args)}"
+        if len(inner) <= LINE_LENGTH:
+            return f"{self.func}(\n{inner}\n{pad})"
+        args = "".join(f"{pad}    {arg},\n" for arg in self.args)
+        return f"{self.func}(\n{args}{pad})"
+
+
 def _explode(args, level=1):
     """One argument per line with a trailing comma, like ruff format."""
     pad = "    " * level
     lines = []
     for arg in args:
         line = f"{pad}{arg},"
-        if len(line) > LINE_LENGTH and isinstance(arg, (_List, _Dict)):
+        if len(line) > LINE_LENGTH and isinstance(arg, (_List, _Dict, _Call)):
             line = f"{pad}{arg.exploded(level)},"
         lines.append(line + "\n")
     return "".join(lines)
@@ -281,7 +300,12 @@ def codegen(document, evaluate=True, check_schema=True):
         for sec in sections:
             umat = sec["material"]
             if sec["formulation"] == "u-p-J":
-                umat = f"fem.NearlyIncompressible({umat}, bulk={sec['bulk']!r})"
+                args = [umat, f"bulk={sec['bulk']!r}"]
+                # the volumetric part of the strain energy, if not the default (#134)
+                volumetric = sec.get("volumetric", "volume-ratio")
+                if volumetric != "volume-ratio":
+                    args.append(f"volumetric={_str(volumetric)}")
+                umat = _Call("fem.NearlyIncompressible", args)
             out.append(
                 _call(
                     f"solid_{sec['name']}",

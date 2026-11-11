@@ -69,7 +69,13 @@ function detail(cmd: Command, commands: readonly Command[]): string {
         MATERIAL_MODELS.find((m) => m.name === cmd.model)?.label ?? cmd.model
       );
     case "section.add":
-      return `${cmd.material} · ${cmd.formulation}`;
+      return [
+        cmd.material,
+        cmd.formulation,
+        cmd.volumetric && cmd.volumetric !== "volume-ratio" && cmd.volumetric,
+      ]
+        .filter(Boolean)
+        .join(" · ");
     case "pointset.add":
       if ("axis" in cmd.select)
         return `${cmd.select.axis} == ${valueWithUnit(String(cmd.select.value), length)}`;

@@ -280,6 +280,10 @@ export interface SectionAdd {
    * Bulk modulus of the nearly incompressible formulation (required for u-p-J).
    */
   bulk?: number;
+  /**
+   * The volumetric part U(J) of the strain energy of the u-p-J formulation with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)².
+   */
+  volumetric?: "volume-ratio" | "stretch" | "log";
 }
 /**
  * Points of the merged mesh selected by a plane, by the coordinates of points or by point ids.
