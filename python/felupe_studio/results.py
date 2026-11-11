@@ -31,7 +31,7 @@ from .scene import surface_nodes
 # the quantities by key: the kind of data, the component (None for the magnitude of
 # vectors) and the label of the scalar bar
 QUANTITIES = {
-    "displacement": ("displacement", None, "Displacement"),
+    "displacement": ("displacement", None, "Displacement magnitude"),
     "displacement_x": ("displacement", 0, "Displacement x"),
     "displacement_y": ("displacement", 1, "Displacement y"),
     "displacement_z": ("displacement", 2, "Displacement z"),
@@ -259,14 +259,17 @@ def scene(job, substep, quantity):
     tuple of str and list of dict
         The JSON text of the label, of where the values are given (``"point"`` or
         ``"cell"``), of their ``range`` over all cells of all sections (``None``
-        without finite values) and of the control ``points`` (``name``, ``position``
-        and ``displacement``), and the surface of every section: its ``name``,
-        ``positions`` (three coordinates per point of the surface), ``displacement``
-        (three components per point), ``triangles``, ``faces`` (to shade the faces of
-        linear cells flat; ``None`` for curved faces), ``edges``, ``values``,
-        ``owners`` (the cell of the section of every triangle) and ``nodes`` (the
-        point of the mesh of every point of the surface, -1 inside a subdivided
-        face) as bytes.
+        without finite values), of the ``extremes`` (``min`` and ``max`` with their
+        ``value``, ``section``, ``at``, ``index`` of the node or the cell, whether it
+        is at the ``surface``, its ``position`` and ``displacement``; ``None``
+        without finite values) and of the control ``points`` (``name``,
+        ``position`` and ``displacement``), and the surface of every section: its
+        ``name``, ``positions`` (three coordinates per point of the surface),
+        ``displacement`` (three components per point), ``triangles``, ``faces`` (to
+        shade the faces of linear cells flat; ``None`` for curved faces), ``edges``,
+        ``values``, ``owners`` (the cell of the section of every triangle) and
+        ``nodes`` (the point of the mesh of every point of the surface, -1 inside a
+        subdivided face) as bytes.
     """
     kind, component, label = QUANTITIES[quantity]
     _restore(job, substep)
@@ -274,11 +277,18 @@ def scene(job, substep, quantity):
     at = "point" if kind == "displacement" else "cell"
     surfaces = []
     low, high = np.inf, -np.inf
+    extremes = {}
     for section in _state["sections"]:
         surface, cells, order = _surface(section)
         mesh = _state["namespace"][f"field_{section}"][0].region.mesh
         data, values, displacement = _values(section, kind, component)
         low, high = _extend((low, high), data, values)
+        for name, candidate in _extremes(section, at, data).items():
+            sign = -1 if name == "min" else 1
+            if name not in extremes or (
+                sign * candidate["value"] > sign * extremes[name]["value"]
+            ):
+                extremes[name] = candidate
         surfaces.append(
             {
                 "name": section,
@@ -297,9 +307,43 @@ def scene(job, substep, quantity):
         "label": label,
         "at": at,
         "range": [float(low), float(high)] if low <= high else None,
+        "extremes": extremes or None,
         "points": _control_points(job, substep),
     }
     return json.dumps(meta), surfaces
+
+
+def _extremes(section, at, data):
+    """Return the minimum and the maximum of the finite data of a section (#140):
+    the value, the section, the node (in the merged points) or the cell (of the
+    section), whether it is at the surface, its position (of a cell: the center of
+    its points) and its displacement."""
+    finite = np.flatnonzero(np.isfinite(data))
+    if not finite.size:
+        return {}
+    surface, cells, _ = _surface(section)
+    mesh = _state["namespace"][f"field_{section}"][0].region.mesh
+    u = _state["namespace"][f"field_{section}"][0].values
+    nodes = np.unique(cells)
+    # the nodes and the cells at the surface (the view marks an extreme inside)
+    outer = surface_nodes(surface) if at == "point" else surface.owners
+    result = {}
+    for name, pick in (("min", np.argmin), ("max", np.argmax)):
+        i = finite[pick(data[finite])]
+        index = int(nodes[i] if at == "point" else i)
+        points = [nodes[i]] if at == "point" else cells[i]
+        position = mesh.points[points].mean(axis=0)
+        displacement = u[points].mean(axis=0)
+        result[name] = {
+            "value": float(data[i]),
+            "section": section,
+            "at": at,
+            "index": index,
+            "surface": bool(np.isin(index, outer)),
+            "position": np.asarray(position).tolist(),
+            "displacement": np.asarray(displacement).tolist(),
+        }
+    return result
 
 
 def _control_points(job, substep):

@@ -171,9 +171,25 @@ export interface ResultScene {
   at: "point" | "cell";
   /** The range of the values of all sections (null without finite values). */
   range: [number, number] | null;
+  /** The minimum and the maximum of the values (#140). */
+  extremes?: { min: ResultExtreme; max: ResultExtreme } | null;
   /** The control points with their positions and displacements (#95). */
   points?: ResultPoint[];
   surfaces: ResultSurface[];
+}
+
+/** The minimum or the maximum of a contour: its value, node or cell (#140). */
+export interface ResultExtreme {
+  value: number;
+  section: string;
+  at: "point" | "cell";
+  /** The node (of the merged points) or the cell (of the section). */
+  index: number;
+  /** At the surface: drawn, not inside the section. */
+  surface: boolean;
+  /** The position (of a cell: the center of its points) and its displacement. */
+  position: [number, number, number];
+  displacement: [number, number, number];
 }
 
 /**

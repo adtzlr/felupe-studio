@@ -91,6 +91,17 @@ export function projectPoint(
   return [((ndcX + 1) / 2) * width, ((1 - ndcY) / 2) * height];
 }
 
+/** The distance of a point from the camera along its view direction. */
+export function depthOf(camera: Camera, point: Vec3): number {
+  const back = camera.basis[2];
+  const distance = camera.radius / Math.sin((30 * Math.PI) / 180 / 2);
+  return [0, 1, 2].reduce(
+    (sum, k) =>
+      sum - (point[k] - camera.target[k] - back[k] * distance) * back[k],
+    0,
+  );
+}
+
 export interface ProbeInfo {
   /** The quantity of the contour. */
   label: string;

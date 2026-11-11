@@ -15,12 +15,20 @@ export function backgroundOf(element: Element | null): string {
   return "#ffffff";
 }
 
-/** Elements with text only (labels of scalar bars and of the legend). */
+/** The opacity of an element, e.g. of a label behind faces (#140). */
+const opacityOf = (element: HTMLElement) =>
+  Number(getComputedStyle(element).opacity) || 1;
+
+/** Elements with text only (of the scalar bars, the legend and the labels). */
 function textElements(root: Element): HTMLElement[] {
   return [
-    ...root.querySelectorAll<HTMLElement>(".fv-bars *, .fv-legend *"),
+    ...root.querySelectorAll<HTMLElement>(
+      ".fv-bars *, .fv-legend *, .fv-labels *",
+    ),
   ].filter(
     (e) =>
+      // not hidden, e.g. a label behind the camera
+      !e.closest("[hidden]") &&
       e.childNodes.length > 0 &&
       [...e.childNodes].every((n) => n.nodeType === Node.TEXT_NODE) &&
       (e.textContent ?? "").trim() !== "",
@@ -79,10 +87,25 @@ export async function snapshot(
     context.fillStyle = getComputedStyle(swatch).backgroundColor;
     context.fillRect(...box(swatch));
   }
+  // the boxes of the labels at points of the view (#140)
+  for (const label of root.querySelectorAll<HTMLElement>(
+    ".fv-labels .fv-label:not([hidden])",
+  )) {
+    const style = getComputedStyle(label);
+    context.globalAlpha = opacityOf(label);
+    context.fillStyle = style.backgroundColor;
+    context.fillRect(...box(label));
+    context.strokeStyle = style.borderLeftColor;
+    context.lineWidth = ratio;
+    context.strokeRect(...box(label));
+  }
+  context.globalAlpha = 1;
   // the labels, at the positions of their elements
   context.textBaseline = "middle";
   for (const element of textElements(root)) {
     const style = getComputedStyle(element);
+    const label = element.closest<HTMLElement>(".fv-label");
+    context.globalAlpha = label ? opacityOf(label) : 1;
     const size = parseFloat(style.fontSize) * ratio;
     context.font = `${style.fontStyle} ${style.fontWeight} ${size}px ${style.fontFamily}`;
     context.fillStyle = style.color;
@@ -99,6 +122,7 @@ export async function snapshot(
           : x;
     context.fillText(text, left, y + h / 2);
   }
+  context.globalAlpha = 1;
 
   return new Promise<Blob>((resolve, reject) =>
     out.toBlob(
