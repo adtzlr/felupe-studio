@@ -159,9 +159,19 @@ describe("fieldSpecs", () => {
       "material:reference*",
       "formulation:choice*",
       "bulk:number*",
+      "volumetric:choice",
     ]);
-    expect(summary("section.add", find("section_hard"))).not.toContain(
-      "bulk:number*",
+    // the bulk modulus and the volumetric part only with u-p-J (#134)
+    expect(summary("section.add", find("section_hard"))).toEqual([
+      "name:name*",
+      "cellset:reference*",
+      "material:reference*",
+      "formulation:choice*",
+    ]);
+    const hard = { ...find("section_hard"), volumetric: "log", bulk: 1 };
+    const context = { commands: (fixture as CommandList).commands };
+    expect(normalize("section.add", hard as Draft, context)).not.toHaveProperty(
+      "volumetric",
     );
   });
 

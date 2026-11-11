@@ -41,6 +41,12 @@ describe("deriveTree", () => {
       ["soft", "tag = 2"],
     ]);
     expect(find(tree, "section_soft")!.detail).toBe("umat_soft · u-p-J");
+    const log = commands.map((c) =>
+      c.name === "section_soft" ? { ...c, volumetric: "log" } : c,
+    ) as Command[];
+    expect(find(deriveTree(log), "section_soft")!.detail).toBe(
+      "umat_soft · u-p-J · log",
+    );
     // the label of the material model of the registry
     expect(find(tree, "umat_soft")!.detail).toBe("Neo-Hooke");
     expect(find(tree, "left")!.detail).toBe("x == 0");

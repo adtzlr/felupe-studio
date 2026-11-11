@@ -127,10 +127,22 @@ describe("editing in the properties panel", () => {
   it("shows the bulk modulus only for the mixed formulation", () => {
     const { store, properties, field, button, choose } = edit("section_soft");
     expect(field("Bulk modulus").value).toBe("5000");
+    // the volumetric part of the strain energy (#134), default volume ratio
+    const volumetric = field<HTMLSelectElement>("Volumetric part");
+    expect([...volumetric.options].map((o) => o.textContent)).toEqual([
+      "Volume ratio: K/2 (J − 1)² (default)",
+      "Stretch: 9K/2 (J^⅓ − 1)²",
+      "Logarithm: K/2 ln(J)²",
+    ]);
+    choose("Volumetric part", "log");
+    fireEvent.click(button("Apply"));
+    expect(store.get("section_soft")).toMatchObject({ volumetric: "log" });
     choose("Formulation", "u");
     expect(within(properties).queryByLabelText("Bulk modulus")).toBeNull();
+    expect(within(properties).queryByLabelText("Volumetric part")).toBeNull();
     fireEvent.click(button("Apply"));
     expect(store.get("section_soft")).not.toHaveProperty("bulk");
+    expect(store.get("section_soft")).not.toHaveProperty("volumetric");
     // NeoHooke without a bulk modulus now needs attention
     expect(
       within(properties).getByRole("list", { name: "Issues" }).textContent,

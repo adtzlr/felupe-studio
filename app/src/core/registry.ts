@@ -179,9 +179,19 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         hint: "Of the volumetric part, fem.NearlyIncompressible",
         default: 5000,
       },
+      volumetric: {
+        label: "Volumetric part",
+        hint: "The strain energy U(J) with the bulk modulus K",
+        placeholder: "volume-ratio",
+      },
     },
     options: {
       formulation: { u: "Displacement (u)", "u-p-J": "Mixed (u, p, J)" },
+      volumetric: {
+        "volume-ratio": "Volume ratio: K/2 (J − 1)²",
+        stretch: "Stretch: 9K/2 (J^⅓ − 1)²",
+        log: "Logarithm: K/2 ln(J)²",
+      },
     },
     initial: initialSection,
   },

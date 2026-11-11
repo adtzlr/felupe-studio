@@ -50,7 +50,7 @@ The cells of a model come from **cell sets**: **Cell set of a mesh** takes all c
 
 ### 2. Materials and sections
 
-The **Materials** tab has one button per material model: Neo-Hooke, Neo-Hooke (compressible), Mooney-Rivlin and linear elastic (large strain). A **Section** assigns a material and a formulation to a cell set: `u` with the displacements only, or `u-p-J` for (nearly) incompressible materials with a bulk modulus. Every section becomes a solid body.
+The **Materials** tab has one button per material model: Neo-Hooke, Neo-Hooke (compressible), Mooney-Rivlin and linear elastic (large strain). A **Section** assigns a material and a formulation to a cell set: `u` with the displacements only, or `u-p-J` for (nearly) incompressible materials with a bulk modulus K. The *Volumetric part* of `u-p-J` is the strain energy U(J) of the volume ratio J: *Volume ratio* K/2 (J − 1)² (the default), *Stretch* 9K/2 (J^⅓ − 1)² or *Logarithm* K/2 ln(J)². With a large bulk modulus (nearly incompressible) J stays close to 1 and the choice hardly matters; with a small one, e.g. of a foam-like or a compressible rubber, it changes the response. Every section becomes a solid body.
 
 ### 3. Point sets
 

@@ -113,6 +113,7 @@ interface Node {
   if?: Node;
   then?: Node;
   else?: { not?: Node };
+  anyOf?: Node[];
 }
 
 const defs = (schema as unknown as { $defs: Record<string, Node> }).$defs;
@@ -175,7 +176,12 @@ function conditions(node: Node, value: Draft) {
       ([key, property]) => value[key] === property.const,
     );
     if (matches) for (const key of node.then?.required ?? []) required.add(key);
-    else for (const key of node.else?.not?.required ?? []) hidden.add(key);
+    else {
+      // properties that must not exist otherwise: not required, or not any of them
+      const not = node.else?.not;
+      for (const n of [not, ...(not?.anyOf ?? [])])
+        for (const key of n?.required ?? []) hidden.add(key);
+    }
   }
   return { required, hidden };
 }
