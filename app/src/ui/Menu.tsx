@@ -11,6 +11,8 @@ export interface MenuItem {
   hint?: string;
   /** Why the item cannot be used, if so; shown instead of the hint. */
   blocker?: string;
+  /** The keyboard shortcut, e.g. "Ctrl+S", and its `aria-keyshortcuts` (#129). */
+  shortcut?: { text: string; aria: string };
   /** An action, or a link opened in a new tab. */
   onSelect?: () => void;
   href?: string;
@@ -61,7 +63,9 @@ export function Menu({ label, button, title, kind, sections, hints }: Props) {
     };
     // Esc also closes the menu when the focus has left it, e.g. after a click
     const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") close();
+      if (event.key !== "Escape") return;
+      event.preventDefault(); // not a shortcut of the app, e.g. clear the selection
+      close();
     };
     document.addEventListener("pointerdown", outside);
     document.addEventListener("keydown", escape);
@@ -153,6 +157,11 @@ export function Menu({ label, button, title, kind, sections, hints }: Props) {
                   const content = (
                     <>
                       <span class="menu-label">{item.label}</span>
+                      {item.shortcut && (
+                        <kbd class="menu-shortcut" aria-hidden="true">
+                          {item.shortcut.text}
+                        </kbd>
+                      )}
                       {hints && note && (
                         <span id={`${id}-${item.id}-hint`} class="menu-hint">
                           {note}
@@ -166,6 +175,7 @@ export function Menu({ label, button, title, kind, sections, hints }: Props) {
                     tabIndex: -1,
                     title: hints ? undefined : note,
                     "aria-disabled": item.blocker ? true : undefined,
+                    "aria-keyshortcuts": item.shortcut?.aria,
                     "aria-describedby":
                       hints && note ? `${id}-${item.id}-hint` : undefined,
                   };

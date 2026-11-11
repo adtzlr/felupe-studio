@@ -1,5 +1,6 @@
 // History bar: the command list in order. A click selects the object; undo and redo
 // step through the changes.
+import { withHint } from "../core/shortcuts";
 import { useEffect, useRef } from "preact/hooks";
 import type { ModelStore } from "../core/store";
 import { KINDS } from "../core/validate";
@@ -29,7 +30,7 @@ export function History({ store, selected, onSelect }: Props) {
         type="button"
         class="icon-button"
         aria-label="Step back"
-        title="Undo (Ctrl+Z)"
+        title={withHint("Undo", "undo")}
         disabled={!store.canUndo}
         onClick={() => store.undo()}
       >
@@ -39,7 +40,7 @@ export function History({ store, selected, onSelect }: Props) {
         type="button"
         class="icon-button"
         aria-label="Step forward"
-        title="Redo (Ctrl+Shift+Z)"
+        title={withHint("Redo", "redo")}
         disabled={!store.canRedo}
         onClick={() => store.redo()}
       >

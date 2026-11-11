@@ -215,6 +215,62 @@ describe("App shell", () => {
   });
 });
 
+describe("keyboard shortcuts (#129)", () => {
+  const key = (init: KeyboardEventInit, target: Element = document.body) =>
+    fireEvent.keyDown(target, init);
+
+  it("saves, opens the overview and works on the selected object", async () => {
+    const download = vi.fn();
+    const store = new ModelStore(fixture as CommandList);
+    render(<App store={store} download={download} />);
+    key({ key: "s", ctrlKey: true });
+    await waitFor(() =>
+      expect(download).toHaveBeenCalledWith(
+        "untitled.felupe.json",
+        expect.any(String),
+      ),
+    );
+    key({ key: "?", shiftKey: true });
+    expect(
+      screen.getByRole("dialog", { name: "Keyboard shortcuts" }).textContent,
+    ).toContain("Ctrl+SSave the project");
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+
+    // a used object is not deleted; the reason is shown
+    const tree = screen.getByRole("tree");
+    fireEvent.click(within(tree).getByRole("treeitem", { name: "umat_soft" }));
+    expect(screen.getByRole("region", { name: "Properties" })).toBeTruthy();
+    key(
+      { key: "Delete" },
+      within(tree).getByRole("treeitem", { name: "umat_soft" }),
+    );
+    expect(store.commands.some((c) => c.name === "umat_soft")).toBe(true);
+    expect(screen.getByRole("alert").textContent).toContain(
+      "umat_soft cannot be deleted.",
+    );
+
+    // F2 focuses the name in the properties, Esc clears the selection
+    key({ key: "F2" });
+    await waitFor(() => expect(document.activeElement?.id).toBe("field-name"));
+    // while typing, letters and Delete are typed, but Ctrl+S saves
+    key({ key: "Delete" }, document.activeElement!);
+    expect(store.commands.some((c) => c.name === "umat_soft")).toBe(true);
+    key({ key: "s", ctrlKey: true }, document.activeElement!);
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(2));
+    (document.activeElement as HTMLElement).blur();
+    key({ key: "Escape" });
+    expect(screen.queryByRole("region", { name: "Properties" })).toBeNull();
+
+    // an object that nothing uses is deleted, with undo
+    const job = store.commands.find((c) => c.command === "job.add")!.name;
+    fireEvent.click(within(tree).getByRole("treeitem", { name: job }));
+    key({ key: "Delete" });
+    expect(store.commands.some((c) => c.name === job)).toBe(false);
+    key({ key: "z", ctrlKey: true });
+    expect(store.commands.some((c) => c.name === job)).toBe(true);
+  });
+});
+
 describe("menus of the header", () => {
   it("has File and Help menus, operated with the keyboard", () => {
     render(<App store={new ModelStore()} />);
@@ -223,7 +279,9 @@ describe("menus of the header", () => {
     fireEvent.keyDown(file, { key: "ArrowDown" });
     const menu = screen.getByRole("menu", { name: "File" });
     const items = within(menu).getAllByRole("menuitem");
-    expect(items.map((item) => item.textContent)).toEqual([
+    const label = (item: HTMLElement) =>
+      item.querySelector(".menu-label")?.textContent;
+    expect(items.map(label)).toEqual([
       "New project",
       "Open project…",
       "Samples…",
@@ -234,6 +292,9 @@ describe("menus of the header", () => {
       "Picture of the view",
     ]);
     expect(within(menu).getByRole("group", { name: "Export" })).toBeTruthy();
+    // the shortcuts of the items (#129)
+    expect(items[3].textContent).toBe("Save projectCtrl+S");
+    expect(items[3].getAttribute("aria-keyshortcuts")).toBe("Control+S Meta+S");
     expect(document.activeElement).toBe(items[0]);
     fireEvent.keyDown(items[0], { key: "ArrowUp" });
     expect(document.activeElement).toBe(items.at(-1));
@@ -253,7 +314,7 @@ describe("menus of the header", () => {
     const help = screen.getByRole("menu", { name: "Help" });
     const links = within(help).getAllByRole("menuitem");
     expect(document.activeElement).toBe(links.at(-1));
-    expect(links.map((item) => item.textContent)).toEqual([
+    expect(links.map(label)).toEqual([
       "User guide",
       "Command reference",
       "Keyboard shortcuts",
@@ -724,6 +785,21 @@ describe("solve", () => {
       ["job_1", "vtu", 5],
       ["job_1", "xdmf", undefined],
     ]);
+
+    // the substeps with the keyboard (#129), not while the focus is in the tree
+    const key = (k: string) => fireEvent.keyDown(document.body, { key: k });
+    key("ArrowRight");
+    expect(panel.textContent).toContain("Substep 6 of 6");
+    key("ArrowRight");
+    expect(panel.textContent).toContain("Substep 6 of 6");
+    key("Home");
+    expect(panel.textContent).toContain("Substep 1 of 6");
+    key("ArrowLeft");
+    expect(panel.textContent).toContain("Substep 1 of 6");
+    key("End");
+    expect(panel.textContent).toContain("Substep 6 of 6");
+    key("ArrowLeft");
+    expect(panel.textContent).toContain("Substep 5 of 6");
   });
 
   it("exports the script and a picture of the view", async () => {

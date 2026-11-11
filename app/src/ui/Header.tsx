@@ -1,4 +1,5 @@
 import { APP_NAME, formatVersion, LINKS } from "../app";
+import { ariaKeys, hint, withHint } from "../core/shortcuts";
 import type { ModelStore } from "../core/store";
 import { Icon } from "./icons";
 import { Menu, type MenuItem } from "./Menu";
@@ -59,6 +60,7 @@ export function Header({
                     id: "open",
                     label: "Open project…",
                     hint: "A project file with its mesh files, or mesh files to import",
+                    shortcut: { text: hint("open"), aria: ariaKeys("open") },
                     onSelect: onOpen,
                   },
                   { id: "samples", label: "Samples…", onSelect: onSamples },
@@ -66,7 +68,12 @@ export function Header({
               },
               {
                 items: [
-                  { id: "save", label: "Save project", onSelect: onSave },
+                  {
+                    id: "save",
+                    label: "Save project",
+                    shortcut: { text: hint("save"), aria: ariaKeys("save") },
+                    onSelect: onSave,
+                  },
                 ],
               },
               { label: "Export", items: exports },
@@ -88,6 +95,7 @@ export function Header({
                   {
                     id: "shortcuts",
                     label: "Keyboard shortcuts",
+                    shortcut: { text: hint("help"), aria: ariaKeys("help") },
                     onSelect: onShortcuts,
                   },
                 ],
@@ -114,7 +122,10 @@ export function Header({
           type="button"
           class="icon-button"
           aria-label="Open project"
-          title="Open a project file with its mesh files, or mesh files to import"
+          title={withHint(
+            "Open a project file with its mesh files, or mesh files to import",
+            "open",
+          )}
           onClick={onOpen}
         >
           <Icon name="open" />
@@ -123,7 +134,7 @@ export function Header({
           type="button"
           class="icon-button"
           aria-label="Save project"
-          title="Save project"
+          title={withHint("Save project", "save")}
           onClick={onSave}
         >
           <Icon name="save" />
@@ -140,7 +151,7 @@ export function Header({
           type="button"
           class="icon-button"
           aria-label="Undo"
-          title="Undo (Ctrl+Z)"
+          title={withHint("Undo", "undo")}
           disabled={!store.canUndo}
           onClick={() => store.undo()}
         >
@@ -150,7 +161,7 @@ export function Header({
           type="button"
           class="icon-button"
           aria-label="Redo"
-          title="Redo (Ctrl+Shift+Z)"
+          title={withHint("Redo", "redo")}
           disabled={!store.canRedo}
           onClick={() => store.redo()}
         >
@@ -174,7 +185,9 @@ export function Header({
               class="button primary"
               aria-disabled={solve.blocker ? true : undefined}
               aria-describedby={solve.blocker ? "solve-blocker" : undefined}
-              title={solve.blocker ?? "Run the jobs of the model"}
+              title={
+                solve.blocker ?? withHint("Run the jobs of the model", "solve")
+              }
               onClick={() => !solve.blocker && solve.onSolve()}
             >
               <Icon name="play" size={12} />

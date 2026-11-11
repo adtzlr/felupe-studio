@@ -1,4 +1,11 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
+import {
+  dialogOpen,
+  isTyping,
+  matches,
+  type ShortcutId,
+} from "../core/shortcuts";
+import { VIEWS, type Viewer } from "../viewer/viewer";
 import type { JobRun, JobRunner } from "../core/jobs";
 import type { MeshFiles } from "../core/meshfiles";
 import type { ModelStore } from "../core/store";
@@ -73,4 +80,37 @@ export function runtimeText(runtime: Runtime): string {
     case "error":
       return `Python could not be loaded: ${runtime.message}`;
   }
+}
+
+/**
+ * The keys of a view (#129): F fits the model, 1 to 4 set the views, N shows or hides
+ * the nodes; only in the shown view, not while typing, in a menu or in a dialog.
+ */
+export function useViewKeys(
+  active: boolean,
+  viewer: { current: Viewer | null },
+  toggleNodes: () => void,
+): void {
+  const toggle = useRef(toggleNodes);
+  toggle.current = toggleNodes;
+  useEffect(() => {
+    if (!active) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || dialogOpen() || isTyping(event.target))
+        return;
+      if (
+        event.target instanceof Element &&
+        event.target.closest('[role="menu"]')
+      )
+        return;
+      const view = VIEWS.find((v) => matches(event, v.shortcut as ShortcutId));
+      if (matches(event, "fit")) viewer.current?.fit();
+      else if (view) viewer.current?.setView(view.id);
+      else if (matches(event, "nodes")) toggle.current();
+      else return;
+      event.preventDefault();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [active, viewer]);
 }

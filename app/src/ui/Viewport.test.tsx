@@ -223,6 +223,24 @@ describe("Viewport", () => {
     await act(async () => {});
     expect(viewer.handle.update.mock.lastCall![0].objects).toHaveLength(1);
 
+    // the keys of the view (#129): 1 to 4 set the views, F fits, N shows the nodes;
+    // not while typing
+    fireEvent.keyDown(document.body, { key: "2" });
+    fireEvent.keyDown(document.body, { key: "f" });
+    fireEvent.keyDown(document.body, { key: "f", ctrlKey: true });
+    expect(viewer.handle.setView.mock.calls.slice(2)).toEqual([["xy"], [null]]);
+    fireEvent.keyDown(document.body, { key: "n" });
+    await act(async () => {});
+    expect(nodes.getAttribute("aria-pressed")).toBe("true");
+    const select = screen.getByRole("combobox", { name: "Color by" });
+    fireEvent.keyDown(select, { key: "n" });
+    await act(async () => {});
+    expect(nodes.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.keyDown(document.body, { key: "N" });
+    await act(async () => {});
+    expect(nodes.getAttribute("aria-pressed")).toBe("false");
+    expect(nodes.title).toBe("Show the nodes of the meshes (N)");
+
     // hiding the mesh empties the scene, the viewer stays
     rerender(view(new Set(["a"])));
     await act(async () => {});

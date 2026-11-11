@@ -1780,8 +1780,9 @@ button {
   left: 0;
   z-index: var(--z-menu);
   box-sizing: border-box;
+  width: max-content;
   min-width: 220px;
-  max-width: 320px;
+  max-width: 340px;
   padding: var(--space-4);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-lg);
@@ -1790,9 +1791,10 @@ button {
 }
 
 .menu-item {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-16);
   box-sizing: border-box;
   width: 100%;
   padding: var(--space-6) var(--space-10);
@@ -1821,6 +1823,18 @@ button {
 }
 
 .menu-hint {
+  grid-column: 1 / -1;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+
+/* the shortcut of an item, right of its label (#129) */
+.menu-shortcut {
+  grid-row: 1;
+  grid-column: 2;
+  padding: 0;
+  border: none;
+  background: none;
   color: var(--color-text-muted);
   font-size: var(--text-xs);
 }

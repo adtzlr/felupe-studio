@@ -1,6 +1,7 @@
 // The toggle **Nodes** of the view toolbars (#91): shows the nodes of the meshes, in
 // the model and in the results.
 import { useState } from "preact/hooks";
+import { withHint } from "../core/shortcuts";
 
 /**
  * Whether the nodes are shown: the value of the app if it passes one (shared by the
@@ -26,7 +27,7 @@ export function NodesButton({
     <button
       type="button"
       aria-pressed={pressed}
-      title="Show the nodes of the meshes"
+      title={withHint("Show the nodes of the meshes", "nodes")}
       onClick={onToggle}
     >
       Nodes
