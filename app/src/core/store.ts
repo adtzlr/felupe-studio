@@ -1,6 +1,7 @@
 // Model store: the command list with undo and redo, and the state derived from it.
 import type { CheckReport } from "./checks";
 import type { Command, CommandList } from "./commands";
+import { duplicateBlocker, duplicateCommand } from "./duplicate";
 import { SCHEMA_VERSION } from "./schema";
 import { type TreeNode, deriveTree } from "./tree";
 import {
@@ -123,6 +124,23 @@ export class ModelStore {
     this.apply(edits);
   }
 
+  /**
+   * Duplicate an object (#138): a copy with the next free name after the original,
+   * as one undo step. Returns the name of the copy, or undefined if the object
+   * cannot be duplicated (e.g. the model settings).
+   */
+  duplicate(name: string): string | undefined {
+    const command = this.get(name);
+    if (!command || duplicateBlocker(command)) return undefined;
+    const copy = duplicateCommand(command, this.list);
+    this.apply({
+      type: "add",
+      command: copy,
+      index: indexOf(this.list, name) + 1,
+    });
+    return copy.name;
+  }
+
   undo(): void {
     const previous = this.past.pop();
     if (!previous) return;
@@ -198,7 +216,7 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
-function indexOf(list: Command[], name: string): number {
+function indexOf(list: readonly Command[], name: string): number {
   const index = list.findIndex((c) => c.name === name);
   if (index < 0) throw new StoreError(`There is no object named '${name}'.`);
   return index;

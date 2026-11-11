@@ -3,7 +3,9 @@ import { exportName, mediaType, SUFFIX } from "../core/files";
 import { JobRunner, solveBlocker } from "../core/jobs";
 import { type ResultView, substepsOf, viewOf } from "../core/results";
 import {
+  ariaKeys,
   dialogOpen,
+  hint,
   isNavigating,
   isTyping,
   matches,
@@ -12,13 +14,17 @@ import {
 import { type Sample, sampleFiles } from "../core/samples";
 import type { Session, SessionStorage } from "../core/session";
 import { fileNotes, MeshFiles } from "../core/meshfiles";
+import { duplicateBlocker } from "../core/duplicate";
 import { REGISTRY } from "../core/registry";
 import type { RibbonItem } from "../core/ribbon";
 import type { ModelStore } from "../core/store";
 import { SCHEMA_VERSION } from "../core/schema";
 import type { UpdateWatcher } from "../updates";
 import type { PyodideClient } from "../worker/client";
+import { KINDS } from "../core/validate";
 import { AboutDialog } from "./AboutDialog";
+import { VISIBLE_KINDS } from "./Browser";
+import type { MenuItem } from "./Menu";
 import { CreateDialog } from "./CreateDialog";
 import { Footer } from "./Footer";
 import { type ExportItem, Header } from "./Header";
@@ -408,6 +414,64 @@ export function App({
     select(undefined);
   };
 
+  /** Duplicate an object and select the copy (#138). */
+  const duplicateObject = (name: string) => {
+    const copy = store.duplicate(name);
+    if (copy) select(copy);
+  };
+
+  /** Whether an object can be shown or hidden in the viewport. */
+  const visible = (name: string) => {
+    const command = store.get(name);
+    return command !== undefined && VISIBLE_KINDS.has(KINDS[command.command]);
+  };
+
+  /** The items of the context menu of an object in the browser (#138). */
+  const menuItems = (name: string): MenuItem[] => {
+    const command = store.get(name);
+    if (!command) return [];
+    const dependents = store.dependents(name);
+    const keys = (id: ShortcutId) => ({ text: hint(id), aria: ariaKeys(id) });
+    const blocker = duplicateBlocker(command);
+    return [
+      {
+        id: "duplicate",
+        label: "Duplicate",
+        shortcut: keys("duplicate"),
+        ...(blocker ? { blocker } : {}),
+        onSelect: () => duplicateObject(name),
+      },
+      {
+        id: "rename",
+        label: "Rename",
+        shortcut: keys("rename"),
+        onSelect: () => {
+          select(name);
+          renameSelected();
+        },
+      },
+      ...(visible(name)
+        ? [
+            {
+              id: "visibility",
+              label: hidden.has(name) ? "Show" : "Hide",
+              shortcut: keys("visibility"),
+              onSelect: () => toggleVisible(name),
+            },
+          ]
+        : []),
+      {
+        id: "delete",
+        label: "Delete",
+        shortcut: keys("delete"),
+        ...(dependents.length
+          ? { blocker: `Used by ${dependents.join(", ")}: delete these first.` }
+          : {}),
+        onSelect: () => removeSelected(name),
+      },
+    ];
+  };
+
   /** Show the properties of the selected object with the focus on its name. */
   const renameSelected = () => {
     setInspecting(true);
@@ -449,6 +513,9 @@ export function App({
     else if (is("help")) setHelp("shortcuts");
     else if (is("delete") && object) removeSelected(selected!);
     else if (is("rename") && object) renameSelected();
+    else if (is("duplicate") && object) duplicateObject(selected!);
+    else if (is("visibility") && object && visible(selected!))
+      toggleVisible(selected!);
     else if (is("escape") && narrow && browserOpen) setBrowserOpen(false);
     else if (is("escape") && selected !== undefined) select(undefined);
     else if (isNavigating(event.target) || workspace !== "results") return;
@@ -607,6 +674,7 @@ export function App({
           }}
           onClose={narrow ? () => setBrowserOpen(false) : undefined}
           onToggleVisible={toggleVisible}
+          menuItems={menuItems}
         />
         <div class="views">
           <ScriptView

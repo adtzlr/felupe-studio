@@ -735,6 +735,44 @@ button {
   font-size: var(--text-sm);
 }
 
+/* the ⋯ button of the context menu of an object (#138): on hover, at the selected
+   or focused object, and always on touch screens */
+.tree-more {
+  display: inline-flex;
+  flex: 0 0 22px;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--text-md);
+  line-height: 1;
+  cursor: pointer;
+  visibility: hidden;
+}
+
+.tree-row:hover .tree-more,
+.tree-row.selected .tree-more,
+.tree-row:focus-visible .tree-more,
+.tree-more[aria-expanded="true"] {
+  visibility: visible;
+}
+
+.tree-more:hover,
+.tree-more[aria-expanded="true"] {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+@media (hover: none) {
+  .tree-more {
+    visibility: visible;
+  }
+}
+
 /* properties */
 .properties-content {
   display: flex;
