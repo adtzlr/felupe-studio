@@ -1,5 +1,5 @@
 import type { ContourSettings as ContourSettingsType } from "../core/contour";
-import { hint } from "../core/shortcuts";
+import { hint, withHint } from "../core/shortcuts";
 import { curveQuantities, hasCurve } from "../core/curve";
 import {
   curvePoint,
@@ -14,6 +14,8 @@ import type { ModelStore } from "../core/store";
 import { valueWithUnit } from "../core/units";
 import type { Quantity } from "../worker/protocol";
 import { ContourSettings } from "./ContourSettings";
+import { Icon } from "./icons";
+import { type Player, type Speed, SPEEDS } from "./usePlayer";
 
 interface Props {
   store: ModelStore;
@@ -26,6 +28,8 @@ interface Props {
   onContour?: (settings: ContourSettingsType) => void;
   /** The range of the shown substep, as the start of a manual range. */
   currentRange?: readonly [number, number];
+  /** Play the substeps (#141). */
+  player?: Player;
 }
 
 /** The controls of the results in the ribbon: job, quantity, substep and shape. */
@@ -37,6 +41,7 @@ export function ResultsControls({
   contour,
   onContour,
   currentRange,
+  player,
 }: Props) {
   if (running) return <span class="muted">Solving …</span>;
   if (!results)
@@ -102,25 +107,64 @@ export function ResultsControls({
           />
         )}
       </div>
-      <label
-        class="field substep"
-        title={`${hint("substep-previous")} and ${hint("substep-next")} step through the substeps, ${hint("substep-first")} and ${hint("substep-last")} go to the first and the last one`}
-      >
-        <span>
-          Substep {view.substep} of {total}
-        </span>
-        <input
-          type="range"
-          min={1}
-          max={total}
-          step={1}
-          value={view.substep}
-          disabled={total < 2}
-          onInput={(event) =>
-            set({ substep: Number(event.currentTarget.value) })
-          }
-        />
-      </label>
+      <div class="field-with-button">
+        {player && (
+          <button
+            type="button"
+            class="icon-button play-button"
+            aria-label={player.playing ? "Pause" : "Play"}
+            title={withHint(
+              player.playing
+                ? "Pause"
+                : contour?.range === "job"
+                  ? "Play the substeps"
+                  : "Play the substeps (the range of all substeps in the contour settings keeps the colors comparable)",
+              "play",
+            )}
+            disabled={total < 2}
+            onClick={player.toggle}
+          >
+            <Icon name={player.playing ? "pause" : "play"} />
+          </button>
+        )}
+        <label
+          class="field substep"
+          title={`${hint("substep-previous")} and ${hint("substep-next")} step through the substeps, ${hint("substep-first")} and ${hint("substep-last")} go to the first and the last one`}
+        >
+          <span>
+            Substep {view.substep} of {total}
+          </span>
+          <input
+            type="range"
+            min={1}
+            max={total}
+            step={1}
+            value={view.substep}
+            disabled={total < 2}
+            onInput={(event) =>
+              set({ substep: Number(event.currentTarget.value) })
+            }
+          />
+        </label>
+        {player && (
+          <label class="field speed" title="Substeps per second while playing">
+            <span>Speed</span>
+            <select
+              value={player.speed}
+              disabled={total < 2}
+              onChange={(event) =>
+                player.setSpeed(Number(event.currentTarget.value) as Speed)
+              }
+            >
+              {SPEEDS.map((speed) => (
+                <option key={speed} value={speed}>
+                  {speed}/s
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
       <div class="results-info muted" aria-live="polite">
         {step.name}: {step.substep} of {step.substeps}
         {point && (

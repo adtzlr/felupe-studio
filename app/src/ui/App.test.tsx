@@ -1156,6 +1156,112 @@ describe("solve", () => {
     expect(labels()).toEqual(["Min. 0.5", "Max. 2"]);
   });
 
+  it("plays the substeps, loads them ahead and keeps them (#141)", async () => {
+    const jobs = runner();
+    const calls: [number, string][] = [];
+    const resultScene = vi.fn(
+      async (_: string, substep: number, quantity: string) => {
+        calls.push([substep, quantity]);
+        if (substep === 2 && quantity === "stress_mises") {
+          throw new Error("No scene");
+        }
+        return {
+          label: "Displacement",
+          at: "point",
+          range: [0, substep],
+          points: [],
+          surfaces: [],
+        } as ResultScene;
+      },
+    );
+    render(
+      <App
+        store={new ModelStore(fixture as CommandList)}
+        files={await files()}
+        client={client(Promise.resolve(readyValue), { ...jobs, resultScene })}
+      />,
+    );
+    await waitFor(() =>
+      expect(solveButton().getAttribute("aria-disabled")).toBeNull(),
+    );
+    fireEvent.click(solveButton());
+    await waitFor(() => expect(jobs.run).toHaveBeenCalledTimes(1));
+    await act(async () =>
+      jobs.settle().resolve({
+        job_1: {
+          substeps: 6,
+          time: 0.1,
+          x: [0, 0.1, 0.2, 0.3, 0.4, 0.5].map((u) => [u, 0, 0]),
+          y: [0, 1, 2, 3, 4, 5].map((f) => [f, 0, 0]),
+        },
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show results" }));
+    const panel = screen.getByRole("tabpanel");
+    await waitFor(() => expect(calls).toEqual([[6, "displacement"]]));
+    // nothing is loaded ahead while not playing
+    await act(async () => {});
+    expect(calls).toHaveLength(1);
+
+    // the fastest speed; after the last substep the first one follows, and the
+    // scenes ahead are loaded
+    fireEvent.change(within(panel).getByLabelText("Speed"), {
+      target: { value: "20" },
+    });
+    fireEvent.click(within(panel).getByRole("button", { name: "Play" }));
+    await waitFor(() => expect(panel.textContent).toContain("Substep 3 of 6"));
+    expect(calls.slice(0, 5).map(([s]) => s)).toEqual([6, 1, 2, 3, 4]);
+    // the curve follows the substep
+    fireEvent.click(within(panel).getByRole("button", { name: "Pause" }));
+    const substep = Number(/Substep (\d)/.exec(panel.textContent!)![1]);
+    await new Promise((r) => setTimeout(r, 150));
+    expect(panel.textContent).toContain(`Substep ${substep} of 6`);
+    expect(panel.textContent).toContain(
+      `ux = ${[0, 0.1, 0.2, 0.3, 0.4, 0.5][substep - 1]}`,
+    );
+
+    // kept scenes are not loaded again
+    const loaded = calls.length;
+    const key = (k: string) => fireEvent.keyDown(document.body, { key: k });
+    key("Home");
+    key("End");
+    await act(async () => {});
+    expect(calls).toHaveLength(loaded);
+
+    // Space plays and pauses; a scene that fails stops playing
+    key("Home");
+    fireEvent.change(within(panel).getByLabelText("Contour"), {
+      target: { value: "stress_mises" },
+    });
+    await waitFor(() => expect(calls.at(-1)).toEqual([1, "stress_mises"]));
+    key(" ");
+    await waitFor(() =>
+      expect(
+        within(panel).queryByRole("button", { name: "Play" }),
+      ).not.toBeNull(),
+    );
+    expect(panel.textContent).toContain("Substep 2 of 6");
+    expect(screen.getByRole("main", { name: "Results" }).textContent).toContain(
+      "No scene",
+    );
+    // playing again goes on with the next substep
+    key(" ");
+    await waitFor(() => expect(panel.textContent).toContain("Substep 3 of 6"));
+    expect(within(panel).getByRole("button", { name: "Pause" })).toBeTruthy();
+    key(" ");
+    expect(within(panel).getByRole("button", { name: "Play" })).toBeTruthy();
+
+    // playing stops in the model workspace
+    key(" ");
+    fireEvent.click(screen.getByRole("button", { name: "Model" }));
+    fireEvent.click(screen.getByRole("button", { name: "Results" }));
+    expect(
+      within(screen.getByRole("tabpanel")).getByRole("button", {
+        name: "Play",
+      }),
+    ).toBeTruthy();
+  });
+
   it("exports the script and a picture of the view", async () => {
     const download = vi.fn();
     const script = vi.fn<(document: string) => Promise<string>>(

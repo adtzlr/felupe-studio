@@ -94,6 +94,7 @@ The **Results** workspace shows the deformed shape of a substep:
 
 - *Contour*: the displacement, the logarithmic strains or the Cauchy stresses (principal values and von Mises). The button beside it sets the **color map** (Turbo, Viridis, Cool–warm for signed values, centered at zero, or Grayscale for printing), **bands** (continuous or 6–20 discrete bands) and the **range**: of the substep, over all substeps of the job (to compare substeps), or manual, where values outside are drawn in an extra color. The settings are kept in the browser and used by the picture export.
 - *Substep* and *Scale* of the displacements; *Undeformed* shows the shape before the deformation.
+- ▷ (or Space) **plays** the substeps in a loop at the chosen *Speed* (substeps per second); the curve and the control points follow. Choose the range over all substeps in the contour settings to compare the colors while playing. Substeps that were shown once are shown at once again.
 - *Curve*: the force-displacement curve with the current substep; download it as CSV.
 - A hover over the model shows the value at the point under the pointer; *Nodes* shows the nodes of the deformed meshes.
 - *Min/Max* marks the minimum and the maximum of the contour with their values: a dot at a node (values at the points) or the outline of the outer faces of a cell (values of the cells). A click on a label or a marker shows where the value is (the node or the cell and its section, *inside* if it is not at the surface); a click elsewhere or Esc hides it again. A label whose point is hidden behind the model is dimmed.
@@ -123,6 +124,7 @@ The **Export** menu has
 | Delete, F2, Esc | Delete or rename the selected object, clear the selection |
 | F, 1–4, N | Fit, the views Iso, XY, XZ, YZ, show the nodes |
 | ←, →, Home, End | The previous, next, first or last substep of the results |
+| Space | Play or pause the substeps of the results |
 
 While you type in a field, only Ctrl+S and Ctrl+Enter are shortcuts.
 

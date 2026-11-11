@@ -39,7 +39,8 @@ export type ShortcutId =
   | "substep-previous"
   | "substep-next"
   | "substep-first"
-  | "substep-last";
+  | "substep-last"
+  | "play";
 
 export const SHORTCUTS: ShortcutGroup[] = [
   {
@@ -118,6 +119,7 @@ export const SHORTCUTS: ShortcutGroup[] = [
       { id: "substep-next", keys: [["→"]], action: "Next substep" },
       { id: "substep-first", keys: [["Home"]], action: "First substep" },
       { id: "substep-last", keys: [["End"]], action: "Last substep" },
+      { id: "play", keys: [["Space"]], action: "Play or pause the substeps" },
     ],
   },
   {
