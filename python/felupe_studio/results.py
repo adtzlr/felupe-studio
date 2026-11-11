@@ -54,22 +54,75 @@ def reset(namespace, sections, points=()):
     """Start the results of a run: the namespace of its script, the names of the
     sections and the names of the control points."""
     _state.update(
-        namespace=namespace, sections=list(sections), points=list(points), records={}
+        namespace=namespace,
+        sections=list(sections),
+        points=list(points),
+        records={},
+        controls={},
     )
     _state["surfaces"] = {}
 
 
 class Recorder(fem.Plugin):
-    """A plugin that records the values of all fields after every substep."""
+    """A plugin that records the values of all fields after every substep, and the
+    displacements and forces of the control points (#101)."""
 
     def __init__(self, job, field):
         self.job = job
         self.field = field
         _state["records"][job] = []
+        _state.setdefault("controls", {})[job] = []
 
     def after_substep(self, context, state):
         values = [f.values.copy() for f in self.field.fields]
         _state["records"][self.job].append(values)
+        _state["controls"][self.job].append(_control_values(self.field))
+
+
+def _constraints():
+    """Return the multi-point constraints of the namespace of the run."""
+    namespace = _state["namespace"]
+    return [v for v in namespace.values() if isinstance(v, fem.MultiPointConstraint)]
+
+
+def _control_values(field):
+    """Return the displacement and the force of every control point: the force of
+    the constraints at the point after a converged substep (the reaction force of a
+    boundary, or the force of a load at the point); of a rotation point, the
+    rotation and the moment."""
+    namespace = _state["namespace"]
+    names = _state.get("points", [])
+    if not names:
+        return []
+    forces = np.zeros((len(field[0].values), 3))
+    for constraint in _constraints():
+        vector = constraint.results.force
+        if vector is None:
+            continue
+        vector = vector.toarray().ravel() if hasattr(vector, "toarray") else vector
+        first = np.split(np.asarray(vector).ravel(), field.offsets)[0]
+        forces += first.reshape(-1, 3)
+    result = []
+    for name in names:
+        index = np.flatnonzero(namespace[name])[0]
+        result.append(
+            {
+                "displacement": field[0].values[index].tolist(),
+                "force": forces[index].tolist(),
+            }
+        )
+    return result
+
+
+def _rotation_points():
+    """Return the names of the control points that are rotation points."""
+    namespace = _state["namespace"]
+    indices = {c.rotationpoint for c in _constraints() if c.rotationpoint is not None}
+    return {
+        name
+        for name in _state.get("points", [])
+        if np.flatnonzero(namespace[name])[0] in indices
+    }
 
 
 def substeps(job):
@@ -204,27 +257,50 @@ def scene(job, substep, quantity):
         "label": label,
         "at": at,
         "range": [float(low), float(high)] if low <= high else None,
-        "points": _control_points(),
+        "points": _control_points(job, substep),
     }
     return json.dumps(meta), surfaces
 
 
-def _control_points():
-    """Return the control points with their positions and current displacements."""
+def _control_points(job, substep):
+    """Return the control points with their positions, and their displacements and
+    forces of a substep (of a rotation point: rotations and moments)."""
     namespace = _state["namespace"]
-    field = namespace["field"]
-    points = field.mesh_container.points
+    points = namespace["field"].mesh_container.points
+    values = _state.get("controls", {}).get(job, [])
+    values = values[substep - 1] if 1 <= substep <= len(values) else []
+    rotations = _rotation_points()
     result = []
-    for name in _state.get("points", []):
+    for name, value in zip(_state.get("points", []), values, strict=False):
         index = np.flatnonzero(namespace[name])[0]
         result.append(
             {
                 "name": name,
                 "position": points[index].tolist(),
-                "displacement": field[0].values[index].tolist(),
+                **value,
+                **({"rotation": True} if name in rotations else {}),
             }
         )
     return result
+
+
+def control_csv(job):
+    """Return the displacements and forces of the control points of all substeps of
+    a job as CSV text (of a rotation point: the rotations and the moments)."""
+    if not _state["records"].get(job):
+        raise KeyError(f"No results of the job '{job}'.")
+    rotations = _rotation_points()
+    header = ["substep"]
+    for name in _state.get("points", []):
+        u, f = ("phi", "M") if name in rotations else ("u", "F")
+        header += [f"{name}.{q}_{a}" for q in (u, f) for a in "xyz"]
+    rows = [",".join(header)]
+    for substep, values in enumerate(_state["controls"][job], start=1):
+        row = [str(substep)]
+        for value in values:
+            row += [repr(float(x)) for x in value["displacement"] + value["force"]]
+        rows.append(",".join(row))
+    return "\n".join(rows) + "\n"
 
 
 # the cell data of the exports (like the names of felupe.ViewSolid) by kind
@@ -269,9 +345,10 @@ def export(job, file_format, substep=None):
     job : str
         The name of the job.
     file_format : str
-        ``"vtu"`` for a substep (the last one by default) or ``"xdmf"`` for all
+        ``"vtu"`` for a substep (the last one by default), ``"xdmf"`` for all
         substeps of the job (a time series with the substeps as time, with the data
-        inside the XML file, so that no HDF5 file is needed).
+        inside the XML file, so that no HDF5 file is needed) or ``"csv"`` for the
+        displacements and forces of the control points of all substeps.
     substep : int or None, optional
         The substep of a VTU file, counted from 1 over all steps of the job.
 
@@ -286,6 +363,8 @@ def export(job, file_format, substep=None):
     """
     import meshio
 
+    if file_format == "csv":
+        return control_csv(job).encode("utf-8")
     if not _state["records"].get(job):
         raise KeyError(f"No results of the job '{job}'.")
     points, cells, used = _export_mesh()

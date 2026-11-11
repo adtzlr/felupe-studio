@@ -182,7 +182,7 @@ function script(id: number, document: string) {
 function exportResults(
   id: number,
   job: string,
-  format: "vtu" | "xdmf",
+  format: "vtu" | "xdmf" | "csv",
   substep?: number,
 ) {
   const results = python().pyimport("felupe_studio.results");

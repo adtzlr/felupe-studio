@@ -176,11 +176,16 @@ export interface ResultScene {
   surfaces: ResultSurface[];
 }
 
-/** A control point of a result: its position and its displacement. */
+/**
+ * A control point of a result: its position, and its displacement and the force of
+ * the constraints at it (of a rotation point: the rotation and the moment, #101).
+ */
 export interface ResultPoint {
   name: string;
   position: [number, number, number];
   displacement: [number, number, number];
+  force?: [number, number, number];
+  rotation?: boolean;
 }
 
 export type ToWorker =
@@ -200,7 +205,7 @@ export type ToWorker =
       type: "export-results";
       id: number;
       job: string;
-      format: "vtu" | "xdmf";
+      format: "vtu" | "xdmf" | "csv";
       /** The substep of a VTU file (the last one by default). */
       substep?: number;
     }
