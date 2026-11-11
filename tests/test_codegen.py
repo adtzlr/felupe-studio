@@ -746,3 +746,44 @@ def test_rotation_point_and_moment(two_sections, tmp_path, monkeypatch):
     np.testing.assert_allclose(
         moments[-1], namespace["glue"].results.moment[0], rtol=1e-6
     )
+
+
+def test_point_load(two_sections, tmp_path, monkeypatch):
+    mesh, tag = bar()
+    write(tmp_path / "specimen.vtu", mesh, tag)
+    commands = two_sections["commands"]
+    # the right end face is pulled by a force at a control point (#100)
+    commands[9:9] = [
+        {"command": "point.add", "name": "plate", "coordinates": [3.5, 0.5, 0.5]},
+    ]
+    commands[:] = [c for c in commands if c["name"] != "move"]
+    index = next(i for i, c in enumerate(commands) if c["command"] == "step.add")
+    commands[index:index] = [
+        {
+            "command": "mpc.add",
+            "name": "glue",
+            "points": "right",
+            "center": "plate",
+            "constrained": ["x", "y", "z"],
+        },
+        {"command": "load.add", "name": "pull", "points": "plate", "force": [2, 0, 0]},
+    ]
+    step = next(c for c in commands if c["command"] == "step.add")
+    step["ramp"] = {"num": 4, "items": [{"target": "pull", "end": 1}]}
+    job = next(c for c in commands if c["command"] == "job.add")
+    job["curve"] = "pull"
+    script = codegen(two_sections)
+    assert "pull = fem.PointLoad(field, points=plate, values=[2, 0, 0])\n" in script
+    assert "ramp={pull: np.outer(ramp_step_1, [2, 0, 0])}" in script
+    assert "items=[solid_section_hard, solid_section_soft, glue, pull]" in script
+    items = "items=[solid_section_hard, solid_section_soft, glue]"
+    assert f"boundary=pull, {items}" in script
+    namespace = run(two_sections, tmp_path, monkeypatch)
+    curve = namespace["job_1"]
+    forces = np.array(curve.y)[:, 0]
+    moves = np.array(curve.x)[:, 0]
+    # the force over the displacement of the control point
+    np.testing.assert_allclose(forces, [0, 0.5, 1, 1.5, 2], atol=1e-8)
+    assert 0 < moves[1] < moves[2] < moves[-1]
+    u = namespace["field"][0].values
+    np.testing.assert_allclose(u[namespace["plate"]][0, 0], moves[-1])

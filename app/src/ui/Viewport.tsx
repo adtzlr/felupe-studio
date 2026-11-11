@@ -5,6 +5,7 @@ import {
   constraintShapes,
   overConstrained,
 } from "../viewer/constraints";
+import { loadLines } from "../viewer/loads";
 import type { MeshFiles } from "../core/meshfiles";
 import type { ModelStore } from "../core/store";
 import { NodesButton, useShowNodes } from "./NodesButton";
@@ -254,8 +255,15 @@ export function Viewport({
         highlight: HIGHLIGHT,
       }),
       ...constraintLines(shapes, { hidden, selected, highlight: HIGHLIGHT }),
+      // the point loads: arrows in the direction of the force (#100)
+      ...loadLines(commands, nodes, {
+        size,
+        hidden,
+        selected,
+        highlight: HIGHLIGHT,
+      }),
     ],
-    [symbols, size, hidden, selected, shapes],
+    [symbols, size, hidden, selected, shapes, commands, nodes],
   );
   // the points of the selected constraint that a boundary prescribes as well
   const overlaps = useMemo(() => {

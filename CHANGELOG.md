@@ -6,6 +6,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Added
 
+- Point loads (`load.add`, `fem.PointLoad`) on point sets and control points, ramped by the steps as a factor of the force; force-controlled curves; arrows in the viewport (#100).
 - Multi-point constraints in the viewport: lines from the center to the connected points, also displaced in the results, and a warning for points that a boundary prescribes as well (#99).
 - Curves of rotation points show the moment over the rotation (*Moment–rotation*); the properties say when values are rotations (#98).
 - Multi-point constraints (`mpc.add`, `fem.MultiPointConstraint`): the points of a point set follow a control point, optionally with a rotation point; items of the steps (#97).

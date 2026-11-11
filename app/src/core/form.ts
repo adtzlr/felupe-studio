@@ -9,10 +9,12 @@ import { KIND_LABELS, REGISTRY } from "./registry";
 import { schema } from "./schema";
 import {
   type CommandType,
-  type Kind,
   KINDS,
+  kindsOf,
   nameProblem,
+  RAMPED,
   REFERENCES,
+  type RefKind,
 } from "./validate";
 
 /** A command that is being edited; it may be incomplete or hold invalid values. */
@@ -43,7 +45,12 @@ export type Input =
   | { type: "coordinates"; minItems: number }
   /** A list of numbers, e.g. the coordinates x, y, z of a point. */
   | { type: "numbers"; minItems: number; maxItems?: number }
-  | { type: "reference"; kind: Kind; multiple: boolean; minItems: number }
+  | {
+      type: "reference";
+      kind: RefKind;
+      multiple: boolean;
+      minItems: number;
+    }
   /**
    * A list of objects, edited as rows; `columns` are the fields of a row, with
    * paths relative to the row (see `cells`).
@@ -187,10 +194,10 @@ const columnKey = (key: string) =>
     .filter((part) => !/^\d+$/.test(part))
     .join(".");
 
-/** Kind of object a reference field points to. */
-function referenceKind(type: CommandType, key: string): Kind {
+/** Kind (or kinds) of objects a reference field points to. */
+function referenceKind(type: CommandType, key: string): RefKind {
   if (type === "step.add" && columnKey(key) === "ramp.items.target")
-    return "boundary";
+    return RAMPED;
   const reference = REFERENCES[type]?.[key];
   if (!reference) throw new Error(`No reference kind for ${type} ${key}.`);
   return reference[0];
@@ -200,12 +207,19 @@ function referenceKind(type: CommandType, key: string): Kind {
  * Names of the objects of a kind that the edited command may reference: all of
  * them, also the ones created later (the store keeps the command list ordered, #80).
  */
-export function available(context: Context, kind: Kind): string[] {
+export function available(context: Context, kind: RefKind): string[] {
   const { commands, editing } = context;
+  const kinds = kindsOf(kind);
   return commands
-    .filter((c) => KINDS[c.command] === kind && c.name !== editing)
+    .filter((c) => kinds.includes(KINDS[c.command]) && c.name !== editing)
     .map((c) => c.name);
 }
+
+/** The label of the kind of a reference, e.g. "boundary or load". */
+export const kindLabel = (kind: RefKind): string =>
+  kindsOf(kind)
+    .map((k) => KIND_LABELS[k].toLowerCase())
+    .join(" or ");
 
 /** Fields of the form of a command, for the current state of the draft. */
 export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
@@ -732,7 +746,7 @@ function fieldError(
     }
     case "reference": {
       const names = available(context, input.kind);
-      const kind = KIND_LABELS[input.kind].toLowerCase();
+      const kind = kindLabel(input.kind);
       if (input.multiple) {
         if (value === undefined && !required) return undefined;
         const items = Array.isArray(value) ? (value as string[]) : [];

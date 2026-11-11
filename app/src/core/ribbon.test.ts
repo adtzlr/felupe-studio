@@ -24,6 +24,7 @@ describe("ribbonGroups", () => {
       ["Uniaxial", "Biaxial", "Planar", "Shear"],
       ["Control point"],
       ["Multi-point constraint"],
+      ["Point load"],
     ]);
     expect(labels("steps")).toEqual([["Step"], ["Job"]]);
   });

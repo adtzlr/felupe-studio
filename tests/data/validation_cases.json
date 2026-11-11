@@ -699,7 +699,7 @@
       ]
     },
     "errors": [
-      "commands/11: step 'step_1' ramps unknown boundary 'left'."
+      "commands/11: step 'step_1' ramps unknown boundary or load 'left'."
     ]
   },
   {
@@ -816,7 +816,7 @@
       ]
     },
     "errors": [
-      "commands/12: job.add 'job_1' references unknown boundary 'fixed2' in 'curve'."
+      "commands/12: job.add 'job_1' references unknown boundary or load 'fixed2' in 'curve'."
     ]
   },
   {
@@ -1060,7 +1060,7 @@
       ]
     },
     "errors": [
-      "commands/11: step 'step_1' ramps unknown boundary 'left'."
+      "commands/11: step 'step_1' ramps unknown boundary or load 'left'."
     ]
   },
   {
@@ -1995,6 +1995,385 @@
     },
     "errors": [
       "commands/12: 'fixed' in 'constraints' of 'step_1' is a boundary, not a constraint."
+    ]
+  },
+  {
+    "name": "point load ramped and recorded",
+    "document": {
+      "schema_version": 2,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "load.add",
+          "name": "pull",
+          "points": "right",
+          "force": [
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              },
+              {
+                "target": "pull",
+                "end": 1
+              }
+            ]
+          },
+          "loads": [
+            "pull"
+          ]
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "pull"
+        }
+      ]
+    },
+    "errors": []
+  },
+  {
+    "name": "point load of a cell set",
+    "document": {
+      "schema_version": 2,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "load.add",
+          "name": "pull",
+          "points": "hard",
+          "force": [
+            1,
+            0,
+            0
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/11: 'hard' in 'points' of 'pull' is a cellset, not a pointset."
+    ]
+  },
+  {
+    "name": "step with a load that is a boundary",
+    "document": {
+      "schema_version": 2,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          },
+          "loads": [
+            "fixed"
+          ]
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/11: 'fixed' in 'loads' of 'step_1' is a boundary, not a load."
     ]
   },
   {
@@ -3528,7 +3907,7 @@
     },
     "errors": [
       "commands/0: job.add 'job_1' references unknown step 'step_1' in 'steps'.",
-      "commands/0: job.add 'job_1' references unknown boundary 'move' in 'curve'."
+      "commands/0: job.add 'job_1' references unknown boundary or load 'move' in 'curve'."
     ]
   },
   {

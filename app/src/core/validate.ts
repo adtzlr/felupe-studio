@@ -25,6 +25,7 @@ export type Kind =
   | "pointset"
   | "boundary"
   | "constraint"
+  | "load"
   | "step"
   | "job";
 
@@ -43,16 +44,24 @@ export const KINDS: Record<CommandType, Kind> = {
   // a load case is referenced like a boundary (ramps of steps, curves of jobs)
   "loadcase.add": "boundary",
   "mpc.add": "constraint",
+  "load.add": "load",
   "step.add": "step",
   "job.add": "job",
 };
 
 /** Kinds of objects that a step can ramp (a load case is a boundary). */
-export const RAMPED: readonly Kind[] = ["boundary"];
+export const RAMPED: readonly Kind[] = ["boundary", "load"];
 
-/** References of a command: field → [kind, is a list]. */
+/** The kind or kinds of objects that a reference may point to. */
+export type RefKind = Kind | readonly Kind[];
+
+/** The kinds of a reference as a list. */
+export const kindsOf = (kind: RefKind): readonly Kind[] =>
+  typeof kind === "string" ? [kind] : kind;
+
+/** References of a command: field → [kind or kinds, is a list]. */
 export const REFERENCES: Partial<
-  Record<CommandType, Record<string, [Kind, boolean]>>
+  Record<CommandType, Record<string, [RefKind, boolean]>>
 > = {
   "cellset.from_tag": { mesh: ["mesh", false] },
   "cellset.from_file": { mesh: ["mesh", false] },
@@ -63,11 +72,14 @@ export const REFERENCES: Partial<
     center: ["pointset", false],
     rotation: ["pointset", false],
   },
+  "load.add": { points: ["pointset", false] },
   "step.add": {
     sections: ["section", true],
     constraints: ["constraint", true],
+    loads: ["load", true],
   },
-  "job.add": { steps: ["step", true], curve: ["boundary", false] },
+  // the curve of a job: a boundary (force-displacement) or a point load
+  "job.add": { steps: ["step", true], curve: [["boundary", "load"], false] },
 };
 
 export interface Issue {
@@ -186,15 +198,17 @@ export function validate(commands: readonly Command[]): Issue[] {
     )) {
       const value = (cmd as unknown as Record<string, unknown>)[field];
       if (value === undefined) continue;
+      const kinds = kindsOf(refKind);
+      const text = kinds.join(" or ");
       for (const ref of isList ? (value as string[]) : [value as string]) {
         const other = kindOf(ref);
         if (other === undefined) {
           add(
-            `${cmd.command} '${name}' references unknown ${refKind} '${ref}' in '${field}'.`,
+            `${cmd.command} '${name}' references unknown ${text} '${ref}' in '${field}'.`,
           );
-        } else if (other !== refKind) {
+        } else if (!kinds.includes(other)) {
           add(
-            `'${ref}' in '${field}' of '${name}' is a ${other}, not a ${refKind}.`,
+            `'${ref}' in '${field}' of '${name}' is a ${other}, not a ${text}.`,
           );
         }
       }
@@ -206,7 +220,7 @@ export function validate(commands: readonly Command[]): Issue[] {
       for (const ref of targets) {
         const kind = kindOf(ref);
         if (kind === undefined || !RAMPED.includes(kind)) {
-          add(`step '${name}' ramps unknown boundary '${ref}'.`);
+          add(`step '${name}' ramps unknown boundary or load '${ref}'.`);
         }
       }
       const twice = targets.filter((t, i) => targets.indexOf(t) !== i);
