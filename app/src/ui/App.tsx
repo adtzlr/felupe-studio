@@ -30,6 +30,7 @@ import type { Capture } from "../viewer/viewer";
 import { CurveCard } from "./CurveCard";
 import { NewProjectDialog } from "./NewProjectDialog";
 import { SamplesDialog } from "./SamplesDialog";
+import { ScriptView } from "./ScriptView";
 import { ShortcutsDialog } from "./ShortcutsDialog";
 import { useSession } from "./useSession";
 import { ResultsControls } from "./ResultsControls";
@@ -100,6 +101,8 @@ export function App({
   const notes = fileNotes(store.commands, files);
   const [workspace, setWorkspace] = useState<Workspace>("model");
   const [tab, setTab] = useState("mesh");
+  // the script view replaces the viewport while its ribbon tab is open (#130)
+  const scriptShown = workspace === "model" && tab === "script";
   const [fileName, setFileName] = useState(`untitled${SUFFIX}`);
   // the command list of the last saved or opened project file; none for a restored
   // session with unsaved changes
@@ -554,6 +557,13 @@ export function App({
         onCreate={(item) =>
           item.type === "mesh.import" ? setImporting({}) : setCreating(item)
         }
+        script={
+          <p class="ribbon-note muted">
+            The FElupe script of the model, as it is exported, updated after
+            every change. Select an object to highlight its lines, or click a
+            line to select its object.
+          </p>
+        }
         results={
           <ResultsControls
             store={store}
@@ -577,12 +587,25 @@ export function App({
           onToggleVisible={toggleVisible}
         />
         <div class="views">
+          <ScriptView
+            store={store}
+            client={client}
+            runtime={runtime}
+            active={scriptShown}
+            selected={selected}
+            onSelect={select}
+            onDownload={() =>
+              void exportScript().catch(
+                failed("The script could not be exported."),
+              )
+            }
+          />
           <Viewport
             store={store}
             files={files}
             hidden={hidden}
             selected={selected}
-            active={workspace === "model"}
+            active={workspace === "model" && !scriptShown}
             capture={captureModel}
             showNodes={showNodes}
             onShowNodes={setShowNodes}

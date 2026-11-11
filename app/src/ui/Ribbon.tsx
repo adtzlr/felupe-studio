@@ -15,6 +15,7 @@ export const TABS: Record<Workspace, { id: string; label: string }[]> = {
     { id: "sections", label: "Sections" },
     { id: "loads", label: "Loads & BCs" },
     { id: "steps", label: "Steps & Job" },
+    { id: "script", label: "Script" },
   ],
   results: [{ id: "results", label: "Results" }],
 };
@@ -36,6 +37,8 @@ interface Props {
   onCreate: (item: RibbonItem) => void;
   /** The content of the Results tab. */
   results?: ComponentChildren;
+  /** The content of the Script tab of the Model workspace (#130). */
+  script?: ComponentChildren;
 }
 
 function Commands({
@@ -92,6 +95,7 @@ export function Ribbon({
   onTab,
   onCreate,
   results,
+  script,
 }: Props) {
   const tabs = TABS[workspace];
   const active = tabs.find((t) => t.id === tab) ?? tabs[0];
@@ -157,6 +161,8 @@ export function Ribbon({
               tab={active.id as Tab}
               onCreate={onCreate}
             />
+          ) : active.id === "script" ? (
+            script
           ) : (
             results
           )}

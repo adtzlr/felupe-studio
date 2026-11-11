@@ -92,6 +92,10 @@ The **Results** workspace shows the deformed shape of a substep:
 - A hover over the model shows the value at the point under the pointer; *Nodes* shows the nodes of the deformed meshes.
 - The control points show their displacements and forces in the substep (rotations and moments for rotation points); the export has them for all substeps.
 
+## The script
+
+The ribbon tab **Script** shows the FElupe script of the model instead of the viewport, exactly as it is exported, and updates it after every change. Selecting an object highlights its lines (e.g. a section: its region, field and solid body); a click on a line selects its object, so you can change a value in the properties and see the code change. *Copy* and *Download* take the whole script.
+
 ## Exports
 
 The **Export** menu has

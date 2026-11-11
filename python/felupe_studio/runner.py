@@ -20,7 +20,7 @@ import time
 import felupe as fem
 
 from . import results as results_
-from .codegen import codegen, evaluate_options
+from .codegen import codegen, evaluate_options, object_lines
 from .materials import models
 
 # the namespace of the last run, e.g. its field for results
@@ -182,6 +182,15 @@ def script(text):
     app. The app validated the command list against the schema with Ajv (see
     :func:`run`)."""
     return codegen(json.loads(text), check_schema=False)
+
+
+def script_view(text):
+    """Return the FElupe script of a command list (JSON text) and the lines of its
+    objects (:func:`felupe_studio.codegen.object_lines`) as JSON text, for the script
+    view of the app (#130)."""
+    document = json.loads(text)
+    source = codegen(document, check_schema=False)
+    return json.dumps({"script": source, "lines": object_lines(source, document)})
 
 
 def run_json(text, report):

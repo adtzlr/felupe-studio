@@ -13,6 +13,7 @@ of the commands:
 6. steps and jobs
 """
 
+import ast
 import json
 from importlib.resources import files
 from textwrap import dedent
@@ -419,3 +420,103 @@ def codegen(document, evaluate=True, check_schema=True):
                 out.append(f"{job['name']}.evaluate({', '.join(args)})")
 
     return dedent("\n".join(out)).strip() + "\n"
+
+
+def _names(node):
+    """The names that an expression reads."""
+    return {n.id for n in ast.walk(node) if isinstance(n, ast.Name)}
+
+
+def object_lines(script, document):
+    """Return the lines of a generated script that belong to the objects of the
+    command list, for the script view of the app (#130).
+
+    Parameters
+    ----------
+    script : str
+        The script of :func:`codegen`.
+    document : dict
+        The command list of the script.
+
+    Returns
+    -------
+    dict
+        The ranges ``[first, last]`` of the lines (counted from 1) of every object
+        with lines, e.g. ``{"rubber": [[30, 30]], "block": [[25, 25], [52, 57]]}``:
+        its assignment, and the parts of other statements that are about it (an
+        entry of the boundaries, the evaluation of a job). Lines that are about
+        several objects (e.g. the merge of the fields) belong to none of them.
+    """
+    commands = document["commands"]
+    names = {c["name"] for c in commands}
+    kinds = {c["name"]: c["command"] for c in commands}
+    controls = [c["name"] for c in commands if c["command"] == "point.add"]
+    merge = [c["name"] for c in commands if c["command"] == "mesh.merge"]
+    lines = {}
+
+    def add(name, node):
+        lines.setdefault(name, []).append([node.lineno, node.end_lineno])
+
+    def owners(target):
+        """The objects of an assigned name, e.g. a section of its solid body."""
+        if target in names:
+            return [target]
+        if target in ("region_control_points", "field_control_points"):
+            return controls
+        if target == "field":
+            return merge
+        for prefix, kind in [
+            ("region_", "section.add"),
+            ("field_", "section.add"),
+            ("solid_", "section.add"),
+            ("ramp_", "step.add"),
+        ]:
+            name = target.removeprefix(prefix)
+            if target.startswith(prefix) and kinds.get(name) == kind:
+                return [name]
+        return []
+
+    for statement in ast.parse(script).body:
+        if isinstance(statement, (ast.Assign, ast.AugAssign, ast.AnnAssign)):
+            targets = (
+                statement.targets
+                if isinstance(statement, ast.Assign)
+                else [statement.target]
+            )
+            for target in targets:
+                if isinstance(target, ast.Subscript):
+                    target = target.value  # e.g. the ids of a point set
+                if not isinstance(target, ast.Name):
+                    continue
+                if target.id == "boundaries" and isinstance(statement.value, ast.Dict):
+                    # an entry per boundary, and the boundaries of the load cases
+                    entries = zip(
+                        statement.value.keys, statement.value.values, strict=True
+                    )
+                    for key, value in entries:
+                        if isinstance(key, ast.Constant) and key.value in names:
+                            lines.setdefault(key.value, []).append(
+                                [key.lineno, value.end_lineno]
+                            )
+                        elif key is None:
+                            for name in sorted(_names(value) & names):
+                                add(name, value)
+                    continue
+                for name in owners(target.id):
+                    add(name, statement)
+        elif isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Call):
+            func = statement.value.func  # e.g. job.evaluate(...)
+            if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+                if func.value.id in names:
+                    add(func.value.id, statement)
+
+    # sorted ranges, joined where they touch
+    for name, ranges in lines.items():
+        joined = []
+        for first, last in sorted(ranges):
+            if joined and first <= joined[-1][1] + 1:
+                joined[-1][1] = max(joined[-1][1], last)
+            else:
+                joined.append([first, last])
+        lines[name] = joined
+    return lines

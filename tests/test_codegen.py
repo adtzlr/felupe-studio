@@ -10,7 +10,7 @@ import meshio
 import numpy as np
 import pytest
 
-from felupe_studio.codegen import codegen
+from felupe_studio.codegen import codegen, object_lines
 from felupe_studio.commands import ValidationError
 
 DATA = Path(__file__).parent / "data"
@@ -787,3 +787,73 @@ def test_point_load(two_sections, tmp_path, monkeypatch):
     assert 0 < moves[1] < moves[2] < moves[-1]
     u = namespace["field"][0].values
     np.testing.assert_allclose(u[namespace["plate"]][0, 0], moves[-1])
+
+
+def test_object_lines_of_the_glued_plate():
+    "The script view (#130) highlights the lines of the selected object."
+    folder = Path(__file__).parents[1] / "app" / "public" / "samples" / "glued-plate"
+    document = json.loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
+    script = codegen(document)
+    lines = object_lines(script, document)
+    text = script.splitlines()
+
+    def code(name):
+        return [text[a - 1 : b] for a, b in lines[name]]
+
+    assert set(lines) == {c["name"] for c in document["commands"]}
+    assert code("rubber") == [
+        ["rubber = fem.Hyperelastic(fem.mooney_rivlin, C10=0.4, C01=0.1)"]
+    ]
+    # the region, the field and the solid body of a section
+    section = code("rubber_block")
+    assert section[0][0].startswith("region_rubber_block = ")
+    assert section[0][1].startswith("field_rubber_block = ")
+    assert section[1][0].startswith("solid_rubber_block = fem.SolidBody(")
+    # an entry of the boundaries, the vertices of the control points
+    assert code("shift") == [
+        ['    "shift": fem.Boundary(field[0], mask=plate, skip=(0, 1, 1)),']
+    ]
+    assert code("plate")[0][0].startswith("region_control_points = ")
+    assert code("plate")[1] == ["plate = points_at(points, [20, 20, 25])"]
+    # the ramp and the step, and the evaluation of the job
+    assert code("shift_and_tilt")[0][0].startswith("ramp_shift_and_tilt = [")
+    assert code("shift_and_tilt")[0][-1] == ")"
+    assert code("job")[-1] == ["job.evaluate(x0=field)"]
+    # ranges are sorted and joined
+    for ranges in lines.values():
+        assert all(a <= b for a, b in ranges)
+        assert all(
+            b + 1 < c for (_, b), (c, _) in zip(ranges, ranges[1:], strict=False)
+        )
+
+
+def test_object_lines_of_load_cases_and_merged_fields():
+    document = {
+        "schema_version": 2,
+        "commands": [
+            {"command": "mesh.import", "name": "bar", "file": "bar.vtu"},
+            {"command": "mesh.merge", "name": "merge", "decimals": 6},
+            {"command": "cellset.from_file", "name": "cells", "mesh": "bar"},
+            {
+                "command": "material.add",
+                "name": "nh",
+                "model": "NeoHooke",
+                "parameters": {"mu": 1, "bulk": 5000},
+            },
+            {
+                "command": "section.add",
+                "name": "body",
+                "cellset": "cells",
+                "material": "nh",
+                "formulation": "u",
+            },
+            {"command": "loadcase.add", "name": "pull", "type": "uniaxial"},
+        ],
+    }
+    script = codegen(document, evaluate=False)
+    lines = object_lines(script, document)
+    text = script.splitlines()
+    assert text[lines["merge"][0][0] - 1].startswith("field = fem.field.merge(")
+    pull = [text[a - 1] for a, _ in lines["pull"]]
+    assert pull[0].startswith("pull = fem.dof.uniaxial(")
+    assert pull[1].strip().startswith('**{f"pull/{k}"')

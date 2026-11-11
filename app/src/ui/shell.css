@@ -36,6 +36,14 @@
   --color-info-surface: #1f2d40;
   --color-info-border: #2f4a6b;
 
+  /* the syntax of the script view (#130) */
+  --color-code-keyword: #c39af5;
+  --color-code-string: #e5b36f;
+  --color-code-number: #8fd3a7;
+  --color-code-comment: #7f8a9a;
+  --color-code-constant: #6cb6ff;
+  --color-code-call: #e6df9c;
+
   /* typography */
   --font-sans: Inter, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, monospace;
@@ -73,6 +81,8 @@
   --shadow-md: 0 10px 30px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 18px 50px rgba(0, 0, 0, 0.45);
   --shadow-outline: 0 0 0 1px rgba(0, 0, 0, 0.6);
+  /* a bar at the start of a selected line, e.g. of the script view */
+  --shadow-marker: inset 2px 0 0 var(--color-accent);
   --focus-ring: 2px solid var(--color-accent);
 
   /* controls */
@@ -1737,6 +1747,120 @@ button {
 
 .curve-table tr[aria-current="true"] {
   background: var(--color-accent-soft);
+}
+
+/* the script view (#130): the script of the model instead of the viewport */
+.views > .script-view {
+  grid-area: 1 / 1;
+}
+
+.script-view {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--color-bar);
+}
+
+.script-view[hidden] {
+  display: none;
+}
+
+.script-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-6) var(--space-12);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.script-bar [role="status"] {
+  margin-right: auto;
+  font-size: var(--text-sm);
+}
+
+.script-code {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--space-8) 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.script-line {
+  display: flex;
+  min-width: max-content;
+  padding-right: var(--space-16);
+  white-space: pre;
+}
+
+.script-line[title] {
+  cursor: pointer;
+}
+
+.script-line[title]:hover {
+  background: var(--color-hover);
+}
+
+.script-line.selected {
+  background: var(--color-accent-soft);
+  box-shadow: var(--shadow-marker);
+}
+
+.script-number {
+  flex: 0 0 auto;
+  width: 4ch;
+  padding: 0 var(--space-12) 0 var(--space-8);
+  color: var(--color-text-muted);
+  text-align: right;
+  user-select: none;
+}
+
+.script-line code {
+  font: inherit;
+}
+
+.script-message {
+  padding: var(--space-24);
+}
+
+.script-message p {
+  margin: 0 0 var(--space-8);
+}
+
+.py-keyword {
+  color: var(--color-code-keyword);
+}
+
+.py-string {
+  color: var(--color-code-string);
+}
+
+.py-number {
+  color: var(--color-code-number);
+}
+
+.py-comment {
+  color: var(--color-code-comment);
+  font-style: italic;
+}
+
+.py-constant {
+  color: var(--color-code-constant);
+}
+
+.py-call {
+  color: var(--color-code-call);
+}
+
+.ribbon-note {
+  max-width: 64ch;
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
 }
 
 /* the menus of the header: File, Help and Export (#126) */
