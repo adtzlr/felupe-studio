@@ -1,7 +1,10 @@
-import { APP_NAME, formatVersion } from "../app";
+import { APP_NAME, formatVersion, LINKS } from "../app";
 import type { ModelStore } from "../core/store";
-import { type ExportItem, ExportMenu } from "./ExportMenu";
 import { Icon } from "./icons";
+import { Menu, type MenuItem } from "./Menu";
+
+/** An export of the project: the script, the results or a picture. */
+export type ExportItem = MenuItem;
 
 interface Props {
   store: ModelStore;
@@ -11,6 +14,8 @@ interface Props {
   onOpen: () => void;
   onSamples: () => void;
   onSave: () => void;
+  onShortcuts: () => void;
+  onAbout: () => void;
   exports: ExportItem[];
   solve: {
     /** Why the jobs cannot be run, if so. */
@@ -29,6 +34,8 @@ export function Header({
   onOpen,
   onSamples,
   onSave,
+  onShortcuts,
+  onAbout,
   exports,
   solve,
 }: Props) {
@@ -39,15 +46,70 @@ export function Header({
           <Icon name="logo" size={20} />
           {APP_NAME}
         </span>
-        <button
-          type="button"
-          class="icon-button"
-          aria-label="New project"
-          title="Start a new, empty project"
-          onClick={onNew}
-        >
-          <Icon name="new" />
-        </button>
+        <div class="menubar">
+          <Menu
+            kind="text"
+            label="File"
+            button="File"
+            sections={[
+              {
+                items: [
+                  { id: "new", label: "New project", onSelect: onNew },
+                  {
+                    id: "open",
+                    label: "Open project…",
+                    hint: "A project file with its mesh files, or mesh files to import",
+                    onSelect: onOpen,
+                  },
+                  { id: "samples", label: "Samples…", onSelect: onSamples },
+                ],
+              },
+              {
+                items: [
+                  { id: "save", label: "Save project", onSelect: onSave },
+                ],
+              },
+              { label: "Export", items: exports },
+            ]}
+          />
+          <Menu
+            kind="text"
+            label="Help"
+            button="Help"
+            sections={[
+              {
+                items: [
+                  { id: "guide", label: "User guide", href: LINKS.guide },
+                  {
+                    id: "reference",
+                    label: "Command reference",
+                    href: LINKS.reference,
+                  },
+                  {
+                    id: "shortcuts",
+                    label: "Keyboard shortcuts",
+                    onSelect: onShortcuts,
+                  },
+                ],
+              },
+              {
+                items: [
+                  {
+                    id: "issue",
+                    label: "Report an issue",
+                    href: LINKS.issues,
+                  },
+                  {
+                    id: "about",
+                    label: `About ${APP_NAME}`,
+                    onSelect: onAbout,
+                  },
+                ],
+              },
+            ]}
+          />
+        </div>
+        <span class="header-separator" aria-hidden="true" />
         <button
           type="button"
           class="icon-button"
@@ -60,22 +122,20 @@ export function Header({
         <button
           type="button"
           class="icon-button"
-          aria-label="Samples"
-          title="Open a sample model"
-          onClick={onSamples}
-        >
-          <Icon name="samples" />
-        </button>
-        <button
-          type="button"
-          class="icon-button"
           aria-label="Save project"
           title="Save project"
           onClick={onSave}
         >
           <Icon name="save" />
         </button>
-        <ExportMenu items={exports} />
+        <Menu
+          kind="icon"
+          label="Export"
+          button={<Icon name="export" />}
+          title="Export the script, the results or a picture"
+          sections={[{ items: exports }]}
+          hints
+        />
         <button
           type="button"
           class="icon-button"

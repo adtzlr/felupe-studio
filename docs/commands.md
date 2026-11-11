@@ -248,18 +248,18 @@ The app keeps the current project in the browser, so that a reload (or a crash o
 - `app/src/core/session.ts`: IndexedDB database `felupe-studio` with the stores `session` (one record: project, file name, modified, names, sizes and SHA-256 hashes of the files) and `files` (the content by file name). A file whose hash did not change is not written again; files that the project does not import any more are removed. Only the last session is kept, also with several tabs (the last change wins).
 - The session is written 0.4 s after the last change. If the mesh files do not fit into the storage of the browser, the project is kept without them; a storage that does not work does not break the app. The status bar says where the session is kept (_Kept in this browser_, _… without mesh files_, _Not kept in this browser_, with the reason as tooltip).
 - On start, the last session is restored if the model is still empty; the mesh files are written into the worker and inspected again.
-- **New project** (header) starts an empty project and clears the kept session; with unsaved changes it asks first. The data stays in this browser only: save the project file to keep it elsewhere.
+- **File ▸ New project** starts an empty project and clears the kept session; with unsaved changes it asks first. The data stays in this browser only: save the project file to keep it elsewhere.
 
 ## Samples (app)
 
-**Samples** (header, and the browser of an empty model) lists finished models; **Open** loads one like a project file with its mesh files (a sample replaces the current model; the dialog warns about unsaved changes).
+**File ▸ Samples…** (and the browser of an empty model) lists finished models; **Open** loads one like a project file with its mesh files (a sample replaces the current model; the dialog warns about unsaved changes).
 
 - The samples are folders in `app/public/samples` with a project file `model.felupe.json` and its mesh files, listed in `app/src/core/samples.json` (title, description, topics, mesh files). Both are made by `app/scripts/make_samples.py` (units: mm, N, MPa); run it from the repository root after a change and commit the files.
 - `tests/test_samples.py` checks that every sample is a canonical project file without errors, that its files exist, and solves it with FElupe. The material test is checked against the analytical curve of the incompressible Neo-Hooke model. The rubber block with a rigid plate (#102) shows control points, a multi-point constraint with a rotation point and a ramp with its own values per item; its test checks that the plate is moved by 8 mm and tilted by 0.1 rad.
 
 ## Exports (app)
 
-**Export** (header) lists the exports of the project; an export that is not possible says why.
+**Export** (header, and the section *Export* of the File menu) lists the exports of the project; an export that is not possible says why. **Help** links the user guide and the command reference, lists the keyboard shortcuts and shows *About* (the versions of the app, FElupe, Python, Pyodide and the wheels, the load time, the license and the Pyodide benchmark).
 
 - **Python script** (`<project>.py`): the FElupe script of the model, generated in the worker (`felupe_studio.runner.script()`, without the schema check, see _Running jobs_). It reads the mesh files from its folder, so it runs next to them with FElupe, meshio and NumPy (and tensortrax for Mooney-Rivlin).
 - **Results of the job (XDMF)** (`<project>-<job>.xdmf`) and **Results of the substep (VTU)** (`<project>-<job>-<substep>.vtu`, the substep of the Results workspace), for ParaView: `felupe_studio.results.export()` writes the merged points that the cells use (without the bubble points of the MINI element) and one block of cells per section with meshio. Point data: `Displacement`; cell data (means of the quadrature points, the names of `fem.ViewSolid`): `Principal Values of Logarithmic Strain`, `Principal Values of Cauchy Stress`, `Equivalent of Cauchy Stress` and the index of the `Section`. The XDMF file is a time series with the substeps as time and the data inside the XML (`data_format="XML"`), so it is a single file without HDF5 (and h5py is not needed in the worker).

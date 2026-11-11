@@ -4,8 +4,13 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ## [Unreleased]
 
+### Added
+
+- **File** and **Help** menus in the header: File has new, open, samples, save and the exports; Help links the user guide, the command reference and a new issue, lists the keyboard shortcuts and shows *About* (versions of the app, FElupe, Python, Pyodide, NumPy, SciPy, meshio and tensortrax, the load time, the license, the Pyodide benchmark). The menus work with the keyboard (#126).
+
 ### Changed
 
+- The header keeps icon buttons for Open, Save, Export, Undo and Redo; New and Samples are in the File menu. The ribbon tab *Tools* is gone, its benchmark link is in Help ▸ About (#126).
 - One set of design tokens (colors, type, spacing, radii, shadows, stacking) and consistent components: all inputs and selects share one style (also in the results and the curve), buttons have hover and a clear disabled state, one focus ring for keyboard navigation, overlays on the viewport share one surface; a test keeps the styles on the tokens (#125).
 
 ## [0.2.0] - 2026-11-11

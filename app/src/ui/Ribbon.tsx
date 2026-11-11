@@ -15,7 +15,6 @@ export const TABS: Record<Workspace, { id: string; label: string }[]> = {
     { id: "sections", label: "Sections" },
     { id: "loads", label: "Loads & BCs" },
     { id: "steps", label: "Steps & Job" },
-    { id: "tools", label: "Tools" },
   ],
   results: [{ id: "results", label: "Results" }],
 };
@@ -158,8 +157,6 @@ export function Ribbon({
               tab={active.id as Tab}
               onCreate={onCreate}
             />
-          ) : active.id === "tools" ? (
-            <a href="./spike.html">Pyodide benchmark</a>
           ) : (
             results
           )}

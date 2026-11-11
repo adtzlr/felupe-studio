@@ -11,9 +11,10 @@ import type { ModelStore } from "../core/store";
 import { SCHEMA_VERSION } from "../core/schema";
 import type { UpdateWatcher } from "../updates";
 import type { PyodideClient } from "../worker/client";
+import { AboutDialog } from "./AboutDialog";
 import { CreateDialog } from "./CreateDialog";
 import { Footer } from "./Footer";
-import { Header } from "./Header";
+import { type ExportItem, Header } from "./Header";
 import { useJobs, useMeshFiles, useRuntime, useStore } from "./hooks";
 import { ImportMeshDialog } from "./ImportMeshDialog";
 import { Inspector } from "./Inspector";
@@ -22,8 +23,8 @@ import type { Capture } from "../viewer/viewer";
 import { CurveCard } from "./CurveCard";
 import { NewProjectDialog } from "./NewProjectDialog";
 import { SamplesDialog } from "./SamplesDialog";
+import { ShortcutsDialog } from "./ShortcutsDialog";
 import { useSession } from "./useSession";
-import type { ExportItem } from "./ExportMenu";
 import { ResultsControls } from "./ResultsControls";
 import { ResultsView } from "./ResultsView";
 import { Ribbon, type Workspace } from "./Ribbon";
@@ -233,6 +234,7 @@ export function App({
   };
 
   const [samplesOpen, setSamplesOpen] = useState(false);
+  const [help, setHelp] = useState<"about" | "shortcuts">();
   const openSample = async (sample: Sample) => {
     try {
       const list = await sampleFiles(
@@ -409,6 +411,8 @@ export function App({
         onOpen={() => fileInput.current?.click()}
         onSamples={() => setSamplesOpen(true)}
         onSave={() => void save()}
+        onShortcuts={() => setHelp("shortcuts")}
+        onAbout={() => setHelp("about")}
         exports={exports}
         solve={{
           blocker: solveBlocker({
@@ -606,6 +610,12 @@ export function App({
           onConfirm={newProject}
           onClose={() => setConfirmNew(false)}
         />
+      )}
+      {help === "about" && (
+        <AboutDialog runtime={runtime} onClose={() => setHelp(undefined)} />
+      )}
+      {help === "shortcuts" && (
+        <ShortcutsDialog onClose={() => setHelp(undefined)} />
       )}
       {samplesOpen && (
         <SamplesDialog
