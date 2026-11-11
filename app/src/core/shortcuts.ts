@@ -80,6 +80,13 @@ export const SHORTCUTS: ShortcutGroup[] = [
     ],
   },
   {
+    title: "Properties",
+    shortcuts: [
+      { keys: [["Enter"]], action: "Apply the changes" },
+      { keys: [["Esc"]], action: "Reset the changes" },
+    ],
+  },
+  {
     title: "Viewport",
     shortcuts: [
       { id: "fit", keys: [["F"]], action: "Fit the model into the view" },

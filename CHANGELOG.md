@@ -18,6 +18,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Changed
 
+- Polish of the properties: hints without the key of the schema in front (the key, e.g. `C10`, is in the tooltip of the label C₁₀); numbers right-aligned with digits of equal width; an issue of the validation is shown at the field that has it (a reference, the formulation, the coordinates, the axes of a load case, the ramped items, the name), the others below the form without the index of the command; *Apply* and *Reset* only after a change, Enter applies and Esc resets (also in *Help ▸ Keyboard shortcuts*); *Curve boundary* of a job is *Curve*, and an empty selection of all reads *all (default)* (#137).
 - Schema version 3 (for `model.settings` and the settings of the cutback); projects of version 1 and 2 are migrated when they are opened: `"cutback": true` becomes `"cutback": {}`.
 - Narrow windows (up to 1000 px): the browser and the properties are drawers over the views instead of squeezing the viewport (a button in the header opens the browser, a selection closes it and opens the properties, Esc closes them); the ribbon is one row that scrolls, and the header keeps one line. The layout below 800 px no longer stacks the panels below the viewport (#131).
 

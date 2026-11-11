@@ -392,8 +392,8 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     fields: {
       steps: { label: "Steps" },
       curve: {
-        label: "Curve boundary",
-        hint: "Records the reaction force over the displacement",
+        label: "Curve",
+        hint: "A boundary, load case or point load: its reaction force over its displacement",
         placeholder: "none",
       },
       tol: {

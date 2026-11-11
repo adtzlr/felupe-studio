@@ -800,6 +800,18 @@ button {
   color: var(--color-error);
 }
 
+/* an issue of the stored object at its field (#137) */
+.field-issue {
+  color: var(--color-warning);
+}
+
+/* numbers are right-aligned, with digits of equal width (#137) */
+.command-form input[inputmode="decimal"],
+.command-form input[inputmode="numeric"] {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .checks {
   display: flex;
   flex-wrap: wrap;

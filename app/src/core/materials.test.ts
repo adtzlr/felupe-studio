@@ -53,7 +53,10 @@ describe("material registry", () => {
         parameters,
       }) as Parameters<typeof materialProblems>[0];
     expect(materialProblems(material({ mu: [1, 0.2], alpha: [2] }))).toEqual([
-      "mu and alpha need the same number of values.",
+      {
+        message: "mu and alpha need the same number of values.",
+        field: "parameters.alpha",
+      },
     ]);
     expect(materialProblems(material({ mu: [1], alpha: [2] }))).toEqual([]);
   });
@@ -80,16 +83,18 @@ describe("material registry", () => {
     expect(draft).toMatchObject({ parameters: { C10: 0.4, C01: 0.1 } });
     expect(validate([draft as never])).toEqual([]);
     const specs = fieldSpecs("material.add", draft);
-    expect(specs.map((s) => [s.label, s.hint, s.placeholder]).slice(2)).toEqual(
+    // the key of a symbol is in the tooltip of the label, not in the hint (#137)
+    expect(
+      specs.map((s) => [s.label, s.symbolOf, s.hint, s.placeholder]).slice(2),
+    ).toEqual([
+      ["C₁₀", "C10", "Material parameter of the first invariant", undefined],
+      ["C₀₁", "C01", "Material parameter of the second invariant", undefined],
       [
-        ["C₁₀", "C10: Material parameter of the first invariant", undefined],
-        ["C₀₁", "C01: Material parameter of the second invariant", undefined],
-        [
-          "K",
-          "bulk: Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.",
-          "none",
-        ],
+        "K",
+        "bulk",
+        "Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.",
+        "none",
       ],
-    );
+    ]);
   });
 });
