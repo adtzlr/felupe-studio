@@ -52,6 +52,7 @@ describe("fieldSpecs", () => {
       "file:text*",
       "tag:text",
       "cell_type:choice",
+      "scale:number",
     ]);
     expect(summary("cellset.from_tag", find("hard"))).toEqual([
       "name:name*",

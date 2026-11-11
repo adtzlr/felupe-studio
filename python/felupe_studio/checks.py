@@ -131,6 +131,7 @@ def check(document, directory="."):
             meshio.read(directory / c["file"]),
             tag=c.get("tag"),
             cell_type=c.get("cell_type"),
+            scale=c.get("scale", 1),
         )
         for c in commands
         if c["command"] == "mesh.import"

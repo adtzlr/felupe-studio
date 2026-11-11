@@ -35,10 +35,11 @@ def solid_types(mesh):
     return list(dict.fromkeys(types))
 
 
-def volume_cells(mesh, tag=None, cell_type=None):
-    """Return the points, the cell type, the solid cells and their tags (optional) of
-    a meshio mesh. Lower-dimensional cell blocks (e.g. boundary faces) are ignored. A
-    mesh with more than one type of solid cells needs the cell type to take."""
+def volume_cells(mesh, tag=None, cell_type=None, scale=1.0):
+    """Return the points (multiplied by the scale), the cell type, the solid cells and
+    their tags (optional) of a meshio mesh. Lower-dimensional cell blocks (e.g.
+    boundary faces) are ignored. A mesh with more than one type of solid cells needs
+    the cell type to take."""
     types = solid_types(mesh)
     if cell_type is None and len(types) == 1:
         cell_type = types[0]
@@ -49,9 +50,8 @@ def volume_cells(mesh, tag=None, cell_type=None):
     tags = None
     if tag is not None:
         tags = np.concatenate([np.ravel(mesh.cell_data[tag][i]) for i in blocks])
-    return SimpleNamespace(
-        points=mesh.points, cell_type=cell_type, cells=cells, tags=tags
-    )
+    points = mesh.points if scale == 1 else mesh.points * scale
+    return SimpleNamespace(points=points, cell_type=cell_type, cells=cells, tags=tags)
 
 
 def single_point(mask, name):

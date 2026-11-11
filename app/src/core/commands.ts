@@ -132,6 +132,10 @@ export interface MeshImport {
    */
   cell_type?:
     "tetra" | "tetra10" | "hexahedron" | "hexahedron20" | "hexahedron27";
+  /**
+   * Factor of the coordinates of the points, e.g. 1000 for a mesh in m of a model in mm. The points are multiplied after reading, before the cell sets; point sets and points are in the scaled coordinates.
+   */
+  scale?: number;
 }
 /**
  * Merge points of the sections whose coordinates agree to the given number of decimals (fem.field.merge(..., decimals)). Without this command, only identical points are merged. Merged points take the rounded coordinates.

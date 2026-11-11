@@ -227,6 +227,9 @@ def codegen(document, evaluate=True, check_schema=True):
             for key in ("tag", "cell_type"):
                 if key in mesh:
                     args.append(f"{key}={_str(mesh[key])}")
+            # the factor of the coordinates, e.g. from m to mm (#135)
+            if mesh.get("scale", 1) != 1:
+                args.append(f"scale={mesh['scale']!r}")
             out.append(_call(mesh["name"], "volume_cells", args))
 
     cellsets = [c for c in commands if c["command"].startswith("cellset.")]

@@ -101,6 +101,20 @@ const INFO: Record<string, MeshInfo> = {
     unsupported: [{ type: "wedge", cells: 8 }],
     ignored: ["triangle"],
   },
+  // the bar in metres
+  "small.vtu": {
+    file: "small.vtu",
+    points: 325,
+    solids: [
+      {
+        ...BAR,
+        bounds: [
+          [0, 0, 0],
+          [0.003, 0.001, 0.001],
+        ],
+      },
+    ],
+  },
   "surface.vtu": {
     file: "surface.vtu",
     error: "The file needs solid cells (tetra, …); found quad.",
@@ -185,6 +199,54 @@ describe("import dialog", () => {
     // one undo step for the mesh and its cell sets
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(store.commands).toEqual([]);
+  });
+
+  it("scales a mesh in other units than the model (#135)", async () => {
+    const store = new ModelStore({
+      schema_version: 3,
+      commands: [
+        {
+          command: "model.settings",
+          name: "settings",
+          units: { length: "mm", force: "N" },
+        },
+      ],
+    });
+    const { dialog, pick, importButton } = setup(store);
+    fireEvent.click(
+      within(screen.getByRole("tabpanel")).getByRole("button", {
+        name: "Import mesh",
+      }),
+    );
+    pick("small.vtu");
+    await waitFor(() => expect(importButton().disabled).toBe(false));
+    const scale = within(dialog()).getByLabelText("Scale") as HTMLInputElement;
+    expect(scale.value).toBe("1");
+    expect(dialog().textContent).toContain(
+      "Multiplies the coordinates · size 0.003 × 0.001 × 0.001 mm",
+    );
+    expect(within(dialog()).getByRole("note").textContent).toContain(
+      "The mesh is smaller than 1 mm: was it made in m?",
+    );
+    fireEvent.click(
+      within(dialog()).getByRole("button", { name: "Scale by 1000" }),
+    );
+    expect(scale.value).toBe("1000");
+    expect(within(dialog()).queryByRole("note")).toBeNull();
+    expect(dialog().textContent).toContain("size 3 × 1 × 1 mm");
+
+    fireEvent.input(scale, { target: { value: "0" } });
+    expect(dialog().textContent).toContain("Must be greater than 0.");
+    expect(importButton().disabled).toBe(true);
+    fireEvent.input(scale, { target: { value: "1000" } });
+    fireEvent.click(importButton());
+    expect(store.get("small")).toEqual({
+      command: "mesh.import",
+      name: "small",
+      file: "small.vtu",
+      tag: "material",
+      scale: 1000,
+    });
   });
 
   it("offers all cells or no cell sets", async () => {

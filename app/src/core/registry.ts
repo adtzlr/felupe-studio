@@ -120,6 +120,11 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         hint: "Type of the solid cells, if the file has more than one",
         placeholder: "the only one",
       },
+      scale: {
+        label: "Scale",
+        hint: "Multiplies the coordinates, e.g. 1000 from m to mm",
+        placeholder: "1",
+      },
     },
   },
   "mesh.merge": {

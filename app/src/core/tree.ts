@@ -57,7 +57,13 @@ function detail(cmd: Command, commands: readonly Command[]): string {
     case "model.settings":
       return cmd.units ? unitsText(cmd.units) : "no units";
     case "mesh.import":
-      return cmd.tag ? `${cmd.file} · tag ${cmd.tag}` : cmd.file;
+      return [
+        cmd.file,
+        cmd.tag && `tag ${cmd.tag}`,
+        cmd.scale !== undefined && cmd.scale !== 1 && `× ${cmd.scale}`,
+      ]
+        .filter(Boolean)
+        .join(" · ");
     case "mesh.merge":
       return `decimals = ${cmd.decimals}`;
     case "cellset.from_tag":

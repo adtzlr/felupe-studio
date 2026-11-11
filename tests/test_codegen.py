@@ -268,6 +268,20 @@ def test_sections_from_tags_and_files_match_single_body(tmp_path, monkeypatch):
     assert len(namespace["points"]) == mesh.npoints  # duplicate points merged
     assert np.allclose(force(namespace), reference)
 
+    # the right half in metres of the model in millimetres, scaled by 1000 (#135):
+    # the scaled points coincide with the left half, the point sets by coordinates
+    # are in the scaled coordinates
+    right = fem.Cube(a=(1.5, 0, 0), b=(3, 1, 1), n=(7, 5, 5))
+    write(tmp_path / "right_m.vtu", right.copy(points=right.points / 1000))
+    files["commands"][1].update(file="right_m.vtu", scale=1000)
+    assert 'volume_cells(meshio.read("right_m.vtu"), scale=1000)' in codegen(files)
+    namespace = run(files, tmp_path, monkeypatch)
+    assert len(namespace["points"]) == mesh.npoints
+    assert np.allclose(force(namespace), reference)
+    # a scale of 1 is not written
+    files["commands"][1].update(file="right.vtu", scale=1)
+    assert 'volume_cells(meshio.read("right.vtu"))' in codegen(files)
+
 
 def test_lower_dimensional_and_split_cell_blocks(tmp_path, monkeypatch):
     # tetrahedrons, split into two blocks like Gmsh entities, plus a triangle block
