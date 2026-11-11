@@ -13,6 +13,12 @@ import {
 import type { Command } from "../core/commands";
 
 const NO_COMMANDS: readonly Command[] = [];
+import {
+  type ContourSettings,
+  contourLook,
+  contourRange,
+  DEFAULT_CONTOUR,
+} from "../core/contour";
 import { formatValue, type ResultView } from "../core/results";
 import {
   resultUnit,
@@ -39,6 +45,11 @@ export interface ResultSource {
     substep: number,
     quantity: Quantity,
   ): Promise<ResultScene>;
+  /** The ranges of a quantity of every substep of a job (#139). */
+  resultRanges?(
+    job: string,
+    quantity: Quantity,
+  ): Promise<([number, number] | null)[]>;
 }
 
 interface Props {
@@ -61,6 +72,44 @@ interface Props {
   /** Show the nodes of the result (#91); without, the view keeps its own. */
   showNodes?: boolean;
   onShowNodes?: (show: boolean) => void;
+  /** The settings of the contour (#139). */
+  contour?: ContourSettings;
+  /** The range of the values of the shown substep, e.g. for a manual range. */
+  onRange?: (range: readonly [number, number] | undefined) => void;
+}
+
+/** The range over all substeps of a job (#139), from the ranges of its substeps. */
+function useJobRange(
+  source: ResultSource | undefined,
+  key: string | undefined,
+  job: string,
+  quantity: Quantity,
+): readonly [number, number] | undefined {
+  const [ranges, setRanges] = useState<{
+    key: string;
+    range?: [number, number];
+  }>();
+  useEffect(() => {
+    if (!key || !source?.resultRanges || ranges?.key === key) return;
+    let alive = true;
+    source.resultRanges(job, quantity).then(
+      (list) => {
+        const finite = list.filter((r): r is [number, number] => r !== null);
+        const range: [number, number] | undefined = finite.length
+          ? [
+              Math.min(...finite.map((r) => r[0])),
+              Math.max(...finite.map((r) => r[1])),
+            ]
+          : undefined;
+        if (alive) setRanges({ key, range });
+      },
+      () => alive && setRanges({ key }),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [source, key]);
+  return key && ranges?.key === key ? ranges.range : undefined;
 }
 
 /** The value under the pointer, at a position of the view. */
@@ -291,6 +340,8 @@ export function ResultsView({
   showNodes,
   onShowNodes,
   commands = NO_COMMANDS,
+  contour = DEFAULT_CONTOUR,
+  onRange,
 }: Props) {
   const [nodesShown, toggleNodes] = useShowNodes(showNodes, onShowNodes);
   // the table of the control points of the substep (#101)
@@ -336,6 +387,28 @@ export function ResultsView({
     [scene, unit],
   );
 
+  // the look of the contour (#139): the map, the bands and the range, of the
+  // substep, of all substeps of the job or manual
+  const jobRange = useJobRange(
+    source,
+    view && active && !running && contour.range === "job"
+      ? `${generation}/${view.job}/${view.quantity}`
+      : undefined,
+    view?.job ?? "",
+    view?.quantity ?? "displacement",
+  );
+  const values = scene?.range ?? undefined;
+  const look = useMemo(() => {
+    if (!scene) return undefined;
+    const substep: [number, number] = values ?? [0, 0];
+    return contourLook(
+      contour,
+      contourRange(contour, substep, jobRange),
+      substep,
+    );
+  }, [scene, contour, jobRange?.[0], jobRange?.[1]]);
+  useEffect(() => onRange?.(values ?? undefined), [values?.[0], values?.[1]]);
+
   // the viewer (and its WebGL context) is created when there is a scene to show
   useEffect(() => {
     if (!viewer.current) {
@@ -349,6 +422,7 @@ export function ResultsView({
             scene: titled || scene,
             scale: view.scale,
             undeformed: view.undeformed,
+            look,
           }
         : undefined,
     );
@@ -382,6 +456,7 @@ export function ResultsView({
   }, [
     scene,
     titled,
+    look,
     view?.scale,
     view?.undeformed,
     nodesShown,

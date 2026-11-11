@@ -12,8 +12,9 @@ quadrature points of every cell.
 
 The surfaces are triangulated once per section (``triangulate_surface`` of FElupe,
 subdivided for quadratic cells) and returned as little-endian bytes, like
-:func:`felupe_studio.scene.surface`. :func:`export` writes the results of a job as
-a VTU file of a substep or as an XDMF time series of all substeps.
+:func:`felupe_studio.scene.surface`. :func:`ranges` gives the range of a quantity
+of every substep of a job. :func:`export` writes the results of a job as a VTU file
+of a substep or as an XDMF time series of all substeps.
 """
 
 import json
@@ -61,6 +62,7 @@ def reset(namespace, sections, points=(), units=None):
         units=units,
         records={},
         controls={},
+        ranges={},
     )
     _state["surfaces"] = {}
 
@@ -184,6 +186,58 @@ def _data(kind, section):
     return -np.sort(-values, axis=1)
 
 
+def _values(section, kind, component):
+    """Return the data of a quantity of a section of the current values of the
+    fields (at the points of the cells or at the cells), its values at the points of
+    the surface and the displacements of the points of the surface."""
+    surface, cells, _ = _surface(section)
+    u = _state["namespace"][f"field_{section}"][0].values
+    displacement = surface.interpolate(u)
+    if kind == "displacement":
+        # the values at the points of the cells (not of bubbles) and the surface
+        used = u[np.unique(cells)]
+        if component is None:
+            return (
+                np.linalg.norm(used, axis=1),
+                np.linalg.norm(displacement, axis=1),
+                displacement,
+            )
+        return used[:, component], displacement[:, component], displacement
+    data = _data(kind, section)[:, component]
+    return data, data[surface.owners], displacement
+
+
+def _extend(bounds, *arrays):
+    """Return the bounds (low, high) extended by the finite values of arrays."""
+    low, high = bounds
+    finite = np.concatenate([np.ravel(a) for a in arrays])
+    finite = finite[np.isfinite(finite)]
+    if finite.size:
+        low, high = min(low, finite.min()), max(high, finite.max())
+    return low, high
+
+
+def ranges(job, quantity):
+    """Return the ranges of a quantity of all substeps of a job, as the JSON text
+    of a list of ``[low, high]`` per substep (``null`` without finite values), like
+    the ``range`` of :func:`scene` (for a range of the contour over all substeps,
+    #139). The ranges are kept until the next run."""
+    key = (job, quantity)
+    cache = _state.setdefault("ranges", {})
+    if key not in cache:
+        kind, component, _ = QUANTITIES[quantity]
+        result = []
+        for substep in range(1, len(_state["records"].get(job, [])) + 1):
+            _restore(job, substep)
+            low, high = np.inf, -np.inf
+            for section in _state["sections"]:
+                data, values, _ = _values(section, kind, component)
+                low, high = _extend((low, high), data, values)
+            result.append([float(low), float(high)] if low <= high else None)
+        cache[key] = result
+    return json.dumps(cache[key])
+
+
 def _bytes(array, dtype):
     return np.ascontiguousarray(array, dtype=dtype).tobytes()
 
@@ -223,24 +277,8 @@ def scene(job, substep, quantity):
     for section in _state["sections"]:
         surface, cells, order = _surface(section)
         mesh = _state["namespace"][f"field_{section}"][0].region.mesh
-        u = _state["namespace"][f"field_{section}"][0].values
-        displacement = surface.interpolate(u)
-        if kind == "displacement":
-            # the values at the points of the cells (not of bubbles) and the surface
-            used = u[np.unique(cells)]
-            if component is None:
-                values = np.linalg.norm(displacement, axis=1)
-                data = np.linalg.norm(used, axis=1)
-            else:
-                values = displacement[:, component]
-                data = used[:, component]
-        else:
-            data = _data(kind, section)[:, component]
-            values = data[surface.owners]
-        finite = np.concatenate([data, values])
-        finite = finite[np.isfinite(finite)]
-        if finite.size:
-            low, high = min(low, finite.min()), max(high, finite.max())
+        data, values, displacement = _values(section, kind, component)
+        low, high = _extend((low, high), data, values)
         surfaces.append(
             {
                 "name": section,

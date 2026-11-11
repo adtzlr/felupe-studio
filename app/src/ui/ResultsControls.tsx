@@ -1,3 +1,4 @@
+import type { ContourSettings as ContourSettingsType } from "../core/contour";
 import { hint } from "../core/shortcuts";
 import { curveQuantities, hasCurve } from "../core/curve";
 import {
@@ -12,6 +13,7 @@ import {
 import type { ModelStore } from "../core/store";
 import { valueWithUnit } from "../core/units";
 import type { Quantity } from "../worker/protocol";
+import { ContourSettings } from "./ContourSettings";
 
 interface Props {
   store: ModelStore;
@@ -19,10 +21,23 @@ interface Props {
   results?: { run: Finished; view: ResultView };
   running: boolean;
   onChange: (view: ResultView) => void;
+  /** The settings of the contour (#139). */
+  contour?: ContourSettingsType;
+  onContour?: (settings: ContourSettingsType) => void;
+  /** The range of the shown substep, as the start of a manual range. */
+  currentRange?: readonly [number, number];
 }
 
 /** The controls of the results in the ribbon: job, quantity, substep and shape. */
-export function ResultsControls({ store, results, running, onChange }: Props) {
+export function ResultsControls({
+  store,
+  results,
+  running,
+  onChange,
+  contour,
+  onContour,
+  currentRange,
+}: Props) {
   if (running) return <span class="muted">Solving …</span>;
   if (!results)
     return (
@@ -59,25 +74,34 @@ export function ResultsControls({ store, results, running, onChange }: Props) {
           </select>
         </label>
       )}
-      <label class="field">
-        <span>Contour</span>
-        <select
-          value={view.quantity}
-          onChange={(event) =>
-            set({ quantity: event.currentTarget.value as Quantity })
-          }
-        >
-          {QUANTITY_GROUPS.map((group) => (
-            <optgroup key={group.label} label={group.label}>
-              {group.options.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-      </label>
+      <div class="field-with-button">
+        <label class="field">
+          <span>Contour</span>
+          <select
+            value={view.quantity}
+            onChange={(event) =>
+              set({ quantity: event.currentTarget.value as Quantity })
+            }
+          >
+            {QUANTITY_GROUPS.map((group) => (
+              <optgroup key={group.label} label={group.label}>
+                {group.options.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </label>
+        {contour && onContour && (
+          <ContourSettings
+            settings={contour}
+            onChange={onContour}
+            current={currentRange}
+          />
+        )}
+      </div>
       <label
         class="field substep"
         title={`${hint("substep-previous")} and ${hint("substep-next")} step through the substeps, ${hint("substep-first")} and ${hint("substep-last")} go to the first and the last one`}

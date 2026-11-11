@@ -98,6 +98,23 @@ def test_substeps_restore_the_fields(two_materials):
     assert results.substeps("job_1") == 6
 
 
+@pytest.mark.parametrize("quantity", ["displacement_x", "stress_mises", "strain_min"])
+def test_ranges_of_all_substeps(two_materials, quantity):
+    # the ranges of the scenes of every substep, for a range over the job (#139)
+    expected = [
+        json.loads(results.scene("job_1", substep, quantity)[0])["range"]
+        for substep in range(1, 7)
+    ]
+    ranges = json.loads(results.ranges("job_1", quantity))
+    assert len(ranges) == 6
+    for got, want in zip(ranges, expected, strict=True):
+        np.testing.assert_allclose(got, want, rtol=1e-12, atol=1e-15)
+    # kept until the next run, and the scenes are not changed by it
+    assert results.ranges("job_1", quantity) == json.dumps(ranges)
+    assert json.loads(results.scene("job_1", 3, quantity)[0])["range"] == expected[2]
+    assert json.loads(results.ranges("job_2", quantity)) == []
+
+
 def test_surfaces_are_cached_per_run(two_materials):
     first = results._surface("hard_body")
     assert results._surface("hard_body") is first

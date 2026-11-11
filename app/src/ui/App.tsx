@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
+import {
+  type ContourSettings,
+  loadContour,
+  saveContour,
+} from "../core/contour";
 import { exportName, mediaType, SUFFIX } from "../core/files";
 import { JobRunner, solveBlocker } from "../core/jobs";
 import { type ResultView, substepsOf, viewOf } from "../core/results";
@@ -134,6 +139,13 @@ export function App({
   };
   const [creating, setCreating] = useState<RibbonItem | undefined>();
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
+  // the settings of the contour of the results, kept in the browser (#139)
+  const [contour, setContour] = useState<ContourSettings>(loadContour);
+  const [shownRange, setShownRange] = useState<readonly [number, number]>();
+  const changeContour = (settings: ContourSettings) => {
+    setContour(settings);
+    saveContour(settings);
+  };
   // the nodes of the meshes in both workspaces (#91)
   const [showNodes, setShowNodes] = useState(false);
   const [update, setUpdate] = useState<"available" | "dismissed">();
@@ -650,6 +662,9 @@ export function App({
             }
             running={run.state === "running"}
             onChange={setResultView}
+            contour={contour}
+            onContour={changeContour}
+            currentRange={shownRange}
           />
         }
       />
@@ -736,6 +751,8 @@ export function App({
             showNodes={showNodes}
             onShowNodes={setShowNodes}
             commands={finished?.commands}
+            contour={contour}
+            onRange={setShownRange}
           >
             {finished && resultView?.curve && (
               <CurveCard

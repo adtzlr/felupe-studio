@@ -92,7 +92,7 @@ A **Job** evaluates its steps one after another. With a *Curve* (a boundary, a l
 
 The **Results** workspace shows the deformed shape of a substep:
 
-- *Contour*: the displacement, the logarithmic strains or the Cauchy stresses (principal values and von Mises).
+- *Contour*: the displacement, the logarithmic strains or the Cauchy stresses (principal values and von Mises). The button beside it sets the **color map** (Turbo, Viridis, Cool–warm for signed values, centered at zero, or Grayscale for printing), **bands** (continuous or 6–20 discrete bands) and the **range**: of the substep, over all substeps of the job (to compare substeps), or manual, where values outside are drawn in an extra color. The settings are kept in the browser and used by the picture export.
 - *Substep* and *Scale* of the displacements; *Undeformed* shows the shape before the deformation.
 - *Curve*: the force-displacement curve with the current substep; download it as CSV.
 - A hover over the model shows the value at the point under the pointer; *Nodes* shows the nodes of the deformed meshes.
