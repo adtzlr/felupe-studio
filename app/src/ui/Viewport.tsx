@@ -435,210 +435,220 @@ export function Viewport({
           </select>
         </div>
       )}
-      {shown &&
-        selectedSet &&
-        !picked &&
-        !pickedNodes.length &&
-        onCreateControlPoint && (
-          <div class="pick-panel" role="status" aria-label="Selected point set">
-            <span>
-              <strong>{selectedSet.name}</strong>{" "}
-              <span class="muted">
-                · {selectedSet.points.length / 3} points · center (
-                {centerOf(selectedSet.points).map(formatNumber).join(", ")})
-              </span>
-            </span>
-            <button
-              type="button"
-              class="button"
-              onClick={() => controlAt(selectedSet.points, selectedSet.name)}
+      {empty ??
+        (content.message && (
+          <p class="viewport-message muted">{content.message}</p>
+        ))}
+      {/* the panels and messages at the bottom, stacked between the axes and the
+          job panel (#128) */}
+      <div class="overlay-bottom">
+        {shown &&
+          selectedSet &&
+          !picked &&
+          !pickedNodes.length &&
+          onCreateControlPoint && (
+            <div
+              class="pick-panel"
+              role="status"
+              aria-label="Selected point set"
             >
-              Control point at center
-            </button>
-          </div>
-        )}
-      {shown &&
-        available &&
-        tip &&
-        !picked &&
-        !pickedNodes.length &&
-        !(selectedSet && onCreateControlPoint) && (
-          <div class="pick-panel tip" role="note" aria-label="Tip">
-            <span class="muted">
-              {nodesShown
-                ? "Tip: click a node to pick it, Shift+click for more nodes. Drag to rotate."
-                : "Tip: click a face to create a point set of its plane. Drag to rotate."}
-            </span>
+              <span>
+                <strong>{selectedSet.name}</strong>{" "}
+                <span class="muted">
+                  · {selectedSet.points.length / 3} points · center (
+                  {centerOf(selectedSet.points).map(formatNumber).join(", ")})
+                </span>
+              </span>
+              <button
+                type="button"
+                class="button"
+                onClick={() => controlAt(selectedSet.points, selectedSet.name)}
+              >
+                Control point at center
+              </button>
+            </div>
+          )}
+        {shown &&
+          available &&
+          tip &&
+          !picked &&
+          !pickedNodes.length &&
+          !(selectedSet && onCreateControlPoint) && (
+            <div class="pick-panel tip" role="note" aria-label="Tip">
+              <span class="muted">
+                {nodesShown
+                  ? "Click a node to pick it, Shift+click for more."
+                  : "Click a face to create a point set of its plane."}
+              </span>
+              <button
+                type="button"
+                class="icon-button"
+                aria-label="Dismiss the tip"
+                onClick={hideTip}
+              >
+                ×
+              </button>
+            </div>
+          )}
+        {shown && picked && (
+          <div class="pick-panel" role="status" aria-label="Picked face">
+            {picked.select ? (
+              <>
+                <span>
+                  Plane{" "}
+                  <strong>
+                    {picked.select.axis} = {formatNumber(picked.select.value)}
+                  </strong>{" "}
+                  <span class="muted">
+                    · {(preview?.length ?? 0) / 3} points
+                    {picked.select.atol !== undefined &&
+                      ` · tolerance ${picked.select.atol}`}
+                  </span>
+                </span>
+                {onCreatePointSet && (
+                  <button
+                    type="button"
+                    class="button primary"
+                    onClick={() => {
+                      const select = picked.select!;
+                      onCreatePointSet({
+                        name: planeName(select, nodes, commands),
+                        select,
+                      });
+                      setPicked(undefined);
+                    }}
+                  >
+                    Create point set
+                  </button>
+                )}
+                {onCreateControlPoint && preview && preview.length > 0 && (
+                  <button
+                    type="button"
+                    class="button"
+                    onClick={() => {
+                      controlAt(
+                        preview,
+                        planeName(picked.select!, nodes, commands),
+                      );
+                      setPicked(undefined);
+                    }}
+                  >
+                    Control point at center
+                  </button>
+                )}
+              </>
+            ) : (
+              <span class="muted">
+                This face is not normal to x, y or z. Point sets select planes
+                normal to an axis.
+              </span>
+            )}
             <button
               type="button"
               class="icon-button"
-              aria-label="Dismiss the tip"
-              onClick={hideTip}
+              aria-label="Clear the picked face"
+              onClick={() => setPicked(undefined)}
             >
               ×
             </button>
           </div>
         )}
-      {shown && picked && (
-        <div class="pick-panel" role="status" aria-label="Picked face">
-          {picked.select ? (
-            <>
-              <span>
-                Plane{" "}
-                <strong>
-                  {picked.select.axis} = {formatNumber(picked.select.value)}
-                </strong>{" "}
-                <span class="muted">
-                  · {(preview?.length ?? 0) / 3} points
-                  {picked.select.atol !== undefined &&
-                    ` · tolerance ${picked.select.atol}`}
-                </span>
-              </span>
-              {onCreatePointSet && (
-                <button
-                  type="button"
-                  class="button primary"
-                  onClick={() => {
-                    const select = picked.select!;
-                    onCreatePointSet({
-                      name: planeName(select, nodes, commands),
-                      select,
-                    });
-                    setPicked(undefined);
-                  }}
-                >
-                  Create point set
-                </button>
-              )}
-              {onCreateControlPoint && preview && preview.length > 0 && (
-                <button
-                  type="button"
-                  class="button"
-                  onClick={() => {
-                    controlAt(
-                      preview,
-                      planeName(picked.select!, nodes, commands),
-                    );
-                    setPicked(undefined);
-                  }}
-                >
-                  Control point at center
-                </button>
-              )}
-            </>
-          ) : (
-            <span class="muted">
-              This face is not normal to x, y or z. Point sets select planes
-              normal to an axis.
+        {shown && pickedNodes.length > 0 && (
+          <div class="pick-panel" role="status" aria-label="Picked nodes">
+            <span>
+              {pickedNodes.length === 1 ? (
+                <>
+                  Node{" "}
+                  <strong>
+                    ({pickedNodes[0].map(formatNumber).join(", ")})
+                  </strong>
+                </>
+              ) : (
+                <strong>{pickedNodes.length} nodes</strong>
+              )}{" "}
+              <span class="muted">· Shift+click for more</span>
             </span>
-          )}
-          <button
-            type="button"
-            class="icon-button"
-            aria-label="Clear the picked face"
-            onClick={() => setPicked(undefined)}
-          >
-            ×
-          </button>
-        </div>
-      )}
-      {shown && pickedNodes.length > 0 && (
-        <div class="pick-panel" role="status" aria-label="Picked nodes">
-          <span>
-            {pickedNodes.length === 1 ? (
-              <>
-                Node{" "}
-                <strong>({pickedNodes[0].map(formatNumber).join(", ")})</strong>
-              </>
-            ) : (
-              <strong>{pickedNodes.length} nodes</strong>
-            )}{" "}
-            <span class="muted">· Shift+click for more</span>
-          </span>
-          <button type="button" class="button" onClick={copyNodes}>
-            {copied ? "Copied" : "Copy"}
-          </button>
-          {target && (
-            <button type="button" class="button" onClick={addToTarget}>
-              Add to {target.name}
+            <button type="button" class="button" onClick={copyNodes}>
+              {copied ? "Copied" : "Copy"}
             </button>
-          )}
-          {onCreateControlPoint && (
+            {target && (
+              <button type="button" class="button" onClick={addToTarget}>
+                Add to {target.name}
+              </button>
+            )}
+            {onCreateControlPoint && (
+              <button
+                type="button"
+                class="button"
+                onClick={() => {
+                  controlAt(pickedNodes.flat());
+                  setPickedNodes([]);
+                }}
+              >
+                Control point at center
+              </button>
+            )}
+            {onCreatePointSet && (
+              <button
+                type="button"
+                class="button primary"
+                onClick={() => {
+                  onCreatePointSet({
+                    name: nodesName(pickedNodes.length, commands),
+                    select: {
+                      points: pickedNodes as [Node3, ...Node3[]],
+                    },
+                  });
+                  setPickedNodes([]);
+                }}
+              >
+                Create point set
+              </button>
+            )}
             <button
               type="button"
-              class="button"
-              onClick={() => {
-                controlAt(pickedNodes.flat());
-                setPickedNodes([]);
-              }}
+              class="icon-button"
+              aria-label="Clear the picked nodes"
+              onClick={() => setPickedNodes([])}
             >
-              Control point at center
+              ×
             </button>
-          )}
-          {onCreatePointSet && (
-            <button
-              type="button"
-              class="button primary"
-              onClick={() => {
-                onCreatePointSet({
-                  name: nodesName(pickedNodes.length, commands),
-                  select: {
-                    points: pickedNodes as [Node3, ...Node3[]],
-                  },
-                });
-                setPickedNodes([]);
-              }}
-            >
-              Create point set
-            </button>
-          )}
-          <button
-            type="button"
-            class="icon-button"
-            aria-label="Clear the picked nodes"
-            onClick={() => setPickedNodes([])}
-          >
-            ×
-          </button>
-        </div>
-      )}
-      {empty ??
-        (content.message && (
-          <p class="viewport-message muted">{content.message}</p>
-        ))}
-      {shown && content.reading.length === 0 && missing.length > 0 && (
-        <p class="viewport-status warning" role="status">
-          {selected}: no node at{" "}
-          {missing
-            .slice(0, 3)
-            .map((p) => `(${p.map(formatNumber).join(", ")})`)
-            .join(", ")}
-          {missing.length > 3 && ` and ${missing.length - 3} more`}
-        </p>
-      )}
-      {shown && content.reading.length === 0 && overlaps.length > 0 && (
-        <p class="viewport-status warning" role="status">
-          {selected}:{" "}
-          {overlaps
-            .map(
-              (o) =>
-                `${o.points} ${o.points === 1 ? "point is" : "points are"} also in ${o.boundary} (${o.components.join(", ")})`,
-            )
-            .join("; ")}
-          : over-constrained.
-        </p>
-      )}
-      {shown && content.reading.length === 0 && atNode && (
-        <p class="viewport-status warning" role="status">
-          {selected} is at a node of the meshes: the script merges it with the
-          node.
-        </p>
-      )}
-      {shown && content.reading.length > 0 && (
-        <p class="viewport-status muted" role="status">
-          Reading {content.reading.join(", ")} …
-        </p>
-      )}
+          </div>
+        )}
+        {shown && content.reading.length === 0 && missing.length > 0 && (
+          <p class="viewport-status warning" role="status">
+            {selected}: no node at{" "}
+            {missing
+              .slice(0, 3)
+              .map((p) => `(${p.map(formatNumber).join(", ")})`)
+              .join(", ")}
+            {missing.length > 3 && ` and ${missing.length - 3} more`}
+          </p>
+        )}
+        {shown && content.reading.length === 0 && overlaps.length > 0 && (
+          <p class="viewport-status warning" role="status">
+            {selected}:{" "}
+            {overlaps
+              .map(
+                (o) =>
+                  `${o.points} ${o.points === 1 ? "point is" : "points are"} also in ${o.boundary} (${o.components.join(", ")})`,
+              )
+              .join("; ")}
+            : over-constrained.
+          </p>
+        )}
+        {shown && content.reading.length === 0 && atNode && (
+          <p class="viewport-status warning" role="status">
+            {selected} is at a node of the meshes: the script merges it with the
+            node.
+          </p>
+        )}
+        {shown && content.reading.length > 0 && (
+          <p class="viewport-status muted" role="status">
+            Reading {content.reading.join(", ")} …
+          </p>
+        )}
+      </div>
     </main>
   );
 }

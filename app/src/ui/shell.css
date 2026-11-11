@@ -80,6 +80,15 @@
   --control-height-sm: 28px;
   --control-height-xs: 24px;
 
+  /* the overlays of the viewports (#128): the space of the view toolbar at the
+     top, of the axes at the bottom left and of the scalar bars at the bottom */
+  --overlay-inset: 8px;
+  --toolbar-space: 52px;
+  --axes-space: 84px;
+  --bars-space: 64px;
+  --side-width: 360px;
+  --job-panel-width: 340px;
+
   /* stacking */
   --z-overlay: 4;
   --z-floating: 5;
@@ -876,6 +885,7 @@ button {
   display: grid;
   min-width: 0;
   min-height: 0;
+  container: views / inline-size;
 }
 
 .views > .viewport {
@@ -922,20 +932,23 @@ button {
 }
 
 .viewport-status {
-  position: absolute;
-  right: 10px;
-  bottom: 8px;
+  max-width: 100%;
   margin: 0;
   font-size: var(--text-sm);
+  text-align: center;
   pointer-events: none;
 }
 
 .view-toolbar {
   position: absolute;
-  top: 8px;
-  left: 8px;
+  top: var(--overlay-inset);
+  left: var(--overlay-inset);
+  z-index: var(--z-overlay);
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
+  max-width: calc(100% - 2 * var(--overlay-inset));
+  box-sizing: border-box;
   padding: var(--space-2);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-lg);
@@ -979,24 +992,80 @@ button {
 }
 
 .pick-panel {
-  position: absolute;
-  left: 8px;
-  right: 8px;
-  bottom: 88px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: var(--space-8) var(--space-12);
-  width: fit-content;
-  max-width: calc(100% - 16px);
-  margin: 0 auto;
+  box-sizing: border-box;
+  max-width: 100%;
   padding: var(--space-6) var(--space-6) var(--space-6) var(--space-12);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-lg);
   background: var(--color-overlay);
   box-shadow: var(--shadow-sm);
   font-size: var(--text-md);
+}
+
+/* a tip is quieter than a panel with actions */
+.pick-panel.tip {
+  padding: var(--space-4) var(--space-4) var(--space-4) var(--space-12);
+  border-color: var(--color-border);
+  box-shadow: none;
+  font-size: var(--text-sm);
+}
+
+/* the panels and messages at the bottom of a viewport, stacked between the axes and
+   the job panel; they never overlap (#128) */
+.overlay-bottom {
+  position: absolute;
+  right: var(--overlay-inset);
+  bottom: var(--overlay-inset);
+  left: var(--axes-space);
+  z-index: var(--z-overlay);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-8);
+  pointer-events: none;
+}
+
+.overlay-bottom > * {
+  pointer-events: auto;
+}
+
+/* above the scalar bars of the results */
+.overlay-bottom.above-bars {
+  bottom: calc(var(--overlay-inset) + var(--bars-space));
+}
+
+/* the cards of the results: one column on the right */
+.overlay-side {
+  position: absolute;
+  top: var(--overlay-inset);
+  right: var(--overlay-inset);
+  z-index: var(--z-overlay);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  width: var(--side-width);
+  max-width: calc(100% - 2 * var(--overlay-inset));
+  max-height: calc(100% - 2 * var(--overlay-inset) - var(--bars-space));
+  overflow: auto;
+  pointer-events: none;
+}
+
+.overlay-side > * {
+  pointer-events: auto;
+}
+
+/* with a job panel, the bottom stack and the scalar bars keep its space free */
+.views:has(> .job-panel) .overlay-bottom {
+  right: calc(var(--job-panel-width) + 2 * var(--overlay-inset));
+}
+
+.views:has(> .job-panel) .viewport .fv-bars {
+  left: calc((100% - var(--job-panel-width) - var(--overlay-inset)) / 2);
 }
 
 .view-toolbar .toolbar-separator {
@@ -1347,12 +1416,13 @@ button {
 /* the progress and the outcome of a run of the jobs */
 .job-panel {
   position: absolute;
-  right: 12px;
-  bottom: 36px;
+  right: var(--overlay-inset);
+  bottom: var(--overlay-inset);
   z-index: var(--z-floating);
-  width: 340px;
-  max-width: calc(100% - 24px);
-  max-height: calc(100% - 60px);
+  box-sizing: border-box;
+  width: var(--job-panel-width);
+  max-width: calc(100% - 2 * var(--overlay-inset));
+  max-height: calc(100% - var(--toolbar-space) - var(--overlay-inset));
   overflow: auto;
   padding: var(--space-10) var(--space-12);
   border: 1px solid var(--color-border-strong);
@@ -1480,11 +1550,6 @@ button {
 /* the force-displacement curve over the results */
 /* the control points of a substep (#101), below the toolbar of the results */
 .points-card {
-  position: absolute;
-  top: 54px;
-  left: 10px;
-  z-index: var(--z-overlay);
-  max-width: min(400px, calc(100% - 20px));
   padding: var(--space-8) var(--space-12) var(--space-10);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-lg);
@@ -1515,12 +1580,6 @@ button {
 }
 
 .curve-card {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: var(--z-overlay);
-  width: 360px;
-  max-width: calc(100% - 20px);
   padding: var(--space-8) var(--space-12) var(--space-10);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-lg);
@@ -2043,4 +2102,45 @@ kbd {
   border-radius: 50%;
   box-shadow: var(--shadow-outline);
   pointer-events: none;
+}
+
+/* last, so that it overrides the overlays above (#128) */
+/* narrow views: the job panel spans the width at the bottom, the other overlays stay
+   above it; the legend and the cards go below the view toolbar */
+@container views (max-width: 760px) {
+  .job-panel {
+    left: var(--overlay-inset);
+    width: auto;
+  }
+
+  .views:has(> .job-panel) .overlay-bottom {
+    right: var(--overlay-inset);
+    bottom: calc(var(--job-panel-height, 0px) + 2 * var(--overlay-inset));
+  }
+
+  .views:has(> .job-panel) .overlay-bottom.above-bars {
+    bottom: calc(
+      var(--job-panel-height, 0px) + 2 * var(--overlay-inset) +
+        var(--bars-space)
+    );
+  }
+
+  .views:has(> .job-panel) .viewport .fv-bars {
+    left: 50%;
+    bottom: calc(var(--job-panel-height, 0px) + 2 * var(--overlay-inset));
+  }
+
+  .views:has(> .job-panel) .viewport .fv-axes {
+    bottom: calc(var(--job-panel-height, 0px) + 2 * var(--overlay-inset));
+  }
+
+  .viewport .fv-legend {
+    top: var(--toolbar-space);
+  }
+
+  .overlay-side {
+    top: var(--toolbar-space);
+    left: var(--overlay-inset);
+    width: auto;
+  }
 }
