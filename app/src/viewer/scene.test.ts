@@ -1,3 +1,4 @@
+import { contourLook, DEFAULT_CONTOUR } from "../core/contour";
 import { describe, expect, it } from "vitest";
 import type { SurfaceObject } from "../vendor/felupe-viewer/viewer.js";
 import type { MeshSurface, ResultScene } from "../worker/protocol";
@@ -273,6 +274,24 @@ describe("results", () => {
       undeformed: false,
     });
     expect(empty[0].range).toEqual([0, 1]);
+
+    // the look of the contour (#139): its lookup table, bands and range, and the
+    // scalar bar of the app instead of the one of the viewer
+    const manual = { ...DEFAULT_CONTOUR, range: "manual" as const, bands: 6 };
+    const look = contourLook(manual, [0, 6], [0, 9]);
+    const [styled] = resultObjects({
+      scene,
+      scale: 1,
+      undeformed: false,
+      look,
+    });
+    expect(styled).toMatchObject({
+      range: [-1, 7],
+      bands: 8,
+      scalarBar: false,
+      lut: { dtype: "u1", size: 768 },
+    });
+    expect(styled.lut!.data).toBe(look.lut);
   });
 
   it("is a part of the scene without a legend", () => {

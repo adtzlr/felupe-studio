@@ -211,6 +211,8 @@ export type ToWorker =
       /** The substep of a VTU file (the last one by default). */
       substep?: number;
     }
+  /** The ranges of a quantity of every substep of a job, as JSON text (#139). */
+  | { type: "result-ranges"; id: number; job: string; quantity: Quantity }
   | {
       type: "result";
       id: number;

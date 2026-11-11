@@ -8,6 +8,7 @@ import type {
   SceneObject,
   SurfaceObject,
 } from "../vendor/felupe-viewer/viewer.js";
+import type { ContourLook } from "../core/contour";
 import type { MeshSurface, ResultScene } from "../worker/protocol";
 import { EDGE_COLOR, MARKER_COLOR, NODE_COLOR } from "./palette";
 
@@ -84,6 +85,12 @@ export interface ResultContent {
   scale: number;
   /** Show the undeformed surfaces as a transparent ghost. */
   undeformed: boolean;
+  /**
+   * The look of the contour (#139): its lookup table, bands and range; the app
+   * draws its scalar bar. Without it, the viewer draws turbo over the range of the
+   * scene with its own scalar bar.
+   */
+  look?: ContourLook;
 }
 
 /** Color of the undeformed ghost of results. */
@@ -355,8 +362,15 @@ export function arrowObject(arrows: Arrows): LinesObject {
  * surfaces of the sections with the values in a common range (one scalar bar).
  */
 export function resultObjects(result: ResultContent): SurfaceObject[] {
-  const { scene, scale, undeformed } = result;
-  const range: [number, number] = scene.range ?? [0, 1];
+  const { scene, scale, undeformed, look } = result;
+  const range: [number, number] = look?.range ?? scene.range ?? [0, 1];
+  const contour = look
+    ? {
+        lut: { dtype: "u1" as const, size: look.lut.length, data: look.lut },
+        bands: look.bands,
+        scalarBar: false,
+      }
+    : {};
   const ghosts = undeformed
     ? scene.surfaces.map((s): SurfaceObject => ({
         type: "surface",
@@ -382,6 +396,7 @@ export function resultObjects(result: ResultContent): SurfaceObject[] {
     values: f4(s.values),
     valuesAt: scene.at,
     range,
+    ...contour,
     label: scene.label,
   }));
   return [...ghosts, ...deformed];

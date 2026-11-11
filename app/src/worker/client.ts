@@ -210,6 +210,23 @@ export class PyodideClient {
     return (message as Extract<FromWorker, { type: "result-scene" }>).scene;
   }
 
+  /**
+   * The ranges of a quantity of every substep of a job of the last run (`null` for
+   * a substep without finite values), for a range over all substeps (#139).
+   */
+  async resultRanges(
+    job: string,
+    quantity: Quantity,
+  ): Promise<([number, number] | null)[]> {
+    const message = await this.request(
+      { type: "result-ranges", job, quantity },
+      "text",
+    );
+    return JSON.parse(
+      (message as Extract<FromWorker, { type: "text" }>).text,
+    ) as ([number, number] | null)[];
+  }
+
   private async write(name: string, data: Uint8Array): Promise<void> {
     const copy = data.slice().buffer;
     await this.send(

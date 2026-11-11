@@ -34,6 +34,7 @@ import {
   projectPoint,
 } from "./probe";
 import { snapshot } from "./snapshot";
+import { renderScalarBar } from "./scalarbar";
 
 export type CreateViewer = typeof createViewer;
 
@@ -476,6 +477,14 @@ export class Viewer {
       legend: this.legend,
     });
     this.handle.update(scene, { keepView: !this.fitNext });
+    // the scalar bar of a contour with settings (#139), drawn by the app
+    const look = this.result?.look;
+    renderScalarBar(
+      this.handle.root,
+      this.result && look
+        ? { label: this.result.scene.label, look }
+        : undefined,
+    );
     this.fitNext = this.meshes.length === 0 && !this.result;
   }
 }

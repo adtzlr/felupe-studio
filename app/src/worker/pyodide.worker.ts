@@ -168,6 +168,16 @@ function result(id: number, job: string, substep: number, quantity: Quantity) {
   }
 }
 
+/** The ranges of a quantity of every substep of a job of the last run (#139). */
+function resultRanges(id: number, job: string, quantity: Quantity) {
+  const results = python().pyimport("felupe_studio.results");
+  try {
+    post({ type: "text", id, text: results.ranges(job, quantity) as string });
+  } finally {
+    results.destroy();
+  }
+}
+
 /** The FElupe script of a command list (validated by the app with Ajv). */
 function script(id: number, document: string, view = false) {
   const runner = python().pyimport("felupe_studio.runner");
@@ -256,6 +266,8 @@ ctx.onmessage = async (event: MessageEvent<ToWorker>) => {
           message.substep,
           message.quantity,
         );
+      case "result-ranges":
+        return resultRanges(message.id, message.job, message.quantity);
     }
   } catch (error) {
     post({

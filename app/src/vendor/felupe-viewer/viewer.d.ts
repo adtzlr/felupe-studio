@@ -23,6 +23,10 @@ export interface SurfaceObject {
   values?: SceneArray;
   valuesAt?: "point" | "cell";
   range?: [number, number];
+  /** The lookup table of the colormap: 256 RGB colors (default turbo). */
+  lut?: SceneArray;
+  /** The number of discrete bands of the colormap (0 for continuous). */
+  bands?: number;
   label?: string;
   /** Show a scalar bar of the values (default is true), one per label. */
   scalarBar?: boolean;

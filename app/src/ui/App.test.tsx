@@ -985,6 +985,114 @@ describe("solve", () => {
       (l) => l.textContent,
     );
     expect(labels).toEqual(["Displacement ux [mm]", "Force Fx [N]"]);
+    // the scalar bar of the app (#139), with the unit
+    expect(
+      document.querySelector(".app-scalar-bar .fv-bar-title")!.textContent,
+    ).toBe("Displacement [mm]");
+  });
+
+  it("changes the color map, the bands and the range of the contour (#139)", async () => {
+    localStorage.clear();
+    const jobs = runner();
+    const resultScene = vi.fn(async (): Promise<ResultScene> => ({
+      label: "Displacement",
+      at: "point",
+      range: [0, 1],
+      points: [],
+      surfaces: [],
+    }));
+    let resolveRanges: (ranges: ([number, number] | null)[]) => void = () => {};
+    const resultRanges = vi.fn(
+      () =>
+        new Promise<([number, number] | null)[]>((r) => (resolveRanges = r)),
+    );
+    render(
+      <App
+        store={new ModelStore(fixture as CommandList)}
+        files={await files()}
+        client={client(Promise.resolve(readyValue), {
+          ...jobs,
+          resultScene,
+          resultRanges,
+        })}
+      />,
+    );
+    await waitFor(() =>
+      expect(solveButton().getAttribute("aria-disabled")).toBeNull(),
+    );
+    fireEvent.click(solveButton());
+    await waitFor(() => expect(jobs.run).toHaveBeenCalledTimes(1));
+    await act(async () =>
+      jobs.settle().resolve({
+        job_1: {
+          substeps: 2,
+          time: 0.1,
+          x: [
+            [0.5, 0, 0],
+            [1, 0, 0],
+          ],
+          y: [
+            [5, 0, 0],
+            [9, 0, 0],
+          ],
+        },
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show results" }));
+    await waitFor(() =>
+      expect(document.querySelector(".app-scalar-bar")).toBeTruthy(),
+    );
+    const ticks = () =>
+      [...document.querySelectorAll(".app-scalar-bar .fv-ticks span")].map(
+        (t) => t.textContent,
+      );
+    expect(ticks()).toEqual(["0", "0.25", "0.5", "0.75", "1"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Contour settings" }));
+    const popover = screen.getByRole("dialog", { name: "Contour settings" });
+    fireEvent.change(within(popover).getByLabelText("Color map"), {
+      target: { value: "viridis" },
+    });
+    fireEvent.change(within(popover).getByLabelText("Bands"), {
+      target: { value: "8" },
+    });
+    fireEvent.click(within(popover).getByLabelText("All substeps"));
+    await waitFor(() =>
+      expect(resultRanges).toHaveBeenCalledWith("job_1", "displacement"),
+    );
+    await act(async () => resolveRanges([[0, 1], null, [0, 3]]));
+    // the viewer draws in a microtask
+    await waitFor(() =>
+      expect(ticks()).toEqual(["0", "0.75", "1.5", "2.25", "3"]),
+    );
+    // kept in the browser
+    expect(JSON.parse(localStorage.getItem("felupe-studio.contour")!)).toEqual({
+      map: "viridis",
+      bands: 8,
+      range: "job",
+    });
+
+    // a manual range starts at the range of the substep; values above it get
+    // the extra color
+    fireEvent.click(within(popover).getByLabelText("Manual"));
+    const max = within(popover).getByLabelText("Max") as HTMLInputElement;
+    expect(max.value).toBe("1");
+    fireEvent.input(max, { target: { value: "0.5" } });
+    await waitFor(() => expect(ticks().at(-1)).toBe("0.5"));
+    expect(document.querySelector(".app-scalar-bar canvas.above")).toBeTruthy();
+    fireEvent.input(max, { target: { value: "-1" } });
+    expect(popover.textContent).toContain(
+      "The minimum must be less than the maximum.",
+    );
+    fireEvent.click(within(popover).getByRole("button", { name: "Defaults" }));
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(
+      screen.queryByRole("dialog", { name: "Contour settings" }),
+    ).toBeNull();
+    await waitFor(() =>
+      expect(ticks()).toEqual(["0", "0.25", "0.5", "0.75", "1"]),
+    );
+    localStorage.clear();
   });
 
   it("exports the script and a picture of the view", async () => {
