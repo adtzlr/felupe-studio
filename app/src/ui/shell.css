@@ -584,6 +584,11 @@ button {
   padding: var(--space-10) var(--space-12);
 }
 
+.empty-model {
+  margin: 0;
+  line-height: var(--leading-normal);
+}
+
 .browser {
   flex: 1 1 0;
   min-height: 140px;
@@ -1849,39 +1854,95 @@ kbd {
   font-size: var(--text-xs);
 }
 
-/* the sample models */
-.samples {
-  display: grid;
-  gap: var(--space-8);
-  max-height: min(70vh, 560px);
+/* the sample models: cards with a picture (#127), in a list (dialog) or a grid */
+.samples,
+.sample-grid {
   margin: 0;
   padding: 0;
-  overflow: auto;
   list-style: none;
 }
 
-.samples > li {
+.samples {
+  display: grid;
+  gap: var(--space-8);
+  max-height: min(70vh, 600px);
+  overflow: auto;
+}
+
+.sample-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+  gap: var(--space-10);
+}
+
+.sample-card {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-16);
-  padding: var(--space-10) var(--space-12);
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-8);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-surface-sunken);
 }
 
-.samples h3 {
-  margin: 0 0 var(--space-4);
+.sample-card.detailed {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--space-12);
+  padding: var(--space-10) var(--space-12);
+}
+
+.sample-card:hover {
+  border-color: var(--color-border-strong);
+}
+
+.sample-thumbnail {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 10;
+  border-radius: var(--radius-md);
+  background: var(--color-view);
+}
+
+.sample-card.detailed .sample-thumbnail {
+  flex: 0 0 128px;
+  width: 128px;
+}
+
+.sample-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.sample-card h3 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+}
+
+.sample-card.detailed h3 {
+  margin-bottom: var(--space-4);
   font-size: var(--text-lg);
 }
 
-.samples p {
+.sample-card p {
   margin: 0;
   font-size: var(--text-sm);
+  line-height: var(--leading-normal);
 }
 
-.samples .topics {
+.sample-card .button {
+  align-self: flex-start;
+}
+
+/* the buttons of a row of cards line up, whatever the length of the titles */
+.sample-card:not(.detailed) .button {
+  margin-top: auto;
+}
+
+.sample-card .topics {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-4);
@@ -1890,7 +1951,7 @@ kbd {
   list-style: none;
 }
 
-.samples .topics li {
+.sample-card .topics li {
   padding: 1px var(--space-8);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-full);
@@ -1903,8 +1964,57 @@ kbd {
   color: var(--color-warning);
 }
 
-.empty-model .button {
-  margin-top: var(--space-10);
+.dialog.wide {
+  width: min(640px, 100%);
+}
+
+/* the welcome panel of an empty model (#127), over the viewport */
+.welcome {
+  position: relative;
+  box-sizing: border-box;
+  width: min(760px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  padding: var(--space-24);
+}
+
+.welcome h2 {
+  margin: 0 0 var(--space-6);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+}
+
+.welcome > p {
+  margin: 0;
+  line-height: var(--leading-normal);
+}
+
+.welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-12);
+  margin: var(--space-16) 0 var(--space-24);
+}
+
+.welcome-heading {
+  margin: 0 0 var(--space-10);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.welcome-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-16);
+  margin: var(--space-16) 0 0;
+}
+
+.welcome-links a {
+  color: var(--color-accent);
 }
 
 /* the value under the pointer in the results (#85) */

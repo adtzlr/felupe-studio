@@ -8,12 +8,14 @@ interface Props {
   subtitle?: string;
   onClose: () => void;
   children: ComponentChildren;
+  /** A wider dialog, e.g. for a list of cards. */
+  wide?: boolean;
 }
 
 const FOCUSABLE =
   'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])';
 
-export function Dialog({ title, subtitle, onClose, children }: Props) {
+export function Dialog({ title, subtitle, onClose, children, wide }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -51,7 +53,7 @@ export function Dialog({ title, subtitle, onClose, children }: Props) {
     <div class="backdrop">
       <div
         ref={ref}
-        class="dialog"
+        class={wide ? "dialog wide" : "dialog"}
         role="dialog"
         aria-modal="true"
         aria-labelledby="dialog-title"

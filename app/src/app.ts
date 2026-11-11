@@ -4,6 +4,7 @@ export const APP_NAME = "FElupe Studio";
 export const REPOSITORY = "https://github.com/adtzlr/felupe-studio";
 export const LINKS = {
   guide: `${REPOSITORY}/blob/main/docs/guide.md`,
+  tutorial: `${REPOSITORY}/blob/main/docs/guide.md#tutorial-a-rubber-block-with-a-rigid-plate`,
   reference: `${REPOSITORY}/blob/main/docs/reference.md`,
   issues: `${REPOSITORY}/issues/new`,
   license: `${REPOSITORY}/blob/main/LICENSE`,

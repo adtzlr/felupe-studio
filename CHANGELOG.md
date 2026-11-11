@@ -6,6 +6,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Added
 
+- A welcome panel for an empty model: *Import mesh*, *Open project*, the samples as cards with a picture, and links to the user guide and the tutorial. The pictures (`thumbnail.svg`) are made by `make_samples.py` from the models, in the colors and the default view of the viewport; the Samples dialog shows them too (#127).
 - **File** and **Help** menus in the header: File has new, open, samples, save and the exports; Help links the user guide, the command reference and a new issue, lists the keyboard shortcuts and shows *About* (versions of the app, FElupe, Python, Pyodide, NumPy, SciPy, meshio and tensortrax, the load time, the license, the Pyodide benchmark). The menus work with the keyboard (#126).
 
 ### Changed

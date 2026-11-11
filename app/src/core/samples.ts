@@ -19,6 +19,10 @@ export const SAMPLES: readonly Sample[] = index;
 export const sampleUrl = (sample: Sample, file: string, base: string) =>
   new URL(`samples/${sample.id}/${file}`, base).href;
 
+/** The URL of the picture of a sample (made by scripts/make_samples.py, #127). */
+export const thumbnailUrl = (sample: Sample, base: string) =>
+  sampleUrl(sample, "thumbnail.svg", base);
+
 /**
  * The files of a sample, like files opened by the user: the project file (named
  * after the sample) and its mesh files.

@@ -144,7 +144,11 @@ function setup(store = new ModelStore()) {
 describe("import dialog", () => {
   it("shows the content of the file and creates the mesh with one cell set per tag", async () => {
     const { store, dialog, pick, importButton } = setup();
-    fireEvent.click(screen.getByRole("button", { name: "Import mesh" }));
+    fireEvent.click(
+      within(screen.getByRole("tabpanel")).getByRole("button", {
+        name: "Import mesh",
+      }),
+    );
     expect(dialog().textContent).toContain("Drop a mesh file here");
     pick("bar.vtu");
     await waitFor(() => expect(importButton().disabled).toBe(false));
@@ -185,7 +189,11 @@ describe("import dialog", () => {
 
   it("offers all cells or no cell sets", async () => {
     const { store, dialog, pick, importButton } = setup();
-    fireEvent.click(screen.getByRole("button", { name: "Import mesh" }));
+    fireEvent.click(
+      within(screen.getByRole("tabpanel")).getByRole("button", {
+        name: "Import mesh",
+      }),
+    );
     pick("plain.vtu");
     await waitFor(() => expect(importButton().disabled).toBe(false));
     expect(dialog().textContent).toContain("Ignored");
@@ -214,7 +222,11 @@ describe("import dialog", () => {
       type: "add",
       command: { command: "mesh.import", name: "bar", file: "x.vtu" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "Import mesh" }));
+    fireEvent.click(
+      within(screen.getByRole("tabpanel")).getByRole("button", {
+        name: "Import mesh",
+      }),
+    );
     pick("surface.vtu");
     expect(await within(dialog()).findByRole("alert")).toBeTruthy();
     expect(dialog().textContent).toContain("needs solid cells");
@@ -235,7 +247,11 @@ describe("import dialog", () => {
 
   it("creates one mesh per cell type of a file", async () => {
     const { store, dialog, pick, importButton } = setup();
-    fireEvent.click(screen.getByRole("button", { name: "Import mesh" }));
+    fireEvent.click(
+      within(screen.getByRole("tabpanel")).getByRole("button", {
+        name: "Import mesh",
+      }),
+    );
     pick("hybrid.msh");
     await waitFor(() => expect(importButton().disabled).toBe(false));
     const text = dialog().textContent;
@@ -296,7 +312,11 @@ describe("import dialog", () => {
 
   it("shows that it waits for Python", async () => {
     const { dialog, pick, importButton, release } = setup();
-    fireEvent.click(screen.getByRole("button", { name: "Import mesh" }));
+    fireEvent.click(
+      within(screen.getByRole("tabpanel")).getByRole("button", {
+        name: "Import mesh",
+      }),
+    );
     pick("slow.vtu");
     await waitFor(() =>
       expect(within(dialog()).getByRole("status").textContent).toContain(

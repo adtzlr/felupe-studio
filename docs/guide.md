@@ -22,7 +22,7 @@ The project is kept in the browser with its mesh files: a reload restores it. To
 
 ## Samples
 
-**File ▸ Samples…** opens a ready-made model with its mesh files. They show the features step by step:
+An empty model shows a welcome panel with *Import mesh*, *Open project* and the samples; **File ▸ Samples…** lists them too. A sample opens as a ready-made model with its mesh files. They show the features step by step:
 
 | Sample | Shows |
 | --- | --- |

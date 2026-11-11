@@ -70,11 +70,16 @@ describe("App shell", () => {
     expect(screen.queryByRole("region", { name: "Properties" })).toBeNull();
     expect(screen.getByRole("main", { name: "Viewport" })).toBeTruthy();
     expect(screen.getByRole("contentinfo")).toBeTruthy();
+    expect(screen.getByText(/^No model yet\./)).toBeTruthy();
+    // an empty model welcomes with the first steps and the samples (#127)
+    const welcome = screen.getByRole("region", {
+      name: "Welcome to FElupe Studio",
+    });
     expect(
-      screen.getByText(
-        "No model yet. Import a mesh with the ribbon, drop a mesh file here, or open a project file.",
-      ),
-    ).toBeTruthy();
+      within(welcome)
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual(["Import mesh", "Open project", ...SAMPLES.map(() => "Open")]);
     expect(screen.getByText("untitled.felupe.json")).toBeTruthy();
   });
 
@@ -811,8 +816,7 @@ describe("samples", () => {
   it("opens a sample like a project with its mesh files", async () => {
     const store = new ModelStore();
     render(<App store={store} fetchSample={serve} />);
-    // the empty model offers the samples, like the header
-    fireEvent.click(screen.getByRole("button", { name: "Open a sample" }));
+    fileMenu("Samples…");
     const dialog = screen.getByRole("dialog", { name: "Samples" });
     expect(within(dialog).queryByRole("note")).toBeNull();
     const samples = within(dialog)
@@ -836,6 +840,38 @@ describe("samples", () => {
     expect(store.commands).toEqual(JSON.parse(text).commands);
     expect(screen.getByRole("banner").textContent).toContain(
       "rubber-mount.felupe.json",
+    );
+  });
+
+  it("are offered with their pictures by the welcome panel", async () => {
+    const store = new ModelStore();
+    render(<App store={store} fetchSample={serve} />);
+    const welcome = screen.getByRole("region", {
+      name: "Welcome to FElupe Studio",
+    });
+    const cards = within(welcome).getAllByRole("listitem");
+    expect(cards.map((card) => card.querySelector("h3")?.textContent)).toEqual(
+      SAMPLES.map((sample) => sample.title),
+    );
+    for (const [i, card] of cards.entries()) {
+      const src = card.querySelector("img")?.getAttribute("src") ?? "";
+      expect(src).toMatch(
+        new RegExp(`samples/${SAMPLES[i].id}/thumbnail.svg$`),
+      );
+      expect(
+        existsSync(resolve("public", new URL(src).pathname.slice(1))),
+      ).toBe(true);
+    }
+    const plate = cards.find((card) =>
+      card.textContent?.includes("Rubber block with a rigid plate"),
+    )!;
+    fireEvent.click(within(plate).getByRole("button", { name: "Open" }));
+    await waitFor(() => expect(store.commands.length).toBeGreaterThan(0));
+    expect(
+      screen.queryByRole("region", { name: "Welcome to FElupe Studio" }),
+    ).toBeNull();
+    expect(screen.getByRole("banner").textContent).toContain(
+      "glued-plate.felupe.json",
     );
   });
 
