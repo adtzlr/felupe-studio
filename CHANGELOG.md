@@ -6,6 +6,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Added
 
+- Sample *Rubber block with a rigid plate*: a multi-point constraint with a rotation point, moved and tilted in one step (#102).
 - Results of control points: displacement and force (rotation and moment of a rotation point) on hover, in a card per substep and as CSV of all substeps (#101).
 - Point loads (`load.add`, `fem.PointLoad`) on point sets and control points, ramped by the steps as a factor of the force; force-controlled curves; arrows in the viewport (#100).
 - Multi-point constraints in the viewport: lines from the center to the connected points, also displaced in the results, and a warning for points that a boundary prescribes as well (#99).

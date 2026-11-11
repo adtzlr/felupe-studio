@@ -1,0 +1,147 @@
+{
+  "schema_version": 2,
+  "commands": [
+    {
+      "command": "mesh.import",
+      "name": "block",
+      "file": "block.vtu"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "all_cells",
+      "mesh": "block"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "MooneyRivlin",
+      "parameters": {
+        "C10": 0.4,
+        "C01": 0.1
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "rubber_block",
+      "cellset": "all_cells",
+      "material": "rubber",
+      "formulation": "u-p-J",
+      "bulk": 2000
+    },
+    {
+      "command": "pointset.add",
+      "name": "base",
+      "select": {
+        "axis": "z",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "top",
+      "select": {
+        "axis": "z",
+        "value": 20
+      }
+    },
+    {
+      "command": "point.add",
+      "name": "plate",
+      "coordinates": [
+        20,
+        20,
+        25
+      ]
+    },
+    {
+      "command": "point.add",
+      "name": "tilt",
+      "coordinates": [
+        20,
+        20,
+        30
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "base",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "shift",
+      "pointset": "plate",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "hold",
+      "pointset": "plate",
+      "constrained": [
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "tilt_y",
+      "pointset": "tilt",
+      "constrained": [
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "tilt_lock",
+      "pointset": "tilt",
+      "constrained": [
+        "x",
+        "z"
+      ]
+    },
+    {
+      "command": "mpc.add",
+      "name": "glue",
+      "points": "top",
+      "center": "plate",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ],
+      "rotation": "tilt"
+    },
+    {
+      "command": "step.add",
+      "name": "shift_and_tilt",
+      "ramp": {
+        "num": 8,
+        "items": [
+          {
+            "target": "shift",
+            "end": 8
+          },
+          {
+            "target": "tilt_y",
+            "end": 0.1
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job",
+      "steps": [
+        "shift_and_tilt"
+      ],
+      "curve": "shift"
+    }
+  ]
+}

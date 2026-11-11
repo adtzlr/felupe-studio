@@ -51,3 +51,20 @@ def test_material_test_is_analytical(monkeypatch):
     force = np.array(results["y"])[:, 0]
     # an eighth of a unit cube: the force is the nominal stress of the end face
     np.testing.assert_allclose(force, 0.5 * (stretch - 1 / stretch**2), rtol=2e-3)
+
+
+def test_glued_plate_moves_and_tilts(monkeypatch):
+    "The plate of the glued plate is moved by 8 mm and tilted by 0.1 rad (#102)."
+    from felupe_studio import results
+
+    folder = APP / "public" / "samples" / "glued-plate"
+    monkeypatch.chdir(folder)
+    run(loads((folder / "model.felupe.json").read_text()))
+    meta, _ = results.scene("job", results.substeps("job"), "displacement")
+    points = {p["name"]: p for p in json.loads(meta)["points"]}
+    np.testing.assert_allclose(points["plate"]["displacement"], [8, 0, 0], atol=1e-8)
+    np.testing.assert_allclose(points["tilt"]["displacement"], [0, 0.1, 0], atol=1e-8)
+    assert points["tilt"]["rotation"]
+    # the shear force and the moment that tilts the plate
+    assert points["plate"]["force"][0] > 0
+    assert abs(points["tilt"]["force"][1]) > 0
