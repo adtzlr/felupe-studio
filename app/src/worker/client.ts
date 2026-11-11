@@ -16,6 +16,12 @@ import type {
   Versions,
 } from "./protocol";
 
+/** A generated script and the line ranges [first, last] (from 1) of its objects. */
+export interface ScriptView {
+  script: string;
+  lines: Record<string, [number, number][]>;
+}
+
 export interface Ready {
   versions: Versions;
   timings: LoadTimings;
@@ -162,6 +168,15 @@ export class PyodideClient {
   async script(document: string): Promise<string> {
     const message = await this.request({ type: "script", document }, "text");
     return (message as Extract<FromWorker, { type: "text" }>).text;
+  }
+
+  /** The FElupe script of a command list and the lines of its objects (#130). */
+  async scriptView(document: string): Promise<ScriptView> {
+    const message = await this.request(
+      { type: "script-view", document },
+      "text",
+    );
+    return JSON.parse((message as Extract<FromWorker, { type: "text" }>).text);
   }
 
   /**

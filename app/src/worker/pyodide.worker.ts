@@ -169,10 +169,11 @@ function result(id: number, job: string, substep: number, quantity: Quantity) {
 }
 
 /** The FElupe script of a command list (validated by the app with Ajv). */
-function script(id: number, document: string) {
+function script(id: number, document: string, view = false) {
   const runner = python().pyimport("felupe_studio.runner");
   try {
-    post({ type: "text", id, text: runner.script(document) as string });
+    const text = view ? runner.script_view(document) : runner.script(document);
+    post({ type: "text", id, text: text as string });
   } finally {
     runner.destroy();
   }
@@ -239,6 +240,8 @@ ctx.onmessage = async (event: MessageEvent<ToWorker>) => {
         return await run(message.id, message.document);
       case "script":
         return script(message.id, message.document);
+      case "script-view":
+        return script(message.id, message.document, true);
       case "export-results":
         return exportResults(
           message.id,

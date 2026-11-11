@@ -201,6 +201,8 @@ export type ToWorker =
   | { type: "inspect-mesh"; id: number; name: string }
   | { type: "run"; id: number; document: string }
   | { type: "script"; id: number; document: string }
+  /** The script and the lines of its objects, as JSON text (#130). */
+  | { type: "script-view"; id: number; document: string }
   | {
       type: "export-results";
       id: number;

@@ -19,7 +19,11 @@ import { MeshFiles } from "../core/meshfiles";
 import { SAMPLES } from "../core/samples";
 import { IndexedDBSession, type SessionStorage } from "../core/session";
 import { ModelStore } from "../core/store";
-import type { PyodideClient, Ready } from "../worker/client";
+import type {
+  PyodideClient,
+  Ready,
+  ScriptView as ScriptViewData,
+} from "../worker/client";
 import type { JobEvent, JobResult, ResultScene } from "../worker/protocol";
 import { App } from "./App";
 
@@ -212,6 +216,75 @@ describe("App shell", () => {
     expect(screen.getByRole("status").textContent).toContain("0 issues");
     act(() => store.apply({ type: "remove", name: "umat_hard" }));
     expect(screen.getByRole("status").textContent).toContain("1 issue");
+  });
+});
+
+describe("script view (#130)", () => {
+  it("shows the script with the lines of the selected object", async () => {
+    const scriptView = vi.fn<(document: string) => Promise<ScriptViewData>>(
+      async () => ({
+        script: "import felupe as fem\n\numat_soft = fem.NeoHooke(mu=1)\n",
+        lines: { umat_soft: [[3, 3]] as [number, number][] },
+      }),
+    );
+    const download = vi.fn();
+    const store = new ModelStore(fixture as CommandList);
+    render(
+      <App
+        store={store}
+        client={client(Promise.resolve(readyValue), {
+          scriptView,
+          script: async () => "import felupe as fem\n",
+        })}
+        download={download}
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.getByText(/FElupe 12.0.0 ready/)).toBeTruthy(),
+    );
+    fireEvent.click(screen.getByRole("tab", { name: "Script" }));
+    const view = screen.getByRole("main", { name: "Script" });
+    // the script replaces the viewport
+    expect(
+      document.querySelector<HTMLElement>('main[aria-label="Viewport"]')!
+        .hidden,
+    ).toBe(true);
+    const code = await within(view).findByRole("region", {
+      name: "FElupe script",
+    });
+    const lines = code.querySelectorAll(".script-line");
+    expect([...lines].map((l) => l.textContent)).toEqual([
+      "1import felupe as fem",
+      "2",
+      "3umat_soft = fem.NeoHooke(mu=1)",
+    ]);
+    expect(lines[0].querySelector(".py-keyword")?.textContent).toBe("import");
+    expect(JSON.parse(scriptView.mock.lastCall![0]).commands).toEqual(
+      store.commands,
+    );
+
+    // a click on a line selects its object, which is highlighted
+    fireEvent.click(lines[2]);
+    expect(screen.getByRole("region", { name: "Properties" })).toBeTruthy();
+    expect(lines[2].classList.contains("selected")).toBe(true);
+    expect(lines[0].classList.contains("selected")).toBe(false);
+
+    fireEvent.click(within(view).getByRole("button", { name: "Download" }));
+    await waitFor(() =>
+      expect(download).toHaveBeenCalledWith(
+        "untitled.py",
+        "import felupe as fem\n",
+      ),
+    );
+
+    // a model with issues shows the issues instead of the script
+    act(() => store.apply({ type: "remove", name: "umat_soft" }));
+    expect(
+      within(view).getByText("Fix the issues of the model first:"),
+    ).toBeTruthy();
+    expect(
+      within(view).queryByRole("region", { name: "FElupe script" }),
+    ).toBeNull();
   });
 });
 
