@@ -1451,6 +1451,14 @@ button {
   width: 100%;
 }
 
+/* a scale for a mesh in other units than the model (#135) */
+.scale-suggestion {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: var(--leading-normal);
+  color: var(--color-warning);
+}
+
 .choices {
   display: flex;
   flex-direction: column;

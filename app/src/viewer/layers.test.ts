@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { Command } from "../core/commands";
 import { MeshFiles } from "../core/meshfiles";
 import type { MeshSurface } from "../worker/protocol";
-import { cellMask, defaultColorBy, viewportContent } from "./layers";
+import {
+  cellMask,
+  defaultColorBy,
+  scaledSurface,
+  viewportContent,
+} from "./layers";
 import { CATEGORICAL, UNASSIGNED } from "./palette";
 import { meshObjects } from "./scene";
 
@@ -60,6 +65,31 @@ const model: Command[] = [
     formulation: "u",
   },
 ];
+
+describe("scale of a mesh (#135)", () => {
+  it("multiplies the positions and the nodes, once per scale", () => {
+    const withNodes = { ...surface, nodes: new Float64Array([1, 2, 3]) };
+    expect(scaledSurface(withNodes, undefined)).toBe(withNodes);
+    expect(scaledSurface(withNodes, 1)).toBe(withNodes);
+    const scaled = scaledSurface(withNodes, 1000);
+    expect([...scaled.positions.slice(3, 6)]).toEqual([1000, 0, 0]);
+    expect([...scaled.nodes!]).toEqual([1000, 2000, 3000]);
+    expect(scaled.triangles).toBe(withNodes.triangles);
+    // the original is unchanged, the scaled surface is the same object again
+    expect([...withNodes.positions.slice(3, 6)]).toEqual([1, 0, 0]);
+    expect(scaledSurface(withNodes, 1000)).toBe(scaled);
+    expect(scaledSurface(withNodes, 0.001)).not.toBe(scaled);
+  });
+
+  it("is applied to the meshes of the viewport", async () => {
+    const files = await loaded();
+    const scaled = [{ ...model[0], scale: 10 } as Command, ...model.slice(1)];
+    const content = viewportContent(scaled, files, new Set());
+    expect([...content.meshes[0].surface.positions.slice(3, 6)]).toEqual([
+      10, 0, 0,
+    ]);
+  });
+});
 
 describe("color by", () => {
   it("defaults to sections, cell sets or meshes", () => {

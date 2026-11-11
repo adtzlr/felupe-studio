@@ -90,6 +90,22 @@ def test_non_conforming_interface(tmp_path):
     assert "56 hanging" in report["messages"][-1]
 
 
+def test_scaled_mesh(tmp_path):
+    # the right half in metres, scaled to the millimetres of the left one (#135)
+    write(tmp_path / "left.vtu", fem.Cube(b=(1.5, 1, 1), n=(7, 5, 5)))
+    right = fem.Cube(a=(1.5, 0, 0), b=(3, 1, 1), n=(7, 5, 5))
+    write(tmp_path / "right.vtu", right.copy(points=right.points / 1000))
+    document = two_files()
+    report = check(document, tmp_path)
+    assert all(i["shared"] == 0 for i in report["interfaces"])
+
+    document["commands"][1]["scale"] = 1000
+    report = check(document, tmp_path)
+    assert report["ok"]
+    (interface,) = report["interfaces"]
+    assert interface["shared"] == 25 and interface["hanging"] == 0
+
+
 def test_slightly_different_coordinates(tmp_path):
     # same discretization, but the right file is shifted by a tiny amount: no point is
     # merged, all interface points of both sides are hanging

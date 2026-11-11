@@ -5,12 +5,15 @@ import {
   type CellSetMode,
   defaultMode,
   describePlanned,
+  meshSize,
   planImport,
   suggestMeshName,
+  suggestScale,
 } from "../core/importmesh";
 import type { MeshFiles } from "../core/meshfiles";
 import { fileTags } from "../core/meshinfo";
 import type { ModelStore } from "../core/store";
+import { unitOf, unitsOf, valueWithUnit } from "../core/units";
 import { nameProblem } from "../core/validate";
 import { safeName } from "../worker/files";
 import type { MeshInfo } from "../worker/protocol";
@@ -91,6 +94,7 @@ export function ImportMeshDialog({
   const [fileName, setFileName] = useState<string | undefined>();
   const [name, setName] = useState("");
   const [mode, setMode] = useState<CellSetMode>({ mode: "all" });
+  const [scaleText, setScaleText] = useState("1");
   const [defaultsFor, setDefaultsFor] = useState<string | undefined>();
 
   const choose = (picked: File[]) => {
@@ -115,6 +119,7 @@ export function ImportMeshDialog({
     setDefaultsFor(info.file);
     setName(suggestMeshName(info.file, store.commands));
     setMode(defaultMode(info));
+    setScaleText("1");
   }, [info, defaultsFor, store.commands]);
 
   const used = new Set(
@@ -130,8 +135,24 @@ export function ImportMeshDialog({
     ? "Required."
     : (nameProblem(name) ??
       (store.get(name) ? `The name '${name}' is already used.` : undefined));
+  // the scale of the coordinates (#135), suggested for a mesh in other units
+  const scale = Number(scaleText.trim());
+  const scaleError =
+    scaleText.trim() === "" || !Number.isFinite(scale)
+      ? "A number is required."
+      : scale <= 0
+        ? "Must be greater than 0."
+        : undefined;
+  const units = unitsOf(store.commands);
+  const size = info ? meshSize(info) : [0, 0, 0];
+  const suggestion = suggestScale(size, units);
+  const scaled = size.map(
+    (x) => +(x * (scaleError ? 1 : scale)).toPrecision(4),
+  );
   const planned =
-    info && !nameError ? planImport(info, name, mode, store.commands) : [];
+    info && !nameError && !scaleError
+      ? planImport(info, name, mode, store.commands, scale)
+      : [];
   const plan = planned.length > 0 ? planned : undefined;
   const tags = info ? fileTags(info) : [];
 
@@ -224,6 +245,44 @@ export function ImportMeshDialog({
                   <small id="import-name-error" class="field-error">
                     {nameError}
                   </small>
+                )}
+              </div>
+              <div class="form-row-stack">
+                <label for="import-scale" class="form-label">
+                  Scale
+                </label>
+                <input
+                  id="import-scale"
+                  type="text"
+                  inputMode="decimal"
+                  value={scaleText}
+                  autocomplete="off"
+                  spellcheck={false}
+                  aria-invalid={scaleError ? true : undefined}
+                  aria-describedby="import-scale-hint"
+                  onInput={(event) => setScaleText(event.currentTarget.value)}
+                />
+                {scaleError ? (
+                  <small id="import-scale-hint" class="field-error">
+                    {scaleError}
+                  </small>
+                ) : (
+                  <small id="import-scale-hint" class="muted">
+                    Multiplies the coordinates · size{" "}
+                    {valueWithUnit(scaled.join(" × "), unitOf("length", units))}
+                  </small>
+                )}
+                {suggestion && scale !== suggestion.scale && (
+                  <p class="scale-suggestion" role="note">
+                    {suggestion.reason}{" "}
+                    <button
+                      type="button"
+                      class="link"
+                      onClick={() => setScaleText(String(suggestion.scale))}
+                    >
+                      Scale by {suggestion.scale}
+                    </button>
+                  </p>
                 )}
               </div>
               <fieldset class="choices">

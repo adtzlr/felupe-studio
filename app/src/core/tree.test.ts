@@ -99,6 +99,13 @@ describe("deriveTree", () => {
     const tree = deriveTree([settings, ...commands]);
     expect(tree[0]).toMatchObject({ label: "Settings", count: 1 });
     expect(find(tree, "settings")!.detail).toBe("mm · N · MPa");
+    // the scale of a mesh (#135)
+    const scaled = commands.map((c) =>
+      c.command === "mesh.import" ? { ...c, scale: 1000 } : c,
+    ) as Command[];
+    expect(find(deriveTree(scaled), "specimen")!.detail).toBe(
+      "specimen.vtu · tag material · × 1000",
+    );
     expect(find(tree, "left")!.detail).toBe("x == 0 mm");
     expect(find(tree, "step_1")!.detail).toBe("move: 0 → 0.5 mm (5)");
     expect(find(tree, "fixed")!.detail).toBe("left · x, y, z");

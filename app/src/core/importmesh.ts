@@ -2,6 +2,7 @@
 // valid and unused names derived from the file and its cell tags. A file with more
 // than one type of solid cells gives one mesh per cell type.
 import type { Command, MeshImport } from "./commands";
+import type { Units } from "./units";
 import { fileTags, solidOf, solidTypes } from "./meshinfo";
 import type { MeshInfo } from "../worker/protocol";
 import { NAME_MAX_LENGTH } from "./schema";
@@ -49,16 +50,66 @@ export function defaultMode(info: MeshInfo): CellSetMode {
     : { mode: "all" };
 }
 
+/** The size of the bounding box of the solid cells of a file, by axis. */
+export function meshSize(info: MeshInfo): [number, number, number] {
+  const solids = info.solids ?? [];
+  if (solids.length === 0) return [0, 0, 0];
+  const size = [0, 1, 2].map(
+    (i) =>
+      Math.max(...solids.map((s) => s.bounds[1][i])) -
+      Math.min(...solids.map((s) => s.bounds[0][i])),
+  );
+  return size as [number, number, number];
+}
+
+/** A scale of a mesh that looks like it is in other units than the model. */
+export interface ScaleSuggestion {
+  scale: number;
+  reason: string;
+}
+
+/**
+ * A scale for a mesh that is very small or very large for the units of the model
+ * (#135): smaller than 1 mm (made in m?) or larger than 10 m (made in mm?). Without
+ * units, only smaller than 0.01 or larger than 10000.
+ */
+export function suggestScale(
+  size: readonly number[],
+  units: Units | undefined,
+): ScaleSuggestion | undefined {
+  const largest = Math.max(...size);
+  if (!(largest > 0)) return undefined;
+  const length = units?.length;
+  if (length === "mm" ? largest < 1 : !length && largest < 1e-2) {
+    return {
+      scale: 1000,
+      reason: length
+        ? "The mesh is smaller than 1 mm: was it made in m?"
+        : "The mesh is very small: is it in m and the model in mm?",
+    };
+  }
+  if (length === "m" ? largest > 10 : !length && largest > 1e4) {
+    return {
+      scale: 0.001,
+      reason: length
+        ? "The mesh is larger than 10 m: was it made in mm?"
+        : "The mesh is very large: is it in mm and the model in m?",
+    };
+  }
+  return undefined;
+}
+
 /**
  * The commands that import a mesh and create its cell sets (one undo step). With
  * more than one type of solid cells in the file, every mesh takes one cell type and
- * is named `<name>_<cell type>`.
+ * is named `<name>_<cell type>`. A scale other than 1 multiplies the coordinates.
  */
 export function planImport(
   info: MeshInfo,
   name: string,
   mode: CellSetMode,
   commands: readonly Command[],
+  scale = 1,
 ): Command[] {
   const taken = new Set([...commands.map((c) => c.name), name]);
   const take = (text: string, fallback: string) => {
@@ -99,6 +150,7 @@ export function planImport(
       ...(byType
         ? { cell_type: solid.cell_type as MeshImport["cell_type"] }
         : {}),
+      ...(scale !== 1 ? { scale } : {}),
     };
     plan.push(mesh);
     if (tag) {

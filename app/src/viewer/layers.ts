@@ -38,6 +38,33 @@ type CellSet = CellSetFromTag | CellSetFromFile;
 const isCellSet = (c: Command): c is CellSet =>
   c.command === "cellset.from_tag" || c.command === "cellset.from_file";
 
+// the scaled surfaces by surface and scale, created once (the viewer keeps the
+// buffers of a surface by its identity)
+const SCALED = new WeakMap<MeshSurface, Map<number, MeshSurface>>();
+
+/**
+ * The surface of a mesh with its coordinates multiplied by the scale of the import
+ * (#135), like the points of the generated script.
+ */
+export function scaledSurface(
+  surface: MeshSurface,
+  scale: number | undefined,
+): MeshSurface {
+  if (scale === undefined || scale === 1) return surface;
+  let byScale = SCALED.get(surface);
+  if (!byScale) SCALED.set(surface, (byScale = new Map()));
+  let scaled = byScale.get(scale);
+  if (!scaled) {
+    scaled = {
+      ...surface,
+      positions: surface.positions.map((x) => x * scale),
+      ...(surface.nodes ? { nodes: surface.nodes.map((x) => x * scale) } : {}),
+    };
+    byScale.set(scale, scaled);
+  }
+  return scaled;
+}
+
 /** Sections if the model has any, else cell sets if it has any, else meshes. */
 export function defaultColorBy(commands: readonly Command[]): ColorBy {
   if (commands.some((c) => c.command === "section.add")) return "section";
@@ -116,9 +143,10 @@ export function viewportContent(
     if (status?.state === "reading") reading.add(mesh.file);
     if (hidden.has(mesh.name) || status?.state !== "ready") return;
     const choice = solidOf(status.info, mesh.cell_type);
-    const surface =
+    const raw =
       "solid" in choice ? status.surfaces[choice.solid.cell_type] : undefined;
-    if (!surface) return;
+    if (!raw) return;
+    const surface = scaledSurface(raw, mesh.scale);
 
     // the cells of the cell sets of this mesh
     const masks = new Map<string, Uint8Array>();

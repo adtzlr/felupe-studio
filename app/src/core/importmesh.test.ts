@@ -4,8 +4,10 @@ import type { Command, CommandList, MeshImport } from "./commands";
 import {
   defaultMode,
   describePlanned,
+  meshSize,
   planImport,
   suggestMeshName,
+  suggestScale,
   toName,
 } from "./importmesh";
 import { fileNotes, MeshFiles } from "./meshfiles";
@@ -75,6 +77,49 @@ describe("names", () => {
   it("suggests the mesh name from the file", () => {
     expect(suggestMeshName("specimen.vtu", commands)).toBe("specimen_2");
     expect(suggestMeshName("part.v2.msh", [])).toBe("part_v2");
+  });
+});
+
+describe("scale of a mesh (#135)", () => {
+  it("is the size of the bounding box of all solid cells", () => {
+    expect(meshSize(tagged)).toEqual([3, 1, 1]);
+    expect(meshSize({ file: "x.vtu" })).toEqual([0, 0, 0]);
+  });
+
+  it("is suggested for a very small or large mesh", () => {
+    const mm = { length: "mm", force: "N" } as const;
+    const m = { length: "m", force: "N" } as const;
+    // a block of 40 x 40 x 20 mm, made in m
+    expect(suggestScale([0.04, 0.04, 0.02], mm)).toEqual({
+      scale: 1000,
+      reason: "The mesh is smaller than 1 mm: was it made in m?",
+    });
+    expect(suggestScale([40, 40, 20], mm)).toBeUndefined();
+    expect(suggestScale([0.04, 0.04, 0.02], m)).toBeUndefined();
+    // and made in mm for a model in m
+    expect(suggestScale([40, 40, 20], m)).toEqual({
+      scale: 0.001,
+      reason: "The mesh is larger than 10 m: was it made in mm?",
+    });
+    // without units only very small or very large meshes
+    expect(suggestScale([0.04, 0.04, 0.02], undefined)).toBeUndefined();
+    expect(suggestScale([0.004, 0.004, 0.002], undefined)?.scale).toBe(1000);
+    expect(suggestScale([400, 40, 20], undefined)).toBeUndefined();
+    expect(suggestScale([4e4, 4e4, 2e4], undefined)?.scale).toBe(0.001);
+    expect(suggestScale([0, 0, 0], mm)).toBeUndefined();
+  });
+
+  it("is written to the planned meshes if it is not 1", () => {
+    const plan = planImport(tagged, "bar", { mode: "all" }, [], 1000);
+    expect(plan[0]).toEqual({
+      command: "mesh.import",
+      name: "bar",
+      file: "Bar 01.vtu",
+      scale: 1000,
+    });
+    expect(
+      planImport(tagged, "bar", { mode: "all" }, [], 1)[0],
+    ).not.toHaveProperty("scale");
   });
 });
 

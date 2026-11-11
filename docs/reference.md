@@ -52,6 +52,7 @@ Import a mesh file (read with meshio).
 | `file` | string | yes | File name of the mesh, e.g. specimen.vtu. |
 | `tag` | string |  | Name of an integer cell data array used to split the mesh into cell sets, e.g. material or gmsh:physical. |
 | `cell_type` | `tetra`, `tetra10`, `hexahedron`, `hexahedron20` or `hexahedron27` |  | Type of the solid cells to import, if the file has more than one (one mesh per cell type). |
+| `scale` | number > 0 |  | Factor of the coordinates of the points, e.g. 1000 for a mesh in m of a model in mm. The points are multiplied after reading, before the cell sets; point sets and points are in the scaled coordinates. Default `1`. |
 
 ### `mesh.merge`
 
