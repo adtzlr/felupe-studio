@@ -11,7 +11,6 @@ interface Props {
   onSelect: (id: string | undefined) => void;
   onToggleVisible: (id: string) => void;
   /** Open the sample models (offered for an empty model). */
-  onSamples?: () => void;
 }
 
 /** The tree with the notes added to the issues of their objects. */
@@ -37,7 +36,6 @@ export function Sidebar({
   hidden,
   onSelect,
   onToggleVisible,
-  onSamples,
 }: Props) {
   const empty = store.commands.length === 0;
   return (
@@ -45,17 +43,10 @@ export function Sidebar({
       <nav class="panel browser" aria-label="Model browser">
         <h2 class="panel-title">Browser</h2>
         {empty ? (
-          <div class="empty-model">
-            <p class="muted">
-              No model yet. Import a mesh with the ribbon, drop a mesh file
-              here, or open a project file.
-            </p>
-            {onSamples && (
-              <button type="button" class="button" onClick={onSamples}>
-                Open a sample
-              </button>
-            )}
-          </div>
+          <p class="muted empty-model">
+            No model yet. Import a mesh, open a project or a sample; the objects
+            of the model are listed here.
+          </p>
         ) : (
           <Browser
             nodes={withNotes(store.tree, notes)}

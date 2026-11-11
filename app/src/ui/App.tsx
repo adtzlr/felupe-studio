@@ -30,6 +30,7 @@ import { ResultsView } from "./ResultsView";
 import { Ribbon, type Workspace } from "./Ribbon";
 import { Sidebar } from "./Sidebar";
 import { Viewport } from "./Viewport";
+import { Welcome } from "./Welcome";
 import "./shell.css";
 
 interface Props {
@@ -512,7 +513,6 @@ export function App({
           hidden={hidden}
           onSelect={select}
           onToggleVisible={toggleVisible}
-          onSamples={() => setSamplesOpen(true)}
         />
         <div class="views">
           <Viewport
@@ -525,6 +525,15 @@ export function App({
             showNodes={showNodes}
             onShowNodes={setShowNodes}
             onSelect={select}
+            empty={
+              store.commands.length === 0 ? (
+                <Welcome
+                  onImportMesh={() => setImporting({})}
+                  onOpen={() => fileInput.current?.click()}
+                  onOpenSample={openSample}
+                />
+              ) : undefined
+            }
             onCreatePointSet={(preset) =>
               setCreating({
                 id: "pointset.add",

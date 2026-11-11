@@ -11,17 +11,21 @@ Units: mm, N and MPa.
 """
 
 import json
+import os
+import re
 from pathlib import Path
 
 import felupe as fem
 import meshio
 import numpy as np
 
+from felupe_studio.codegen import codegen
 from felupe_studio.commands import SCHEMA_VERSION
 from felupe_studio.project import dumps
 
 HERE = Path(__file__).parents[1] / "public" / "samples"
 INDEX = Path(__file__).parents[1] / "src" / "core" / "samples.json"
+PALETTE = Path(__file__).parents[1] / "src" / "viewer" / "palette.ts"
 
 # the samples of the app, in the order of the list
 SAMPLES = [
@@ -79,6 +83,103 @@ def write(folder, commands, meshes):
         mesh.write(folder / name, binary=False, **kwargs)
     document = {"schema_version": SCHEMA_VERSION, "commands": commands}
     (folder / "model.felupe.json").write_text(dumps(document), encoding="utf-8")
+    (folder / "thumbnail.svg").write_text(thumbnail(folder), encoding="utf-8")
+
+
+# the corner points of the faces of the solid cells, numbered like meshio
+FACES = {
+    "hexahedron": [
+        [0, 3, 2, 1],
+        [4, 5, 6, 7],
+        [0, 1, 5, 4],
+        [1, 2, 6, 5],
+        [2, 3, 7, 6],
+        [3, 0, 4, 7],
+    ],
+    "tetra": [[0, 2, 1], [0, 1, 3], [1, 2, 3], [0, 3, 2]],
+}
+# quadratic cells and the MINI element (tetra5): the faces of their corner points
+FACES["hexahedron20"] = FACES["hexahedron27"] = FACES["hexahedron"]
+FACES["tetra5"] = FACES["tetra10"] = FACES["tetra"]
+
+
+def _view(azimuth=-55, elevation=20.264):
+    """The camera basis (right, up, back) of the default view of the viewer."""
+    az, el = np.radians(azimuth), np.radians(elevation)
+    back = np.array([np.cos(el) * np.cos(az), np.cos(el) * np.sin(az), np.sin(el)])
+    right = np.cross([0, 0, 1], back)
+    right /= np.linalg.norm(right)
+    return right, np.cross(back, right), back
+
+
+def thumbnail(folder, width=160, height=100, margin=6):
+    """An SVG picture of a sample (#127): the outer faces of its sections in the
+    default view of the viewer and in their colors, with the edges of the cells.
+
+    The model is built by the generated script without evaluating the jobs, so the
+    picture shows exactly the sections of the app (cell sets, merged points)."""
+    document = loads_project(folder)
+    colors = re.findall(r'"(#[0-9a-f]{6})", //', PALETTE.read_text(encoding="utf-8"))
+    namespace = {}
+    cwd = os.getcwd()
+    os.chdir(folder)
+    try:
+        exec(codegen(document, evaluate=False), namespace)
+    finally:
+        os.chdir(cwd)
+    sections = [c for c in document["commands"] if c["command"] == "section.add"]
+    faces = {}  # sorted corner points -> (corner points, cell center, color)
+    for i, section in enumerate(sections):
+        mesh = namespace[f"solid_{section['name']}"].field[0].region.mesh
+        for cell in mesh.cells:
+            center = mesh.points[cell].mean(axis=0)
+            for face in FACES[mesh.cell_type]:
+                corners = cell[face]
+                key = tuple(sorted(corners))
+                if key in faces:
+                    del faces[key]  # inner face, shared by two cells
+                else:
+                    faces[key] = (corners, center, colors[i % len(colors)], mesh)
+    right, up, back = _view()
+    light = back + 0.5 * up - 0.3 * right
+    light /= np.linalg.norm(light)
+    polygons = []
+    for corners, center, color, mesh in faces.values():
+        x = mesh.points[corners]
+        normal = np.cross(x[1] - x[0], x[2] - x[0])
+        normal /= np.linalg.norm(normal)
+        if normal @ (x.mean(axis=0) - center) < 0:
+            normal = -normal
+        if normal @ back <= 1e-9:
+            continue  # facing away from the camera
+        shade = 0.5 + 0.5 * max(0.0, normal @ light)
+        rgb = [int(color[k : k + 2], 16) for k in (1, 3, 5)]
+        fill = "#" + "".join(f"{round(c * shade):02x}" for c in rgb)
+        polygons.append((float(x.mean(axis=0) @ back), x @ right, -(x @ up), fill))
+    polygons.sort(key=lambda p: p[0])
+    xy = np.vstack([np.column_stack([p[1], p[2]]) for p in polygons])
+    lower, upper = xy.min(axis=0), xy.max(axis=0)
+    scale = min(
+        (width - 2 * margin) / (upper - lower)[0],
+        (height - 2 * margin) / (upper - lower)[1],
+    )
+    offset = (np.array([width, height]) - scale * (upper - lower)) / 2
+    lines = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}">',
+        '<g stroke="#000" stroke-opacity="0.55" stroke-width="0.4" '
+        'stroke-linejoin="round">',
+    ]
+    for _, px, py, fill in polygons:
+        points = scale * (np.column_stack([px, py]) - lower) + offset
+        text = " ".join(f"{u:.1f},{v:.1f}" for u, v in points)
+        lines.append(f'<polygon points="{text}" fill="{fill}"/>')
+    lines += ["</g>", "</svg>", ""]
+    return "\n".join(lines)
+
+
+def loads_project(folder):
+    """The command list of a sample."""
+    return json.loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
 
 
 def rubber_mount():

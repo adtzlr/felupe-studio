@@ -1,3 +1,4 @@
+import type { ComponentChildren } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { Command, MpcAdd, PointAdd, PointSetAdd } from "../core/commands";
 import {
@@ -72,6 +73,8 @@ interface Props {
   /** Show the nodes of the meshes (#91); without, the viewport keeps its own. */
   showNodes?: boolean;
   onShowNodes?: (show: boolean) => void;
+  /** Shown instead of the message of an empty view, e.g. the welcome panel. */
+  empty?: ComponentChildren;
 }
 
 /** A picked face: its plane, and the point set of the plane if it is normal to x, y or z. */
@@ -128,6 +131,7 @@ export function Viewport({
   onShowNodes,
   onSelect,
   onCreateControlPoint,
+  empty,
 }: Props) {
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
@@ -598,9 +602,10 @@ export function Viewport({
           </button>
         </div>
       )}
-      {content.message && (
-        <p class="viewport-message muted">{content.message}</p>
-      )}
+      {empty ??
+        (content.message && (
+          <p class="viewport-message muted">{content.message}</p>
+        ))}
       {shown && content.reading.length === 0 && missing.length > 0 && (
         <p class="viewport-status warning" role="status">
           {selected}: no node at{" "}

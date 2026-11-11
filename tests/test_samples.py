@@ -2,6 +2,7 @@
 app/scripts/make_samples.py) are valid project files and solve with FElupe."""
 
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -13,6 +14,9 @@ from felupe_studio.runner import run
 
 APP = Path(__file__).parents[1] / "app"
 SAMPLES = json.loads((APP / "src" / "core" / "samples.json").read_text())
+sys.path.insert(0, str(APP / "scripts"))
+
+from make_samples import thumbnail  # noqa: E402
 
 
 def test_index_lists_every_sample():
@@ -68,3 +72,13 @@ def test_glued_plate_moves_and_tilts(monkeypatch):
     # the shear force and the moment that tilts the plate
     assert points["plate"]["force"][0] > 0
     assert abs(points["tilt"]["force"][1]) > 0
+
+
+@pytest.mark.parametrize("sample", SAMPLES, ids=[s["id"] for s in SAMPLES])
+def test_thumbnail_is_up_to_date(sample):
+    "The picture of a sample (#127) is made from its project by make_samples.py."
+    folder = APP / "public" / "samples" / sample["id"]
+    svg = (folder / "thumbnail.svg").read_text(encoding="utf-8")
+    assert svg == thumbnail(folder), "Run python app/scripts/make_samples.py."
+    assert svg.startswith('<svg xmlns="http://www.w3.org/2000/svg"')
+    assert svg.count("<polygon") > 10
