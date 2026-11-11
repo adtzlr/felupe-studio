@@ -261,6 +261,42 @@ describe("editing in the properties panel", () => {
   });
 });
 
+describe("the settings of a job (#133)", () => {
+  it("switch the cutback and set its parameters", () => {
+    const { store, properties, field, button, type } = edit("job_1");
+    expect(field("Max. iterations").placeholder).toBe("16");
+    // the parameters of the cutback only with the cutback
+    expect(within(properties).queryByLabelText("Factor")).toBeNull();
+    fireEvent.click(field("Cutback"));
+    expect(properties.textContent).toContain(
+      "Retries a substep that does not converge with smaller increments",
+    );
+    expect(field("Factor").placeholder).toBe("0.5");
+    expect(field("Max. cutbacks").placeholder).toBe("10");
+    expect(field("Growth").placeholder).toBe("2");
+    fireEvent.click(button("Apply"));
+    expect(store.get("job_1")).toMatchObject({ cutback: {} });
+
+    type("Factor", "1");
+    fireEvent.click(button("Apply"));
+    expect(properties.textContent).toContain("Must be less than 1.");
+    expect(store.get("job_1")).toMatchObject({ cutback: {} });
+    type("Factor", "0.25");
+    type("Max. cutbacks", "4");
+    type("Max. iterations", "30");
+    fireEvent.click(button("Apply"));
+    expect(store.get("job_1")).toMatchObject({
+      maxiter: 30,
+      cutback: { factor: 0.25, max_cutbacks: 4 },
+    });
+
+    fireEvent.click(field("Cutback"));
+    expect(within(properties).queryByLabelText("Factor")).toBeNull();
+    fireEvent.click(button("Apply"));
+    expect(store.get("job_1")).not.toHaveProperty("cutback");
+  });
+});
+
 describe("units of the model (#132)", () => {
   it("are shown at the labels and the rows", () => {
     const settings = {

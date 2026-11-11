@@ -37,14 +37,22 @@ def _ramp_items(document):
     return {**document, "schema_version": 2, "commands": commands}
 
 
-def _model_settings(document):
-    """Schema version 2 → 3: the settings of the model (#132) are new, all commands of
-    version 2 stay as they are."""
-    return {**document, "schema_version": 3}
+def _cutback_settings(document):
+    """Schema version 2 → 3: the cutback of a job has settings (#133), ``"cutback":
+    true`` becomes ``"cutback": {}`` (the defaults of FElupe) and ``false`` is
+    removed. The settings of the model (#132) are new."""
+    commands = []
+    for command in document["commands"]:
+        if command.get("command") == "job.add" and "cutback" in command:
+            command = dict(command)
+            if command.pop("cutback") is True:
+                command["cutback"] = {}
+        commands.append(command)
+    return {**document, "schema_version": 3, "commands": commands}
 
 
 # migrations from a schema version to the next one: {version: function(document)}
-MIGRATIONS = {1: _ramp_items, 2: _model_settings}
+MIGRATIONS = {1: _ramp_items, 2: _cutback_settings}
 
 
 class ProjectError(ValueError):

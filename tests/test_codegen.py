@@ -260,13 +260,24 @@ def test_cutback(two_sections, tmp_path, monkeypatch):
     mesh, tag = bar()
     write(tmp_path / "specimen.vtu", mesh, tag)
     assert "CutbackPlugin" not in codegen(two_sections)
-    for cmd in two_sections["commands"]:
-        if cmd["command"] == "job.add":
-            cmd["cutback"] = True
+    job = next(c for c in two_sections["commands"] if c["command"] == "job.add")
+    job["cutback"] = {}
     assert "plugins=[fem.CutbackPlugin()]" in codegen(two_sections)
+    # the settings of the cutback and of the Newton-Raphson method (#133)
+    job["cutback"] = {"factor": 0.25, "max_cutbacks": 4, "growth": 1.5}
+    job["maxiter"] = 30
+    script = codegen(two_sections)
+    assert (
+        "plugins=[fem.CutbackPlugin(factor=0.25, max_cutbacks=4, growth=1.5)]" in script
+    )
+    assert "job_1.evaluate(x0=field, maxiter=30)\n" in script
     namespace = run(two_sections, tmp_path, monkeypatch)
-    plugins = namespace["job_1"].dispatcher.plugins
-    assert any(isinstance(p, fem.CutbackPlugin) for p in plugins)
+    [cutback] = [
+        p
+        for p in namespace["job_1"].dispatcher.plugins
+        if isinstance(p, fem.CutbackPlugin)
+    ]
+    assert (cutback.factor, cutback.max_cutbacks, cutback.growth) == (0.25, 4, 1.5)
 
 
 def test_merge_decimals(two_sections):

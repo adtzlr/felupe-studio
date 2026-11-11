@@ -44,7 +44,7 @@ The [command reference](reference.md) lists all properties of the commands; it i
 | `mpc.add`           | constraint                  | points, center, rotation                                     | `fem.MultiPointConstraint(field, points, centerpoint, skip, multiplier, rotationpoint)`, an item of the steps                                                        |
 | `load.add`          | load                        | points                                                       | `fem.PointLoad(field, points, values=force)`, an item of the steps, ramped as `np.outer(ramp, force)`                                                                |
 | `step.add`          | step                        | sections, constraints and loads (default: all), ramped items | `fem.Step`, `fem.math.linsteps([start, end], num)` per item                                                                                                          |
-| `job.add`           | job                         | steps, curve boundary                                        | `fem.Job` or `fem.CharacteristicCurve`, with `cutback`: `plugins=[fem.CutbackPlugin()]`, with `tol`: `evaluate(x0=field, tol=...)`                                   |
+| `job.add`           | job                         | steps, curve boundary                                        | `fem.Job` or `fem.CharacteristicCurve`, with `cutback`: `plugins=[fem.CutbackPlugin(...)]`, with `tol` and `maxiter`: `evaluate(x0=field, tol=..., maxiter=...)`     |
 
 ## Load cases
 
@@ -138,7 +138,7 @@ Older files are brought to the current schema with `MIGRATIONS[version]`, one st
 | From | To  | Migration                                                                                                                                         |
 | ---- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1    | 2   | The ramp of a step gets items with their own values: `{boundary, also, start, end, num}` becomes `{num, items: [{target, start, end}, …]}` (#90). |
-| 2    | 3   | Nothing to change: version 3 adds `model.settings` with the units of the model (#132).                                                            |
+| 2    | 3   | `"cutback": true` of a job becomes `"cutback": {}` (the settings of the cutback, #133), `false` is removed; `model.settings` is new (#132).       |
 
 ## Forms (app)
 
@@ -232,7 +232,8 @@ The viewport draws the imported meshes with the WebGL2 viewer of FElupe ([ADR 00
 
 - `felupe_studio.runner.run()` runs the generated script (`codegen(..., evaluate=False, check_schema=False)`: the app validated the command list against the schema with Ajv, so the worker needs no `jsonschema`; the references are checked again) and evaluates every job with a plugin (`fem.Plugin`) that reports the progress: the substeps of every step at the start, then every substep, Newton iteration (norm of the residuals), failed attempt and converged substep. The worker posts these events to the main thread while Python runs. The results are the number of substeps and the time per job and, for a characteristic curve, the displacements and forces of its boundary per substep (three components each). The values of all fields after every converged substep are recorded for the results (see below).
 - The panel in the viewport shows the job, step, substep and Newton iteration with a progress bar, in lines that do not wrap, so that it keeps its size while running (with a cutback, a line counts its retries); then the time per job and the force at the last substep of a curve. A failed run shows the exception and the full Python traceback; a failed Newton-Raphson method also suggests more substeps, the cutback or a looser tolerance.
-- **Cutback** is a setting of the job (`cutback`, also in the generated script): `fem.CutbackPlugin` retries a substep that does not converge with smaller increments. The panel counts these attempts.
+- **Cutback** is a setting of the job (`cutback`, also in the generated script): `fem.CutbackPlugin` retries a substep that does not converge with smaller increments. Its parameters `factor`, `max_cutbacks` and `growth` are optional; without them, FElupe's defaults apply (0.5, 10 and 2.0), and only the given ones are written to the script. The panel counts these attempts.
+- **Newton-Raphson method:** `tol` and `maxiter` of the job are passed to `job.evaluate()` if they are given (FElupe's defaults: 1.49e-8 and 16). The panel shows the iteration of the maximum, e.g. *Newton iteration 3 of 16*.
 - **Tolerance** is a setting of the job (`tol`, also in the generated script): the tolerance of the Newton-Raphson method, i.e. the norm of the residual forces relative to the norm of the reaction forces. Without it, FElupe takes the square root of the machine epsilon (1.49e-8); a looser tolerance, e.g. 0.05, needs fewer iterations.
 - **Cancel:** Python runs synchronously in the worker, so a run is cancelled by terminating the worker. A new worker loads Python again (Pyodide and the wheels come from the cache) and gets the mesh files again (`PyodideClient.restart()`).
 - **tensortrax** (Mooney-Rivlin) is a pinned wheel that is loaded only before the first run of a model with one of its materials (`lazy` in `config.wheels`), so it does not add to the start-up time. FElupe was imported before, so `load_tensortrax()` reloads `felupe.constitution` to make `fem.Hyperelastic` available.

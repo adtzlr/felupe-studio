@@ -80,6 +80,13 @@ def test_valid_document(document):
         lambda d: find(d, "fixed").update(constrained=["x", "x"]),
         lambda d: find(d, "step_1")["ramp"].update(num=0),
         lambda d: find(d, "job_1").update(steps=[]),
+        lambda d: find(d, "job_1").update(cutback=True),
+        lambda d: find(d, "job_1").update(cutback={"factor": 1}),
+        lambda d: find(d, "job_1").update(cutback={"max_cutbacks": 0}),
+        lambda d: find(d, "job_1").update(cutback={"growth": 0.5}),
+        lambda d: find(d, "job_1").update(cutback={"steps": 2}),
+        lambda d: find(d, "job_1").update(maxiter=0),
+        lambda d: find(d, "job_1").update(maxiter=1.5),
         lambda d: d["commands"].insert(1, {"command": "mesh.merge", "name": "m"}),
         lambda d: d["commands"].insert(
             1, {"command": "mesh.merge", "name": "m", "decimals": 16}

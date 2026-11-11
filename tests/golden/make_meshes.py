@@ -39,6 +39,7 @@ def main():
     write_vtu(HERE / "bar_loadcase" / "bar.vtu", mesh)
     write_vtu(HERE / "bar_sections_tag" / "bar.vtu", mesh, {"material": [tag]})
     write_vtu(HERE / "bar_two_materials" / "bar.vtu", mesh, {"material": [tag]})
+    write_vtu(HERE / "bar_cutback" / "bar.vtu", mesh, {"material": [tag]})
 
     # Gmsh: one block per physical group, tags in "gmsh:physical"
     cells = [mesh.cells[tag == 1], mesh.cells[tag == 2]]

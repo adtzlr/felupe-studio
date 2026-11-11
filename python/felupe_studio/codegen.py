@@ -116,14 +116,44 @@ def _call(target, func, args):
 
 def evaluate_options(job):
     """Return the keyword arguments of ``Job.evaluate()`` of a ``job.add`` command,
-    besides ``x0``.
+    besides ``x0``: the settings of the Newton-Raphson method that are given.
 
     Examples
     --------
     >>> evaluate_options({"name": "job_1", "steps": ["step_1"], "tol": 0.05})
     {'tol': 0.05}
+    >>> evaluate_options({"name": "job_1", "steps": ["step_1"], "maxiter": 30})
+    {'maxiter': 30}
     """
-    return {"tol": float(job["tol"])} if "tol" in job else {}
+    options = {}
+    if "tol" in job:
+        options["tol"] = float(job["tol"])
+    if "maxiter" in job:
+        options["maxiter"] = int(job["maxiter"])
+    return options
+
+
+# the parameters of fem.CutbackPlugin of the settings of a cutback (#133)
+CUTBACK = {"factor": float, "max_cutbacks": int, "growth": float}
+
+
+def cutback_options(job):
+    """Return the keyword arguments of ``fem.CutbackPlugin`` of a ``job.add`` command
+    with a cutback, the parameters that are given (``None`` without a cutback).
+
+    Examples
+    --------
+    >>> cutback_options({"cutback": {"factor": 0.25}})
+    {'factor': 0.25}
+    >>> cutback_options({"cutback": {}})
+    {}
+    >>> cutback_options({}) is None
+    True
+    """
+    if "cutback" not in job:
+        return None
+    cutback = job["cutback"]
+    return {key: kind(cutback[key]) for key, kind in CUTBACK.items() if key in cutback}
 
 
 def codegen(document, evaluate=True, check_schema=True):
@@ -421,8 +451,10 @@ def codegen(document, evaluate=True, check_schema=True):
                     reacting = [f"solid_{s['name']}" for s in sections]
                     reacting += [c["name"] for c in constraints]
                     args.append(_List(reacting, prefix="items="))
-            if job.get("cutback", False):
-                args.append("plugins=[fem.CutbackPlugin()]")
+            cutback = cutback_options(job)
+            if cutback is not None:
+                options = ", ".join(f"{k}={v!r}" for k, v in cutback.items())
+                args.append(f"plugins=[fem.CutbackPlugin({options})]")
             func = "fem.CharacteristicCurve" if "curve" in job else "fem.Job"
             out.append(_call(job["name"], func, args))
         if evaluate:
@@ -430,7 +462,7 @@ def codegen(document, evaluate=True, check_schema=True):
             for job in jobs:
                 args = ["x0=field"]
                 args += [f"{k}={v!r}" for k, v in evaluate_options(job).items()]
-                out.append(f"{job['name']}.evaluate({', '.join(args)})")
+                out.append(_wrap(f"{job['name']}.evaluate", args))
 
     return dedent("\n".join(out)).strip() + "\n"
 

@@ -1,0 +1,117 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "mesh.import",
+      "name": "bar",
+      "file": "bar.vtu",
+      "tag": "material"
+    },
+    {
+      "command": "cellset.from_tag",
+      "name": "hard",
+      "mesh": "bar",
+      "value": 1
+    },
+    {
+      "command": "cellset.from_tag",
+      "name": "soft",
+      "mesh": "bar",
+      "value": 2
+    },
+    {
+      "command": "material.add",
+      "name": "steel_like",
+      "model": "LinearElasticLargeStrain",
+      "parameters": {
+        "E": 10,
+        "nu": 0.3
+      }
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 1
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "hard_body",
+      "cellset": "hard",
+      "material": "steel_like",
+      "formulation": "u"
+    },
+    {
+      "command": "section.add",
+      "name": "soft_body",
+      "cellset": "soft",
+      "material": "rubber",
+      "formulation": "u-p-J",
+      "bulk": 5000
+    },
+    {
+      "command": "pointset.add",
+      "name": "left",
+      "select": {
+        "axis": "x",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "right",
+      "select": {
+        "axis": "x",
+        "value": 3
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "left",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "move",
+      "pointset": "right",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "step.add",
+      "name": "step_1",
+      "ramp": {
+        "num": 1,
+        "items": [
+          {
+            "target": "move",
+            "start": 0,
+            "end": 5
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "step_1"
+      ],
+      "curve": "move",
+      "maxiter": 20,
+      "cutback": {
+        "factor": 0.25,
+        "max_cutbacks": 1,
+        "growth": 1.5
+      }
+    }
+  ]
+}

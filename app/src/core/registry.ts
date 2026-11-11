@@ -381,14 +381,34 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         hint: "Records the reaction force over the displacement",
         placeholder: "none",
       },
-      cutback: {
-        label: "Cutback",
-        hint: "Retries a substep that does not converge with smaller increments",
-      },
       tol: {
         label: "Tolerance",
         hint: "Of the Newton iterations: residual forces relative to the reaction forces",
         placeholder: "1.49e-8",
+      },
+      maxiter: {
+        label: "Max. iterations",
+        hint: "Newton iterations of a substep",
+        placeholder: "16",
+      },
+      cutback: {
+        label: "Cutback",
+        hint: "Retries a substep that does not converge with smaller increments",
+      },
+      "cutback.factor": {
+        label: "Factor",
+        hint: "Reduces the increment after a failed attempt",
+        placeholder: "0.5",
+      },
+      "cutback.max_cutbacks": {
+        label: "Max. cutbacks",
+        hint: "Successive reductions; the smallest increment is factor^n",
+        placeholder: "10",
+      },
+      "cutback.growth": {
+        label: "Growth",
+        hint: "Increases the increment after a converged one; 1 keeps it",
+        placeholder: "2",
       },
     },
   },
