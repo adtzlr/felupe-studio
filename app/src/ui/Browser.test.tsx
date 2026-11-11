@@ -169,7 +169,120 @@ describe("Browser", () => {
     expect(show.getAttribute("aria-pressed")).toBe("false");
     // toggling does not select
     expect(item("section_soft").getAttribute("aria-selected")).toBe("false");
-    expect(within(item("umat_soft")).queryByRole("button")).toBeNull();
+    // a material has no visibility, only the button of its menu
+    expect(
+      within(item("umat_soft"))
+        .getAllByRole("button")
+        .map((b) => b.getAttribute("aria-label")),
+    ).toEqual(["Actions of umat_soft"]);
+  });
+});
+
+describe("context menu of an object (#138)", () => {
+  const menu = () => screen.getByRole("menu");
+  const entries = () =>
+    within(menu())
+      .getAllByRole("menuitem")
+      .map(
+        (i) =>
+          `${i.querySelector(".menu-label")!.textContent}${i.getAttribute("aria-disabled") ? " (disabled)" : ""}`,
+      );
+
+  it("opens with a right click and duplicates an object after the original", () => {
+    const { store, tree, item } = setup();
+    fireEvent.contextMenu(item("umat_soft"), { clientX: 40, clientY: 200 });
+    // the menu is at the pointer; the object is not selected by it
+    expect(item("umat_soft").getAttribute("aria-selected")).toBe("false");
+    expect(menu().style.top).toBe("200px");
+    expect(entries()).toEqual(["Duplicate", "Rename", "Delete (disabled)"]);
+    expect(
+      within(menu())
+        .getByRole("menuitem", { name: /Delete/ })
+        .getAttribute("title"),
+    ).toBe("Used by section_soft: delete these first.");
+    expect(document.activeElement).toBe(
+      within(menu()).getAllByRole("menuitem")[0],
+    );
+
+    fireEvent.click(
+      within(menu()).getByRole("menuitem", { name: /Duplicate/ }),
+    );
+    expect(screen.queryByRole("menu")).toBeNull();
+    const names = store.commands.map((c) => c.name);
+    expect(names.indexOf("umat_soft_2")).toBe(names.indexOf("umat_soft") + 1);
+    expect(store.get("umat_soft_2")).toEqual({
+      ...store.get("umat_soft"),
+      name: "umat_soft_2",
+    });
+    // references are not copied: the section keeps the original
+    expect(store.get("section_soft")).toMatchObject({ material: "umat_soft" });
+    expect(item("umat_soft_2").getAttribute("aria-selected")).toBe("true");
+    expect(labels(tree)).toContain("  umat_soft_2");
+    // one undo step
+    act(() => store.undo());
+    expect(store.get("umat_soft_2")).toBeUndefined();
+  });
+
+  it("hides, renames and deletes from the ⋯ button, closes with Esc", () => {
+    const { store, item } = setup();
+    const more = within(item("job_1")).getByRole("button", {
+      name: "Actions of job_1",
+    });
+    expect(more.getAttribute("aria-haspopup")).toBe("menu");
+    fireEvent.click(more);
+    expect(entries()).toEqual(["Duplicate", "Rename", "Delete"]);
+    fireEvent.keyDown(menu(), { key: "Escape" });
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(document.activeElement).toBe(item("job_1"));
+
+    // show and hide an object with a visibility
+    fireEvent.click(
+      within(item("section_hard")).getByRole("button", {
+        name: "Actions of section_hard",
+      }),
+    );
+    fireEvent.click(within(menu()).getByRole("menuitem", { name: /Hide/ }));
+    expect(
+      within(item("section_hard")).getByRole("button", {
+        name: "Show section_hard",
+      }),
+    ).toBeTruthy();
+
+    // delete an object that nothing uses
+    fireEvent.click(more);
+    fireEvent.click(within(menu()).getByRole("menuitem", { name: /Delete/ }));
+    expect(store.get("job_1")).toBeUndefined();
+  });
+
+  it("opens with Shift+F10 at the focused object and renames it", () => {
+    const { item, properties } = setup();
+    item("move").focus();
+    fireEvent.keyDown(item("move"), { key: "F10", shiftKey: true });
+    // the keys of the menu do not move in the tree
+    fireEvent.keyDown(menu(), { key: "ArrowDown" });
+    expect(document.activeElement?.textContent).toContain("Rename");
+    fireEvent.click(document.activeElement!);
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(properties()).toBeTruthy();
+  });
+
+  it("duplicates the selected object with Ctrl+D and hides it with H", () => {
+    const { store, item } = setup();
+    fireEvent.click(item("fixed"));
+    fireEvent.keyDown(window, { key: "d", ctrlKey: true });
+    expect(store.get("fixed_2")).toMatchObject({
+      command: "boundary.add",
+      pointset: "left",
+    });
+    expect(item("fixed_2").getAttribute("aria-selected")).toBe("true");
+    fireEvent.keyDown(window, { key: "h" });
+    expect(
+      within(item("fixed_2")).getByRole("button", { name: "Show fixed_2" }),
+    ).toBeTruthy();
+    fireEvent.keyDown(window, { key: "h" });
+    expect(
+      within(item("fixed_2")).getByRole("button", { name: "Hide fixed_2" }),
+    ).toBeTruthy();
   });
 });
 

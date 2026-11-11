@@ -1,6 +1,7 @@
 import type { ModelStore } from "../core/store";
 import type { TreeNode } from "../core/tree";
 import { Browser } from "./Browser";
+import type { MenuItem } from "./Menu";
 
 interface Props {
   store: ModelStore;
@@ -10,7 +11,8 @@ interface Props {
   hidden: ReadonlySet<string>;
   onSelect: (id: string | undefined) => void;
   onToggleVisible: (id: string) => void;
-  /** Open the sample models (offered for an empty model). */
+  /** The items of the context menu of an object (#138). */
+  menuItems?: (id: string) => MenuItem[];
   /** Close the browser where it is a drawer (narrow windows, #131). */
   onClose?: () => void;
 }
@@ -38,6 +40,7 @@ export function Sidebar({
   hidden,
   onSelect,
   onToggleVisible,
+  menuItems,
   onClose,
 }: Props) {
   const empty = store.commands.length === 0;
@@ -70,6 +73,7 @@ export function Sidebar({
             hidden={hidden}
             onSelect={onSelect}
             onToggleVisible={onToggleVisible}
+            menuItems={menuItems}
           />
         )}
       </nav>

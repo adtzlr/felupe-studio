@@ -28,6 +28,8 @@ export type ShortcutId =
   | "escape"
   | "delete"
   | "rename"
+  | "duplicate"
+  | "visibility"
   | "fit"
   | "view-iso"
   | "view-xy"
@@ -77,6 +79,12 @@ export const SHORTCUTS: ShortcutGroup[] = [
         action: "Delete it (if nothing uses it)",
       },
       { id: "rename", keys: [["F2"]], action: "Rename it in the properties" },
+      {
+        id: "duplicate",
+        keys: [["Mod", "D"]],
+        action: "Duplicate it, with the next free name",
+      },
+      { id: "visibility", keys: [["H"]], action: "Show or hide it" },
     ],
   },
   {
@@ -119,6 +127,10 @@ export const SHORTCUTS: ShortcutGroup[] = [
       { keys: [["←"], ["→"]], action: "Collapse or expand a group" },
       { keys: [["Home"], ["End"]], action: "First or last object" },
       { keys: [["Enter"], ["Space"]], action: "Select the object" },
+      {
+        keys: [["Shift", "F10"], ["Right click"]],
+        action: "Open the menu of the object",
+      },
     ],
   },
   {
