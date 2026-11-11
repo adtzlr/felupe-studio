@@ -101,6 +101,20 @@ The **Export** menu has
 - the **control points** (CSV): displacements and forces per substep,
 - a **picture of the view** (PNG).
 
+## Keyboard shortcuts
+
+**Help ▸ Keyboard shortcuts** (or `?`) lists them all; the menus and tooltips show them too. The most used:
+
+| Keys | Action |
+| --- | --- |
+| Ctrl+S, Ctrl+O, Ctrl+Enter | Save, open, solve (⌘ on macOS) |
+| Ctrl+Z, Ctrl+Shift+Z | Undo, redo |
+| Delete, F2, Esc | Delete or rename the selected object, clear the selection |
+| F, 1–4, N | Fit, the views Iso, XY, XZ, YZ, show the nodes |
+| ←, →, Home, End | The previous, next, first or last substep of the results |
+
+While you type in a field, only Ctrl+S and Ctrl+Enter are shortcuts.
+
 ## The command line
 
 Every button creates a command, and so does the command line in the footer. It accepts the JSON of the project file and completes what you type:

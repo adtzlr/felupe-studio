@@ -1,5 +1,7 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
+import { useViewKeys } from "./hooks";
+import { withHint } from "../core/shortcuts";
 import { NodesButton, useShowNodes } from "./NodesButton";
 import { CONTROL_COLOR } from "../viewer/palette";
 import { outlined } from "../viewer/pointsets";
@@ -253,6 +255,7 @@ export function ResultsView({
   const [pointsShown, setPointsShown] = useState(true);
   const host = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
+  useViewKeys(active, viewer, toggleNodes);
   if (capture) {
     capture.current = async () => viewer.current?.snapshot();
   }
@@ -408,7 +411,7 @@ export function ResultsView({
         <div class="view-toolbar" role="toolbar" aria-label="View">
           <button
             type="button"
-            title="Fit the model into the view"
+            title={withHint("Fit the model into the view", "fit")}
             onClick={() => viewer.current?.fit()}
           >
             Fit
@@ -417,7 +420,7 @@ export function ResultsView({
             <button
               key={v.id}
               type="button"
-              title={v.title}
+              title={withHint(v.title, v.shortcut)}
               aria-label={v.title}
               onClick={() => viewer.current?.setView(v.id)}
             >

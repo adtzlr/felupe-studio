@@ -1,3 +1,4 @@
+import { hint } from "../core/shortcuts";
 import { hasCurve } from "../core/curve";
 import {
   curvePoint,
@@ -74,7 +75,10 @@ export function ResultsControls({ store, results, running, onChange }: Props) {
           ))}
         </select>
       </label>
-      <label class="field substep">
+      <label
+        class="field substep"
+        title={`${hint("substep-previous")} and ${hint("substep-next")} step through the substeps, ${hint("substep-first")} and ${hint("substep-last")} go to the first and the last one`}
+      >
         <span>
           Substep {view.substep} of {total}
         </span>

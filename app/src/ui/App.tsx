@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import { exportName, mediaType, SUFFIX } from "../core/files";
 import { JobRunner, solveBlocker } from "../core/jobs";
-import { type ResultView, viewOf } from "../core/results";
+import { type ResultView, substepsOf, viewOf } from "../core/results";
+import {
+  dialogOpen,
+  isNavigating,
+  isTyping,
+  matches,
+  type ShortcutId,
+} from "../core/shortcuts";
 import { type Sample, sampleFiles } from "../core/samples";
 import type { Session, SessionStorage } from "../core/session";
 import { fileNotes, MeshFiles } from "../core/meshfiles";
@@ -63,11 +70,6 @@ function downloadFile(name: string, data: string | Blob) {
   link.click();
   URL.revokeObjectURL(url);
 }
-
-const isEditable = (target: EventTarget | null) =>
-  target instanceof HTMLElement &&
-  (target.isContentEditable ||
-    ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 
 const isProject = (file: File) =>
   file.name.endsWith(SUFFIX) || file.name.endsWith(".json");
@@ -133,20 +135,13 @@ export function App({
     });
   const fileInput = useRef<HTMLInputElement>(null);
 
-  // undo and redo with the keyboard, except while typing
+  // the keyboard shortcuts of the app (#129), with the state of the latest render
+  const keys = useRef<(event: KeyboardEvent) => void>(undefined);
   useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (creating || importing) return;
-      if (!(event.ctrlKey || event.metaKey) || isEditable(event.target)) return;
-      const key = event.key.toLowerCase();
-      if (key === "z" && !event.shiftKey) store.undo();
-      else if ((key === "z" && event.shiftKey) || key === "y") store.redo();
-      else return;
-      event.preventDefault();
-    };
+    const onKeyDown = (event: KeyboardEvent) => keys.current?.(event);
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [store, creating, importing]);
+  }, []);
 
   // a newer deployment of the app is offered once
   useEffect(() => updates?.(() => setUpdate("available")), [updates]);
@@ -383,6 +378,78 @@ export function App({
     },
   ];
 
+  const blocker = solveBlocker({
+    commands: store.commands,
+    issues: store.issues.length,
+    notes: notes.size,
+    runtime: runtime.state,
+  });
+
+  /** Delete the selected object, unless other objects use it. */
+  const removeSelected = (name: string) => {
+    const dependents = store.dependents(name);
+    if (dependents.length > 0) {
+      setError({
+        title: `${name} cannot be deleted.`,
+        lines: [`It is used by ${dependents.join(", ")}: delete these first.`],
+      });
+      return;
+    }
+    store.apply({ type: "remove", name });
+    select(undefined);
+  };
+
+  /** Show the properties of the selected object with the focus on its name. */
+  const renameSelected = () => {
+    setInspecting(true);
+    requestAnimationFrame(() => {
+      const input = document.querySelector<HTMLInputElement>(
+        '[aria-label="Properties"] #field-name',
+      );
+      input?.focus();
+      input?.select();
+    });
+  };
+
+  /** The previous or next substep, or the first or last one (from 1), in the results. */
+  const moveSubstep = (to: "previous" | "next" | "first" | "last") => {
+    if (!finished || !resultView) return;
+    const last = substepsOf(finished, resultView.job);
+    const substep = {
+      previous: Math.max(1, resultView.substep - 1),
+      next: Math.min(last, resultView.substep + 1),
+      first: 1,
+      last,
+    }[to];
+    setResultView({ ...resultView, substep });
+  };
+
+  keys.current = (event: KeyboardEvent) => {
+    if (event.defaultPrevented || dialogOpen()) return;
+    const is = (id: ShortcutId) => matches(event, id);
+    const model = workspace === "model";
+    const object = model && store.commands.some((c) => c.name === selected);
+    // saving and solving also work while typing, e.g. in the properties
+    if (is("save")) void save();
+    else if (is("solve")) {
+      if (!blocker && run.state !== "running") void solve();
+    } else if (isTyping(event.target)) return;
+    else if (is("open")) fileInput.current?.click();
+    else if (is("undo")) store.undo();
+    else if (is("redo")) store.redo();
+    else if (is("help")) setHelp("shortcuts");
+    else if (is("delete") && object) removeSelected(selected!);
+    else if (is("rename") && object) renameSelected();
+    else if (is("escape") && selected !== undefined) select(undefined);
+    else if (isNavigating(event.target) || workspace !== "results") return;
+    else if (is("substep-previous")) moveSubstep("previous");
+    else if (is("substep-next")) moveSubstep("next");
+    else if (is("substep-first")) moveSubstep("first");
+    else if (is("substep-last")) moveSubstep("last");
+    else return;
+    event.preventDefault();
+  };
+
   return (
     <div
       class={dragging ? "shell dragging" : "shell"}
@@ -416,12 +483,7 @@ export function App({
         onAbout={() => setHelp("about")}
         exports={exports}
         solve={{
-          blocker: solveBlocker({
-            commands: store.commands,
-            issues: store.issues.length,
-            notes: notes.size,
-            runtime: runtime.state,
-          }),
+          blocker,
           running: run.state === "running",
           onSolve: () => void solve(),
           onCancel: () => jobs?.cancel(),

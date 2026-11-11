@@ -9,6 +9,8 @@ import {
 import { loadLines } from "../viewer/loads";
 import type { MeshFiles } from "../core/meshfiles";
 import type { ModelStore } from "../core/store";
+import { useViewKeys } from "./hooks";
+import { withHint } from "../core/shortcuts";
 import { NodesButton, useShowNodes } from "./NodesButton";
 import {
   COLOR_BY,
@@ -138,6 +140,7 @@ export function Viewport({
   const [nodesShown, toggleNodes] = useShowNodes(showNodes, onShowNodes);
   const host = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
+  useViewKeys(active, viewer, toggleNodes);
   if (capture) {
     capture.current = async () => viewer.current?.snapshot();
   }
@@ -338,16 +341,18 @@ export function Viewport({
     );
   }, [content, markers, lines, picked, nodesShown, controls, createViewer]);
 
-  // Escape clears a picked face or picked nodes
+  // Escape clears a picked face or picked nodes, before the app clears the selection
+  // (a listener of the capture phase)
   useEffect(() => {
     if (!picked && !pickedNodes.length) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      event.preventDefault();
       setPicked(undefined);
       setPickedNodes([]);
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [picked, pickedNodes]);
 
   // hidden nodes cannot stay picked
@@ -400,7 +405,7 @@ export function Viewport({
         <div class="view-toolbar" role="toolbar" aria-label="View">
           <button
             type="button"
-            title="Fit the model into the view"
+            title={withHint("Fit the model into the view", "fit")}
             onClick={() => viewer.current?.fit()}
           >
             Fit
@@ -409,7 +414,7 @@ export function Viewport({
             <button
               key={view.id}
               type="button"
-              title={view.title}
+              title={withHint(view.title, view.shortcut)}
               aria-label={view.title}
               onClick={() => viewer.current?.setView(view.id)}
             >

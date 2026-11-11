@@ -39,10 +39,25 @@ export type CreateViewer = typeof createViewer;
 
 /** Camera presets: a view onto a plane of the global axes, or isometric. */
 export const VIEWS = [
-  { id: "iso", label: "Iso", title: "Isometric view" },
-  { id: "xy", label: "XY", title: "View onto the xy-plane" },
-  { id: "xz", label: "XZ", title: "View onto the xz-plane" },
-  { id: "yz", label: "YZ", title: "View onto the yz-plane" },
+  { id: "iso", label: "Iso", title: "Isometric view", shortcut: "view-iso" },
+  {
+    id: "xy",
+    label: "XY",
+    title: "View onto the xy-plane",
+    shortcut: "view-xy",
+  },
+  {
+    id: "xz",
+    label: "XZ",
+    title: "View onto the xz-plane",
+    shortcut: "view-xz",
+  },
+  {
+    id: "yz",
+    label: "YZ",
+    title: "View onto the yz-plane",
+    shortcut: "view-yz",
+  },
 ] as const;
 
 export type CameraView = (typeof VIEWS)[number]["id"];
