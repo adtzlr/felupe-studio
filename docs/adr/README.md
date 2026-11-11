@@ -10,5 +10,6 @@ Short records of decisions that shape felupe-studio. A record is changed by a ne
 | [0004](0004-viewer.md)                 | Viewer source                  | Accepted |
 | [0005](0005-worker-protocol.md)        | Worker protocol                | Accepted |
 | [0006](0006-control-points.md)         | Control points                 | Accepted |
+| [0007](0007-project-archives.md)       | Project archives               | Accepted |
 
 Template: Context, Decision, Consequences, Alternatives.

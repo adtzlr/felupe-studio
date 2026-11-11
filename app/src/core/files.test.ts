@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { exportName, mediaType } from "./files";
+import { exportName, isZip, mediaType } from "./files";
 
 describe("exports", () => {
   it("are named after the project", () => {
@@ -16,6 +16,19 @@ describe("exports", () => {
     expect(mediaType("job_1.csv")).toBe("text/csv");
     expect(mediaType("bar.felupe.json")).toBe("application/json");
     expect(mediaType("bar.png")).toBe("image/png");
+    expect(mediaType("bar.felupe.zip")).toBe("application/zip");
     expect(mediaType("bar")).toBe("application/octet-stream");
+  });
+});
+
+describe("ZIP files (#148)", () => {
+  it("are recognized by their first bytes", () => {
+    const bytes = (...b: number[]) => Uint8Array.from(b);
+    expect(isZip(bytes(0x50, 0x4b, 3, 4, 20))).toBe(true);
+    // an empty archive
+    expect(isZip(bytes(0x50, 0x4b, 5, 6))).toBe(true);
+    expect(isZip(bytes(0x50, 0x4b, 7, 8))).toBe(false);
+    expect(isZip(new TextEncoder().encode('{"commands": []}'))).toBe(false);
+    expect(isZip(bytes(0x50))).toBe(false);
   });
 });
