@@ -286,7 +286,7 @@ export function App({
     download(exportName(fileName, suffix), png);
   };
 
-  const exportResults = async (format: "vtu" | "xdmf") => {
+  const exportResults = async (format: "vtu" | "xdmf" | "csv") => {
     if (!client || !finished || !resultView) return;
     const { job, substep } = resultView;
     const data = await client.exportResults(
@@ -294,7 +294,12 @@ export function App({
       format,
       format === "vtu" ? substep : undefined,
     );
-    const suffix = format === "vtu" ? `-${job}-${substep}.vtu` : `-${job}.xdmf`;
+    const suffix =
+      format === "vtu"
+        ? `-${job}-${substep}.vtu`
+        : format === "csv"
+          ? `-${job}-points.csv`
+          : `-${job}.xdmf`;
     const name = exportName(fileName, suffix);
     download(name, new Blob([data as BlobPart], { type: mediaType(name) }));
   };
@@ -348,6 +353,22 @@ export function App({
           failed("The results could not be exported."),
         ),
     },
+    ...(store.commands.some((c) => c.command === "point.add")
+      ? [
+          {
+            id: "points",
+            label: "Control points (CSV)",
+            hint: resultView
+              ? `Displacements and forces of the control points of all substeps of ${resultView.job}.`
+              : "Displacements and forces of the control points of all substeps.",
+            blocker: resultsBlocker,
+            onSelect: () =>
+              void exportResults("csv").catch(
+                failed("The control points could not be exported."),
+              ),
+          },
+        ]
+      : []),
     {
       id: "picture",
       label: "Picture of the view",

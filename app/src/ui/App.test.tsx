@@ -427,6 +427,22 @@ describe("solve", () => {
       label,
       at: "point",
       range: [0, 1],
+      // a control point with the force of a constraint and a rotation point (#101)
+      points: [
+        {
+          name: "plate",
+          position: [3.5, 0.5, 0.5],
+          displacement: [0.5, 0, 0],
+          force: [5, 1e-18, 0],
+        },
+        {
+          name: "turn",
+          position: [4, 0.5, 0.5],
+          displacement: [0.1, 0, 0],
+          force: [2, 0, 0],
+          rotation: true,
+        },
+      ],
       surfaces: [],
     });
     render(
@@ -501,6 +517,20 @@ describe("solve", () => {
     );
     await act(async () => resolveScene(scene("Von Mises")));
     expect(scenes).toHaveLength(3);
+    // the control points of the substep, without round-off noise (#101)
+    const points = screen.getByRole("region", { name: "Control points" });
+    const cells = within(points)
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => row.textContent);
+    expect(cells).toEqual([
+      "plateu = (0.5, 0, 0)F = (5, 0, 0)",
+      "turnφ = (0.1, 0, 0)M = (2, 0, 0)",
+    ]);
+    fireEvent.click(
+      within(points).getByRole("button", { name: "Close the control points" }),
+    );
+    expect(screen.queryByRole("region", { name: "Control points" })).toBeNull();
     // the scale and the undeformed shape need no new scene
     fireEvent.change(within(panel).getByLabelText("Scale"), {
       target: { value: "10" },

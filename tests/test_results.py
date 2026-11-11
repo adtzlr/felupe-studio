@@ -264,9 +264,62 @@ def test_control_points_are_left_out_of_the_results(monkeypatch, tmp_path):
     assert {s["name"] for s in surfaces} == {"hard_body", "soft_body"}
     # the control point with its position and displacement (pinned)
     assert json.loads(meta)["points"] == [
-        {"name": "control", "position": [4, 0.5, 0.5], "displacement": [0, 0, 0]}
+        {
+            "name": "control",
+            "position": [4, 0.5, 0.5],
+            "displacement": [0, 0, 0],
+            "force": [0, 0, 0],
+        }
     ]
     mesh = meshio.read(read(results.export("job_1", "vtu"), ".vtu", tmp_path))
     # the points of the cells, without the control point
     assert len(mesh.points) == len(field[0].values) - 1
     assert [block.type for block in mesh.cells] == ["hexahedron"]
+
+
+def test_displacements_and_forces_of_control_points(monkeypatch):
+    # the right end face is glued to a control point that is moved in x (#101)
+    monkeypatch.chdir(GOLDEN / "bar_two_materials")
+    document = copy.deepcopy(load("bar_two_materials"))
+    commands = document["commands"]
+    move = next(c for c in commands if c["name"] == "move")
+    first = next(i for i, c in enumerate(commands) if c["command"] == "boundary.add")
+    commands[first:first] = [
+        {"command": "point.add", "name": "plate", "coordinates": [4, 0.5, 0.5]},
+    ]
+    face = move["pointset"]
+    move["pointset"] = "plate"
+    step = next(i for i, c in enumerate(commands) if c["command"] == "step.add")
+    commands[step:step] = [
+        {
+            "command": "boundary.add",
+            "name": "hold",
+            "pointset": "plate",
+            "constrained": ["y", "z"],
+        },
+        {
+            "command": "mpc.add",
+            "name": "glue",
+            "points": face,
+            "center": "plate",
+            "constrained": ["x", "y", "z"],
+        },
+    ]
+    run(document)
+    curve = LAST["job_1"]
+    n = results.substeps("job_1")
+    meta, _ = results.scene("job_1", n, "displacement")
+    [plate] = json.loads(meta)["points"]
+    assert plate["name"] == "plate"
+    assert plate["displacement"][0] == pytest.approx(curve.x[-1][0])
+    # the force of the constraint at the control point is the reaction of the curve
+    assert plate["force"][0] == pytest.approx(curve.y[-1][0], rel=1e-6)
+    assert "rotation" not in plate
+
+    text = results.export("job_1", "csv").decode()
+    lines = text.splitlines()
+    assert lines[0] == (
+        "substep,plate.u_x,plate.u_y,plate.u_z,plate.F_x,plate.F_y,plate.F_z"
+    )
+    assert len(lines) == n + 1
+    assert float(lines[-1].split(",")[4]) == pytest.approx(curve.y[-1][0], rel=1e-6)

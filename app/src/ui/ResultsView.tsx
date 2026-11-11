@@ -20,7 +20,7 @@ import {
   Viewer,
   VIEWS,
 } from "../viewer/viewer";
-import type { Quantity, ResultScene } from "../worker/protocol";
+import type { Quantity, ResultPoint, ResultScene } from "../worker/protocol";
 
 /** Loads the result scenes of substeps (the worker client). */
 export interface ResultSource {
@@ -59,16 +59,30 @@ interface Hover {
   y: number;
   /** The width of the view, to keep the tooltip inside. */
   width: number;
-  info: ProbeInfo;
+  /** The value of a surface, or a control point (#101). */
+  info?: ProbeInfo;
+  point?: ResultPoint;
   /** The position of the point of a value at the points, in the view. */
   ring?: [number, number];
 }
 
 const value = (v: number | null) => (v === null ? "–" : formatValue(v));
 
+/** The symbols of the values of a control point: of a rotation point φ and M. */
+const symbols = (point: ResultPoint) =>
+  point.rotation ? (["φ", "M"] as const) : (["u", "F"] as const);
+
+/** A vector, without the round-off noise of components near zero. */
+const vector = (v: readonly number[] | undefined) => {
+  if (!v) return "–";
+  const max = Math.max(...v.map(Math.abs));
+  const clean = v.map((c) => (Math.abs(c) <= 1e-9 * max ? 0 : c));
+  return `(${clean.map((c) => value(c)).join(", ")})`;
+};
+
 /** The tooltip of the value under the pointer, and the ring of its point. */
 function ProbeTooltip({ hover }: { hover: Hover }) {
-  const { x, y, width, info, ring } = hover;
+  const { x, y, width, info, point, ring } = hover;
   const left = x + 14 + 240 > width ? Math.max(x - 254, 0) : x + 14;
   return (
     <>
@@ -83,18 +97,88 @@ function ProbeTooltip({ hover }: { hover: Hover }) {
         role="tooltip"
         style={{ left: `${left}px`, top: `${y + 14}px` }}
       >
-        <strong>
-          {info.label} = {value(info.value)}
-        </strong>
-        {info.displacement && (
+        {point ? (
           <>
-            <br />u = ({info.displacement.map((c) => value(c)).join(", ")})
+            <strong>{point.name}</strong>
+            <br />
+            {symbols(point)[0]} = {vector(point.displacement)}
+            <br />
+            {symbols(point)[1]} = {vector(point.force)}
+            <br />
+            <span class="muted">
+              {point.rotation ? "Rotation point" : "Control point"}
+            </span>
           </>
+        ) : (
+          info && (
+            <>
+              <strong>
+                {info.label} = {value(info.value)}
+              </strong>
+              {info.displacement && (
+                <>
+                  <br />u = ({info.displacement.map((c) => value(c)).join(", ")}
+                  )
+                </>
+              )}
+              <br />
+              <span class="muted">{info.where}</span>
+            </>
+          )
         )}
-        <br />
-        <span class="muted">{info.where}</span>
       </div>
     </>
+  );
+}
+
+/** The displacements and forces of the control points of the substep (#101). */
+function PointsCard({
+  points,
+  onClose,
+}: {
+  points: readonly ResultPoint[];
+  onClose: () => void;
+}) {
+  return (
+    <section class="points-card" aria-label="Control points">
+      <div class="curve-head">
+        <h2>Control points</h2>
+        <button
+          type="button"
+          class="icon-button"
+          aria-label="Close the control points"
+          onClick={onClose}
+        >
+          ×
+        </button>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Point</th>
+            <th scope="col">Displacement</th>
+            <th scope="col">Force</th>
+          </tr>
+        </thead>
+        <tbody>
+          {points.map((p) => (
+            <tr key={p.name}>
+              <th scope="row">{p.name}</th>
+              <td>
+                {symbols(p)[0]} = {vector(p.displacement)}
+              </td>
+              <td>
+                {symbols(p)[1]} = {vector(p.force)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p class="muted">
+        Of a rotation point: the rotation φ in rad and the moment M. All
+        substeps: Export ▸ Control points (CSV).
+      </p>
+    </section>
   );
 }
 
@@ -165,6 +249,8 @@ export function ResultsView({
   commands = NO_COMMANDS,
 }: Props) {
   const [nodesShown, toggleNodes] = useShowNodes(showNodes, onShowNodes);
+  // the table of the control points of the substep (#101)
+  const [pointsShown, setPointsShown] = useState(true);
   const host = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
   if (capture) {
@@ -217,6 +303,12 @@ export function ResultsView({
         ? outlined(Float64Array.from(points), CONTROL_COLOR, 10)
         : [],
     );
+    viewer.current.setTargets(
+      (scene && view ? (scene.points ?? []) : []).map((p, i) => ({
+        name: p.name,
+        position: points.slice(3 * i, 3 * i + 3) as [number, number, number],
+      })),
+    );
     // the constraints, displaced like the surfaces (#99)
     if (scene && view && commands.some((c) => c.command === "mpc.add")) {
       const { nodes, place } = resultPlacement(scene, scale);
@@ -257,6 +349,17 @@ export function ResultsView({
       const canvas = element.querySelector("canvas");
       if (!last || !canvas || !viewer.current) return;
       const { width, height } = canvas.getBoundingClientRect();
+      // a control point under the pointer (#101)
+      const target = viewer.current.targetAt(last.x, last.y, width, height);
+      const point = scene.points?.find((p) => p.name === target);
+      if (point) {
+        const scale = view?.scale ?? 1;
+        const at = point.position.map(
+          (x, k) => x + scale * point.displacement[k],
+        ) as [number, number, number];
+        const ring = viewer.current.project(at, width, height);
+        return setHover({ ...last, width, point, ring });
+      }
       const probe = viewer.current.probeAt(last.x, last.y, width, height);
       if (!probe) return setHover(undefined);
       const info = probeInfo(scene, probe);
@@ -323,11 +426,27 @@ export function ResultsView({
           ))}
           <span class="toolbar-separator" aria-hidden="true" />
           <NodesButton pressed={nodesShown} onToggle={toggleNodes} />
+          {scene?.points && scene.points.length > 0 && (
+            <button
+              type="button"
+              aria-pressed={pointsShown}
+              title="Show the displacements and forces of the control points"
+              onClick={() => setPointsShown(!pointsShown)}
+            >
+              Points
+            </button>
+          )}
         </div>
       )}
       {message && <p class="viewport-message muted">{message}</p>}
       {view && !running && children}
       {shown && hover && <ProbeTooltip hover={hover} />}
+      {shown && pointsShown && scene.points && scene.points.length > 0 && (
+        <PointsCard
+          points={scene.points}
+          onClose={() => setPointsShown(false)}
+        />
+      )}
       {shown && loading && (
         <p class="viewport-status muted" role="status">
           Loading …

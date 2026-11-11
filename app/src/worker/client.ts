@@ -170,7 +170,7 @@ export class PyodideClient {
    */
   async exportResults(
     job: string,
-    format: "vtu" | "xdmf",
+    format: "vtu" | "xdmf" | "csv",
     substep?: number,
   ): Promise<Uint8Array> {
     const message = await this.request(
