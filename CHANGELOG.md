@@ -4,6 +4,10 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-11
+
+Multi-point constraints: control points, rigid connections of point sets with rotation points, point loads, and steps that ramp several items with their own values. Projects of schema version 1 (v0.1) are migrated when they are opened; projects saved with v0.2 have schema version 2. With a user guide and a command reference.
+
 ### Added
 
 - Documentation: a [user guide](docs/guide.md) with a tutorial, and a [command reference](docs/reference.md) generated from the schema (`python docs/make_reference.py`); the schema describes all properties, which the forms show as hints (#33).
@@ -64,4 +68,5 @@ The first release: a model of hyperelastic solids, from mesh files to results, i
 - `felupe_studio.codegen()`: the command list as a readable FElupe script, checked by golden tests against reference curves.
 - JSON schema of the command list (schema version 1) as the single source of the app and of the package.
 
+[0.2.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.2.0
 [0.1.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.1.0
