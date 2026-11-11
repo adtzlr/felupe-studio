@@ -14,6 +14,8 @@ import {
 
 export type CommandType = Command["command"];
 
+const AXES = ["x", "y", "z"] as const;
+
 export type Kind =
   | "mesh"
   | "merge"
@@ -22,6 +24,7 @@ export type Kind =
   | "section"
   | "pointset"
   | "boundary"
+  | "constraint"
   | "step"
   | "job";
 
@@ -39,6 +42,7 @@ export const KINDS: Record<CommandType, Kind> = {
   "boundary.add": "boundary",
   // a load case is referenced like a boundary (ramps of steps, curves of jobs)
   "loadcase.add": "boundary",
+  "mpc.add": "constraint",
   "step.add": "step",
   "job.add": "job",
 };
@@ -54,7 +58,15 @@ export const REFERENCES: Partial<
   "cellset.from_file": { mesh: ["mesh", false] },
   "section.add": { cellset: ["cellset", false], material: ["material", false] },
   "boundary.add": { pointset: ["pointset", false] },
-  "step.add": { sections: ["section", true] },
+  "mpc.add": {
+    points: ["pointset", false],
+    center: ["pointset", false],
+    rotation: ["pointset", false],
+  },
+  "step.add": {
+    sections: ["section", true],
+    constraints: ["constraint", true],
+  },
   "job.add": { steps: ["step", true], curve: ["boundary", false] },
 };
 
@@ -228,6 +240,31 @@ export function validate(commands: readonly Command[]): Issue[] {
       }
     }
 
+    // control points at the same coordinates are merged by the script
+    if (cmd.command === "point.add") {
+      const same = [...defined.values()].find(
+        ([, c]) =>
+          c.command === "point.add" &&
+          c.coordinates.every((x, k) => x === cmd.coordinates[k]),
+      );
+      if (same) {
+        add(
+          `control point '${name}' is at the coordinates of control point '${same[1].name}': the script merges them.`,
+        );
+      }
+    }
+
+    // a rotation point needs all components of the center point
+    if (
+      cmd.command === "mpc.add" &&
+      cmd.rotation !== undefined &&
+      new Set(cmd.constrained).size < 3
+    ) {
+      add(
+        `constraint '${name}' with a rotation point connects all components x, y and z.`,
+      );
+    }
+
     if (
       cmd.command === "mesh.merge" &&
       [...defined.values()].some(([, c]) => c.command === "mesh.merge")
@@ -246,23 +283,32 @@ export function validate(commands: readonly Command[]): Issue[] {
     }
   });
 
-  // a control point has no stiffness of its own
+  // a control point has no stiffness of its own: its components need a boundary
+  // or a constraint (as the center point, or all of them as the rotation point)
   commands.forEach((cmd, i) => {
     if (cmd.command !== "point.add") return;
-    const fixed = new Set(
-      commands.flatMap((c) =>
-        c.command === "boundary.add" && c.pointset === cmd.name
-          ? c.constrained
-          : [],
-      ),
-    );
-    if (fixed.size < 3) {
+    const fixed = new Set<string>();
+    for (const c of commands) {
+      if (c.command === "boundary.add" && c.pointset === cmd.name)
+        c.constrained.forEach((a) => fixed.add(a));
+      else if (c.command === "mpc.add") {
+        if (c.center === cmd.name) c.constrained.forEach((a) => fixed.add(a));
+        if (c.rotation === cmd.name) AXES.forEach((a) => fixed.add(a));
+      }
+    }
+    const missing = AXES.filter((a) => !fixed.has(a));
+    if (missing.length) {
+      const components =
+        missing.length > 1
+          ? `${missing.slice(0, -1).join(", ")} and ${missing.at(-1)}`
+          : missing[0];
       issues.push({
         index: i,
         name: cmd.name,
         message:
-          `commands/${i}: control point '${cmd.name}' has no stiffness: it ` +
-          "needs a boundary of the components x, y and z.",
+          `commands/${i}: control point '${cmd.name}' has no stiffness in ` +
+          `${components}: it needs a boundary or a multi-point constraint of ` +
+          "these components.",
       });
     }
   });

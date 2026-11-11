@@ -112,6 +112,42 @@ describe("deriveTree", () => {
     expect(ids.indexOf("group:point")).toBe(ids.indexOf("group:pointset") + 1);
   });
 
+  it("lists the constraints in a group of their own", () => {
+    const control: Command = {
+      command: "point.add",
+      name: "plate",
+      coordinates: [4, 0.5, 0.5],
+    };
+    const mpc: Command = {
+      command: "mpc.add",
+      name: "glue",
+      points: "right",
+      center: "plate",
+      constrained: ["y", "x"],
+      rotation: "turn",
+    };
+    const tree = deriveTree([...commands, control, mpc]);
+    expect(find(tree, "group:constraint")!.label).toBe("Constraints");
+    expect(find(tree, "glue")!.detail).toBe(
+      "right → plate · x, y · rotation turn",
+    );
+    expect(
+      find(
+        deriveTree([
+          ...commands,
+          control,
+          {
+            ...mpc,
+            constrained: ["x", "y", "z"],
+            rotation: undefined,
+          } as Command,
+        ]),
+        "glue",
+      )!.detail,
+    ).toBe("right → plate");
+    expect(find(deriveTree(commands), "group:constraint")).toBeUndefined();
+  });
+
   it("attaches validation issues", () => {
     const broken = commands.map((c) =>
       c.name === "section_hard" ? { ...c, material: "missing" } : c,

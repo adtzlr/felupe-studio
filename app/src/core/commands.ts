@@ -16,6 +16,7 @@ export type Command =
   | PointAdd
   | BoundaryAdd
   | LoadcaseAdd
+  | MpcAdd
   | StepAdd
   | JobAdd;
 /**
@@ -410,6 +411,38 @@ export interface LoadcaseShear {
   symmetry?: boolean;
 }
 /**
+ * A multi-point constraint (fem.MultiPointConstraint): the points of a point set follow a center point rigidly, connected by a penalty. With a rotation point, they also rotate about the center point.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MpcAdd".
+ */
+export interface MpcAdd {
+  command: "mpc.add";
+  name: Name;
+  /**
+   * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
+   */
+  points: string;
+  /**
+   * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
+   */
+  center: string;
+  /**
+   * The connected components (skip the others). All of them with a rotation point.
+   *
+   * @minItems 1
+   */
+  constrained: [Axis, ...Axis[]];
+  /**
+   * The penalty of the relative displacements (default 1000).
+   */
+  multiplier?: number;
+  /**
+   * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
+   */
+  rotation?: string;
+}
+/**
  * A step with all boundaries, optionally ramping items, each with its own values (fem.Step).
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
@@ -424,6 +457,12 @@ export interface StepAdd {
    * @minItems 1
    */
   sections?: [Name, ...Name[]];
+  /**
+   * Multi-point constraints that are items of the step (default: all).
+   *
+   * @minItems 1
+   */
+  constraints?: [Name, ...Name[]];
   /**
    * Ramp the values of items with fem.math.linsteps([start, end], num), with the same number of increments for all items.
    */

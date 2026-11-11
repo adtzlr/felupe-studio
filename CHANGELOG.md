@@ -6,6 +6,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Added
 
+- Multi-point constraints (`mpc.add`, `fem.MultiPointConstraint`): the points of a point set follow a control point, optionally with a rotation point; items of the steps (#97).
 - **Control point at center** of the selected point set, of a picked face or of picked nodes (#96).
 - Control points in the viewport: drawn as markers (also displaced in the results), selected by a click, listed under **Points** in the browser (#95).
 - Control points (`point.add`): points that are not nodes of the meshes, merged as a mesh of vertices and referenced like a point set, e.g. by a boundary (#94, ADR 0006).

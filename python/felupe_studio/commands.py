@@ -25,9 +25,12 @@ KINDS = {
     "boundary.add": "boundary",
     # a load case is referenced like a boundary (ramps of steps, curves of jobs)
     "loadcase.add": "boundary",
+    "mpc.add": "constraint",
     "step.add": "step",
     "job.add": "job",
 }
+
+AXES = ("x", "y", "z")
 
 # kinds of objects that a step can ramp (a load case is a boundary)
 RAMPED = ("boundary",)
@@ -38,7 +41,12 @@ REFERENCES = {
     "cellset.from_file": {"mesh": ("mesh", False)},
     "section.add": {"cellset": ("cellset", False), "material": ("material", False)},
     "boundary.add": {"pointset": ("pointset", False)},
-    "step.add": {"sections": ("section", True)},
+    "mpc.add": {
+        "points": ("pointset", False),
+        "center": ("pointset", False),
+        "rotation": ("pointset", False),
+    },
+    "step.add": {"sections": ("section", True), "constraints": ("constraint", True)},
     "job.add": {"steps": ("step", True), "curve": ("boundary", False)},
 }
 
@@ -141,6 +149,34 @@ def _reference_errors(commands):
         if cmd["command"] == "loadcase.add":
             messages.extend(f"commands/{i}: {p}" for p in loadcase_problems(cmd))
 
+        # control points at the same coordinates are merged by the script
+        if cmd["command"] == "point.add":
+            same = next(
+                (
+                    c["name"]
+                    for _, c in defined.values()
+                    if c["command"] == "point.add"
+                    and c["coordinates"] == cmd["coordinates"]
+                ),
+                None,
+            )
+            if same is not None:
+                messages.append(
+                    f"commands/{i}: control point '{name}' is at the coordinates of "
+                    f"control point '{same}': the script merges them."
+                )
+
+        # a rotation point needs all components of the center point
+        if (
+            cmd["command"] == "mpc.add"
+            and "rotation" in cmd
+            and set(cmd["constrained"]) != {"x", "y", "z"}
+        ):
+            messages.append(
+                f"commands/{i}: constraint '{name}' with a rotation point connects "
+                "all components x, y and z."
+            )
+
         if cmd["command"] == "mesh.merge" and any(
             c["command"] == "mesh.merge" for _, c in defined.values()
         ):
@@ -163,7 +199,8 @@ def _reference_errors(commands):
         else:
             defined[name] = (i, cmd)
 
-    # a control point has no stiffness of its own
+    # a control point has no stiffness of its own: its components need a boundary
+    # or a constraint (as the center point, or all of them as the rotation point)
     for i, cmd in enumerate(commands):
         if cmd["command"] != "point.add":
             continue
@@ -171,10 +208,22 @@ def _reference_errors(commands):
         for other in commands:
             if other["command"] == "boundary.add" and other["pointset"] == cmd["name"]:
                 fixed.update(other["constrained"])
-        if fixed != {"x", "y", "z"}:
+            elif other["command"] == "mpc.add":
+                if other["center"] == cmd["name"]:
+                    fixed.update(other["constrained"])
+                if other.get("rotation") == cmd["name"]:
+                    fixed.update(AXES)
+        missing = [a for a in AXES if a not in fixed]
+        if missing:
+            components = (
+                ", ".join(missing[:-1]) + " and " + missing[-1]
+                if len(missing) > 1
+                else missing[0]
+            )
             messages.append(
-                f"commands/{i}: control point '{cmd['name']}' has no stiffness: it "
-                "needs a boundary of the components x, y and z."
+                f"commands/{i}: control point '{cmd['name']}' has no stiffness in "
+                f"{components}: it needs a boundary or a multi-point constraint of "
+                "these components."
             )
 
     return messages

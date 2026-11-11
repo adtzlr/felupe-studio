@@ -76,6 +76,7 @@
           "np",
           "points",
           "points_at",
+          "single_point",
           "vertex_region",
           "volume_cells"
         ],
@@ -126,6 +127,9 @@
         },
         {
           "$ref": "#/$defs/LoadcaseAdd"
+        },
+        {
+          "$ref": "#/$defs/MpcAdd"
         },
         {
           "$ref": "#/$defs/StepAdd"
@@ -728,6 +732,46 @@
         }
       }
     },
+    "MpcAdd": {
+      "description": "A multi-point constraint (fem.MultiPointConstraint): the points of a point set follow a center point rigidly, connected by a penalty. With a rotation point, they also rotate about the center point.",
+      "type": "object",
+      "required": ["command", "name", "points", "center", "constrained"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "mpc.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "points": {
+          "description": "The point set of the connected points.",
+          "$ref": "#/$defs/Name"
+        },
+        "center": {
+          "description": "The center point: a control point or a point set of one point.",
+          "$ref": "#/$defs/Name"
+        },
+        "constrained": {
+          "description": "The connected components (skip the others). All of them with a rotation point.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Axis"
+          }
+        },
+        "multiplier": {
+          "description": "The penalty of the relative displacements (default 1000).",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "rotation": {
+          "description": "The rotation point: a control point or a point set of one point, whose values are the rotations about the center point in rad (its coordinates are not used).",
+          "$ref": "#/$defs/Name"
+        }
+      }
+    },
     "StepAdd": {
       "description": "A step with all boundaries, optionally ramping items, each with its own values (fem.Step).",
       "type": "object",
@@ -742,6 +786,15 @@
         },
         "sections": {
           "description": "Sections whose solid bodies are items of the step (default: all).",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Name"
+          }
+        },
+        "constraints": {
+          "description": "Multi-point constraints that are items of the step (default: all).",
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,

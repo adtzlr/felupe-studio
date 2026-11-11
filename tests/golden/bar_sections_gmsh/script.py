@@ -49,6 +49,15 @@ def volume_cells(mesh, tag=None, cell_type=None):
     )
 
 
+def single_point(mask, name):
+    """Return the index of the only point of a mask, e.g. of a center point. A mask
+    of another number of points raises a ``ValueError``."""
+    (indices,) = np.nonzero(mask)
+    if len(indices) != 1:
+        raise ValueError(f"'{name}' has {len(indices)} points, not one.")
+    return indices[0]
+
+
 def vertex_region(points):
     """Return a region of vertices at the given points, e.g. of control points that
     are not nodes of the meshes of the sections."""

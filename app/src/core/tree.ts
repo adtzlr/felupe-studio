@@ -32,6 +32,7 @@ const GROUPS: { kind: Kind | "point"; label: string }[] = [
   { kind: "material", label: "Materials" },
   { kind: "section", label: "Sections" },
   { kind: "boundary", label: "Boundaries" },
+  { kind: "constraint", label: "Constraints" },
   { kind: "step", label: "Steps" },
   { kind: "job", label: "Jobs" },
 ];
@@ -66,6 +67,15 @@ function detail(cmd: Command): string {
       return `${cmd.select.ids.length} points`;
     case "point.add":
       return `control (${cmd.coordinates.join(", ")})`;
+    case "mpc.add":
+      return [
+        `${cmd.points} → ${cmd.center}`,
+        cmd.constrained.length < 3 &&
+          AXES.filter((a) => cmd.constrained.includes(a)).join(", "),
+        cmd.rotation && `rotation ${cmd.rotation}`,
+      ]
+        .filter(Boolean)
+        .join(" · ");
     case "boundary.add": {
       const value = cmd.value ?? 0;
       const constrained = AXES.filter((a) => cmd.constrained.includes(a)).join(
@@ -170,7 +180,7 @@ export function deriveTree(
   }
 
   // the groups of the merge setting and of the control points only if they are used
-  const optional = new Set(["group:merge", "group:point"]);
+  const optional = new Set(["group:merge", "group:point", "group:constraint"]);
   return groups
     .filter((g) => !optional.has(g.id) || g.children.length > 0)
     .map((g) => ({ ...g, count: g.children.length }));

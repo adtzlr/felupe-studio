@@ -619,3 +619,66 @@ def test_control_point(two_sections, tmp_path, monkeypatch):
     pin["constrained"] = ["x", "y"]
     with pytest.raises(ValidationError, match="'control' has no stiffness"):
         codegen(two_sections)
+
+
+def test_multi_point_constraint(two_sections, tmp_path, monkeypatch):
+    mesh, tag = bar()
+    write(tmp_path / "specimen.vtu", mesh, tag)
+    commands = two_sections["commands"]
+    # the right end face follows a control point that is moved in x
+    controls = [
+        {"command": "point.add", "name": "plate", "coordinates": [3.5, 0.5, 0.5]},
+        {"command": "point.add", "name": "turn", "coordinates": [4, 0.5, 0.5]},
+    ]
+    commands[9:9] = controls
+    move = next(c for c in commands if c["name"] == "move")
+    move.update(pointset="plate")
+    hold = {
+        "command": "boundary.add",
+        "name": "hold",
+        "pointset": "plate",
+        "constrained": ["y", "z"],
+    }
+    turn = {
+        "command": "boundary.add",
+        "name": "locked",
+        "pointset": "turn",
+        "constrained": ["x", "y", "z"],
+    }
+    mpc = {
+        "command": "mpc.add",
+        "name": "glue",
+        "points": "right",
+        "center": "plate",
+        "constrained": ["x", "y", "z"],
+        "rotation": "turn",
+    }
+    index = next(i for i, c in enumerate(commands) if c["command"] == "step.add")
+    commands[index:index] = [hold, turn, mpc]
+    script = codegen(two_sections)
+    assert "glue = fem.MultiPointConstraint(\n    field,\n" in script
+    assert '    centerpoint=single_point(plate, "plate"),\n' in script
+    assert '    rotationpoint=single_point(turn, "turn"),\n' in script
+    assert "items=[solid_section_hard, solid_section_soft, glue]" in script
+    namespace = run(two_sections, tmp_path, monkeypatch)
+    points = namespace["points"]
+    u = namespace["field"][0].values
+    right = namespace["right"]
+    # the end face moves rigidly with the control point
+    np.testing.assert_allclose(u[right], [[0.5, 0, 0]] * right.sum(), atol=1e-3)
+    assert force(namespace)[-1] > 0
+    assert np.flatnonzero(namespace["plate"])[0] == len(points) - 2
+
+    # skipped components without a rotation point, and the default multiplier
+    del mpc["rotation"]
+    mpc.update(constrained=["x"], multiplier=5000.0)
+    script = codegen(two_sections)
+    assert "    skip=(False, True, True),\n    multiplier=5000.0,\n)" in script
+
+    # a center point of more than one point is an error of the script
+    mpc.update(center="right", constrained=["x", "y", "z"])
+    move.update(pointset="right")
+    commands.remove(hold)
+    commands.remove(controls[0])
+    with pytest.raises(ValueError, match="'right' has 25 points, not one"):
+        run(two_sections, tmp_path, monkeypatch)
