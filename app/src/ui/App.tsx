@@ -228,7 +228,7 @@ export function App({
   const [confirmNew, setConfirmNew] = useState(false);
   const newProject = () => {
     jobs?.forget();
-    store.load({ schema_version: SCHEMA_VERSION as 2, commands: [] });
+    store.load({ schema_version: SCHEMA_VERSION as 3, commands: [] });
     files.clear();
     setFileName(`untitled${SUFFIX}`);
     setSaved(store.commands);

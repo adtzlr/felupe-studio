@@ -21,7 +21,7 @@ describe("project files", () => {
       commands: document.commands.map((c) =>
         Object.fromEntries(Object.entries(c).reverse()),
       ),
-      schema_version: 2,
+      schema_version: 3,
     } as unknown as CommandList;
     expect(serialize(document)).toBe(twoSections);
     expect(serialize(shuffled)).toBe(twoSections);
@@ -36,11 +36,11 @@ describe("project files", () => {
     expect(() => parse("{")).toThrow("not valid JSON");
     expect(() => parse("[]")).toThrow("does not contain");
     expect(() => parse('{"commands": []}')).toThrow("no valid schema_version");
-    expect(() => parse('{"schema_version": 3, "commands": []}')).toThrow(
+    expect(() => parse('{"schema_version": 4, "commands": []}')).toThrow(
       "Please update",
     );
     try {
-      parse('{"schema_version": 2, "commands": [{"command": "mesh.import"}]}');
+      parse('{"schema_version": 3, "commands": [{"command": "mesh.import"}]}');
       expect.unreachable();
     } catch (error) {
       expect(error).toBeInstanceOf(ProjectError);
@@ -51,7 +51,7 @@ describe("project files", () => {
   it("checks parameters per material model", () => {
     const text = (parameters: object) =>
       JSON.stringify({
-        schema_version: 2,
+        schema_version: 3,
         commands: [
           { command: "material.add", name: "m", model: "NeoHooke", parameters },
         ],
@@ -60,9 +60,22 @@ describe("project files", () => {
     expect(() => parse(text({ E: 1 }))).toThrow(ProjectError);
   });
 
+  it("checks the units of the model settings (#132)", () => {
+    const text = (units: object) =>
+      JSON.stringify({
+        schema_version: 3,
+        commands: [{ command: "model.settings", name: "settings", units }],
+      });
+    expect(() => parse(text({ length: "m", force: "kN" }))).not.toThrow();
+    expect(() => parse(text({ length: "inch", force: "N" }))).toThrow(
+      ProjectError,
+    );
+    expect(() => parse(text({ length: "mm" }))).toThrow(ProjectError);
+  });
+
   it("does not check references when loading", () => {
     const text = JSON.stringify({
-      schema_version: 2,
+      schema_version: 3,
       commands: [{ command: "cellset.from_file", name: "a", mesh: "missing" }],
     });
     expect(parse(text).commands[0]).toMatchObject({ mesh: "missing" });
@@ -101,7 +114,7 @@ describe("migrations", () => {
     const step = old.commands.find((c) => c.command === "step.add")!;
     step.ramp = { boundary: "move", also: ["fixed"], end: 0.5, num: 5 };
     const document = parse(JSON.stringify(old));
-    expect(document.schema_version).toBe(2);
+    expect(document.schema_version).toBe(3);
     expect(document.commands.find((c) => c.name === "step_1")).toEqual({
       command: "step.add",
       name: "step_1",

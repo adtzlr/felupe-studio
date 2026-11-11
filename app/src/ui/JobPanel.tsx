@@ -10,6 +10,7 @@ import type { Command } from "../core/commands";
 import { curvePoint, formatValue as format } from "../core/results";
 import type { ModelStore } from "../core/store";
 import { curveQuantities } from "../core/curve";
+import { valueWithUnit } from "../core/units";
 
 interface Props {
   run: JobRun;
@@ -158,6 +159,7 @@ export function JobPanel({ run, store, onDismiss, onShowResults }: Props) {
           <ul class="job-results">
             {Object.entries(run.results).map(([name, result]) => {
               const point = curvePoint(result);
+              const q = curveQuantities(run.commands, name);
               return (
                 <li key={name}>
                   <strong>{name}</strong>: {result.substeps}{" "}
@@ -167,10 +169,11 @@ export function JobPanel({ run, store, onDismiss, onShowResults }: Props) {
                     <>
                       <br />
                       <span class="muted">
-                        Last substep: {curveQuantities(run.commands, name).u}
-                        <sub>{point.axis}</sub> = {format(point.u)},{" "}
-                        {curveQuantities(run.commands, name).f}
-                        <sub>{point.axis}</sub> = {format(point.f)}
+                        Last substep: {q.u}
+                        <sub>{point.axis}</sub> ={" "}
+                        {valueWithUnit(format(point.u), q.uUnit)}, {q.f}
+                        <sub>{point.axis}</sub> ={" "}
+                        {valueWithUnit(format(point.f), q.fUnit)}
                       </span>
                     </>
                   )}

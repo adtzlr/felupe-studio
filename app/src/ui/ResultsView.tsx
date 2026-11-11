@@ -1,5 +1,5 @@
 import type { ComponentChildren } from "preact";
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { useViewKeys } from "./hooks";
 import { withHint } from "../core/shortcuts";
 import { NodesButton, useShowNodes } from "./NodesButton";
@@ -14,6 +14,14 @@ import type { Command } from "../core/commands";
 
 const NO_COMMANDS: readonly Command[] = [];
 import { formatValue, type ResultView } from "../core/results";
+import {
+  resultUnit,
+  type Units,
+  unitOf,
+  unitsOf,
+  valueWithUnit,
+  withUnit,
+} from "../core/units";
 import { type ProbeInfo, probeInfo } from "../viewer/probe";
 import {
   type Capture,
@@ -74,6 +82,12 @@ const value = (v: number | null) => (v === null ? "–" : formatValue(v));
 const symbols = (point: ResultPoint) =>
   point.rotation ? (["φ", "M"] as const) : (["u", "F"] as const);
 
+/** The units of the values of a control point (#132); rotations are in rad. */
+const pointUnits = (point: ResultPoint, units: Units | undefined) =>
+  point.rotation
+    ? [unitOf("rotation", units), unitOf("moment", units)]
+    : [unitOf("displacement", units), unitOf("force", units)];
+
 /** A vector, without the round-off noise of components near zero. */
 const vector = (v: readonly number[] | undefined) => {
   if (!v) return "–";
@@ -82,8 +96,20 @@ const vector = (v: readonly number[] | undefined) => {
   return `(${clean.map((c) => value(c)).join(", ")})`;
 };
 
-/** The tooltip of the value under the pointer, and the ring of its point. */
-function ProbeTooltip({ hover }: { hover: Hover }) {
+/**
+ * The tooltip of the value under the pointer, and the ring of its point, with the
+ * units of the model (#132).
+ */
+function ProbeTooltip({
+  hover,
+  units,
+  unit,
+}: {
+  hover: Hover;
+  units?: Units;
+  /** The unit of the quantity of the contour. */
+  unit?: string;
+}) {
   const { x, y, width, info, point, ring } = hover;
   const left = x + 14 + 240 > width ? Math.max(x - 254, 0) : x + 14;
   return (
@@ -103,9 +129,14 @@ function ProbeTooltip({ hover }: { hover: Hover }) {
           <>
             <strong>{point.name}</strong>
             <br />
-            {symbols(point)[0]} = {vector(point.displacement)}
+            {symbols(point)[0]} ={" "}
+            {valueWithUnit(
+              vector(point.displacement),
+              pointUnits(point, units)[0],
+            )}
             <br />
-            {symbols(point)[1]} = {vector(point.force)}
+            {symbols(point)[1]} ={" "}
+            {valueWithUnit(vector(point.force), pointUnits(point, units)[1])}
             <br />
             <span class="muted">
               {point.rotation ? "Rotation point" : "Control point"}
@@ -115,12 +146,19 @@ function ProbeTooltip({ hover }: { hover: Hover }) {
           info && (
             <>
               <strong>
-                {info.label} = {value(info.value)}
+                {info.label} ={" "}
+                {valueWithUnit(
+                  value(info.value),
+                  info.value === null ? undefined : unit,
+                )}
               </strong>
               {info.displacement && (
                 <>
-                  <br />u = ({info.displacement.map((c) => value(c)).join(", ")}
-                  )
+                  <br />u ={" "}
+                  {valueWithUnit(
+                    `(${info.displacement.map((c) => value(c)).join(", ")})`,
+                    unitOf("displacement", units),
+                  )}
                 </>
               )}
               <br />
@@ -136,9 +174,11 @@ function ProbeTooltip({ hover }: { hover: Hover }) {
 /** The displacements and forces of the control points of the substep (#101). */
 function PointsCard({
   points,
+  units,
   onClose,
 }: {
   points: readonly ResultPoint[];
+  units?: Units;
   onClose: () => void;
 }) {
   return (
@@ -167,10 +207,12 @@ function PointsCard({
             <tr key={p.name}>
               <th scope="row">{p.name}</th>
               <td>
-                {symbols(p)[0]} = {vector(p.displacement)}
+                {symbols(p)[0]} ={" "}
+                {valueWithUnit(vector(p.displacement), pointUnits(p, units)[0])}
               </td>
               <td>
-                {symbols(p)[1]} = {vector(p.force)}
+                {symbols(p)[1]} ={" "}
+                {valueWithUnit(vector(p.force), pointUnits(p, units)[1])}
               </td>
             </tr>
           ))}
@@ -282,6 +324,17 @@ export function ResultsView({
     view && loaded && "error" in loaded && loaded.key === wanted.key
       ? loaded.error
       : undefined;
+  // the units of the model (#132): the title of the scalar bar and the tooltips
+  const units = unitsOf(commands);
+  // of the quantity of the shown scene (the key ends with it)
+  const unit =
+    scene && loaded
+      ? resultUnit(loaded.key.slice(loaded.key.lastIndexOf("/") + 1), units)
+      : undefined;
+  const titled = useMemo(
+    () => scene && unit && { ...scene, label: withUnit(scene.label, unit) },
+    [scene, unit],
+  );
 
   // the viewer (and its WebGL context) is created when there is a scene to show
   useEffect(() => {
@@ -292,7 +345,11 @@ export function ResultsView({
     }
     viewer.current.setResult(
       scene && view
-        ? { scene, scale: view.scale, undeformed: view.undeformed }
+        ? {
+            scene: titled || scene,
+            scale: view.scale,
+            undeformed: view.undeformed,
+          }
         : undefined,
     );
     viewer.current.setNodes(nodesShown);
@@ -324,6 +381,7 @@ export function ResultsView({
     } else viewer.current.setLines([]);
   }, [
     scene,
+    titled,
     view?.scale,
     view?.undeformed,
     nodesShown,
@@ -448,11 +506,14 @@ export function ResultsView({
         {shown && pointsShown && scene.points && scene.points.length > 0 && (
           <PointsCard
             points={scene.points}
+            units={units}
             onClose={() => setPointsShown(false)}
           />
         )}
       </div>
-      {shown && hover && <ProbeTooltip hover={hover} />}
+      {shown && hover && (
+        <ProbeTooltip hover={hover} units={units} unit={unit} />
+      )}
       <div class="overlay-bottom above-bars">
         {shown && loading && (
           <p class="viewport-status muted" role="status">

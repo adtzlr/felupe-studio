@@ -84,6 +84,32 @@ describe("deriveTree", () => {
     ).toBe("2 nodes");
   });
 
+  it("shows the settings and the values with the units of the model (#132)", () => {
+    const settings = {
+      command: "model.settings",
+      name: "settings",
+      units: { length: "mm", force: "N" },
+    } as Command;
+    const tree = deriveTree([settings, ...commands]);
+    expect(tree[0]).toMatchObject({ label: "Settings", count: 1 });
+    expect(find(tree, "settings")!.detail).toBe("mm · N · MPa");
+    expect(find(tree, "left")!.detail).toBe("x == 0 mm");
+    expect(find(tree, "step_1")!.detail).toBe("move: 0 → 0.5 mm (5)");
+    expect(find(tree, "fixed")!.detail).toBe("left · x, y, z");
+    const load = {
+      command: "load.add",
+      name: "pull",
+      points: "right",
+      force: [1, 0, 0],
+    } as Command;
+    expect(find(deriveTree([settings, load]), "pull")!.detail).toBe(
+      "right · (1, 0, 0) N",
+    );
+    // without units
+    const plain = deriveTree([{ command: "model.settings", name: "s" }]);
+    expect(find(plain, "s")!.detail).toBe("no units");
+  });
+
   it("shows the merge group only with a merge command", () => {
     const merge: Command = {
       command: "mesh.merge",

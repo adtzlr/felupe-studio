@@ -6,6 +6,7 @@
  * via the `definition` "Command".
  */
 export type Command =
+  | ModelSettings
   | MeshImport
   | MeshMerge
   | CellSetFromTag
@@ -54,6 +55,13 @@ export type Axis = "x" | "y" | "z";
  */
 export type Coordinates = [number, number, number];
 /**
+ * The coordinates x, y and z of a point.
+ *
+ * @minItems 3
+ * @maxItems 3
+ */
+export type Coordinates1 = [number, number, number];
+/**
  * A load case of FElupe (fem.dof) on the merged field: the boundaries of a standard test. It is referenced like a boundary: a step ramps its moving end faces, a job records the reaction force of its (first) moving end face.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
@@ -67,7 +75,7 @@ export type LoadcaseAdd =
  * @minItems 3
  * @maxItems 3
  */
-export type Coordinates1 = [number, number, number];
+export type Coordinates2 = [number, number, number];
 
 /**
  * A list of FElupe Studio commands. Objects are created by commands and referenced by their names.
@@ -76,8 +84,31 @@ export interface CommandList {
   /**
    * Version of this schema.
    */
-  schema_version: 2;
+  schema_version: 3;
   commands: Command[];
+}
+/**
+ * The settings of the model, at most once. The units say what the numbers mean: FElupe has no units, nothing is converted.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "ModelSettings".
+ */
+export interface ModelSettings {
+  command: "model.settings";
+  name: Name;
+  /**
+   * The units of lengths and forces, which give the units of the stresses (e.g. mm and N give MPa). Without units, the numbers have none.
+   */
+  units?: {
+    /**
+     * Unit of the coordinates and the displacements.
+     */
+    length: "mm" | "m";
+    /**
+     * Unit of the forces.
+     */
+    force: "N" | "kN";
+  };
 }
 /**
  * Import a mesh file (read with meshio).
@@ -294,7 +325,7 @@ export interface PointSetAdd {
 export interface PointAdd {
   command: "point.add";
   name: Name;
-  coordinates: Coordinates;
+  coordinates: Coordinates1;
 }
 /**
  * Prescribe displacement components of a point set (fem.Boundary).
@@ -313,7 +344,7 @@ export interface BoundaryAdd {
    */
   constrained: [Axis, ...Axis[]];
   /**
-   * Prescribed displacement of the constrained components (default 0).
+   * Prescribed displacement of the constrained components (default 0); a rotation in rad at a rotation point.
    */
   value?: number;
 }
@@ -466,7 +497,7 @@ export interface LoadAdd {
    * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
    */
   points: string;
-  force: Coordinates1;
+  force: Coordinates2;
 }
 /**
  * A step with all boundaries, optionally ramping items, each with its own values (fem.Step).

@@ -5,7 +5,7 @@
 
 Every command of a project creates one named object. The [user guide](guide.md) shows how the commands work together, [commands.md](commands.md) how they become a FElupe script.
 
-A project file is a JSON document `{"schema_version": 2, "commands": [...]}`. Every command has the key `command` and a unique `name`; other commands reference the object by its name. Older project files are migrated when they are opened.
+A project file is a JSON document `{"schema_version": 3, "commands": [...]}`. Every command has the key `command` and a unique `name`; other commands reference the object by its name. Older project files are migrated when they are opened.
 
 ## Names
 
@@ -15,6 +15,7 @@ A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserve
 
 ## Commands
 
+- [`model.settings`](#modelsettings): The settings of the model, at most once.
 - [`mesh.import`](#meshimport): Import a mesh file (read with meshio).
 - [`mesh.merge`](#meshmerge): Merge points of the sections whose coordinates agree to the given number of decimals (fem.field.merge(..., decimals)).
 - [`cellset.from_tag`](#cellsetfrom_tag): Cell set of all cells of a mesh with the given tag value.
@@ -29,6 +30,17 @@ A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserve
 - [`load.add`](#loadadd): A point load (fem.PointLoad): a force at every point of a point set or at a control point, an item of the steps.
 - [`step.add`](#stepadd): A step with all boundaries, optionally ramping items, each with its own values (fem.Step).
 - [`job.add`](#jobadd): A job evaluating steps one after another (fem.Job).
+
+### `model.settings`
+
+The settings of the model, at most once. The units say what the numbers mean: FElupe has no units, nothing is converted.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | name | yes | Name of the object. |
+| `units` | object |  | The units of lengths and forces, which give the units of the stresses (e.g. mm and N give MPa). Without units, the numbers have none. |
+| `units.length` | `mm` or `m` | yes | Unit of the coordinates and the displacements. |
+| `units.force` | `N` or `kN` | yes | Unit of the forces. |
 
 ### `mesh.import`
 
@@ -188,7 +200,7 @@ Prescribe displacement components of a point set (fem.Boundary).
 | `name` | name | yes | Name of the object. |
 | `pointset` | name of a point set or control point | yes |  |
 | `constrained` | list of axis: `x`, `y` or `z` (at least 1, unique) | yes | Constrained displacement components; all others are free. |
-| `value` | number |  | Prescribed displacement of the constrained components (default 0). |
+| `value` | number |  | Prescribed displacement of the constrained components (default 0); a rotation in rad at a rotation point. |
 
 ### `loadcase.add`
 

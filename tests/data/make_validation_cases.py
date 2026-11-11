@@ -202,6 +202,17 @@ CHANGES = {
             {"command": "mesh.merge", "name": "merge_2", "decimals": 8},
         ],
     ),
+    "two model settings": lambda d: d["commands"].__setitem__(
+        slice(0, 0),
+        [
+            {
+                "command": "model.settings",
+                "name": "settings",
+                "units": {"length": "mm", "force": "N"},
+            },
+            {"command": "model.settings", "name": "settings_2"},
+        ],
+    ),
     "several errors": lambda d: (
         find(d, "hard").update(mesh="nomesh"),
         find(d, "job_1").update(name="hard"),

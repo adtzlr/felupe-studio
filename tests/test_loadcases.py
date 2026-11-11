@@ -14,7 +14,7 @@ from felupe_studio.loadcases import loadcase_call, moving, problems
 def model(loadcase, end=0.2, mesh=None):
     """A cube of an incompressible Neo-Hookean material with a load case."""
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "commands": [
             {"command": "mesh.import", "name": "cube", "file": "cube.vtu"},
             {"command": "cellset.from_file", "name": "all", "mesh": "cube"},

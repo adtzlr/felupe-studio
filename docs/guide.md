@@ -38,6 +38,10 @@ Open a sample, press **Solve** and look at the results; then change a value in t
 
 ## Building a model
 
+### Units
+
+FElupe has no units: the numbers of a model only need to fit together, e.g. millimetres, newtons and megapascals. **Model settings** (last button of the *Mesh* tab, at most one per model) say which units the numbers mean: the length (mm or m) and the force (N or kN); the unit of stresses and moduli follows (MPa, GPa, Pa or kPa). The forms, the browser and the results then show the units, e.g. *E [MPa]* or *u = (8, 0, 0) mm*, and the script gets them as a comment. Nothing is converted: if you change the units, the numbers stay the same and only their meaning changes. Rotations are always in rad.
+
 ### 1. Mesh
 
 **Import mesh** reads any mesh file that meshio reads, e.g. VTK (`.vtu`, `.vtk`), Gmsh (`.msh`), Abaqus (`.inp`), XDMF, Medit or Exodus; **Open project** accepts mesh files too. The solid cells are tetrahedrons or hexahedrons, linear or quadratic. A file with several types of cells gives one mesh per type.
@@ -137,7 +141,7 @@ undo · redo · help
 
 The sample *Rubber block with a rigid plate* glues the top face of a rubber block to a rigid plate. The plate moves 8 mm sideways and tilts by 0.1 rad at the same time. To build it yourself, start a new project and import `block.vtu` of the sample (a block of 40 × 40 × 20 mm):
 
-1. **Mesh:** *Cell set of a mesh* `all_cells` of the mesh `block`.
+1. **Mesh:** *Cell set of a mesh* `all_cells` of the mesh `block`, and *Model settings* with the units mm and N.
 2. **Materials:** a *Mooney-Rivlin* material `rubber` with C10 = 0.4 and C01 = 0.1.
 3. **Sections:** a section `rubber_block` of `all_cells` with `rubber`, the formulation `u-p-J` and the bulk modulus 2000.
 4. **Point sets:** click the bottom face and create the point set `base` (`z == 0`), click the top face and create `top` (`z == 20`). The viewport suggests names; change them in the properties.

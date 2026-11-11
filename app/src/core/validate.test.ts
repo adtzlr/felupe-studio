@@ -21,7 +21,7 @@ describe("validate", () => {
 
 describe("schema values", () => {
   it("are read from the schema", () => {
-    expect(SCHEMA_VERSION).toBe(2);
+    expect(SCHEMA_VERSION).toBe(3);
     expect(NAME_MAX_LENGTH).toBe(24);
     expect(RESERVED_KEYWORDS.has("lambda")).toBe(true);
   });

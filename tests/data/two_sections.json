@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "commands": [
     { "command": "mesh.import", "name": "specimen", "file": "specimen.vtu", "tag": "material" },
     { "command": "cellset.from_tag", "name": "hard", "mesh": "specimen", "value": 1 },

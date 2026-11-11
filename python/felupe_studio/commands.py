@@ -9,11 +9,15 @@ import json
 from functools import cache
 from importlib.resources import files
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 # kind of object created by each command
+# commands of which a model has at most one
+SINGLE = ("model.settings", "mesh.merge")
+
 KINDS = {
     "mesh.import": "mesh",
+    "model.settings": "settings",
     "mesh.merge": "merge",
     "cellset.from_tag": "cellset",
     "cellset.from_file": "cellset",
@@ -188,10 +192,10 @@ def _reference_errors(commands):
                 "all components x, y and z."
             )
 
-        if cmd["command"] == "mesh.merge" and any(
-            c["command"] == "mesh.merge" for _, c in defined.values()
+        if cmd["command"] in SINGLE and any(
+            c["command"] == cmd["command"] for _, c in defined.values()
         ):
-            messages.append(f"commands/{i}: only one mesh.merge is allowed.")
+            messages.append(f"commands/{i}: only one {cmd['command']} is allowed.")
 
         if (
             name in keywords

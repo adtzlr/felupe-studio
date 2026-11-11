@@ -3,6 +3,7 @@
 // from the registry, or from the schema (`x-label`, `description`, `default`) like
 // the models of the material registry: a new material model needs a schema
 // definition only.
+import type { Quantity } from "./units";
 import type { Command } from "./commands";
 import { type Loadcase, loadcaseFieldErrors } from "./loadcases";
 import { KIND_LABELS, REGISTRY } from "./registry";
@@ -77,6 +78,8 @@ export interface FieldSpec {
   row?: number;
   /** A column of rows whose objects may appear only once (registry `unique`). */
   unique?: boolean;
+  /** The physical quantity of the value, for its unit (`x-quantity`, #132). */
+  quantity?: Quantity;
 }
 
 export interface Context {
@@ -105,6 +108,8 @@ interface Node {
   default?: unknown;
   /** Short label of a definition or a property, e.g. `Mooney-Rivlin` or `μ`. */
   "x-label"?: string;
+  /** The physical quantity of a value, e.g. `stress` (#132). */
+  "x-quantity"?: Quantity;
   if?: Node;
   then?: Node;
   else?: { not?: Node };
@@ -252,6 +257,7 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
       required,
       input,
       ...(field && "unique" in field && field.unique ? { unique: true } : {}),
+      ...(raw?.["x-quantity"] ? { quantity: raw["x-quantity"] } : {}),
     });
   };
 
@@ -344,6 +350,7 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
               maxItems: property.maxItems,
             },
             raw.description,
+            raw,
           );
         } else if (resolve(items).type === "array") {
           push(
@@ -351,6 +358,7 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
             isRequired,
             { type: "coordinates", minItems },
             raw.description,
+            raw,
           );
         } else if (refName(items) === "Name") {
           const kind = referenceKind(type, key);

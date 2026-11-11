@@ -19,6 +19,13 @@ import {
   setValue,
   toCommand,
 } from "../core/form";
+import {
+  boundaryQuantity,
+  rampedQuantity,
+  unitOf,
+  unitsOf,
+  withUnit,
+} from "../core/units";
 import type { CommandType } from "../core/validate";
 
 interface Props {
@@ -126,6 +133,26 @@ export function CommandForm({
     setDraft(next);
     setTexts(Object.fromEntries(kept));
     setTouched(new Set(touched).add(spec.key));
+  };
+
+  // the units of the values (#132): of the model, or of the edited settings
+  const units =
+    type === "model.settings"
+      ? (draft.units as Parameters<typeof unitOf>[1])
+      : unitsOf(context.commands);
+  const unit = (spec: FieldSpec) => {
+    let quantity = spec.quantity;
+    if (quantity === "displacement" && type === "boundary.add")
+      quantity = boundaryQuantity(
+        context.commands,
+        draft.pointset as string | undefined,
+      );
+    if (quantity === "ramped") {
+      const items = getValue(draft, ["ramp", "items"]);
+      const row = Array.isArray(items) ? items[spec.row ?? -1] : undefined;
+      quantity = rampedQuantity(context.commands, row?.target);
+    }
+    return unitOf(quantity, units);
   };
 
   const reset = () => {
@@ -497,6 +524,9 @@ export function CommandForm({
                     {row.map((cell) => (
                       <div key={cell.key} class="rows-cell">
                         {control(cell)}
+                        {unit(cell) && (
+                          <span class="unit muted">{unit(cell)}</span>
+                        )}
                       </div>
                     ))}
                     <button
@@ -572,11 +602,11 @@ export function CommandForm({
                 class="form-label"
                 title={spec.description}
               >
-                {spec.label}
+                {withUnit(spec.label, unit(spec))}
               </span>
             ) : (
               <label for={id} class="form-label" title={spec.description}>
-                {spec.label}
+                {withUnit(spec.label, unit(spec))}
               </label>
             )}
             <div class="form-control">

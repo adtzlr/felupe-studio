@@ -856,6 +856,19 @@ button {
   min-width: 0;
 }
 
+/* the unit of a value in a row, e.g. of a ramped item (#132) */
+.rows-cell:has(> .unit) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.rows-cell > .unit {
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
 .rows-error {
   grid-column: 1 / -1;
 }

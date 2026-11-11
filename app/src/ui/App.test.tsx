@@ -12,7 +12,7 @@ import { IDBFactory } from "fake-indexeddb";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import projectText from "../../../tests/data/two_sections.felupe.json?raw";
 import fixture from "../../../tests/data/two_sections.json";
-import type { CommandList } from "../core/commands";
+import type { Command, CommandList } from "../core/commands";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { MeshFiles } from "../core/meshfiles";
@@ -816,7 +816,7 @@ describe("solve", () => {
       .map((row) => row.textContent);
     expect(cells).toEqual([
       "plateu = (0.5, 0, 0)F = (5, 0, 0)",
-      "turnφ = (0.1, 0, 0)M = (2, 0, 0)",
+      "turnφ = (0.1, 0, 0) radM = (2, 0, 0)",
     ]);
     fireEvent.click(
       within(points).getByRole("button", { name: "Close the control points" }),
@@ -918,6 +918,73 @@ describe("solve", () => {
     expect(panel.textContent).toContain("Substep 6 of 6");
     key("ArrowLeft");
     expect(panel.textContent).toContain("Substep 5 of 6");
+  });
+
+  it("shows the results with the units of the model (#132)", async () => {
+    const jobs = runner();
+    let resolveScene: (scene: ResultScene) => void = () => {};
+    const resultScene = vi.fn(
+      () => new Promise<ResultScene>((r) => (resolveScene = r)),
+    );
+    const list = fixture as CommandList;
+    const settings = {
+      command: "model.settings",
+      name: "settings",
+      units: { length: "mm", force: "N" },
+    } as Command;
+    render(
+      <App
+        store={
+          new ModelStore({ ...list, commands: [settings, ...list.commands] })
+        }
+        files={await files()}
+        client={client(Promise.resolve(readyValue), { ...jobs, resultScene })}
+      />,
+    );
+    await waitFor(() =>
+      expect(solveButton().getAttribute("aria-disabled")).toBeNull(),
+    );
+    fireEvent.click(solveButton());
+    await waitFor(() => expect(jobs.run).toHaveBeenCalledTimes(1));
+    await act(async () =>
+      jobs.settle().resolve({
+        job_1: { substeps: 1, time: 0.1, x: [[0.5, 0, 0]], y: [[5, 0, 0]] },
+      }),
+    );
+    const job = screen.getByRole("region", { name: "Job" });
+    expect(job.textContent).toContain("Last substep: ux = 0.5 mm, Fx = 5 N");
+    fireEvent.click(screen.getByRole("button", { name: "Show results" }));
+    expect(screen.getByRole("tabpanel").textContent).toContain(
+      "ux = 0.5 mm, Fx = 5 N",
+    );
+    await waitFor(() => expect(resultScene).toHaveBeenCalled());
+    await act(async () =>
+      resolveScene({
+        label: "Displacement",
+        at: "point",
+        range: [0, 1],
+        points: [
+          {
+            name: "plate",
+            position: [3.5, 0.5, 0.5],
+            displacement: [0.5, 0, 0],
+            force: [5, 0, 0],
+          },
+        ],
+        surfaces: [],
+      }),
+    );
+    const points = screen.getByRole("region", { name: "Control points" });
+    expect(within(points).getAllByRole("row")[1].textContent).toBe(
+      "plateu = (0.5, 0, 0) mmF = (5, 0, 0) N",
+    );
+    const card = screen.getByRole("region", {
+      name: "Force-displacement curve",
+    });
+    const labels = [...card.querySelectorAll(".axis-label")].map(
+      (l) => l.textContent,
+    );
+    expect(labels).toEqual(["Displacement ux [mm]", "Force Fx [N]"]);
   });
 
   it("exports the script and a picture of the view", async () => {

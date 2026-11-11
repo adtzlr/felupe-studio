@@ -9,7 +9,7 @@
   "properties": {
     "schema_version": {
       "description": "Version of this schema.",
-      "const": 2
+      "const": 3
     },
     "commands": {
       "type": "array",
@@ -99,6 +99,9 @@
     "Command": {
       "oneOf": [
         {
+          "$ref": "#/$defs/ModelSettings"
+        },
+        {
           "$ref": "#/$defs/MeshImport"
         },
         {
@@ -167,6 +170,36 @@
         "cell_type": {
           "description": "Type of the solid cells to import, if the file has more than one (one mesh per cell type).",
           "enum": ["tetra", "tetra10", "hexahedron", "hexahedron20", "hexahedron27"]
+        }
+      }
+    },
+    "ModelSettings": {
+      "description": "The settings of the model, at most once. The units say what the numbers mean: FElupe has no units, nothing is converted.",
+      "type": "object",
+      "required": ["command", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "model.settings"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "units": {
+          "description": "The units of lengths and forces, which give the units of the stresses (e.g. mm and N give MPa). Without units, the numbers have none.",
+          "type": "object",
+          "required": ["length", "force"],
+          "additionalProperties": false,
+          "properties": {
+            "length": {
+              "description": "Unit of the coordinates and the displacements.",
+              "enum": ["mm", "m"]
+            },
+            "force": {
+              "description": "Unit of the forces.",
+              "enum": ["N", "kN"]
+            }
+          }
         }
       }
     },
@@ -269,6 +302,7 @@
           "properties": {
             "mu": {
               "x-label": "μ",
+              "x-quantity": "stress",
               "description": "Shear modulus",
               "type": "number",
               "exclusiveMinimum": 0,
@@ -276,6 +310,7 @@
             },
             "bulk": {
               "x-label": "K",
+              "x-quantity": "stress",
               "description": "Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.",
               "type": "number",
               "exclusiveMinimum": 0
@@ -308,6 +343,7 @@
           "properties": {
             "mu": {
               "x-label": "μ",
+              "x-quantity": "stress",
               "description": "Shear modulus",
               "type": "number",
               "exclusiveMinimum": 0,
@@ -315,6 +351,7 @@
             },
             "lmbda": {
               "x-label": "λ",
+              "x-quantity": "stress",
               "description": "First Lamé parameter",
               "type": "number",
               "minimum": 0,
@@ -348,6 +385,7 @@
           "properties": {
             "C10": {
               "x-label": "C₁₀",
+              "x-quantity": "stress",
               "description": "Material parameter of the first invariant",
               "type": "number",
               "exclusiveMinimum": 0,
@@ -355,12 +393,14 @@
             },
             "C01": {
               "x-label": "C₀₁",
+              "x-quantity": "stress",
               "description": "Material parameter of the second invariant",
               "type": "number",
               "default": 0.1
             },
             "bulk": {
               "x-label": "K",
+              "x-quantity": "stress",
               "description": "Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.",
               "type": "number",
               "exclusiveMinimum": 0,
@@ -394,6 +434,7 @@
           "properties": {
             "E": {
               "x-label": "E",
+              "x-quantity": "stress",
               "description": "Young's modulus",
               "type": "number",
               "exclusiveMinimum": 0,
@@ -479,9 +520,11 @@
                   "$ref": "#/$defs/Axis"
                 },
                 "value": {
+                  "x-quantity": "length",
                   "type": "number"
                 },
                 "atol": {
+                  "x-quantity": "length",
                   "description": "Absolute tolerance (default 1e-8).",
                   "type": "number",
                   "exclusiveMinimum": 0
@@ -495,6 +538,7 @@
               "additionalProperties": false,
               "properties": {
                 "points": {
+                  "x-quantity": "length",
                   "type": "array",
                   "minItems": 1,
                   "items": {
@@ -502,6 +546,7 @@
                   }
                 },
                 "atol": {
+                  "x-quantity": "length",
                   "description": "Absolute tolerance (default 1e-8).",
                   "type": "number",
                   "exclusiveMinimum": 0
@@ -542,6 +587,7 @@
           "$ref": "#/$defs/Name"
         },
         "coordinates": {
+          "x-quantity": "length",
           "$ref": "#/$defs/Coordinates"
         }
       }
@@ -571,7 +617,8 @@
           }
         },
         "value": {
-          "description": "Prescribed displacement of the constrained components (default 0).",
+          "x-quantity": "displacement",
+          "description": "Prescribed displacement of the constrained components (default 0); a rotation in rad at a rotation point.",
           "type": "number"
         }
       }
@@ -726,6 +773,7 @@
           "$ref": "#/$defs/Axis"
         },
         "compression": {
+          "x-quantity": "displacement",
           "description": "Displacement of the moving face along the normal, held during the shear (default 0).",
           "type": "number"
         },
@@ -793,6 +841,7 @@
           "$ref": "#/$defs/Name"
         },
         "force": {
+          "x-quantity": "force",
           "description": "The force fx, fy, fz at every point.",
           "$ref": "#/$defs/Coordinates"
         }
@@ -871,10 +920,12 @@
           "$ref": "#/$defs/Name"
         },
         "start": {
+          "x-quantity": "ramped",
           "description": "Value at the start of the step (default 0).",
           "type": "number"
         },
         "end": {
+          "x-quantity": "ramped",
           "description": "Value at the end of the step.",
           "type": "number"
         }

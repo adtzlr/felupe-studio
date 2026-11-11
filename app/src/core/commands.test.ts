@@ -4,7 +4,7 @@ import type { Command, CommandList } from "./commands";
 
 // The same command list as the Python fixture, checked by the TypeScript compiler.
 const twoSections: CommandList = {
-  schema_version: 2,
+  schema_version: 3,
   commands: [
     {
       command: "mesh.import",
