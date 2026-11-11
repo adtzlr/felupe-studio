@@ -1,6 +1,9 @@
 // Stroke icons (24 × 24), drawn with currentColor.
 const PATHS = {
   logo: "M3 3 H21 V21 H3 Z M9 3 V21 M15 3 V21 M3 9 H21 M3 15 H21",
+  // the browser of the model as a drawer of narrow windows (#131)
+  browser:
+    "M4 5 H20 M4 5 V19 H20 V5 M9 5 V19 M5.5 9 H7.5 M5.5 12 H7.5 M5.5 15 H7.5",
   new: "M6 3 H14 L19 8 V21 H6 Z M14 3 V8 H19 M12.5 11 V17 M9.5 14 H15.5",
   open: "M3 7 V19 H21 V9 H11 L9 7 Z",
   save: "M12 3 V14 M7 9 L12 14 L17 9 M4 17 V20 H20 V17",

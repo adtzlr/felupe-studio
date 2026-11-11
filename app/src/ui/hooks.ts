@@ -114,3 +114,21 @@ export function useViewKeys(
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [active, viewer]);
 }
+
+/** Whether a media query matches, e.g. the narrow windows of the drawers (#131). */
+export function useMedia(query: string): boolean {
+  const media = () =>
+    typeof window.matchMedia === "function"
+      ? window.matchMedia(query)
+      : undefined;
+  const [matches, setMatches] = useState(() => media()?.matches ?? false);
+  useEffect(() => {
+    const list = media();
+    if (!list) return;
+    const update = () => setMatches(list.matches);
+    update();
+    list.addEventListener?.("change", update);
+    return () => list.removeEventListener?.("change", update);
+  }, [query]);
+  return matches;
+}

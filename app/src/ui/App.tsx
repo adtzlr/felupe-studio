@@ -22,7 +22,7 @@ import { AboutDialog } from "./AboutDialog";
 import { CreateDialog } from "./CreateDialog";
 import { Footer } from "./Footer";
 import { type ExportItem, Header } from "./Header";
-import { useJobs, useMeshFiles, useRuntime, useStore } from "./hooks";
+import { useJobs, useMedia, useMeshFiles, useRuntime, useStore } from "./hooks";
 import { ImportMeshDialog } from "./ImportMeshDialog";
 import { Inspector } from "./Inspector";
 import { JobPanel } from "./JobPanel";
@@ -72,6 +72,9 @@ function downloadFile(name: string, data: string | Blob) {
   URL.revokeObjectURL(url);
 }
 
+/** The windows in which the browser and the properties are drawers (#131). */
+export const NARROW = "(max-width: 1000px)";
+
 const isProject = (file: File) =>
   file.name.endsWith(SUFFIX) || file.name.endsWith(".json");
 
@@ -101,6 +104,9 @@ export function App({
   const notes = fileNotes(store.commands, files);
   const [workspace, setWorkspace] = useState<Workspace>("model");
   const [tab, setTab] = useState("mesh");
+  // narrow windows show the browser and the properties as drawers (#131)
+  const narrow = useMedia(NARROW);
+  const [browserOpen, setBrowserOpen] = useState(false);
   // the script view replaces the viewport while its ribbon tab is open (#130)
   const scriptShown = workspace === "model" && tab === "script";
   const [fileName, setFileName] = useState(`untitled${SUFFIX}`);
@@ -443,6 +449,7 @@ export function App({
     else if (is("help")) setHelp("shortcuts");
     else if (is("delete") && object) removeSelected(selected!);
     else if (is("rename") && object) renameSelected();
+    else if (is("escape") && narrow && browserOpen) setBrowserOpen(false);
     else if (is("escape") && selected !== undefined) select(undefined);
     else if (isNavigating(event.target) || workspace !== "results") return;
     else if (is("substep-previous")) moveSubstep("previous");
@@ -484,6 +491,8 @@ export function App({
         onSave={() => void save()}
         onShortcuts={() => setHelp("shortcuts")}
         onAbout={() => setHelp("about")}
+        browserOpen={narrow && browserOpen}
+        onBrowser={() => setBrowserOpen(!browserOpen)}
         exports={exports}
         solve={{
           blocker,
@@ -577,13 +586,26 @@ export function App({
           />
         }
       />
-      <div class={showInspector ? "body inspecting" : "body"}>
+      <div
+        class={[
+          "body",
+          showInspector && "inspecting",
+          narrow && browserOpen && "browser-open",
+        ]
+          .filter(Boolean)
+          .join(" ")}
+      >
         <Sidebar
           store={store}
           notes={notes}
           selected={selected}
           hidden={hidden}
-          onSelect={select}
+          onSelect={(id) => {
+            select(id);
+            // the properties replace the browser drawer
+            if (narrow) setBrowserOpen(false);
+          }}
+          onClose={narrow ? () => setBrowserOpen(false) : undefined}
           onToggleVisible={toggleVisible}
         />
         <div class="views">

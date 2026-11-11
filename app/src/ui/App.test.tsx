@@ -25,7 +25,7 @@ import type {
   ScriptView as ScriptViewData,
 } from "../worker/client";
 import type { JobEvent, JobResult, ResultScene } from "../worker/protocol";
-import { App } from "./App";
+import { App, NARROW } from "./App";
 
 afterEach(cleanup);
 
@@ -216,6 +216,51 @@ describe("App shell", () => {
     expect(screen.getByRole("status").textContent).toContain("0 issues");
     act(() => store.apply({ type: "remove", name: "umat_hard" }));
     expect(screen.getByRole("status").textContent).toContain("1 issue");
+  });
+});
+
+describe("narrow windows (#131)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("show the browser as a drawer, which closes after a selection", () => {
+    // a window that matches the media query of the drawers
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === NARROW,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    render(<App store={new ModelStore(fixture as CommandList)} />);
+    const toggle = screen.getByRole("button", { name: "Browser" });
+    const body = document.querySelector(".body")!;
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(body.classList.contains("browser-open")).toBe(false);
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(body.classList.contains("browser-open")).toBe(true);
+    // Esc closes the drawer before it clears a selection
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(body.classList.contains("browser-open")).toBe(false);
+
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("treeitem", { name: "umat_soft" }));
+    expect(body.classList.contains("browser-open")).toBe(false);
+    expect(screen.getByRole("region", { name: "Properties" })).toBeTruthy();
+
+    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("button", { name: "Close the browser" }));
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("keep the browser in wide windows", () => {
+    render(<App store={new ModelStore(fixture as CommandList)} />);
+    expect(
+      screen.queryByRole("button", { name: "Close the browser" }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole("treeitem", { name: "umat_soft" }));
+    expect(
+      document.querySelector(".body")!.classList.contains("browser-open"),
+    ).toBe(false);
   });
 });
 

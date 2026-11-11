@@ -18,6 +18,8 @@ Every object of a model is a FElupe object, and every action creates or changes 
 - **Viewport:** the meshes with their point sets, boundaries, control points, constraints and loads. The toolbar has the views, *Fit*, *Color by* (mesh, cell set or section) and *Nodes*.
 - **Footer:** the command line, the state of Python, the number of commands and issues, and the history: the commands in their order, with Undo (Ctrl+Z) and Redo (Ctrl+Shift+Z).
 
+In narrow windows (up to 1000 px, e.g. a tablet or a small laptop window), the browser and the properties are drawers over the viewport: the button left of the logo opens the browser, a selection opens the properties, Esc closes them. The ribbon is one row that scrolls.
+
 The project is kept in the browser with its mesh files: a reload restores it. To keep it, save the project file and keep it next to its mesh files.
 
 ## Samples

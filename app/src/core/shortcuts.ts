@@ -63,7 +63,8 @@ export const SHORTCUTS: ShortcutGroup[] = [
       {
         id: "escape",
         keys: [["Esc"]],
-        action: "Close a dialog or a menu, clear a pick or the selection",
+        action:
+          "Close a dialog, a menu or the browser drawer, clear a pick or the selection",
       },
     ],
   },
