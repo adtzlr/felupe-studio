@@ -126,6 +126,9 @@ export interface CellSetFromTag {
   command: "cellset.from_tag";
   name: Name;
   mesh: Name;
+  /**
+   * Value of the tag of the cells, e.g. 1.
+   */
   value: number;
 }
 /**
@@ -501,6 +504,8 @@ export interface StepAdd {
      */
     num: number;
     /**
+     * The ramped items, each with its own values.
+     *
      * @minItems 1
      */
     items: [RampItem, ...RampItem[]];
@@ -513,12 +518,21 @@ export interface StepAdd {
  * via the `definition` "RampItem".
  */
 export interface RampItem {
-  target: Name;
+  /**
+   * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
+   */
+  target: string;
+  /**
+   * Value at the start of the step (default 0).
+   */
   start?: number;
+  /**
+   * Value at the end of the step.
+   */
   end: number;
 }
 /**
- * A job evaluating steps (fem.Job). With a curve boundary, the reaction force of this boundary is recorded over its displacement (fem.CharacteristicCurve).
+ * A job evaluating steps one after another (fem.Job). With a curve, the force-displacement curve of a boundary, a load case or a point load is recorded (fem.CharacteristicCurve).
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "JobAdd".
@@ -527,10 +541,15 @@ export interface JobAdd {
   command: "job.add";
   name: Name;
   /**
+   * Steps evaluated one after another.
+   *
    * @minItems 1
    */
   steps: [Name, ...Name[]];
-  curve?: Name;
+  /**
+   * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
+   */
+  curve?: string;
   /**
    * Retry a substep that does not converge with smaller increments (fem.CutbackPlugin).
    */

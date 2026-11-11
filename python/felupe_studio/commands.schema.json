@@ -206,6 +206,7 @@
           "$ref": "#/$defs/Name"
         },
         "value": {
+          "description": "Value of the tag of the cells, e.g. 1.",
           "type": "integer"
         }
       }
@@ -848,6 +849,7 @@
               "minimum": 1
             },
             "items": {
+              "description": "The ramped items, each with its own values.",
               "type": "array",
               "minItems": 1,
               "items": {
@@ -865,18 +867,21 @@
       "additionalProperties": false,
       "properties": {
         "target": {
+          "description": "The ramped boundary, load case or point load.",
           "$ref": "#/$defs/Name"
         },
         "start": {
+          "description": "Value at the start of the step (default 0).",
           "type": "number"
         },
         "end": {
+          "description": "Value at the end of the step.",
           "type": "number"
         }
       }
     },
     "JobAdd": {
-      "description": "A job evaluating steps (fem.Job). With a curve boundary, the reaction force of this boundary is recorded over its displacement (fem.CharacteristicCurve).",
+      "description": "A job evaluating steps one after another (fem.Job). With a curve, the force-displacement curve of a boundary, a load case or a point load is recorded (fem.CharacteristicCurve).",
       "type": "object",
       "required": ["command", "name", "steps"],
       "additionalProperties": false,
@@ -888,6 +893,7 @@
           "$ref": "#/$defs/Name"
         },
         "steps": {
+          "description": "Steps evaluated one after another.",
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
@@ -896,6 +902,7 @@
           }
         },
         "curve": {
+          "description": "The boundary, load case or point load of the force-displacement curve.",
           "$ref": "#/$defs/Name"
         },
         "cutback": {

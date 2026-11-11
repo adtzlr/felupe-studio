@@ -24,6 +24,8 @@ Every action in FElupe Studio is a command. A project is a command list:
 
 The JSON schema [`python/felupe_studio/commands.schema.json`](../python/felupe_studio/commands.schema.json) is the single source of truth ([ADR 0003](adr/0003-command-interpretation.md)). The TypeScript types in `app/src/core/commands.ts` are generated from it with `npm run schema:types`; CI checks that they are up to date.
 
+The [command reference](reference.md) lists all properties of the commands; it is generated from the schema by `python docs/make_reference.py`, and a test checks that it is up to date. The [user guide](guide.md) shows how to build a model in the app.
+
 ## Commands of schema version 2
 
 | Command             | Creates                     | References                                                   | FElupe                                                                                                                                                               |
