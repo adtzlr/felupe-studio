@@ -12,7 +12,7 @@ Every object of a model is a FElupe object, and every action creates or changes 
 
 ## The window
 
-- **Header:** New project, Open project, Samples, Save project, Undo and Redo, the Export menu and **Solve**.
+- **Header:** the menus **File** (new, open, samples, save and the exports) and **Help** (this guide, the command reference, the keyboard shortcuts and *About* with the versions of FElupe, Python and Pyodide), buttons for Open, Save, Export, Undo and Redo, and **Solve**.
 - **Ribbon:** the workspaces **Model** and **Results**. The tabs of the model create its objects in the order in which a model is usually built: Mesh, Materials, Sections, Loads & BCs, Steps & Job. A button that cannot be used yet tells you what is missing, e.g. "Create a cell set and a material first."
 - **Model browser** (left): the objects of the model in groups. A number at an object counts its issues. A click on an object selects it in the viewport and opens its **properties**, where you edit and **Apply** or **Delete** it.
 - **Viewport:** the meshes with their point sets, boundaries, control points, constraints and loads. The toolbar has the views, *Fit*, *Color by* (mesh, cell set or section) and *Nodes*.
@@ -22,7 +22,7 @@ The project is kept in the browser with its mesh files: a reload restores it. To
 
 ## Samples
 
-**Samples** opens a ready-made model with its mesh files. They show the features step by step:
+**File ▸ Samples…** opens a ready-made model with its mesh files. They show the features step by step:
 
 | Sample | Shows |
 | --- | --- |

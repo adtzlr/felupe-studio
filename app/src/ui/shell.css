@@ -1675,60 +1675,177 @@ button {
   background: var(--color-accent-soft);
 }
 
-/* the exports in the header */
-.export-menu {
+/* the menus of the header: File, Help and Export (#126) */
+.menubar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.menu-root {
   position: relative;
 }
 
-.export-list {
+.menu-button {
+  min-height: var(--control-height);
+  padding: 0 var(--space-10);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.menu-button:hover,
+.menu-button[aria-expanded="true"] {
+  background: var(--color-hover);
+  color: var(--color-text);
+}
+
+.header-separator {
+  width: 1px;
+  height: 20px;
+  margin: 0 var(--space-6);
+  background: var(--color-border-strong);
+}
+
+.menu {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
   z-index: var(--z-menu);
-  width: 300px;
-  margin: 0;
+  box-sizing: border-box;
+  min-width: 220px;
+  max-width: 320px;
   padding: var(--space-4);
-  list-style: none;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-lg);
   background: var(--color-surface);
   box-shadow: var(--shadow-md);
 }
 
-.export-list button {
+.menu-item {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  box-sizing: border-box;
   width: 100%;
-  padding: var(--space-8) var(--space-10);
+  padding: var(--space-6) var(--space-10);
   border: 0;
   border-radius: var(--radius-md);
   background: none;
   color: var(--color-text);
   font: inherit;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
 }
 
-.export-list button:hover:not([aria-disabled="true"]) {
+.menu-item:hover:not([aria-disabled="true"]),
+.menu-item:focus-visible {
   background: var(--color-hover);
 }
 
-.export-list button:focus-visible {
+.menu-item:focus-visible {
   outline-offset: -2px;
 }
 
-.export-list button[aria-disabled="true"] {
+.menu-item[aria-disabled="true"] {
   cursor: not-allowed;
   opacity: 0.55;
 }
 
-.export-label {
-  font-weight: var(--weight-medium);
+.menu-hint {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
 }
 
-.export-hint {
+.menu-heading {
+  padding: var(--space-6) var(--space-10) var(--space-2);
   color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.menu-separator {
+  height: 1px;
+  margin: var(--space-4) var(--space-6);
+  background: var(--color-border);
+}
+
+/* Help: about and keyboard shortcuts */
+.about {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.about p {
+  margin: 0;
+  line-height: var(--leading-normal);
+}
+
+.about a,
+.shortcuts a {
+  color: var(--color-accent);
+}
+
+.about-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-16);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shortcuts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  max-height: min(65vh, 560px);
+  overflow: auto;
+}
+
+.shortcuts h3 {
+  margin: 0 0 var(--space-6);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.shortcuts dl {
+  margin: 0;
+}
+
+.shortcut {
+  display: grid;
+  grid-template-columns: minmax(150px, auto) 1fr;
+  gap: var(--space-12);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.shortcut dt {
+  white-space: nowrap;
+}
+
+.shortcut dd {
+  margin: 0;
+}
+
+kbd {
+  padding: 0 var(--space-6);
+  border: 1px solid var(--color-border-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--color-raised);
+  font-family: var(--font-sans);
   font-size: var(--text-xs);
 }
 

@@ -19,7 +19,7 @@ With real Pyodide, after the deployment of `main` has finished. Use the cases in
 - [ ] `bar_two_materials` (`u` and `u-p-J`): Solve shows progress, then Show results; the contours of displacement, strain and stress change with the substep; the curve matches `results.json` of the case.
 - [ ] `bar_mooney_rivlin`: Solve loads tensortrax first and runs.
 - [ ] `bar_cell_types` (hexahedrons and tetrahedrons in one mesh file) shows results; with the formulation of a section changed to `u-p-J`, the tetrahedrons use the MINI element.
-- [ ] Every sample (header ▸ Samples) opens, solves and shows results. *Rubber block with a rigid plate*: the top face stays plane and tilts with the plate; the control points show the force at `plate` and the moment at `tilt`; Export ▸ Control points (CSV) has all substeps.
+- [ ] Every sample (File ▸ Samples…) opens, solves and shows results. *Rubber block with a rigid plate*: the top face stays plane and tilts with the plate; the control points show the force at `plate` and the moment at `tilt`; Export ▸ Control points (CSV) has all substeps.
 - [ ] A project file of the previous schema version (e.g. saved with the previous release) opens and is migrated; saved again, it has the current schema version.
 - [ ] Picking: a click on a face creates a point set of its plane; with Nodes shown, Shift+click picks nodes; *Control point at center* creates a control point.
 - [ ] Cancel a running job: Python loads again and Solve works again without opening the files again.

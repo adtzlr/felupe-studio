@@ -47,6 +47,16 @@ const readyValue: Ready = {
   timings: { pyodide: 1, packages: 1, felupe: 1, total: 3 },
 };
 
+/** Choose an item of the File menu of the header. */
+const fileMenu = (name: string) => {
+  fireEvent.click(screen.getByRole("button", { name: "File" }));
+  fireEvent.click(
+    within(screen.getByRole("menu", { name: "File" })).getByRole("menuitem", {
+      name,
+    }),
+  );
+};
+
 describe("App shell", () => {
   it("has the regions of the layout", () => {
     render(<App store={new ModelStore()} />);
@@ -197,6 +207,103 @@ describe("App shell", () => {
     expect(screen.getByRole("status").textContent).toContain("0 issues");
     act(() => store.apply({ type: "remove", name: "umat_hard" }));
     expect(screen.getByRole("status").textContent).toContain("1 issue");
+  });
+});
+
+describe("menus of the header", () => {
+  it("has File and Help menus, operated with the keyboard", () => {
+    render(<App store={new ModelStore()} />);
+    const file = screen.getByRole("button", { name: "File" });
+    expect(file.getAttribute("aria-haspopup")).toBe("menu");
+    fireEvent.keyDown(file, { key: "ArrowDown" });
+    const menu = screen.getByRole("menu", { name: "File" });
+    const items = within(menu).getAllByRole("menuitem");
+    expect(items.map((item) => item.textContent)).toEqual([
+      "New project",
+      "Open project…",
+      "Samples…",
+      "Save project",
+      "Python script",
+      "Results of the job (XDMF)",
+      "Results of the substep (VTU)",
+      "Picture of the view",
+    ]);
+    expect(within(menu).getByRole("group", { name: "Export" })).toBeTruthy();
+    expect(document.activeElement).toBe(items[0]);
+    fireEvent.keyDown(items[0], { key: "ArrowUp" });
+    expect(document.activeElement).toBe(items.at(-1));
+    fireEvent.keyDown(items.at(-1)!, { key: "Home" });
+    fireEvent.keyDown(items[0], { key: "ArrowDown" });
+    expect(document.activeElement).toBe(items[1]);
+    // a blocked item says why in its tooltip
+    expect(items[4].getAttribute("aria-disabled")).toBe("true");
+    expect(items[4].title).toBeTruthy();
+    fireEvent.keyDown(items[1], { key: "Escape" });
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(document.activeElement).toBe(file);
+
+    fireEvent.keyDown(screen.getByRole("button", { name: "Help" }), {
+      key: "ArrowUp",
+    });
+    const help = screen.getByRole("menu", { name: "Help" });
+    const links = within(help).getAllByRole("menuitem");
+    expect(document.activeElement).toBe(links.at(-1));
+    expect(links.map((item) => item.textContent)).toEqual([
+      "User guide",
+      "Command reference",
+      "Keyboard shortcuts",
+      "Report an issue",
+      "About FElupe Studio",
+    ]);
+    expect((links[0] as HTMLAnchorElement).href).toMatch(/docs\/guide\.md$/);
+    expect((links[1] as HTMLAnchorElement).href).toMatch(
+      /docs\/reference\.md$/,
+    );
+    expect((links[3] as HTMLAnchorElement).target).toBe("_blank");
+  });
+
+  it("shows the versions and the keyboard shortcuts", async () => {
+    render(
+      <App
+        store={new ModelStore()}
+        client={client(Promise.resolve(readyValue))}
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.getByText(/FElupe 12.0.0 ready/)).toBeTruthy(),
+    );
+    const help = (name: string) => {
+      fireEvent.click(screen.getByRole("button", { name: "Help" }));
+      fireEvent.click(screen.getByRole("menuitem", { name }));
+    };
+    help("About FElupe Studio");
+    const about = screen.getByRole("dialog", { name: "FElupe Studio" });
+    const versions = within(about).getByLabelText("Versions").textContent;
+    expect(versions).toContain("FElupe12.0.0");
+    expect(versions).toContain("Python3.14.2");
+    expect(versions).toContain("Pyodide314.0.7");
+    expect(versions).toMatch(/meshio\d/);
+    expect(
+      within(about).getByRole("link", { name: "Pyodide benchmark" }),
+    ).toBeTruthy();
+    expect(
+      within(about).getByRole("link", { name: "GPL-3.0-or-later" }),
+    ).toBeTruthy();
+    fireEvent.keyDown(about, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    help("Keyboard shortcuts");
+    const shortcuts = screen.getByRole("dialog", {
+      name: "Keyboard shortcuts",
+    });
+    const general = within(shortcuts).getByRole("region", { name: "General" });
+    expect(general.textContent).toContain("Ctrl+ZUndo");
+    expect(general.textContent).toContain("Ctrl+Shift+Z or Ctrl+YRedo");
+  });
+
+  it("has no Tools tab: the benchmark is in Help ▸ About", () => {
+    render(<App store={new ModelStore()} />);
+    expect(screen.queryByRole("tab", { name: "Tools" })).toBeNull();
   });
 });
 
@@ -585,8 +692,8 @@ describe("solve", () => {
     // the results of the job and of the shown substep as files
     const exportItem = (name: RegExp) => {
       fireEvent.click(screen.getByRole("button", { name: "Export" }));
-      return within(screen.getByRole("list", { name: "Exports" })).getByRole(
-        "button",
+      return within(screen.getByRole("menu", { name: "Export" })).getByRole(
+        "menuitem",
         { name },
       );
     };
@@ -630,8 +737,8 @@ describe("solve", () => {
     const open = () =>
       fireEvent.click(screen.getByRole("button", { name: "Export" }));
     const item = (name: RegExp) =>
-      within(screen.getByRole("list", { name: "Exports" })).getByRole(
-        "button",
+      within(screen.getByRole("menu", { name: "Export" })).getByRole(
+        "menuitem",
         { name },
       );
     open();
@@ -642,7 +749,7 @@ describe("solve", () => {
       "reads the mesh files from its folder",
     );
     fireEvent.click(item(/Python script/));
-    expect(screen.queryByRole("list", { name: "Exports" })).toBeNull();
+    expect(screen.queryByRole("menu", { name: "Export" })).toBeNull();
     await waitFor(() =>
       expect(download).toHaveBeenCalledWith(
         "untitled.py",
@@ -678,7 +785,7 @@ describe("solve", () => {
     fireEvent.click(item(/Python script/));
     expect(script).toHaveBeenCalledTimes(1);
     fireEvent.keyDown(document, { key: "Escape" });
-    expect(screen.queryByRole("list", { name: "Exports" })).toBeNull();
+    expect(screen.queryByRole("menu", { name: "Export" })).toBeNull();
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "Export" }),
     );
@@ -738,7 +845,7 @@ describe("samples", () => {
       new Response("", { status: 404 })) as typeof fetch;
     render(<App store={store} fetchSample={missing} />);
     act(() => store.apply({ type: "remove", name: "job_1" }));
-    fireEvent.click(screen.getByRole("button", { name: "Samples" }));
+    fileMenu("Samples…");
     const dialog = screen.getByRole("dialog", { name: "Samples" });
     expect(within(dialog).getByRole("note").textContent).toContain(
       "unsaved changes",
@@ -807,7 +914,7 @@ describe("session in the browser", () => {
     );
 
     // a new project (with a confirmation of the unsaved changes) clears it
-    fireEvent.click(screen.getByRole("button", { name: "New project" }));
+    fileMenu("New project");
     const dialog = screen.getByRole("dialog", { name: "New project" });
     expect(dialog.textContent).toContain("discards them, also in this browser");
     fireEvent.click(
@@ -842,7 +949,7 @@ describe("session in the browser", () => {
       "The storage is blocked.",
     );
     // without changes, a new project needs no confirmation
-    fireEvent.click(screen.getByRole("button", { name: "New project" }));
+    fileMenu("New project");
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(store.commands).toEqual([]);
   });
