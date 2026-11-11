@@ -127,6 +127,27 @@ CHANGES = {
         ),
         find(d, "step_1").update(constraints=["glue", "fixed"]),
     ),
+    "point load ramped and recorded": lambda d: (
+        d["commands"].insert(
+            11,
+            {
+                "command": "load.add",
+                "name": "pull",
+                "points": "right",
+                "force": [1, 0, 0],
+            },
+        ),
+        find(d, "step_1")["ramp"]["items"].append({"target": "pull", "end": 1}),
+        find(d, "step_1").update(loads=["pull"]),
+        find(d, "job_1").update(curve="pull"),
+    ),
+    "point load of a cell set": lambda d: d["commands"].insert(
+        11,
+        {"command": "load.add", "name": "pull", "points": "hard", "force": [1, 0, 0]},
+    ),
+    "step with a load that is a boundary": lambda d: find(d, "step_1").update(
+        loads=["fixed"]
+    ),
     "duplicate name": lambda d: find(d, "soft").update(name="hard"),
     "mesh without tag": lambda d: find(d, "specimen").pop("tag"),
     "mesh with cell type": lambda d: find(d, "specimen").update(cell_type="tetra10"),

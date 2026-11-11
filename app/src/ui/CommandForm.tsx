@@ -13,12 +13,12 @@ import {
   type FieldSpec,
   fieldSpecs,
   getValue,
+  kindLabel,
   offered,
   sameDraft,
   setValue,
   toCommand,
 } from "../core/form";
-import { KIND_LABELS } from "../core/registry";
 import type { CommandType } from "../core/validate";
 
 interface Props {
@@ -314,7 +314,7 @@ export function CommandForm({
       }
       case "reference": {
         const names = offered(spec, draft, context);
-        const kind = KIND_LABELS[input.kind].toLowerCase();
+        const kind = kindLabel(input.kind);
         if (!input.multiple) {
           const current = typeof value === "string" ? value : "";
           const missing = current !== "" && !names.includes(current);

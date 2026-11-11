@@ -300,8 +300,14 @@ def codegen(document, evaluate=True, check_schema=True):
     else:
         out.append("boundaries = {}")
 
+    loads = {load["name"]: load for load in get("load.add")}
+
     def ramped(name, values):
-        """Items of a ramp: a boundary, or the moving boundaries of a load case."""
+        """Items of a ramp: a boundary, the moving boundaries of a load case, or a
+        point load (its force, scaled by the values)."""
+        if name in loads:
+            force = f"[{', '.join(map(repr, loads[name]['force']))}]"
+            return [f"{name}: np.outer({values}, {force})"]
         if name not in loadcases:
             return [f"boundaries[{_str(name)}]: {values}"]
         return [
@@ -310,7 +316,10 @@ def codegen(document, evaluate=True, check_schema=True):
         ]
 
     def curve(name):
-        """The boundary of a characteristic curve (of a load case: its first move)."""
+        """The boundary of a characteristic curve (of a load case: its first move), or
+        a point load (the displacement of its first point over its total force)."""
+        if name in loads:
+            return name
         if name in loadcases:
             name = f"{name}/{moving(loadcases[name])[0][0]}"
         return f"boundaries[{_str(name)}]"
@@ -334,14 +343,23 @@ def codegen(document, evaluate=True, check_schema=True):
                 args.append(f"rotationpoint={point}")
             out.append(_call(mpc["name"], "fem.MultiPointConstraint", args))
 
+    if loads:
+        out.append("\n# point loads: the force at every point, scaled by the ramps")
+        for load in loads.values():
+            force = f"[{', '.join(map(repr, load['force']))}]"
+            args = ["field", f"points={load['points']}", f"values={force}"]
+            out.append(_call(load["name"], "fem.PointLoad", args))
+
     # 6. steps and jobs
     steps = get("step.add")
     if steps:
         out.append("\n# steps")
         for step in steps:
             names = step.get("sections", [s["name"] for s in sections])
-            items = ["solid_" + n for n in names] + step.get(
-                "constraints", [c["name"] for c in constraints]
+            items = (
+                ["solid_" + n for n in names]
+                + step.get("constraints", [c["name"] for c in constraints])
+                + step.get("loads", list(loads))
             )
             lines = [_List(items, prefix="items=")]
             if "ramp" in step:
@@ -384,6 +402,11 @@ def codegen(document, evaluate=True, check_schema=True):
             args = [_List(job["steps"], prefix="steps=")]
             if "curve" in job:
                 args.append(f"boundary={curve(job['curve'])}")
+                if job["curve"] in loads:
+                    # the force of a load: the sum of the internal forces at its points
+                    reacting = [f"solid_{s['name']}" for s in sections]
+                    reacting += [c["name"] for c in constraints]
+                    args.append(_List(reacting, prefix="items="))
             if job.get("cutback", False):
                 args.append("plugins=[fem.CutbackPlugin()]")
             func = "fem.CharacteristicCurve" if "curve" in job else "fem.Job"

@@ -17,6 +17,7 @@ export type Command =
   | BoundaryAdd
   | LoadcaseAdd
   | MpcAdd
+  | LoadAdd
   | StepAdd
   | JobAdd;
 /**
@@ -60,6 +61,13 @@ export type Coordinates = [number, number, number];
  */
 export type LoadcaseAdd =
   LoadcaseUniaxial | LoadcaseBiaxial | LoadcasePlanar | LoadcaseShear;
+/**
+ * The coordinates x, y and z of a point.
+ *
+ * @minItems 3
+ * @maxItems 3
+ */
+export type Coordinates1 = [number, number, number];
 
 /**
  * A list of FElupe Studio commands. Objects are created by commands and referenced by their names.
@@ -443,6 +451,21 @@ export interface MpcAdd {
   rotation?: string;
 }
 /**
+ * A point load (fem.PointLoad): a force at every point of a point set or at a control point, an item of the steps. A ramp of a step scales the force.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "LoadAdd".
+ */
+export interface LoadAdd {
+  command: "load.add";
+  name: Name;
+  /**
+   * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
+   */
+  points: string;
+  force: Coordinates1;
+}
+/**
  * A step with all boundaries, optionally ramping items, each with its own values (fem.Step).
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
@@ -464,6 +487,12 @@ export interface StepAdd {
    */
   constraints?: [Name, ...Name[]];
   /**
+   * Point loads that are items of the step (default: all).
+   *
+   * @minItems 1
+   */
+  loads?: [Name, ...Name[]];
+  /**
    * Ramp the values of items with fem.math.linsteps([start, end], num), with the same number of increments for all items.
    */
   ramp?: {
@@ -478,7 +507,7 @@ export interface StepAdd {
   };
 }
 /**
- * A ramped item: a boundary (its value, e.g. a displacement) or a load case (the displacement of its moving faces).
+ * A ramped item: a boundary (its value, e.g. a displacement), a load case (the displacement of its moving faces) or a point load (a factor of its force).
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "RampItem".

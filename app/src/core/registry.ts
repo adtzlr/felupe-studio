@@ -95,6 +95,7 @@ export const KIND_LABELS: Record<Kind, string> = {
   pointset: "Point set",
   boundary: "Boundary",
   constraint: "Constraint",
+  load: "Load",
   step: "Step",
   job: "Job",
 };
@@ -314,6 +315,23 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     options: { constrained: AXES },
     initial: initialConstraint,
   },
+  "load.add": {
+    label: "Point load",
+    tab: "loads",
+    prefix: "load",
+    noun: "load",
+    fields: {
+      points: {
+        label: "Points",
+        hint: "A point set or a control point",
+      },
+      force: {
+        label: "Force",
+        hint: "fx, fy, fz at every point; a ramp of a step scales it",
+        default: [0, 0, 0],
+      },
+    },
+  },
   "step.add": {
     label: "Step",
     tab: "steps",
@@ -321,13 +339,14 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     fields: {
       sections: { label: "Sections", placeholder: "all" },
       constraints: { label: "Constraints", placeholder: "all" },
+      loads: { label: "Loads", placeholder: "all" },
       ramp: { label: "Ramp" },
       "ramp.num": { label: "Increments", default: 5 },
       "ramp.items": {
         label: "Ramped",
-        hint: "Boundaries or load cases, each from its start to its end value",
+        hint: "Boundaries, load cases or loads (a factor of the force), each from its start to its end value",
       },
-      "ramp.items.target": { label: "Boundary", unique: true },
+      "ramp.items.target": { label: "Item", unique: true },
       "ramp.items.start": { label: "Start", placeholder: "0" },
       "ramp.items.end": { label: "End", default: 1 },
     },

@@ -26,6 +26,7 @@ KINDS = {
     # a load case is referenced like a boundary (ramps of steps, curves of jobs)
     "loadcase.add": "boundary",
     "mpc.add": "constraint",
+    "load.add": "load",
     "step.add": "step",
     "job.add": "job",
 }
@@ -33,7 +34,7 @@ KINDS = {
 AXES = ("x", "y", "z")
 
 # kinds of objects that a step can ramp (a load case is a boundary)
-RAMPED = ("boundary",)
+RAMPED = ("boundary", "load")
 
 # references of a command: field name -> (kind, is a list)
 REFERENCES = {
@@ -46,8 +47,14 @@ REFERENCES = {
         "center": ("pointset", False),
         "rotation": ("pointset", False),
     },
-    "step.add": {"sections": ("section", True), "constraints": ("constraint", True)},
-    "job.add": {"steps": ("step", True), "curve": ("boundary", False)},
+    "load.add": {"points": ("pointset", False)},
+    "step.add": {
+        "sections": ("section", True),
+        "constraints": ("constraint", True),
+        "loads": ("load", True),
+    },
+    # the curve of a job: a boundary (force-displacement) or a point load
+    "job.add": {"steps": ("step", True), "curve": (("boundary", "load"), False)},
 }
 
 
@@ -98,16 +105,19 @@ def _reference_errors(commands):
         name = cmd["name"]
 
         # references must point to objects of the right kind, created before
-        for field, (ref_kind, is_list) in REFERENCES.get(cmd["command"], {}).items():
+        for field, (ref_kinds, is_list) in REFERENCES.get(cmd["command"], {}).items():
             if field not in cmd:
                 continue
+            if isinstance(ref_kinds, str):
+                ref_kinds = (ref_kinds,)
+            ref_kind = " or ".join(ref_kinds)
             for ref in cmd[field] if is_list else [cmd[field]]:
                 if ref not in defined:
                     messages.append(
                         f"commands/{i}: {cmd['command']} '{name}' references "
                         f"unknown {ref_kind} '{ref}' in '{field}'."
                     )
-                elif KINDS[defined[ref][1]["command"]] != ref_kind:
+                elif KINDS[defined[ref][1]["command"]] not in ref_kinds:
                     other = KINDS[defined[ref][1]["command"]]
                     messages.append(
                         f"commands/{i}: '{ref}' in '{field}' of '{name}' is a "
@@ -121,7 +131,8 @@ def _reference_errors(commands):
                 kind = KINDS[defined[ref][1]["command"]] if ref in defined else None
                 if kind not in RAMPED:
                     messages.append(
-                        f"commands/{i}: step '{name}' ramps unknown boundary '{ref}'."
+                        f"commands/{i}: step '{name}' ramps unknown boundary or "
+                        f"load '{ref}'."
                     )
             for ref in sorted({t for t in targets if targets.count(t) > 1}):
                 messages.append(f"commands/{i}: step '{name}' ramps '{ref}' twice.")

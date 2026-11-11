@@ -148,6 +148,18 @@ describe("deriveTree", () => {
     expect(find(deriveTree(commands), "group:constraint")).toBeUndefined();
   });
 
+  it("lists the point loads in a group of their own", () => {
+    const load: Command = {
+      command: "load.add",
+      name: "pull",
+      points: "right",
+      force: [0, 0, -10],
+    };
+    const tree = deriveTree([...commands, load]);
+    expect(find(tree, "group:load")!.label).toBe("Loads");
+    expect(find(tree, "pull")!.detail).toBe("right · (0, 0, -10)");
+  });
+
   it("attaches validation issues", () => {
     const broken = commands.map((c) =>
       c.name === "section_hard" ? { ...c, material: "missing" } : c,

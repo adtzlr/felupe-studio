@@ -91,6 +91,15 @@ describe("fieldSpecs", () => {
       "multiplier:number",
       "rotation:reference",
     ]);
+    expect(summary("load.add", {} as Draft)).toEqual([
+      "name:name*",
+      "points:reference*",
+      "force:numbers*",
+    ]);
+    const curve = fieldSpecs("job.add", find("job_1")).find(
+      (s) => s.key === "curve",
+    )!;
+    expect(curve.input).toMatchObject({ kind: ["boundary", "load"] });
     expect(summary("point.add", {} as Draft)).toEqual([
       "name:name*",
       "coordinates:numbers*",
@@ -99,6 +108,7 @@ describe("fieldSpecs", () => {
       "name:name*",
       "sections:reference",
       "constraints:reference",
+      "loads:reference",
       "ramp:toggle",
       "ramp.num:number*",
       "ramp.items:rows*",
@@ -178,8 +188,8 @@ describe("fieldSpecs", () => {
       ["start", "ramp.items.start", "number", false],
       ["end", "ramp.items.end", "number", true],
     ]);
-    expect(columns[0]).toMatchObject({ unique: true, label: "Boundary" });
-    expect(columns[0].input).toMatchObject({ kind: "boundary" });
+    expect(columns[0]).toMatchObject({ unique: true, label: "Item" });
+    expect(columns[0].input).toMatchObject({ kind: ["boundary", "load"] });
   });
 
   it("has a label for every field of every variant", () => {
@@ -495,6 +505,7 @@ describe("editing a draft", () => {
       "name:name*",
       "sections:reference",
       "constraints:reference",
+      "loads:reference",
       "ramp:toggle",
     ]);
     const on = setValue("step.add", off, ["ramp"], {}, context);
@@ -540,7 +551,7 @@ describe("editing a draft", () => {
     });
     const twice = setValue("step.add", two, second[0].path, "move", context);
     expect(draftErrors("step.add", twice, editing("step_1"))).toEqual({
-      "ramp.items": "Each boundary may appear only once.",
+      "ramp.items": "Each item may appear only once.",
     });
     const empty = setValue("step.add", two, second[2].path, undefined, context);
     expect(draftErrors("step.add", empty, editing("step_1"))).toEqual({

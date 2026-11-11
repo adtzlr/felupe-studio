@@ -132,6 +132,9 @@
           "$ref": "#/$defs/MpcAdd"
         },
         {
+          "$ref": "#/$defs/LoadAdd"
+        },
+        {
           "$ref": "#/$defs/StepAdd"
         },
         {
@@ -772,6 +775,28 @@
         }
       }
     },
+    "LoadAdd": {
+      "description": "A point load (fem.PointLoad): a force at every point of a point set or at a control point, an item of the steps. A ramp of a step scales the force.",
+      "type": "object",
+      "required": ["command", "name", "points", "force"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "load.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "points": {
+          "description": "The point set or the control point of the load.",
+          "$ref": "#/$defs/Name"
+        },
+        "force": {
+          "description": "The force fx, fy, fz at every point.",
+          "$ref": "#/$defs/Coordinates"
+        }
+      }
+    },
     "StepAdd": {
       "description": "A step with all boundaries, optionally ramping items, each with its own values (fem.Step).",
       "type": "object",
@@ -802,6 +827,15 @@
             "$ref": "#/$defs/Name"
           }
         },
+        "loads": {
+          "description": "Point loads that are items of the step (default: all).",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Name"
+          }
+        },
         "ramp": {
           "description": "Ramp the values of items with fem.math.linsteps([start, end], num), with the same number of increments for all items.",
           "type": "object",
@@ -825,7 +859,7 @@
       }
     },
     "RampItem": {
-      "description": "A ramped item: a boundary (its value, e.g. a displacement) or a load case (the displacement of its moving faces).",
+      "description": "A ramped item: a boundary (its value, e.g. a displacement), a load case (the displacement of its moving faces) or a point load (a factor of its force).",
       "type": "object",
       "required": ["target", "end"],
       "additionalProperties": false,

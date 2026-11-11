@@ -9,7 +9,7 @@ import {
   available,
 } from "./form";
 import { KIND_LABELS, REGISTRY, type Tab } from "./registry";
-import { type CommandType, type Kind, KINDS } from "./validate";
+import { type CommandType, type Kind, KINDS, kindsOf } from "./validate";
 
 export interface RibbonItem {
   /** Unique id, e.g. `material.add:NeoHooke`. */
@@ -70,7 +70,8 @@ export function unavailable(
   for (const spec of fieldSpecs(type, initialDraft(type, context))) {
     const { input } = spec;
     if (input.type !== "reference" || !spec.required) continue;
-    if (available(context, input.kind).length === 0) missing.add(input.kind);
+    if (available(context, input.kind).length === 0)
+      missing.add(kindsOf(input.kind)[0]);
   }
   if (missing.size === 0) return undefined;
   const kinds = [...missing].map((kind) => {

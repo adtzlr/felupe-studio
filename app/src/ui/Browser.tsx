@@ -12,6 +12,7 @@ export const VISIBLE_KINDS = new Set([
   "pointset",
   "boundary",
   "constraint",
+  "load",
 ]);
 
 interface Props {

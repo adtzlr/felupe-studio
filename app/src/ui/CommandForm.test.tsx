@@ -193,16 +193,16 @@ describe("editing in the properties panel", () => {
     const step = edit("step_1");
     expect(step.field("Increments").value).toBe("5");
     // the ramped items are rows: a new row takes the other boundary
-    expect(step.field<HTMLSelectElement>("Boundary 1").value).toBe("move");
+    expect(step.field<HTMLSelectElement>("Item 1").value).toBe("move");
     expect(step.field("End 1").value).toBe("0.5");
     const add = step.button("+ Add row");
     fireEvent.click(add);
-    expect(step.field<HTMLSelectElement>("Boundary 2").value).toBe("fixed");
+    expect(step.field<HTMLSelectElement>("Item 2").value).toBe("fixed");
     expect(add.disabled).toBe(true);
     // a boundary is offered in one row only
     const options = (label: string) =>
       [...step.field<HTMLSelectElement>(label).options].map((o) => o.value);
-    expect(options("Boundary 1")).toEqual(["move"]);
+    expect(options("Item 1")).toEqual(["move"]);
     step.type("End 2", "-0.1");
     fireEvent.click(step.button("Apply"));
     expect(step.store.get("step_1")).toMatchObject({
