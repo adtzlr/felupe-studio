@@ -4,7 +4,14 @@ import {
   loadContour,
   saveContour,
 } from "../core/contour";
-import { exportName, mediaType, SUFFIX } from "../core/files";
+import {
+  ARCHIVE_SUFFIX,
+  exportName,
+  isZip,
+  mediaType,
+  stemOf,
+  SUFFIX,
+} from "../core/files";
 import { JobRunner, solveBlocker } from "../core/jobs";
 import { type ResultView, substepsOf, viewOf } from "../core/results";
 import {
@@ -18,7 +25,7 @@ import {
 } from "../core/shortcuts";
 import { type Sample, sampleFiles } from "../core/samples";
 import type { Session, SessionStorage } from "../core/session";
-import { fileNotes, MeshFiles } from "../core/meshfiles";
+import { fileNotes, MeshFiles, meshFileNames } from "../core/meshfiles";
 import { duplicateBlocker } from "../core/duplicate";
 import { REGISTRY } from "../core/registry";
 import type { RibbonItem } from "../core/ribbon";
@@ -90,6 +97,11 @@ export const NARROW = "(max-width: 1000px)";
 const isProject = (file: File) =>
   file.name.endsWith(SUFFIX) || file.name.endsWith(".json");
 
+/** A project archive (#149): named `.zip`, or a ZIP file by its first bytes. */
+const isArchive = async (file: File) =>
+  file.name.endsWith(".zip") ||
+  isZip(new Uint8Array(await file.slice(0, 4).arrayBuffer()));
+
 export function App({
   store,
   client,
@@ -139,7 +151,12 @@ export function App({
     store.commands,
   );
   const modified = store.commands !== saved;
-  const [error, setError] = useState<{ title: string; lines: string[] }>();
+  // an error, or a note (`info`), e.g. of the files of an archive that were not used
+  const [error, setError] = useState<{
+    title: string;
+    lines: string[];
+    info?: boolean;
+  }>();
   const [importing, setImporting] = useState<{ file?: File }>();
   const [dragging, setDragging] = useState(false);
   const [selection, setSelection] = useState<string | undefined>();
@@ -185,15 +202,18 @@ export function App({
   // a newer deployment of the app is offered once
   useEffect(() => updates?.(() => setUpdate("available")), [updates]);
 
-  // the project module (with the schema validator) is loaded on first use
+  // the project module (with the schema validator) is loaded on first use; a project
+  // replaces the mesh files of the previous one (#149)
   const openProject = useCallback(
-    async (file: File) => {
+    async (file: File, name = file.name) => {
       const { parse, ProjectError } = await import("../core/project");
       try {
-        store.load(parse(await file.text()));
+        const document = parse(await file.text());
+        files.clear();
+        store.load(document);
         setSelection(undefined);
         setHidden(new Set());
-        setFileName(file.name);
+        setFileName(name);
         setSaved(store.commands);
         setError(undefined);
         return true;
@@ -206,17 +226,47 @@ export function App({
         return false;
       }
     },
-    [store],
+    [store, files],
   );
 
+  // a project that replaces a model with unsaved changes is opened after asking
+  const [opening, setOpening] = useState<{ files: File[]; name: string }>();
+
   /**
-   * Open files from the Open button or a drop: a project file with its mesh files,
-   * or mesh files to import.
+   * Open files from the Open button, a drop or a sample: a project file with its
+   * mesh files, a project archive (#149), or mesh files to import. With unsaved
+   * changes, a project is opened after asking (unless `confirmed`).
    */
   const openFiles = useCallback(
-    async (list: File[]) => {
-      const projects = list.filter(isProject);
-      const meshes = list.filter((file) => !isProject(file));
+    async (list: File[], confirmed = false) => {
+      // the files of the archives instead of the archives
+      let opened: File[] = [];
+      let archive: string | undefined;
+      const ignored: string[] = [];
+      for (const file of list) {
+        if (!(await isArchive(file))) {
+          opened.push(file);
+          continue;
+        }
+        const { readArchive } = await import("../core/archive");
+        try {
+          const content = readArchive(new Uint8Array(await file.arrayBuffer()));
+          if (content.project) {
+            opened = [content.project, ...opened];
+            archive = `${stemOf(file.name)}${ARCHIVE_SUFFIX}`;
+          }
+          opened.push(...content.files);
+          ignored.push(...content.ignored);
+        } catch (e) {
+          setError({
+            title: `${file.name} could not be opened.`,
+            lines: [e instanceof Error ? e.message : String(e)],
+          });
+          return;
+        }
+      }
+      const projects = opened.filter(isProject);
+      const meshes = opened.filter((file) => !isProject(file));
       if (projects.length > 1) {
         setError({
           title: "Open one project file at a time.",
@@ -225,7 +275,21 @@ export function App({
         return;
       }
       if (projects.length === 1) {
-        if (await openProject(projects[0])) await files.addFiles(meshes);
+        const name = archive ?? projects[0].name;
+        if (!confirmed && store.commands.length > 0 && modified) {
+          setOpening({ files: list, name });
+          return;
+        }
+        if (await openProject(projects[0], name)) {
+          await files.addFiles(meshes);
+          if (ignored.length) {
+            setError({
+              title: `Files of ${name} that the project does not use were not opened:`,
+              lines: ignored,
+              info: true,
+            });
+          }
+        }
         return;
       }
       if (meshes.length === 1) {
@@ -235,7 +299,7 @@ export function App({
         setImporting({});
       }
     },
-    [files, openProject],
+    [files, openProject, store, modified],
   );
 
   const restoreSession = async (restored: Session) => {
@@ -277,7 +341,7 @@ export function App({
         document.baseURI,
         fetchSample ?? ((...args) => fetch(...args)),
       );
-      await openFiles(list);
+      await openFiles(list, true);
       setSamplesOpen(false);
     } catch (error) {
       setSamplesOpen(false);
@@ -291,10 +355,40 @@ export function App({
     await jobs.solve(store.commands, serialize(store.document));
   };
 
+  /** Save the project in its format: a project file or an archive (#149). */
   const save = async () => {
     const { serialize } = await import("../core/project");
-    download(fileName, serialize(store.document));
+    const project = serialize(store.document);
+    if (!fileName.endsWith(ARCHIVE_SUFFIX)) {
+      download(fileName, project);
+      setSaved(store.commands);
+      return;
+    }
+    const { writeArchive } = await import("../core/archive");
+    const names = meshFileNames(store.commands);
+    const missing = names.filter((name) => !files.dataOf(name));
+    const archive = writeArchive({
+      name: stemOf(fileName),
+      project,
+      files: names.flatMap((name) => {
+        const data = files.dataOf(name);
+        return data ? [{ name, data }] : [];
+      }),
+    });
+    download(
+      fileName,
+      new Blob([archive], {
+        type: mediaType(fileName),
+      }),
+    );
     setSaved(store.commands);
+    if (missing.length) {
+      setError({
+        title: `${fileName} was saved without the mesh files that are not loaded:`,
+        lines: missing,
+        info: true,
+      });
+    }
   };
 
   const captureModel = useRef<Capture>({}).current;
@@ -635,7 +729,11 @@ export function App({
         </div>
       )}
       {error && (
-        <div class="banner" role="alert">
+        <div
+          class={error.info ? "banner info" : "banner"}
+          role={error.info ? "status" : "alert"}
+          aria-label={error.info ? "Note" : undefined}
+        >
           <div>
             <strong>{error.title}</strong>
             <ul>
@@ -831,6 +929,17 @@ export function App({
           fileName={fileName}
           onConfirm={newProject}
           onClose={() => setConfirmNew(false)}
+        />
+      )}
+      {opening && (
+        <NewProjectDialog
+          fileName={fileName}
+          opening={opening.name}
+          onConfirm={() => {
+            setOpening(undefined);
+            void openFiles(opening.files, true);
+          }}
+          onClose={() => setOpening(undefined)}
         />
       )}
       {help === "about" && (

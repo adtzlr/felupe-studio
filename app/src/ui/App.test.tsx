@@ -1433,6 +1433,192 @@ describe("samples", () => {
   });
 });
 
+describe("project archives (#149)", () => {
+  // a mesh file with the tag of the sections of the fixture
+  const meshFiles = () =>
+    new MeshFiles(async (name) => ({
+      info: {
+        file: name,
+        points: 8,
+        solids: [
+          {
+            cell_type: "hexahedron",
+            cells: 2,
+            bounds: [
+              [0, 0, 0],
+              [1, 1, 1],
+            ] as [number[], number[]],
+            tags: [
+              {
+                name: "material",
+                values: [
+                  { value: 1, cells: 1 },
+                  { value: 2, cells: 1 },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    }));
+  const vtu = new Uint8Array([1, 2, 3]);
+  const archive = async (
+    entries: { name: string; data: Uint8Array }[],
+    project?: string,
+  ) => {
+    const { writeArchive } = await import("../core/archive");
+    const { zipSync } = await import("fflate");
+    return project === undefined
+      ? zipSync(Object.fromEntries(entries.map((e) => [e.name, e.data])))
+      : writeArchive({ name: "bar", project, files: entries });
+  };
+  const open = (...list: File[]) =>
+    fireEvent.change(screen.getByTestId("open-file"), {
+      target: { files: list },
+    });
+  const solve = () => screen.getByRole("button", { name: /Solve/ });
+
+  it("opens an archive with its mesh files and saves it again", async () => {
+    const store = new ModelStore();
+    const files = meshFiles();
+    await files.add("old.vtu", new Uint8Array([9]));
+    const download = vi.fn();
+    render(
+      <App
+        store={store}
+        files={files}
+        download={download}
+        client={client(Promise.resolve(readyValue))}
+      />,
+    );
+    const zip = await archive(
+      [
+        { name: "specimen.vtu", data: vtu },
+        { name: "notes.txt", data: new Uint8Array([1]) },
+      ],
+      projectText,
+    );
+    // a .zip is recognized by its content
+    open(new File([zip], "bar (1).zip"));
+    await waitFor(() => expect(store.commands).toEqual(fixture.commands));
+    expect(screen.getByRole("banner").textContent).toContain(
+      "bar (1).felupe.zip",
+    );
+    expect(screen.queryByLabelText("modified")).toBeNull();
+    // the mesh files of the archive replace the ones of the previous project
+    await waitFor(() => expect(files.dataOf("specimen.vtu")).toEqual(vtu));
+    expect(files.names).toEqual(["specimen.vtu"]);
+    await waitFor(() =>
+      expect(solve().getAttribute("aria-disabled")).toBeNull(),
+    );
+    const note = screen.getByRole("status", { name: "Note" });
+    expect(note.textContent).toContain(
+      "Files of bar (1).felupe.zip that the project does not use were not opened:notes.txt",
+    );
+
+    // saved in its format, with the mesh files
+    fireEvent.click(screen.getByRole("button", { name: "Save project" }));
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+    const [name, blob] = download.mock.calls[0] as [string, Blob];
+    expect(name).toBe("bar (1).felupe.zip");
+    expect(blob.type).toBe("application/zip");
+    const { readArchive } = await import("../core/archive");
+    const saved = readArchive(new Uint8Array(await blob.arrayBuffer()));
+    expect(saved.project?.name).toBe("bar (1).felupe.json");
+    expect(JSON.parse(await saved.project!.text()).commands).toEqual(
+      fixture.commands,
+    );
+    expect(saved.files.map((f) => f.name)).toEqual(["specimen.vtu"]);
+    expect(new Uint8Array(await saved.files[0].arrayBuffer())).toEqual(vtu);
+  });
+
+  it("reports missing mesh files and opens mesh files to import", async () => {
+    const store = new ModelStore();
+    const files = meshFiles();
+    const download = vi.fn();
+    render(
+      <App
+        store={store}
+        files={files}
+        download={download}
+        client={client(Promise.resolve(readyValue))}
+      />,
+    );
+    open(new File([await archive([], projectText)], "bar.felupe.zip"));
+    await waitFor(() => expect(store.commands).toEqual(fixture.commands));
+    await waitFor(() =>
+      expect(solve().title).toContain(
+        "Load the mesh files of the model first.",
+      ),
+    );
+    // saved without the missing file, with a note
+    fireEvent.click(screen.getByRole("button", { name: "Save project" }));
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("status", { name: "Note" }).textContent).toContain(
+      "bar.felupe.zip was saved without the mesh files that are not loaded:specimen.vtu",
+    );
+
+    // an archive without a project: its mesh files are imported
+    cleanup();
+    render(<App store={new ModelStore()} files={meshFiles()} />);
+    open(
+      new File(
+        [await archive([{ name: "specimen.vtu", data: vtu }])],
+        "meshes.zip",
+      ),
+    );
+    expect(
+      await screen.findByRole("dialog", { name: /Import mesh/ }),
+    ).toBeTruthy();
+  });
+
+  it("keeps the model if an archive cannot be opened, and asks first", async () => {
+    const store = new ModelStore(fixture as CommandList);
+    render(<App store={store} files={meshFiles()} />);
+    act(() => store.apply({ type: "remove", name: "job_1" }));
+    const changed = store.commands;
+
+    open(new File(["no zip"], "broken.felupe.zip"));
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain(
+      "broken.felupe.zip could not be opened.",
+    );
+    expect(alert.textContent).toContain("This is not a ZIP file");
+    const { zipSync } = await import("fflate");
+    const text = new TextEncoder().encode(projectText);
+    open(
+      new File(
+        [zipSync({ "a.felupe.json": text, "b.felupe.json": text })],
+        "two.zip",
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("alert").textContent).toContain(
+        "more than one project file",
+      ),
+    );
+    expect(store.commands).toBe(changed);
+
+    // unsaved changes: the project is opened after asking
+    const zip = await archive(
+      [{ name: "specimen.vtu", data: vtu }],
+      projectText,
+    );
+    open(new File([zip], "bar.felupe.zip"));
+    let dialog = await screen.findByRole("dialog", { name: "Open project" });
+    expect(dialog.textContent).toContain(
+      "Opening bar.felupe.zip discards them",
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(store.commands).toBe(changed);
+    open(new File([zip], "bar.felupe.zip"));
+    dialog = await screen.findByRole("dialog", { name: "Open project" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Open" }));
+    await waitFor(() => expect(store.commands).toEqual(fixture.commands));
+    expect(screen.getByRole("banner").textContent).toContain("bar.felupe.zip");
+  });
+});
+
 describe("session in the browser", () => {
   const inspector = async (name: string) => ({
     info: { file: name, points: 8, solids: [] },

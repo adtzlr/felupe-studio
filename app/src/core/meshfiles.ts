@@ -126,6 +126,15 @@ export class MeshFiles {
   }
 }
 
+/** The names of the mesh files of a model (`file` of `mesh.import`), once each. */
+export function meshFileNames(commands: readonly Command[]): string[] {
+  return [
+    ...new Set(
+      commands.flatMap((c) => (c.command === "mesh.import" ? [c.file] : [])),
+    ),
+  ];
+}
+
 /** Messages for meshes of the model whose file is not loaded or not usable. */
 export function fileNotes(
   commands: readonly Command[],
