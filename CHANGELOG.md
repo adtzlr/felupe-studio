@@ -4,6 +4,10 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ## [Unreleased]
 
+### Changed
+
+- One set of design tokens (colors, type, spacing, radii, shadows, stacking) and consistent components: all inputs and selects share one style (also in the results and the curve), buttons have hover and a clear disabled state, one focus ring for keyboard navigation, overlays on the viewport share one surface; a test keeps the styles on the tokens (#125).
+
 ## [0.2.0] - 2026-11-11
 
 Multi-point constraints: control points, rigid connections of point sets with rotation points, point loads, and steps that ramp several items with their own values. Projects of schema version 1 (v0.1) are migrated when they are opened; projects saved with v0.2 have schema version 2. With a user guide and a command reference.
