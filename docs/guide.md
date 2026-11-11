@@ -22,6 +22,8 @@ In narrow windows (up to 1000 px, e.g. a tablet or a small laptop window), the b
 
 The project is kept in the browser with its mesh files: a reload restores it. To keep it, save the project file and keep it next to its mesh files.
 
+A **project archive** (`.felupe.zip`) is one file with the project and its mesh files. **Open project** (or a drop on the window) opens it in one step, also a folder of a project that you zipped yourself; files that the project does not use are listed and not opened. **Save project** saves a project opened from an archive as an archive again. Opening a project replaces the mesh files of the previous one; with unsaved changes, the app asks first.
+
 ## Samples
 
 An empty model shows a welcome panel with *Import mesh*, *Open project* and the samples; **File ▸ Samples…** lists them too. A sample opens as a ready-made model with its mesh files. They show the features step by step:

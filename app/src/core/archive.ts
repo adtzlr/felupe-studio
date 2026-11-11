@@ -82,7 +82,7 @@ export function writeArchive({
   files: readonly ArchiveEntry[];
   /** The text of the FElupe script. */
   script?: string;
-}): Uint8Array {
+}): Uint8Array<ArrayBuffer> {
   const text = new TextEncoder();
   const entries: Record<string, Uint8Array> = {};
   const add = (path: string, data: Uint8Array) => {

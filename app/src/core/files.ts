@@ -14,12 +14,20 @@ export function isZip(bytes: Uint8Array): boolean {
   );
 }
 
-/** The name of an export of a project file, e.g. "bar.py" of "bar.felupe.json". */
+/** The stem of a project file or archive, e.g. "bar" of "bar.felupe.zip". */
+export function stemOf(project: string): string {
+  for (const suffix of [SUFFIX, ARCHIVE_SUFFIX, ".json", ".zip"]) {
+    if (project.endsWith(suffix)) return project.slice(0, -suffix.length);
+  }
+  return project;
+}
+
+/**
+ * The name of an export of a project file or archive, e.g. "bar.py" of
+ * "bar.felupe.json" or "bar.felupe.zip".
+ */
 export function exportName(project: string, suffix: string): string {
-  const stem = project.endsWith(SUFFIX)
-    ? project.slice(0, -SUFFIX.length)
-    : project.replace(/\.json$/, "");
-  return `${stem || "untitled"}${suffix}`;
+  return `${stemOf(project) || "untitled"}${suffix}`;
 }
 
 /** The media types of the downloads, by extension. */

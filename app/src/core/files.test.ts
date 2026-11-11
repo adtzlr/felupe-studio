@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { exportName, isZip, mediaType } from "./files";
+import { exportName, isZip, mediaType, stemOf } from "./files";
 
 describe("exports", () => {
   it("are named after the project", () => {
@@ -9,6 +9,10 @@ describe("exports", () => {
       "bar-job_1-6.png",
     );
     expect(exportName(".felupe.json", ".py")).toBe("untitled.py");
+    // of a project archive (#149)
+    expect(exportName("bar.felupe.zip", ".py")).toBe("bar.py");
+    expect(stemOf("bar (1).zip")).toBe("bar (1)");
+    expect(stemOf("bar")).toBe("bar");
   });
 
   it("have media types", () => {
