@@ -11,6 +11,8 @@ interface Props {
   onSelect: (id: string | undefined) => void;
   onToggleVisible: (id: string) => void;
   /** Open the sample models (offered for an empty model). */
+  /** Close the browser where it is a drawer (narrow windows, #131). */
+  onClose?: () => void;
 }
 
 /** The tree with the notes added to the issues of their objects. */
@@ -36,12 +38,26 @@ export function Sidebar({
   hidden,
   onSelect,
   onToggleVisible,
+  onClose,
 }: Props) {
   const empty = store.commands.length === 0;
   return (
-    <aside class="sidebar">
+    <aside class="sidebar" id="browser">
       <nav class="panel browser" aria-label="Model browser">
-        <h2 class="panel-title">Browser</h2>
+        <div class="panel-head">
+          <h2 class="panel-title">Browser</h2>
+          {onClose && (
+            <button
+              type="button"
+              class="icon-button drawer-close"
+              aria-label="Close the browser"
+              title="Close the browser (Esc)"
+              onClick={onClose}
+            >
+              ×
+            </button>
+          )}
+        </div>
         {empty ? (
           <p class="muted empty-model">
             No model yet. Import a mesh, open a project or a sample; the objects

@@ -17,6 +17,9 @@ interface Props {
   onSave: () => void;
   onShortcuts: () => void;
   onAbout: () => void;
+  /** The browser is open as a drawer (narrow windows, #131), and its toggle. */
+  browserOpen: boolean;
+  onBrowser: () => void;
   exports: ExportItem[];
   solve: {
     /** Why the jobs cannot be run, if so. */
@@ -37,15 +40,28 @@ export function Header({
   onSave,
   onShortcuts,
   onAbout,
+  browserOpen,
+  onBrowser,
   exports,
   solve,
 }: Props) {
   return (
     <header class="header">
       <div class="header-group">
+        <button
+          type="button"
+          class="icon-button drawer-toggle"
+          aria-label="Browser"
+          aria-controls="browser"
+          aria-expanded={browserOpen}
+          title="Show the browser of the model"
+          onClick={onBrowser}
+        >
+          <Icon name="browser" />
+        </button>
         <span class="brand" title={`Version ${formatVersion(__APP_VERSION__)}`}>
           <Icon name="logo" size={20} />
-          {APP_NAME}
+          <span class="brand-name">{APP_NAME}</span>
         </span>
         <div class="menubar">
           <Menu

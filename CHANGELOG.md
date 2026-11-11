@@ -13,6 +13,8 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Changed
 
+- Narrow windows (up to 1000 px): the browser and the properties are drawers over the views instead of squeezing the viewport (a button in the header opens the browser, a selection closes it and opens the properties, Esc closes them); the ribbon is one row that scrolls, and the header keeps one line. The layout below 800 px no longer stacks the panels below the viewport (#131).
+
 - The overlays of the viewports have fixed places and never overlap: the panels and messages at the bottom are stacked between the axes and the job panel, the cards of the results form one column on the right, and in a narrow view (also with the properties open) the job panel spans the width at the bottom while the legend and the cards move below the view toolbar. The tips are shorter and quieter (#128).
 - The header keeps icon buttons for Open, Save, Export, Undo and Redo; New and Samples are in the File menu. The ribbon tab *Tools* is gone, its benchmark link is in Help ▸ About (#126).
 - One set of design tokens (colors, type, spacing, radii, shadows, stacking) and consistent components: all inputs and selects share one style (also in the results and the curve), buttons have hover and a clear disabled state, one focus ring for keyboard navigation, overlays on the viewport share one surface; a test keeps the styles on the tokens (#125).

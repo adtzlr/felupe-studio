@@ -103,6 +103,7 @@
   --z-overlay: 4;
   --z-floating: 5;
   --z-tooltip: 6;
+  --z-drawer: 8;
   --z-dialog: 10;
   --z-menu: 20;
 }
@@ -616,6 +617,25 @@ button {
 
 .properties {
   overflow: auto;
+}
+
+/* the head of a panel: its title and, in a drawer, its close button */
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  margin-bottom: var(--space-8);
+}
+
+.panel-head .panel-title {
+  margin: 0;
+}
+
+/* the toggle and the close button of a drawer, in narrow windows only (#131) */
+.drawer-toggle,
+.drawer-close {
+  display: none;
 }
 
 .panel-title {
@@ -1262,38 +1282,71 @@ button {
   color: var(--color-warning);
 }
 
-/* narrow screens: browser and properties below the viewport */
-@media (max-width: 800px) {
-  .shell {
-    height: auto;
-    min-height: 100%;
-  }
-
+/* narrow windows (#131): the browser and the properties are drawers over the
+   views, the ribbon is one row that scrolls, the header keeps one line */
+@media (max-width: 1000px) {
   .shell > .body,
   .shell > .body.inspecting {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(280px, 50vh) auto;
   }
 
-  /* the properties below the browser */
+  .sidebar,
   .inspector {
-    order: 3;
-    border-left: none;
-    border-top: 1px solid var(--color-border);
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: var(--z-drawer);
+    box-shadow: var(--shadow-lg);
   }
 
   .sidebar {
-    order: 2;
-    border-right: none;
-    border-top: 1px solid var(--color-border);
+    left: 0;
+    width: min(320px, 85%);
+    border-right: 1px solid var(--color-border-strong);
   }
 
-  .project-name {
+  .shell > .body:not(.browser-open) > .sidebar {
     display: none;
   }
 
-  .workspace {
-    flex-direction: row;
+  .inspector {
+    right: 0;
+    width: min(360px, 90%);
+    border-left: 1px solid var(--color-border-strong);
+  }
+
+  .drawer-toggle,
+  .drawer-close {
+    display: inline-flex;
+  }
+
+  .drawer-toggle[aria-expanded="true"] {
+    background: var(--color-selected);
+    color: var(--color-accent);
+  }
+
+  .ribbon-panel {
+    overflow-x: auto;
+  }
+
+  .ribbon-commands {
+    flex-wrap: nowrap;
+  }
+
+  .ribbon-button {
+    min-width: 60px;
+    padding: var(--space-4) var(--space-6);
+  }
+
+  .tab {
+    padding: 0 var(--space-8);
+  }
+}
+
+@media (max-width: 800px) {
+  .project-name,
+  .brand-name {
+    display: none;
   }
 }
 
