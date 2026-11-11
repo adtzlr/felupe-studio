@@ -54,6 +54,18 @@ SAMPLES = [
         "the top plate by its thickness.",
         "topics": ["Mooney-Rivlin", "three sections", "shear load case"],
     },
+    {
+        "id": "glued-plate",
+        "title": "Rubber block with a rigid plate",
+        "description": "A rubber block on a fixed base, its top face glued to a rigid "
+        "plate that is moved sideways and tilted at the same time.",
+        "topics": [
+            "control points",
+            "multi-point constraint",
+            "rotation point",
+            "ramps with their own values",
+        ],
+    },
 ]
 
 
@@ -155,6 +167,102 @@ def rubber_mount():
         {"command": "job.add", "name": "job", "steps": ["shearing"], "curve": "shear"},
     ]
     write("rubber-mount", commands, {"mount.vtu": cells})
+
+
+def glued_plate():
+    """A rubber block whose top face follows a rigid plate (#102): a multi-point
+    constraint to a control point above the face, with a rotation point. The plate
+    is moved in x by 8 mm and tilted about y by 0.1 rad in the same step."""
+    mesh = fem.Cube(b=(40, 40, 20), n=(9, 9, 5))
+    cells = meshio.Mesh(mesh.points, [("hexahedron", mesh.cells)])
+    commands = [
+        {"command": "mesh.import", "name": "block", "file": "block.vtu"},
+        {"command": "cellset.from_file", "name": "all_cells", "mesh": "block"},
+        {
+            "command": "material.add",
+            "name": "rubber",
+            "model": "MooneyRivlin",
+            "parameters": {"C10": 0.4, "C01": 0.1},
+        },
+        {
+            "command": "section.add",
+            "name": "rubber_block",
+            "cellset": "all_cells",
+            "material": "rubber",
+            "formulation": "u-p-J",
+            "bulk": 2000,
+        },
+        {
+            "command": "pointset.add",
+            "name": "base",
+            "select": {"axis": "z", "value": 0},
+        },
+        {
+            "command": "pointset.add",
+            "name": "top",
+            "select": {"axis": "z", "value": 20},
+        },
+        # the center of the plate above the top face, and its rotation point beside
+        # it (points at the same coordinates would be merged)
+        {"command": "point.add", "name": "plate", "coordinates": [20, 20, 25]},
+        {"command": "point.add", "name": "tilt", "coordinates": [20, 20, 30]},
+        {
+            "command": "boundary.add",
+            "name": "fixed",
+            "pointset": "base",
+            "constrained": ["x", "y", "z"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "shift",
+            "pointset": "plate",
+            "constrained": ["x"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "hold",
+            "pointset": "plate",
+            "constrained": ["y", "z"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "tilt_y",
+            "pointset": "tilt",
+            "constrained": ["y"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "tilt_lock",
+            "pointset": "tilt",
+            "constrained": ["x", "z"],
+        },
+        {
+            "command": "mpc.add",
+            "name": "glue",
+            "points": "top",
+            "center": "plate",
+            "constrained": ["x", "y", "z"],
+            "rotation": "tilt",
+        },
+        {
+            "command": "step.add",
+            "name": "shift_and_tilt",
+            "ramp": {
+                "num": 8,
+                "items": [
+                    {"target": "shift", "end": 8},
+                    {"target": "tilt_y", "end": 0.1},
+                ],
+            },
+        },
+        {
+            "command": "job.add",
+            "name": "job",
+            "steps": ["shift_and_tilt"],
+            "curve": "shift",
+        },
+    ]
+    write("glued-plate", commands, {"block.vtu": cells})
 
 
 def two_materials():
@@ -365,6 +473,7 @@ def main():
     two_materials()
     material_test()
     hex_tet()
+    glued_plate()
     INDEX.write_text(json.dumps(SAMPLES, indent=2) + "\n", encoding="utf-8")
 
 

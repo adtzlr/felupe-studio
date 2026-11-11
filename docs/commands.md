@@ -253,7 +253,7 @@ The app keeps the current project in the browser, so that a reload (or a crash o
 **Samples** (header, and the browser of an empty model) lists finished models; **Open** loads one like a project file with its mesh files (a sample replaces the current model; the dialog warns about unsaved changes).
 
 - The samples are folders in `app/public/samples` with a project file `model.felupe.json` and its mesh files, listed in `app/src/core/samples.json` (title, description, topics, mesh files). Both are made by `app/scripts/make_samples.py` (units: mm, N, MPa); run it from the repository root after a change and commit the files.
-- `tests/test_samples.py` checks that every sample is a canonical project file without errors, that its files exist, and solves it with FElupe. The material test is checked against the analytical curve of the incompressible Neo-Hooke model.
+- `tests/test_samples.py` checks that every sample is a canonical project file without errors, that its files exist, and solves it with FElupe. The material test is checked against the analytical curve of the incompressible Neo-Hooke model. The rubber block with a rigid plate (#102) shows control points, a multi-point constraint with a rotation point and a ramp with its own values per item; its test checks that the plate is moved by 8 mm and tilted by 0.1 rad.
 
 ## Exports (app)
 
