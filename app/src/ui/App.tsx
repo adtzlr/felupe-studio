@@ -526,6 +526,7 @@ export function App({
             capture={captureResults}
             showNodes={showNodes}
             onShowNodes={setShowNodes}
+            commands={finished?.commands}
           >
             {finished && resultView?.curve && (
               <CurveCard

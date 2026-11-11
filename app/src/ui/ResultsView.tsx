@@ -3,11 +3,20 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { NodesButton, useShowNodes } from "./NodesButton";
 import { CONTROL_COLOR } from "../viewer/palette";
 import { outlined } from "../viewer/pointsets";
+import {
+  constraintLines,
+  constraintShapes,
+  resultPlacement,
+} from "../viewer/constraints";
+import type { Command } from "../core/commands";
+
+const NO_COMMANDS: readonly Command[] = [];
 import { formatValue, type ResultView } from "../core/results";
 import { type ProbeInfo, probeInfo } from "../viewer/probe";
 import {
   type Capture,
   type CreateViewer,
+  HIGHLIGHT,
   Viewer,
   VIEWS,
 } from "../viewer/viewer";
@@ -37,6 +46,8 @@ interface Props {
   children?: ComponentChildren;
   /** Set to a function that returns a PNG of the view (none without a view). */
   capture?: Capture;
+  /** The command list of the results, for the constraints (#99). */
+  commands?: readonly Command[];
   /** Show the nodes of the result (#91); without, the view keeps its own. */
   showNodes?: boolean;
   onShowNodes?: (show: boolean) => void;
@@ -151,6 +162,7 @@ export function ResultsView({
   capture,
   showNodes,
   onShowNodes,
+  commands = NO_COMMANDS,
 }: Props) {
   const [nodesShown, toggleNodes] = useShowNodes(showNodes, onShowNodes);
   const host = useRef<HTMLDivElement>(null);
@@ -205,7 +217,24 @@ export function ResultsView({
         ? outlined(Float64Array.from(points), CONTROL_COLOR, 10)
         : [],
     );
-  }, [scene, view?.scale, view?.undeformed, nodesShown, createViewer]);
+    // the constraints, displaced like the surfaces (#99)
+    if (scene && view && commands.some((c) => c.command === "mpc.add")) {
+      const { nodes, place } = resultPlacement(scene, scale);
+      viewer.current.setLines(
+        constraintLines(constraintShapes(commands, nodes), {
+          highlight: HIGHLIGHT,
+          place,
+        }),
+      );
+    } else viewer.current.setLines([]);
+  }, [
+    scene,
+    view?.scale,
+    view?.undeformed,
+    nodesShown,
+    commands,
+    createViewer,
+  ]);
 
   useEffect(
     () => () => {
