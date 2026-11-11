@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import fixture from "../../../tests/data/two_sections.json";
 import type { Command, CommandList } from "./commands";
 import { REGISTRY, type Tab } from "./registry";
-import { dialogTitle, ribbonGroups, unavailable } from "./ribbon";
+import {
+  dialogTitle,
+  ribbonEntries,
+  ribbonGroups,
+  unavailable,
+} from "./ribbon";
 import type { CommandType } from "./validate";
 
 const commands = (fixture as CommandList).commands;
@@ -32,13 +37,52 @@ describe("ribbonGroups", () => {
 
   it("has one button per material model, from the schema", () => {
     const [materials] = ribbonGroups("materials");
-    expect(materials.map((item) => [item.label, item.preset])).toEqual([
-      ["Neo-Hooke", { model: "NeoHooke" }],
-      ["Neo-Hooke (compressible)", { model: "NeoHookeCompressible" }],
-      ["Mooney-Rivlin", { model: "MooneyRivlin" }],
-      ["Linear elastic (large strain)", { model: "LinearElasticLargeStrain" }],
+    expect(
+      materials.map((item) => [item.label, item.preset, item.group]),
+    ).toEqual([
+      ["Neo-Hooke", { model: "NeoHooke" }, "Neo-Hooke"],
+      [
+        "Neo-Hooke (compressible)",
+        { model: "NeoHookeCompressible" },
+        "Neo-Hooke",
+      ],
+      ["Mooney-Rivlin", { model: "MooneyRivlin" }, "Polynomial"],
+      ["Yeoh", { model: "Yeoh" }, "Polynomial"],
+      [
+        "Third-order deformation",
+        { model: "ThirdOrderDeformation" },
+        "Polynomial",
+      ],
+      ["Ogden", { model: "Ogden" }, undefined],
+      ["Arruda-Boyce", { model: "ArrudaBoyce" }, "Micromechanical"],
+      ["Extended tube", { model: "ExtendedTube" }, "Micromechanical"],
+      [
+        "Linear elastic (large strain)",
+        { model: "LinearElasticLargeStrain" },
+        undefined,
+      ],
     ]);
     expect(dialogTitle(materials[0])).toBe("New material");
+  });
+
+  it("puts the items of a group into a menu (#136)", () => {
+    const [materials] = ribbonGroups("materials");
+    expect(
+      ribbonEntries(materials).map((e) =>
+        e.kind === "menu"
+          ? `${e.group}: ${e.items.map((i) => i.label).join(", ")}`
+          : e.item.label,
+      ),
+    ).toEqual([
+      "Neo-Hooke: Neo-Hooke, Neo-Hooke (compressible)",
+      "Polynomial: Mooney-Rivlin, Yeoh, Third-order deformation",
+      "Ogden",
+      "Micromechanical: Arruda-Boyce, Extended tube",
+      "Linear elastic (large strain)",
+    ]);
+    // a group of one item is a button
+    const [one] = ribbonEntries([{ ...materials[0], group: "Solo" }]);
+    expect(one.kind).toBe("button");
   });
 
   it("covers every command exactly once", () => {

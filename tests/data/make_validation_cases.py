@@ -202,6 +202,9 @@ CHANGES = {
             {"command": "mesh.merge", "name": "merge_2", "decimals": 8},
         ],
     ),
+    "ogden with fewer exponents than moduli": lambda d: find(d, "umat_soft").update(
+        model="Ogden", parameters={"mu": [1.0, 0.2], "alpha": [2.0], "bulk": 50.0}
+    ),
     "two model settings": lambda d: d["commands"].__setitem__(
         slice(0, 0),
         [

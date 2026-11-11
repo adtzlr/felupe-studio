@@ -9,7 +9,8 @@ description, bounds and default. A parameter marked ``"x-felupe": "volumetric"``
 not passed to the model, it adds ``fem.Volumetric(bulk=...)``.
 
 A model with an optional bulk modulus ``bulk`` is incompressible without it and
-needs the ``u-p-J`` formulation of a section.
+needs the ``u-p-J`` formulation of a section. Parameters that are lists of values
+(the terms of Ogden) may need the same number of values (``x-same-length``).
 """
 
 from dataclasses import dataclass
@@ -24,7 +25,7 @@ class Parameter:
     label: str
     description: str
     required: bool
-    default: float | None
+    default: float | list[float] | None
     volumetric: bool
 
 
@@ -36,6 +37,7 @@ class Model:
     call: str
     hyperelastic: bool
     parameters: tuple[Parameter, ...]
+    same_length: tuple[str, ...] = ()
 
     @property
     def optional_bulk(self):
@@ -71,8 +73,26 @@ def models():
                 )
                 for key, p in parameters["properties"].items()
             ),
+            same_length=tuple(parameters.get("x-same-length", ())),
         )
     return result
+
+
+def problems(material):
+    """Return what is wrong with the parameters of a material beyond the schema: the
+    lists of values that need the same number of values (``x-same-length``).
+
+    Examples
+    --------
+    >>> problems({"model": "Ogden", "parameters": {"mu": [1, 0.2], "alpha": [2]}})
+    ['mu and alpha need the same number of values.']
+    """
+    model = models()[material["model"]]
+    values = material["parameters"]
+    lengths = {len(values[k]) for k in model.same_length if k in values}
+    if len(lengths) > 1:
+        return [f"{' and '.join(model.same_length)} need the same number of values."]
+    return []
 
 
 def material_call(material):

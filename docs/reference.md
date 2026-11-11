@@ -122,6 +122,72 @@ FElupe: `fem.mooney_rivlin`
 | `C01` (C₀₁) | number | yes | Material parameter of the second invariant. Default `0.1`. |
 | `bulk` (K) | number > 0 |  | Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation. |
 
+#### Yeoh (`model: "Yeoh"`)
+
+Isotropic hyperelastic Yeoh material (fem.Hyperelastic with fem.yeoh, needs tensortrax): a cubic polynomial of the first invariant. The shear modulus is 2 C10. Without a bulk modulus it needs the u-p-J formulation.
+
+FElupe: `fem.yeoh`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `C10` (C₁₀) | number > 0 | yes | Material parameter of the linear term of the first invariant. Default `0.5`. |
+| `C20` (C₂₀) | number | yes | Material parameter of the quadratic term of the first invariant. Default `-0.1`. |
+| `C30` (C₃₀) | number | yes | Material parameter of the cubic term of the first invariant. Default `0.02`. |
+| `bulk` (K) | number > 0 |  | Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation. |
+
+#### Third-order deformation (`model: "ThirdOrderDeformation"`)
+
+Isotropic hyperelastic third-order deformation material (fem.Hyperelastic with fem.third_order_deformation, needs tensortrax): terms of the first and second invariant up to the third order. The shear modulus is 2 (C10 + C01). Without a bulk modulus it needs the u-p-J formulation.
+
+FElupe: `fem.third_order_deformation`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `C10` (C₁₀) | number > 0 | yes | Material parameter of the linear term of the first invariant. Default `0.5`. |
+| `C01` (C₀₁) | number | yes | Material parameter of the linear term of the second invariant. Default `0.1`. |
+| `C11` (C₁₁) | number | yes | Material parameter of the mixed term of the first and second invariant. Default `0.01`. |
+| `C20` (C₂₀) | number | yes | Material parameter of the quadratic term of the first invariant. Default `-0.1`. |
+| `C30` (C₃₀) | number | yes | Material parameter of the cubic term of the first invariant. Default `0.02`. |
+| `bulk` (K) | number > 0 |  | Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation. |
+
+#### Ogden (`model: "Ogden"`)
+
+Isotropic hyperelastic Ogden material (fem.Hyperelastic with fem.ogden, needs tensortrax): up to three terms of the principal stretches, each with a modulus μi and an exponent αi. The shear modulus is the sum of the moduli. Without a bulk modulus it needs the u-p-J formulation.
+
+FElupe: `fem.ogden`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `mu` (μᵢ) | list of 1 to 3 numbers | yes | Moduli of the terms, one to three, as many as exponents. Default `[1.0, 0.2]`. |
+| `alpha` (αᵢ) | list of 1 to 3 numbers ≠ 0 | yes | Stretch exponents of the terms, one per modulus, not zero. Default `[1.7, -1.5]`. |
+| `bulk` (K) | number > 0 |  | Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation. |
+
+#### Arruda-Boyce (`model: "ArrudaBoyce"`)
+
+Isotropic hyperelastic Arruda-Boyce material, the eight-chain model (fem.Hyperelastic with fem.arruda_boyce, needs tensortrax). The chains lock at the limiting stretch. Without a bulk modulus it needs the u-p-J formulation.
+
+FElupe: `fem.arruda_boyce`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `C1` (C₁) | number > 0 | yes | Shear modulus of the chain network (the initial shear modulus for a large limiting stretch). Default `1.0`. |
+| `limit` (λₘ) | number > 1 | yes | Limiting stretch at which the chains are locked. Default `3.2`. |
+| `bulk` (K) | number > 0 |  | Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation. |
+
+#### Extended tube (`model: "ExtendedTube"`)
+
+Isotropic hyperelastic extended tube material of Kaliske and Heinrich (fem.Hyperelastic with fem.extended_tube, needs tensortrax): a cross-link and a tube constraint contribution. The shear modulus is Gc + Ge. Without a bulk modulus it needs the u-p-J formulation.
+
+FElupe: `fem.extended_tube`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `Gc` (Gc) | number ≥ 0 | yes | Cross-link modulus. Default `0.1867`. |
+| `delta` (δ) | number ≥ 0 | yes | Finite extensibility of the chains. Default `0.09693`. |
+| `Ge` (Ge) | number ≥ 0 | yes | Constraint (tube) modulus. Default `0.2169`. |
+| `beta` (β) | number > 0, ≤ 1 | yes | Exponent of the tube constraint. Default `0.2`. |
+| `bulk` (K) | number > 0 |  | Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation. |
+
 #### Linear elastic (large strain) (`model: "LinearElasticLargeStrain"`)
 
 Linear-elastic material formulated for large deformations (fem.LinearElasticLargeStrain).

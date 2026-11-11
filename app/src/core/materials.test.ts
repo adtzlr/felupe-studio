@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fieldSpecs, initialDraft } from "./form";
-import { MATERIAL_MODELS, needsBulk } from "./materials";
+import { MATERIAL_MODELS, materialProblems, needsBulk } from "./materials";
 import { validate } from "./validate";
 
 describe("material registry", () => {
@@ -11,7 +11,24 @@ describe("material registry", () => {
       ["NeoHooke", "Neo-Hooke", true],
       ["NeoHookeCompressible", "Neo-Hooke (compressible)", false],
       ["MooneyRivlin", "Mooney-Rivlin", true],
+      ["Yeoh", "Yeoh", true],
+      ["ThirdOrderDeformation", "Third-order deformation", true],
+      ["Ogden", "Ogden", true],
+      ["ArrudaBoyce", "Arruda-Boyce", true],
+      ["ExtendedTube", "Extended tube", true],
       ["LinearElasticLargeStrain", "Linear elastic (large strain)", false],
+    ]);
+    // the menus of the ribbon (#136)
+    expect(MATERIAL_MODELS.map((m) => m.group)).toEqual([
+      "Neo-Hooke",
+      "Neo-Hooke",
+      "Polynomial",
+      "Polynomial",
+      "Polynomial",
+      undefined,
+      "Micromechanical",
+      "Micromechanical",
+      undefined,
     ]);
     const mooney = MATERIAL_MODELS[2];
     expect(mooney.parameters).toMatchObject([
@@ -19,6 +36,26 @@ describe("material registry", () => {
       { key: "C01", label: "C₀₁", required: true, default: 0.1 },
       { key: "bulk", label: "K", required: false },
     ]);
+  });
+
+  it("needs as many exponents as moduli of Ogden (#136)", () => {
+    const ogden = MATERIAL_MODELS.find((m) => m.name === "Ogden")!;
+    expect(ogden.sameLength).toEqual(["mu", "alpha"]);
+    expect(ogden.parameters.slice(0, 2)).toMatchObject([
+      { key: "mu", label: "μᵢ", default: [1, 0.2] },
+      { key: "alpha", label: "αᵢ", default: [1.7, -1.5] },
+    ]);
+    const material = (parameters: Record<string, unknown>) =>
+      ({
+        command: "material.add",
+        name: "m",
+        model: "Ogden",
+        parameters,
+      }) as Parameters<typeof materialProblems>[0];
+    expect(materialProblems(material({ mu: [1, 0.2], alpha: [2] }))).toEqual([
+      "mu and alpha need the same number of values.",
+    ]);
+    expect(materialProblems(material({ mu: [1], alpha: [2] }))).toEqual([]);
   });
 
   it("knows which materials need a bulk modulus or u-p-J", () => {

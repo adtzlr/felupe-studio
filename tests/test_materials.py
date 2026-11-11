@@ -5,7 +5,7 @@ import felupe as fem
 import numpy as np
 import pytest
 
-from felupe_studio.materials import material_call, models, needs_bulk
+from felupe_studio.materials import material_call, models, needs_bulk, problems
 
 DOCS = Path(__file__).parents[1] / "docs" / "commands.md"
 MODELS = list(models())
@@ -24,11 +24,16 @@ def create(model, **changes):
     return umat
 
 
-def test_first_models():
+def test_models():
     assert MODELS == [
         "NeoHooke",
         "NeoHookeCompressible",
         "MooneyRivlin",
+        "Yeoh",
+        "ThirdOrderDeformation",
+        "Ogden",
+        "ArrudaBoyce",
+        "ExtendedTube",
         "LinearElasticLargeStrain",
     ]
 
@@ -49,7 +54,8 @@ def test_defaults_are_stress_free_and_stable(name):
     umat = create(name)
     identity = np.eye(3).reshape(3, 3, 1, 1)
     (stress,) = umat.gradient([identity, None])[:1]
-    np.testing.assert_allclose(stress, 0, atol=1e-12)
+    # the models of the principal stretches perturb equal stretches (tensortrax)
+    np.testing.assert_allclose(stress, 0, atol=1e-7)
 
     # positive shear stiffness for a small shear
     gamma = 1e-6
@@ -69,6 +75,41 @@ def test_mooney_rivlin_with_c01_zero_is_neo_hooke():
     )
     np.testing.assert_allclose(
         mooney.hessian([F, None])[0], neo.hessian([F, None])[0], atol=1e-12
+    )
+
+
+@pytest.mark.parametrize(
+    "model, parameters",
+    [
+        ("Yeoh", {"C10": 0.5, "C20": 0.0, "C30": 0.0}),
+        (
+            "ThirdOrderDeformation",
+            {"C10": 0.5, "C01": 0.0, "C11": 0.0, "C20": 0.0, "C30": 0.0},
+        ),
+        ("Ogden", {"mu": [1.0], "alpha": [2.0]}),
+    ],
+)
+def test_reduced_models_are_neo_hooke(model, parameters):
+    # Yeoh and third-order deformation with C10 only, Ogden with one term and an
+    # exponent of 2 (#136)
+    rng = np.random.default_rng(1)
+    F = (np.eye(3) + 0.2 * rng.standard_normal((3, 3))).reshape(3, 3, 1, 1)
+    umat = create(model, **parameters, bulk=50.0)
+    neo = create("NeoHooke", mu=1.0, bulk=50.0)
+    np.testing.assert_allclose(
+        umat.gradient([F, None])[0], neo.gradient([F, None])[0], atol=1e-10
+    )
+
+
+def test_ogden_needs_as_many_exponents_as_moduli():
+    ogden = {"model": "Ogden", "parameters": {"mu": [1.0, 0.2], "alpha": [2.0]}}
+    assert problems(ogden) == ["mu and alpha need the same number of values."]
+    ogden["parameters"]["alpha"].append(-1.5)
+    assert problems(ogden) == []
+    assert material_call(ogden) == (
+        "fem.Hyperelastic",
+        ["fem.ogden", "mu=[1.0, 0.2]", "alpha=[2.0, -1.5]"],
+        [],
     )
 
 

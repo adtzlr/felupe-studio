@@ -31,8 +31,12 @@ interface Props {
   button: ComponentChildren;
   /** A tooltip of the button. */
   title?: string;
-  /** "text" for a menu of the menu bar, "icon" for an icon button. */
-  kind: "text" | "icon";
+  /**
+   * "text" for a menu of the menu bar, "icon" for an icon button, "ribbon" for a
+   * button of the ribbon (#136), whose menu is placed in the window, as the ribbon
+   * may scroll.
+   */
+  kind: "text" | "icon" | "ribbon";
   sections: MenuSection[];
   /** Show the hints of the items as a second line (otherwise as tooltips). */
   hints?: boolean;
@@ -40,6 +44,7 @@ interface Props {
 
 export function Menu({ label, button, title, kind, sections, hints }: Props) {
   const [open, setOpen] = useState<false | "first" | "last">(false);
+  const [place, setPlace] = useState<{ top: number; left: number }>();
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const list = useRef<HTMLDivElement>(null);
@@ -48,6 +53,15 @@ export function Menu({ label, button, title, kind, sections, hints }: Props) {
   const items = () => [
     ...(list.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []),
   ];
+
+  /** Open the menu, below the button of the ribbon in the window. */
+  const show = (at: "first" | "last") => {
+    if (kind === "ribbon" && trigger.current) {
+      const rect = trigger.current.getBoundingClientRect();
+      setPlace({ top: rect.bottom + 6, left: rect.left });
+    }
+    setOpen(at);
+  };
 
   const close = (focus = true) => {
     setOpen(false);
@@ -78,7 +92,7 @@ export function Menu({ label, button, title, kind, sections, hints }: Props) {
   const onButtonKey = (event: KeyboardEvent) => {
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
-      setOpen(event.key === "ArrowDown" ? "first" : "last");
+      show(event.key === "ArrowDown" ? "first" : "last");
     }
   };
 
@@ -123,13 +137,19 @@ export function Menu({ label, button, title, kind, sections, hints }: Props) {
       <button
         ref={trigger}
         type="button"
-        class={kind === "icon" ? "icon-button" : "menu-button"}
+        class={
+          kind === "icon"
+            ? "icon-button"
+            : kind === "ribbon"
+              ? "ribbon-button"
+              : "menu-button"
+        }
         aria-label={kind === "icon" ? label : undefined}
         title={title}
         aria-haspopup="menu"
         aria-expanded={open !== false}
         aria-controls={open ? id : undefined}
-        onClick={() => (open ? close(false) : setOpen("first"))}
+        onClick={() => (open ? close(false) : show("first"))}
         onKeyDown={onButtonKey}
       >
         {button}
@@ -138,7 +158,12 @@ export function Menu({ label, button, title, kind, sections, hints }: Props) {
         <div
           ref={list}
           id={id}
-          class="menu"
+          class={kind === "ribbon" ? "menu menu-fixed" : "menu"}
+          style={
+            kind === "ribbon" && place
+              ? { top: `${place.top}px`, left: `${place.left}px` }
+              : undefined
+          }
           role="menu"
           aria-label={label}
           onKeyDown={onMenuKey}

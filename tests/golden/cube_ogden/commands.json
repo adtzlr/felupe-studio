@@ -1,0 +1,64 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "mesh.import",
+      "name": "cube",
+      "file": "cube.vtu"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "all_cells",
+      "mesh": "cube"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "Ogden",
+      "parameters": {
+        "mu": [
+          1,
+          0.2
+        ],
+        "alpha": [
+          1.7,
+          -1.5
+        ]
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "body",
+      "cellset": "all_cells",
+      "material": "rubber",
+      "formulation": "u-p-J",
+      "bulk": 5000
+    },
+    {
+      "command": "loadcase.add",
+      "name": "tension",
+      "type": "uniaxial"
+    },
+    {
+      "command": "step.add",
+      "name": "step_1",
+      "ramp": {
+        "num": 5,
+        "items": [
+          {
+            "target": "tension",
+            "end": 1
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "step_1"
+      ],
+      "curve": "tension"
+    }
+  ]
+}

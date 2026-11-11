@@ -74,6 +74,22 @@ def test_valid_document(document):
         lambda d: find(d, "section_hard").update(bulk=100),
         lambda d: find(d, "section_hard").update(formulation="u-p"),
         lambda d: find(d, "section_hard").update(volumetric="log"),
+        lambda d: find(d, "umat_soft").update(
+            model="Ogden", parameters={"mu": [1, 1, 1, 1], "alpha": [2, 2, 2, 2]}
+        ),
+        lambda d: find(d, "umat_soft").update(
+            model="Ogden", parameters={"mu": [1], "alpha": [0]}
+        ),
+        lambda d: find(d, "umat_soft").update(
+            model="ArrudaBoyce", parameters={"C1": 1, "limit": 1}
+        ),
+        lambda d: find(d, "umat_soft").update(
+            model="ExtendedTube",
+            parameters={"Gc": 0.2, "delta": 0.1, "Ge": 0.2, "beta": 1.5},
+        ),
+        lambda d: find(d, "umat_soft").update(
+            model="Yeoh", parameters={"C10": 0, "C20": 0, "C30": 0}
+        ),
         lambda d: find(d, "specimen").update(scale=0),
         lambda d: find(d, "specimen").update(scale=-1000),
         lambda d: find(d, "section_soft").update(volumetric="quadratic"),
@@ -168,6 +184,20 @@ def test_one_merge(document):
     assert commands.errors(document) == []
     document["commands"].insert(2, {**merge, "name": "merge_2"})
     assert any("only one mesh.merge" in m for m in commands.errors(document))
+
+
+def test_ogden_needs_as_many_exponents_as_moduli(document):
+    # a check beyond the schema of the lists of the terms (#136)
+    find(document, "umat_soft").update(
+        model="Ogden", parameters={"mu": [1.0, 0.2], "alpha": [2.0], "bulk": 50.0}
+    )
+    messages = commands.errors(document)
+    assert any(
+        "material 'umat_soft': mu and alpha need the same number of values." in m
+        for m in messages
+    )
+    find(document, "umat_soft")["parameters"]["alpha"].append(-1.5)
+    assert commands.errors(document) == []
 
 
 def test_document_is_not_modified(document):

@@ -52,7 +52,7 @@ function setup(store = new ModelStore()) {
 
 describe("ribbon commands", () => {
   it("show the commands of the active tab", () => {
-    const { tab, panel } = setup();
+    const { tab, panel, command } = setup();
     const names = () =>
       within(panel())
         .getAllByRole("button")
@@ -66,12 +66,28 @@ describe("ribbon commands", () => {
       "Model settings",
     ]);
     tab("Materials");
+    // the models in menus of their groups, so the ribbon stays one row (#136)
     expect(names()).toEqual([
-      "Neo-Hooke",
-      "Neo-Hooke (compressible)",
-      "Mooney-Rivlin",
+      "Neo-Hooke ▾",
+      "Polynomial ▾",
+      "Ogden",
+      "Micromechanical ▾",
       "Linear elastic (large strain)",
     ]);
+    const polynomial = command("Polynomial");
+    expect(polynomial.getAttribute("aria-haspopup")).toBe("menu");
+    fireEvent.click(polynomial);
+    const menu = screen.getByRole("menu", { name: "Polynomial" });
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((i) => i.textContent),
+    ).toEqual(["Mooney-Rivlin", "Yeoh", "Third-order deformation"]);
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Yeoh" }));
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(
+      within(screen.getByRole("dialog")).getByLabelText("C₂₀"),
+    ).toBeTruthy();
   });
 
   it("explain why a command is not available yet", () => {
@@ -93,6 +109,7 @@ describe("ribbon commands", () => {
     const opener = command("Neo-Hooke");
     opener.focus();
     fireEvent.click(opener);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Neo-Hooke" }));
     expect(within(dialog()).getByRole("heading").textContent).toBe(
       "New material",
     );
@@ -164,7 +181,10 @@ describe("ribbon commands", () => {
       fill: () => void = () => {},
     ) => {
       tab(tabName);
-      fireEvent.click(command(button));
+      // a button of the ribbon, or an item of a menu of the ribbon (#136)
+      const [menu, item] = button.split(" > ");
+      fireEvent.click(command(menu));
+      if (item) fireEvent.click(screen.getByRole("menuitem", { name: item }));
       fill();
       create();
       expect(screen.queryByRole("dialog"), button).toBeNull();
@@ -197,7 +217,7 @@ describe("ribbon commands", () => {
     add("Mesh", "Point set", () =>
       fireEvent.input(field("Coordinate"), { target: { value: "3" } }),
     );
-    add("Materials", "Neo-Hooke (compressible)");
+    add("Materials", "Neo-Hooke > Neo-Hooke (compressible)");
     add("Sections", "Section");
     add("Loads & BCs", "Boundary", () =>
       fireEvent.change(field("Point set"), { target: { value: "points_1" } }),

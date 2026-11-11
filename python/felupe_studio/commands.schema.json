@@ -280,6 +280,21 @@
           "$ref": "#/$defs/MaterialMooneyRivlin"
         },
         {
+          "$ref": "#/$defs/MaterialYeoh"
+        },
+        {
+          "$ref": "#/$defs/MaterialThirdOrderDeformation"
+        },
+        {
+          "$ref": "#/$defs/MaterialOgden"
+        },
+        {
+          "$ref": "#/$defs/MaterialArrudaBoyce"
+        },
+        {
+          "$ref": "#/$defs/MaterialExtendedTube"
+        },
+        {
           "$ref": "#/$defs/MaterialLinearElasticLargeStrain"
         }
       ]
@@ -287,6 +302,7 @@
     "MaterialNeoHooke": {
       "description": "Isotropic hyperelastic Neo-Hookean material (fem.NeoHooke). Without a bulk modulus it needs the u-p-J formulation.",
       "x-label": "Neo-Hooke",
+      "x-group": "Neo-Hooke",
       "x-felupe": { "class": "fem.NeoHooke" },
       "type": "object",
       "required": ["command", "name", "model", "parameters"],
@@ -328,6 +344,7 @@
     "MaterialNeoHookeCompressible": {
       "description": "Compressible isotropic hyperelastic Neo-Hookean material (fem.NeoHookeCompressible).",
       "x-label": "Neo-Hooke (compressible)",
+      "x-group": "Neo-Hooke",
       "x-felupe": { "class": "fem.NeoHookeCompressible" },
       "type": "object",
       "required": ["command", "name", "model", "parameters"],
@@ -370,6 +387,7 @@
     "MaterialMooneyRivlin": {
       "description": "Isotropic hyperelastic Mooney-Rivlin material (fem.Hyperelastic with fem.mooney_rivlin, needs tensortrax). The shear modulus is 2 (C10 + C01). Without a bulk modulus it needs the u-p-J formulation.",
       "x-label": "Mooney-Rivlin",
+      "x-group": "Polynomial",
       "x-felupe": { "function": "fem.mooney_rivlin" },
       "type": "object",
       "required": ["command", "name", "model", "parameters"],
@@ -403,6 +421,304 @@
               "description": "Material parameter of the second invariant",
               "type": "number",
               "default": 0.1
+            },
+            "bulk": {
+              "x-label": "K",
+              "x-quantity": "stress",
+              "description": "Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.",
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "x-felupe": "volumetric"
+            }
+          }
+        }
+      }
+    },
+    "MaterialYeoh": {
+      "description": "Isotropic hyperelastic Yeoh material (fem.Hyperelastic with fem.yeoh, needs tensortrax): a cubic polynomial of the first invariant. The shear modulus is 2 C10. Without a bulk modulus it needs the u-p-J formulation.",
+      "x-label": "Yeoh",
+      "x-group": "Polynomial",
+      "x-felupe": { "function": "fem.yeoh" },
+      "type": "object",
+      "required": ["command", "name", "model", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "material.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "model": {
+          "const": "Yeoh"
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["C10", "C20", "C30"],
+          "additionalProperties": false,
+          "properties": {
+            "C10": {
+              "x-label": "C₁₀",
+              "x-quantity": "stress",
+              "description": "Material parameter of the linear term of the first invariant",
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "default": 0.5
+            },
+            "C20": {
+              "x-label": "C₂₀",
+              "x-quantity": "stress",
+              "description": "Material parameter of the quadratic term of the first invariant",
+              "type": "number",
+              "default": -0.1
+            },
+            "C30": {
+              "x-label": "C₃₀",
+              "x-quantity": "stress",
+              "description": "Material parameter of the cubic term of the first invariant",
+              "type": "number",
+              "default": 0.02
+            },
+            "bulk": {
+              "x-label": "K",
+              "x-quantity": "stress",
+              "description": "Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.",
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "x-felupe": "volumetric"
+            }
+          }
+        }
+      }
+    },
+    "MaterialThirdOrderDeformation": {
+      "description": "Isotropic hyperelastic third-order deformation material (fem.Hyperelastic with fem.third_order_deformation, needs tensortrax): terms of the first and second invariant up to the third order. The shear modulus is 2 (C10 + C01). Without a bulk modulus it needs the u-p-J formulation.",
+      "x-label": "Third-order deformation",
+      "x-group": "Polynomial",
+      "x-felupe": { "function": "fem.third_order_deformation" },
+      "type": "object",
+      "required": ["command", "name", "model", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "material.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "model": {
+          "const": "ThirdOrderDeformation"
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["C10", "C01", "C11", "C20", "C30"],
+          "additionalProperties": false,
+          "properties": {
+            "C10": {
+              "x-label": "C₁₀",
+              "x-quantity": "stress",
+              "description": "Material parameter of the linear term of the first invariant",
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "default": 0.5
+            },
+            "C01": {
+              "x-label": "C₀₁",
+              "x-quantity": "stress",
+              "description": "Material parameter of the linear term of the second invariant",
+              "type": "number",
+              "default": 0.1
+            },
+            "C11": {
+              "x-label": "C₁₁",
+              "x-quantity": "stress",
+              "description": "Material parameter of the mixed term of the first and second invariant",
+              "type": "number",
+              "default": 0.01
+            },
+            "C20": {
+              "x-label": "C₂₀",
+              "x-quantity": "stress",
+              "description": "Material parameter of the quadratic term of the first invariant",
+              "type": "number",
+              "default": -0.1
+            },
+            "C30": {
+              "x-label": "C₃₀",
+              "x-quantity": "stress",
+              "description": "Material parameter of the cubic term of the first invariant",
+              "type": "number",
+              "default": 0.02
+            },
+            "bulk": {
+              "x-label": "K",
+              "x-quantity": "stress",
+              "description": "Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.",
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "x-felupe": "volumetric"
+            }
+          }
+        }
+      }
+    },
+    "MaterialOgden": {
+      "description": "Isotropic hyperelastic Ogden material (fem.Hyperelastic with fem.ogden, needs tensortrax): up to three terms of the principal stretches, each with a modulus μi and an exponent αi. The shear modulus is the sum of the moduli. Without a bulk modulus it needs the u-p-J formulation.",
+      "x-label": "Ogden",
+      "x-felupe": { "function": "fem.ogden" },
+      "type": "object",
+      "required": ["command", "name", "model", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "material.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "model": {
+          "const": "Ogden"
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["mu", "alpha"],
+          "additionalProperties": false,
+          "x-same-length": ["mu", "alpha"],
+          "properties": {
+            "mu": {
+              "x-label": "μᵢ",
+              "x-quantity": "stress",
+              "description": "Moduli of the terms, one to three, as many as exponents",
+              "type": "array",
+              "items": { "type": "number" },
+              "minItems": 1,
+              "maxItems": 3,
+              "default": [1.0, 0.2]
+            },
+            "alpha": {
+              "x-label": "αᵢ",
+              "description": "Stretch exponents of the terms, one per modulus, not zero",
+              "type": "array",
+              "items": { "type": "number", "not": { "const": 0 } },
+              "minItems": 1,
+              "maxItems": 3,
+              "default": [1.7, -1.5]
+            },
+            "bulk": {
+              "x-label": "K",
+              "x-quantity": "stress",
+              "description": "Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.",
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "x-felupe": "volumetric"
+            }
+          }
+        }
+      }
+    },
+    "MaterialArrudaBoyce": {
+      "description": "Isotropic hyperelastic Arruda-Boyce material, the eight-chain model (fem.Hyperelastic with fem.arruda_boyce, needs tensortrax). The chains lock at the limiting stretch. Without a bulk modulus it needs the u-p-J formulation.",
+      "x-label": "Arruda-Boyce",
+      "x-group": "Micromechanical",
+      "x-felupe": { "function": "fem.arruda_boyce" },
+      "type": "object",
+      "required": ["command", "name", "model", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "material.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "model": {
+          "const": "ArrudaBoyce"
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["C1", "limit"],
+          "additionalProperties": false,
+          "properties": {
+            "C1": {
+              "x-label": "C₁",
+              "x-quantity": "stress",
+              "description": "Shear modulus of the chain network (the initial shear modulus for a large limiting stretch)",
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "default": 1.0
+            },
+            "limit": {
+              "x-label": "λₘ",
+              "description": "Limiting stretch at which the chains are locked",
+              "type": "number",
+              "exclusiveMinimum": 1,
+              "default": 3.2
+            },
+            "bulk": {
+              "x-label": "K",
+              "x-quantity": "stress",
+              "description": "Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.",
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "x-felupe": "volumetric"
+            }
+          }
+        }
+      }
+    },
+    "MaterialExtendedTube": {
+      "description": "Isotropic hyperelastic extended tube material of Kaliske and Heinrich (fem.Hyperelastic with fem.extended_tube, needs tensortrax): a cross-link and a tube constraint contribution. The shear modulus is Gc + Ge. Without a bulk modulus it needs the u-p-J formulation.",
+      "x-label": "Extended tube",
+      "x-group": "Micromechanical",
+      "x-felupe": { "function": "fem.extended_tube" },
+      "type": "object",
+      "required": ["command", "name", "model", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "material.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "model": {
+          "const": "ExtendedTube"
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["Gc", "delta", "Ge", "beta"],
+          "additionalProperties": false,
+          "properties": {
+            "Gc": {
+              "x-label": "Gc",
+              "x-quantity": "stress",
+              "description": "Cross-link modulus",
+              "type": "number",
+              "minimum": 0,
+              "default": 0.1867
+            },
+            "delta": {
+              "x-label": "δ",
+              "description": "Finite extensibility of the chains",
+              "type": "number",
+              "minimum": 0,
+              "default": 0.09693
+            },
+            "Ge": {
+              "x-label": "Ge",
+              "x-quantity": "stress",
+              "description": "Constraint (tube) modulus",
+              "type": "number",
+              "minimum": 0,
+              "default": 0.2169
+            },
+            "beta": {
+              "x-label": "β",
+              "description": "Exponent of the tube constraint",
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 1,
+              "default": 0.2
             },
             "bulk": {
               "x-label": "K",

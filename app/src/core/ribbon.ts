@@ -18,6 +18,37 @@ export interface RibbonItem {
   label: string;
   /** Values set before the defaults, e.g. `{ model: "NeoHooke" }`. */
   preset: Draft;
+  /** A menu of the ribbon with the items of the same group (`x-group`, #136). */
+  group?: string;
+}
+
+/** Items of a ribbon group: a button, or a menu of the items of one group. */
+export type RibbonEntry =
+  | { kind: "button"; item: RibbonItem }
+  | { kind: "menu"; group: string; items: RibbonItem[] };
+
+/**
+ * The entries of the items of a command: consecutive items of the same group form a
+ * menu (e.g. *Polynomial* with Mooney-Rivlin, Yeoh and third-order deformation), so
+ * the ribbon stays one row. A group of one item is a button.
+ */
+export function ribbonEntries(items: readonly RibbonItem[]): RibbonEntry[] {
+  const entries: RibbonEntry[] = [];
+  for (const item of items) {
+    const last = entries.at(-1);
+    if (item.group && last?.kind === "menu" && last.group === item.group) {
+      last.items.push(item);
+    } else if (item.group) {
+      entries.push({ kind: "menu", group: item.group, items: [item] });
+    } else {
+      entries.push({ kind: "button", item });
+    }
+  }
+  return entries.map((e) =>
+    e.kind === "menu" && e.items.length === 1
+      ? { kind: "button", item: e.items[0] }
+      : e,
+  );
 }
 
 const TYPES = Object.keys(REGISTRY) as CommandType[];
@@ -42,6 +73,7 @@ export function ribbonGroups(tab: Tab): RibbonItem[][] {
       type,
       label: option.label,
       preset: { [variant.key]: option.value },
+      ...(option.group ? { group: option.group } : {}),
     }));
   });
 }

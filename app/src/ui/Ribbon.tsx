@@ -1,10 +1,16 @@
 import type { ComponentChildren } from "preact";
 import { useEffect } from "preact/hooks";
 import type { Tab } from "../core/registry";
-import { type RibbonItem, ribbonGroups, unavailable } from "../core/ribbon";
+import {
+  type RibbonItem,
+  ribbonEntries,
+  ribbonGroups,
+  unavailable,
+} from "../core/ribbon";
 import type { ModelStore } from "../core/store";
 import { KINDS } from "../core/validate";
 import { Icon, type IconName } from "./icons";
+import { Menu } from "./Menu";
 
 export type Workspace = "model" | "results";
 
@@ -56,7 +62,44 @@ function Commands({
       {ribbonGroups(tab).map((group, index) => (
         <div key={group[0].type} class="ribbon-group">
           {index > 0 && <span class="ribbon-separator" aria-hidden="true" />}
-          {group.map((item) => {
+          {ribbonEntries(group).map((entry) => {
+            if (entry.kind === "menu") {
+              // a menu of the models of a group, e.g. Polynomial (#136)
+              const [first] = entry.items;
+              return (
+                <Menu
+                  key={`group-${entry.group}`}
+                  kind="ribbon"
+                  label={entry.group}
+                  title={entry.items.map((i) => i.label).join(", ")}
+                  button={
+                    <>
+                      <Icon name={KINDS[first.type] as IconName} size={22} />
+                      <span>
+                        {entry.group}
+                        <span class="ribbon-caret" aria-hidden="true">
+                          {" ▾"}
+                        </span>
+                      </span>
+                    </>
+                  }
+                  sections={[
+                    {
+                      items: entry.items.map((item) => {
+                        const reason = unavailable(item.type, context);
+                        return {
+                          id: item.id,
+                          label: item.label,
+                          ...(reason ? { blocker: reason } : {}),
+                          onSelect: () => onCreate(item),
+                        };
+                      }),
+                    },
+                  ]}
+                />
+              );
+            }
+            const { item } = entry;
             const reason = unavailable(item.type, context);
             const describedBy = reason
               ? `reason-${item.id.replace(/[^A-Za-z0-9]/g, "-")}`
