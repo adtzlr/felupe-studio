@@ -21,18 +21,22 @@ export function Properties({ store, files, notes, selected, onSelect }: Props) {
   if (!command) return <p class="muted">Select an object in the browser.</p>;
 
   const kind = KINDS[command.command];
-  const issues = store.issues
-    .filter((i) => i.name === command.name)
-    .map((i) => i.message);
+  const own = store.issues.filter((i) => i.name === command.name);
+  // an issue of a field is shown at the field (#137), the others below the form
+  const fieldIssues: Record<string, string> = {};
+  for (const issue of own) {
+    if (issue.field && !(issue.field in fieldIssues))
+      fieldIssues[issue.field] = withoutIndex(issue.message);
+  }
+  const issues = own.filter((i) => !i.field).map((i) => i.message);
   const reported =
-    findNode(store, command.name)?.issues.filter((m) => !issues.includes(m)) ??
-    [];
+    findNode(store, command.name)?.issues.filter(
+      (m) => !own.some((i) => i.message === m),
+    ) ?? [];
   // a missing file is shown by the file status
-  const messages = [
-    ...issues,
-    ...reported,
-    ...(notes.get(command.name) ?? []),
-  ].filter((message) => !message.includes("is not loaded"));
+  const messages = [...issues, ...reported, ...(notes.get(command.name) ?? [])]
+    .filter((message) => !message.includes("is not loaded"))
+    .map(withoutIndex);
   const dependents = store.dependents(command.name);
   // a control point is a point set of one point, with a label of its own (#95)
   const control = command.command === "point.add";
@@ -66,6 +70,7 @@ export function Properties({ store, files, notes, selected, onSelect }: Props) {
         context={{ commands: store.commands, editing: command.name }}
         submitLabel="Apply"
         requireChange
+        issues={fieldIssues}
         onSubmit={(next) => {
           store.update(command.name, next);
           onSelect(next.name);
@@ -119,6 +124,10 @@ export function Properties({ store, files, notes, selected, onSelect }: Props) {
     </div>
   );
 }
+
+/** A message without the index of its command, e.g. `commands/3: `. */
+const withoutIndex = (message: string) =>
+  message.replace(/^commands\/\d+: /, "");
 
 function findNode(store: ModelStore, name: string) {
   const stack = [...store.tree];

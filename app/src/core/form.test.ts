@@ -184,7 +184,11 @@ describe("fieldSpecs", () => {
       min: -1,
       exclusiveMax: 0.5,
     });
-    expect(nu).toMatchObject({ label: "ν", hint: "nu: Poisson's ratio" });
+    expect(nu).toMatchObject({
+      label: "ν",
+      hint: "Poisson's ratio",
+      symbolOf: "nu",
+    });
     const model = specs.find((s) => s.key === "model")!;
     expect(model.input).toMatchObject({
       options: [

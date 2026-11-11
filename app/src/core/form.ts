@@ -80,6 +80,11 @@ export interface FieldSpec {
   hint?: string;
   /** Description of the schema, for a tooltip. */
   description?: string;
+  /**
+   * The key of a value with a label of its own in the schema, e.g. `C10` of the
+   * label `C₁₀`, for the tooltip of the label (#137).
+   */
+  symbolOf?: string;
   placeholder?: string;
   required: boolean;
   input: Input;
@@ -261,17 +266,17 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
     const key = path.join(".");
     const field = key === "name" ? { label: "Name" } : info(type, key);
     // a property with a label in the schema (e.g. a material parameter `μ`) takes
-    // its description and its key as hint, and "none" as placeholder if optional
+    // its description as hint, its key as tooltip of the label (#137), and "none"
+    // as placeholder if optional
     const labelled = raw?.["x-label"] !== undefined;
-    const schemaHint = labelled
-      ? `${path.at(-1)}: ${raw!.description}`
-      : undefined;
+    const schemaHint = labelled ? raw!.description : undefined;
     specs.push({
       path,
       key,
       label: field?.label ?? raw?.["x-label"] ?? key,
       hint: field?.hint ?? schemaHint,
       description,
+      ...(labelled && !field?.label ? { symbolOf: path.at(-1) } : {}),
       placeholder:
         field?.placeholder ?? (labelled && !required ? "none" : undefined),
       required,

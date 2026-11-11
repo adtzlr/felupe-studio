@@ -2,7 +2,7 @@
 // (felupe_studio.commands); both are tested with tests/data/validation_cases.json,
 // so the messages are identical.
 import type { Command } from "./commands";
-import { loadcaseProblems } from "./loadcases";
+import { loadcaseFieldErrors, loadcaseProblems } from "./loadcases";
 import { materialProblems, needsBulk } from "./materials";
 import {
   NAME_MAX_LENGTH,
@@ -94,6 +94,8 @@ export interface Issue {
   name: string;
   /** Message, prefixed with `commands/<index>: ` like in Python. */
   message: string;
+  /** The field of the command that has the issue, e.g. `material` (#137). */
+  field?: string;
 }
 
 /** Names referenced by a command, with the field they appear in. */
@@ -194,8 +196,13 @@ export function validate(commands: readonly Command[]): Issue[] {
 
   commands.forEach((cmd, i) => {
     const name = cmd.name;
-    const add = (message: string) =>
-      issues.push({ index: i, name, message: `commands/${i}: ${message}` });
+    const add = (message: string, field?: string) =>
+      issues.push({
+        index: i,
+        name,
+        message: `commands/${i}: ${message}`,
+        ...(field ? { field } : {}),
+      });
 
     // references must point to objects of the right kind, created before
     for (const [field, [refKind, isList]] of Object.entries(
@@ -210,10 +217,12 @@ export function validate(commands: readonly Command[]): Issue[] {
         if (other === undefined) {
           add(
             `${cmd.command} '${name}' references unknown ${text} '${ref}' in '${field}'.`,
+            field,
           );
         } else if (!kinds.includes(other)) {
           add(
             `'${ref}' in '${field}' of '${name}' is a ${other}, not a ${text}.`,
+            field,
           );
         }
       }
@@ -225,12 +234,15 @@ export function validate(commands: readonly Command[]): Issue[] {
       for (const ref of targets) {
         const kind = kindOf(ref);
         if (kind === undefined || !RAMPED.includes(kind)) {
-          add(`step '${name}' ramps unknown boundary or load '${ref}'.`);
+          add(
+            `step '${name}' ramps unknown boundary or load '${ref}'.`,
+            "ramp.items",
+          );
         }
       }
       const twice = targets.filter((t, i) => targets.indexOf(t) !== i);
       for (const ref of [...new Set(twice)].sort()) {
-        add(`step '${name}' ramps '${ref}' twice.`);
+        add(`step '${name}' ramps '${ref}' twice.`, "ramp.items");
       }
     }
 
@@ -240,12 +252,15 @@ export function validate(commands: readonly Command[]): Issue[] {
       if (mesh.command === "mesh.import" && mesh.tag === undefined) {
         add(
           `cell set '${name}' uses tag values, but mesh '${mesh.name}' was imported without a tag.`,
+          "mesh",
         );
       }
     }
 
     if (cmd.command === "loadcase.add") {
-      for (const problem of loadcaseProblems(cmd)) add(problem);
+      // at the field of the error of the form, e.g. the second axis
+      const [field] = Object.keys(loadcaseFieldErrors(cmd));
+      for (const problem of loadcaseProblems(cmd)) add(problem, field);
     }
 
     // a model with an optional bulk modulus has no volumetric part without it
@@ -255,6 +270,7 @@ export function validate(commands: readonly Command[]): Issue[] {
         add(
           `section '${name}' uses the displacement formulation with ${material.model} ` +
             `'${material.name}' without a bulk modulus. Add 'bulk' to the material or use 'u-p-J'.`,
+          "formulation",
         );
       }
     }
@@ -269,6 +285,7 @@ export function validate(commands: readonly Command[]): Issue[] {
       if (same) {
         add(
           `control point '${name}' is at the coordinates of control point '${same[1].name}': the script merges them.`,
+          "coordinates",
         );
       }
     }
@@ -281,12 +298,13 @@ export function validate(commands: readonly Command[]): Issue[] {
     ) {
       add(
         `constraint '${name}' with a rotation point connects all components x, y and z.`,
+        "constrained",
       );
     }
 
     if (cmd.command === "material.add") {
       for (const problem of materialProblems(cmd)) {
-        add(`material '${name}': ${problem}`);
+        add(`material '${name}': ${problem.message}`, problem.field);
       }
     }
 
@@ -298,11 +316,12 @@ export function validate(commands: readonly Command[]): Issue[] {
     }
 
     const problem = nameProblem(name);
-    if (problem?.endsWith("reserved for the generated script.")) add(problem);
+    if (problem?.endsWith("reserved for the generated script."))
+      add(problem, "name");
 
     const previous = defined.get(name);
     if (previous) {
-      add(`name '${name}' is already used by commands/${previous[0]}.`);
+      add(`name '${name}' is already used by commands/${previous[0]}.`, "name");
     } else {
       defined.set(name, [i, cmd]);
     }

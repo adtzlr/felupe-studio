@@ -230,7 +230,7 @@ describe("ribbon commands", () => {
       fireEvent.input(field("End 1"), { target: { value: "0.5" } });
     });
     add("Steps & Job", "Job", () =>
-      fireEvent.change(field("Curve boundary"), {
+      fireEvent.change(field("Curve"), {
         target: { value: "boundary_2" },
       }),
     );

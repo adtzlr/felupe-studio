@@ -82,10 +82,13 @@ export function needsBulk(material: Material): boolean {
 }
 
 /**
- * What is wrong with the parameters of a material beyond the schema: lists of values
- * that need the same number of values (like `problems` of felupe_studio.materials).
+ * What is wrong with the parameters of a material beyond the schema, with the field:
+ * lists of values that need the same number of values (like `problems` of
+ * felupe_studio.materials).
  */
-export function materialProblems(material: Material): string[] {
+export function materialProblems(
+  material: Material,
+): { message: string; field: string }[] {
   const model = MATERIAL_MODELS.find((m) => m.name === material.model);
   const values = material.parameters as Record<string, unknown>;
   const keys = model?.sameLength ?? [];
@@ -93,6 +96,12 @@ export function materialProblems(material: Material): string[] {
     keys.flatMap((k) => (Array.isArray(values[k]) ? [values[k].length] : [])),
   );
   return lengths.size > 1
-    ? [`${keys.join(" and ")} need the same number of values.`]
+    ? [
+        {
+          message: `${keys.join(" and ")} need the same number of values.`,
+          // at the later list, like the error of the form
+          field: `parameters.${keys.at(-1)}`,
+        },
+      ]
     : [];
 }

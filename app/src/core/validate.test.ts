@@ -17,6 +17,18 @@ describe("validate", () => {
     expect(issue.index).toBe(1);
     expect(issue.name).toBe("hard");
   });
+
+  it("returns the field of an issue, if it has one (#137)", () => {
+    const field = (name: string) => {
+      const c = cases.find((c) => c.name === name)!;
+      return validate(c.document.commands as Command[]).map((i) => i.field);
+    };
+    expect(field("unknown mesh")).toEqual(["mesh"]);
+    expect(field("ogden with fewer exponents than moduli")).toEqual([
+      "parameters.alpha",
+    ]);
+    expect(field("two model settings")).toEqual([undefined]);
+  });
 });
 
 describe("schema values", () => {

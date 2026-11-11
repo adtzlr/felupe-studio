@@ -39,20 +39,51 @@ function edit(name: string) {
 
 describe("editing in the properties panel", () => {
   it("applies a changed value as one undo step", () => {
-    const { store, field, button, type } = edit("umat_hard");
-    expect(button("Apply").disabled).toBe(true);
+    const { store, properties, field, button, type } = edit("umat_hard");
+    // an unchanged form has neither Apply nor Reset (#137)
+    const actions = () =>
+      [...properties.querySelectorAll(".actions button")].map(
+        (b) => b.textContent,
+      );
+    expect(actions()).toEqual(["Delete"]);
 
     type("E", "20.5");
-    expect(button("Apply").disabled).toBe(false);
+    expect(actions()).toEqual(["Apply", "Reset", "Delete"]);
     fireEvent.click(button("Apply"));
     expect(store.get("umat_hard")).toMatchObject({
       parameters: { E: 20.5, nu: 0.3 },
     });
     expect(field("E").value).toBe("20.5");
-    expect(button("Apply").disabled).toBe(true);
+    expect(actions()).toEqual(["Delete"]);
 
     act(() => store.undo());
     expect(field("E").value).toBe("10");
+  });
+
+  it("applies with Enter and resets with Esc (#137)", () => {
+    const { store, field, type } = edit("umat_hard");
+    const form = () => field("E").closest("form")!;
+    type("E", "20.5");
+    fireEvent.submit(form()); // Enter in a field submits the form
+    expect(store.get("umat_hard")).toMatchObject({ parameters: { E: 20.5 } });
+
+    type("E", "99");
+    fireEvent.keyDown(field("E"), { key: "Escape" });
+    expect(field("E").value).toBe("20.5");
+    expect(field("E").getAttribute("aria-invalid")).toBeNull();
+    // Enter in an unchanged form applies nothing
+    const update = vi.spyOn(store, "update");
+    fireEvent.submit(form());
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("shows the key of a symbol in the tooltip, the numbers right-aligned", () => {
+    const { properties, field } = edit("umat_hard");
+    const label = within(properties).getByText("ν");
+    expect(label.getAttribute("title")).toBe("nu: Poisson's ratio");
+    expect(properties.textContent).toContain("Poisson's ratio");
+    expect(properties.textContent).not.toContain("nu: Poisson's ratio");
+    expect(field("ν").getAttribute("inputmode")).toBe("decimal");
   });
 
   it("shows errors and does not apply invalid values", () => {
@@ -80,11 +111,13 @@ describe("editing in the properties panel", () => {
   });
 
   it("resets the form", () => {
-    const { field, button, type } = edit("umat_hard");
+    const { properties, field, button, type } = edit("umat_hard");
     type("E", "99");
     fireEvent.click(button("Reset"));
     expect(field("E").value).toBe("10");
-    expect(button("Apply").disabled).toBe(true);
+    expect(within(properties).queryByRole("button", { name: "Apply" })).toBe(
+      null,
+    );
   });
 
   it("renames an object, its references and keeps it selected", () => {
@@ -143,10 +176,21 @@ describe("editing in the properties panel", () => {
     fireEvent.click(button("Apply"));
     expect(store.get("section_soft")).not.toHaveProperty("bulk");
     expect(store.get("section_soft")).not.toHaveProperty("volumetric");
-    // NeoHooke without a bulk modulus now needs attention
+    // NeoHooke without a bulk modulus now needs attention, at the formulation
+    // (#137), without the index of the command
+    const issue = field("Formulation").getAttribute("aria-describedby")!;
+    expect(issue).toContain("field-formulation-error");
+    const message = properties.querySelector("#field-formulation-error")!;
+    expect(message.className).toBe("field-issue");
+    expect(message.textContent).toMatch(
+      /^section 'section_soft' uses .*without a bulk modulus/,
+    );
     expect(
-      within(properties).getByRole("list", { name: "Issues" }).textContent,
-    ).toContain("without a bulk modulus");
+      within(properties).queryByRole("list", { name: "Issues" }),
+    ).toBeNull();
+    // a changed formulation hides the issue of the stored command
+    choose("Formulation", "u-p-J");
+    expect(properties.querySelector("#field-formulation-error")).toBeNull();
   });
 
   it("offers the objects of a kind as references", () => {

@@ -148,9 +148,12 @@ describe("Browser", () => {
     expect(within(item("section_hard")).getByLabelText("1 issue")).toBeTruthy();
     expect(within(item("Sections")).getByLabelText("1 issue")).toBeTruthy();
     fireEvent.click(item("section_hard"));
+    // at the field of the reference (#137)
     expect(
-      within(properties()).getByRole("list", { name: "Issues" }).textContent,
-    ).toContain("unknown material 'missing'");
+      properties().querySelector("#field-material-error")!.textContent,
+    ).toBe(
+      "section.add 'section_hard' references unknown material 'missing' in 'material'.",
+    );
   });
 
   it("toggles the visibility of objects", () => {

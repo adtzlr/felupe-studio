@@ -40,6 +40,11 @@ interface Props {
   onCancel?: () => void;
   /** Further buttons next to submit. */
   children?: ComponentChildren;
+  /**
+   * Issues of the validation of the stored command by field key, shown at their
+   * field while it is unchanged (#137).
+   */
+  issues?: Readonly<Record<string, string>>;
 }
 
 /** Text of a number or id field while it is edited, with how to parse it. */
@@ -97,6 +102,37 @@ function currentVariant(spec: FieldSpec, value: unknown): string {
   ).value;
 }
 
+/** The tooltip of a label: the key of a symbol (e.g. C10 of C₁₀), or the schema. */
+const tooltip = (spec: FieldSpec) =>
+  spec.symbolOf
+    ? `${spec.symbolOf}${spec.description ? `: ${spec.description}` : ""}`
+    : spec.description;
+
+/** The error of a field, or else an issue of the stored command at the field. */
+function Message({
+  id,
+  error,
+  issue,
+}: {
+  id: string;
+  error?: string;
+  issue?: string;
+}) {
+  if (error)
+    return (
+      <small id={`${id}-error`} class="field-error">
+        {error}
+      </small>
+    );
+  if (issue)
+    return (
+      <small id={`${id}-error`} class="field-issue">
+        {issue}
+      </small>
+    );
+  return null;
+}
+
 export function CommandForm({
   type,
   initial,
@@ -106,6 +142,7 @@ export function CommandForm({
   onSubmit,
   onCancel,
   children,
+  issues = {},
 }: Props) {
   const [start] = useState(
     () => toCommand(type, initial, context) as unknown as Draft,
@@ -120,6 +157,13 @@ export function CommandForm({
   const changed = !sameDraft(draft, start);
   const errorOf = (key: string) =>
     submitted || touched.has(key) ? errors[key] : undefined;
+  // an issue of the stored command at its field, while the field is unchanged
+  const issueOf = (spec: FieldSpec) =>
+    !errorOf(spec.key) &&
+    issues[spec.key] &&
+    sameDraft(getValue(draft, spec.path), getValue(start, spec.path))
+      ? issues[spec.key]
+      : undefined;
 
   const change = (spec: FieldSpec, value: unknown, raw?: RawText) => {
     const next = setValue(type, draft, spec.path, value, context);
@@ -164,6 +208,8 @@ export function CommandForm({
 
   const submit = (event: Event) => {
     event.preventDefault();
+    // Enter in an unchanged form of an object applies nothing
+    if (requireChange && !changed) return;
     setSubmitted(true);
     const invalid = specs.find((spec) => errors[spec.key]);
     if (invalid) {
@@ -178,8 +224,9 @@ export function CommandForm({
     const id = fieldId(key);
     const value = getValue(draft, spec.path);
     const error = errorOf(key);
+    const issue = issueOf(spec);
     const describedBy =
-      [spec.hint && `${id}-hint`, error && `${id}-error`]
+      [spec.hint && `${id}-hint`, (error || issue) && `${id}-error`]
         .filter(Boolean)
         .join(" ") || undefined;
     const common = {
@@ -405,7 +452,7 @@ export function CommandForm({
               items.length === 0 &&
               all.length > 0 &&
               spec.placeholder && (
-                <span class="muted">none selected: {spec.placeholder}</span>
+                <span class="muted">{spec.placeholder} (default)</span>
               )}
           </div>
         );
@@ -422,6 +469,13 @@ export function CommandForm({
       class="command-form"
       noValidate
       onSubmit={submit}
+      onKeyDown={(event) => {
+        // Esc resets a changed form of an object (#137); in a dialog it closes it
+        if (event.key !== "Escape" || !requireChange || !changed) return;
+        event.preventDefault();
+        event.stopPropagation();
+        reset();
+      }}
       aria-label={`${start.name ?? "New object"}`}
     >
       {specs.map((spec) => {
@@ -584,11 +638,7 @@ export function CommandForm({
                   {spec.hint}
                 </small>
               )}
-              {error && (
-                <small id={`${id}-error`} class="field-error">
-                  {error}
-                </small>
-              )}
+              <Message id={id} error={error} issue={issueOf(spec)} />
             </div>
           );
         }
@@ -601,15 +651,11 @@ export function CommandForm({
             class={spec.path.length > 1 ? "form-row nested" : "form-row"}
           >
             {group ? (
-              <span
-                id={`${id}-label`}
-                class="form-label"
-                title={spec.description}
-              >
+              <span id={`${id}-label`} class="form-label" title={tooltip(spec)}>
                 {withUnit(spec.label, unit(spec))}
               </span>
             ) : (
-              <label for={id} class="form-label" title={spec.description}>
+              <label for={id} class="form-label" title={tooltip(spec)}>
                 {withUnit(spec.label, unit(spec))}
               </label>
             )}
@@ -620,25 +666,20 @@ export function CommandForm({
                   {spec.hint}
                 </small>
               )}
-              {error && (
-                <small id={`${id}-error`} class="field-error">
-                  {error}
-                </small>
-              )}
+              <Message id={id} error={error} issue={issueOf(spec)} />
             </div>
           </div>
         );
       })}
       <div class="actions">
-        <button
-          type="submit"
-          class="button primary"
-          disabled={requireChange && !changed}
-        >
-          {submitLabel}
-        </button>
+        {/* editing: Apply and Reset only after a change (#137) */}
+        {(!requireChange || changed) && (
+          <button type="submit" class="button primary" title="Enter">
+            {submitLabel}
+          </button>
+        )}
         {requireChange && changed && (
-          <button type="button" class="button" onClick={reset}>
+          <button type="button" class="button" title="Esc" onClick={reset}>
             Reset
           </button>
         )}
