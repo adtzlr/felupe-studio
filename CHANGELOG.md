@@ -6,6 +6,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Added
 
+- Curves of rotation points show the moment over the rotation (*Moment–rotation*); the properties say when values are rotations (#98).
 - Multi-point constraints (`mpc.add`, `fem.MultiPointConstraint`): the points of a point set follow a control point, optionally with a rotation point; items of the steps (#97).
 - **Control point at center** of the selected point set, of a picked face or of picked nodes (#96).
 - Control points in the viewport: drawn as markers (also displaced in the results), selected by a click, listed under **Points** in the browser (#95).

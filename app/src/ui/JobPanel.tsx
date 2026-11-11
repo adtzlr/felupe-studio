@@ -7,6 +7,7 @@ import {
 import type { Command } from "../core/commands";
 import { curvePoint, formatValue as format } from "../core/results";
 import type { ModelStore } from "../core/store";
+import { curveQuantities } from "../core/curve";
 
 interface Props {
   run: JobRun;
@@ -135,9 +136,10 @@ export function JobPanel({ run, store, onDismiss, onShowResults }: Props) {
                     <>
                       <br />
                       <span class="muted">
-                        Last substep: u<sub>{point.axis}</sub> ={" "}
-                        {format(point.u)}, F<sub>{point.axis}</sub> ={" "}
-                        {format(point.f)}
+                        Last substep: {curveQuantities(run.commands, name).u}
+                        <sub>{point.axis}</sub> = {format(point.u)},{" "}
+                        {curveQuantities(run.commands, name).f}
+                        <sub>{point.axis}</sub> = {format(point.f)}
                       </span>
                     </>
                   )}

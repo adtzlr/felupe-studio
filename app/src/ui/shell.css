@@ -697,6 +697,12 @@ button {
   margin-top: 2px;
 }
 
+.properties-content .note {
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .used-by {
   margin: 0;
   color: var(--muted);

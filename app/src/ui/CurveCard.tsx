@@ -2,6 +2,7 @@ import { useState } from "preact/hooks";
 import {
   AXES,
   curveCsv,
+  curveQuantities,
   type CurvePoint,
   curveOf,
   finitePoints,
@@ -48,6 +49,8 @@ export function CurveCard({ run, view, onChange, download }: Props) {
   if (!result?.x || !result.y) return null;
   const axis = view.axis ?? largestAxis(result);
   const name = AXES[axis] ?? String(axis);
+  // the moment over the rotation of a rotation point (#98)
+  const q = curveQuantities(run.commands, view.job);
   const points = curveOf(result, axis);
   const shown = finitePoints(points);
   const boundary = run.commands.find(
@@ -87,10 +90,13 @@ export function CurveCard({ run, view, onChange, download }: Props) {
     ) : null;
 
   return (
-    <section class="curve-card" aria-label="Force-displacement curve">
+    <section
+      class="curve-card"
+      aria-label={`${q.title.replace("–", "-")} curve`}
+    >
       <div class="curve-head">
         <h2>
-          Force–displacement
+          {q.title}
           {curve && <span class="muted"> · {curve}</span>}
         </h2>
         <select
@@ -136,10 +142,12 @@ export function CurveCard({ run, view, onChange, download }: Props) {
               <tr>
                 <th scope="col">Substep</th>
                 <th scope="col">
-                  u<sub>{name}</sub>
+                  {q.u}
+                  <sub>{name}</sub>
                 </th>
                 <th scope="col">
-                  F<sub>{name}</sub>
+                  {q.f}
+                  <sub>{name}</sub>
                 </th>
               </tr>
             </thead>
@@ -167,7 +175,7 @@ export function CurveCard({ run, view, onChange, download }: Props) {
             width={WIDTH}
             height={HEIGHT}
             role="img"
-            aria-label={`Force F${name} over the displacement u${name}, ${points.length} substeps`}
+            aria-label={`${q.y} ${q.f}${name} over the ${q.x.toLowerCase()} ${q.u}${name}, ${points.length} substeps`}
             onPointerMove={(event) => setHover(pick(event))}
             onPointerLeave={() => setHover(undefined)}
             onClick={(event) => {
@@ -223,13 +231,13 @@ export function CurveCard({ run, view, onChange, download }: Props) {
                 y={HEIGHT - 4}
                 text-anchor="middle"
               >
-                Displacement u
+                {q.x} {q.u}
                 <tspan class="sub" dy="3">
                   {name}
                 </tspan>
               </text>
               <text class="axis-label" x={MARGIN.left} y={12}>
-                Force F
+                {q.y} {q.f}
                 <tspan class="sub" dy="3">
                   {name}
                 </tspan>
@@ -257,9 +265,12 @@ export function CurveCard({ run, view, onChange, download }: Props) {
               }}
             >
               <strong>
-                F<sub>{name}</sub> = {formatValue(hovered.f)}
+                {q.f}
+                <sub>{name}</sub> = {formatValue(hovered.f)}
               </strong>
-              <br />u<sub>{name}</sub> = {formatValue(hovered.u)}
+              <br />
+              {q.u}
+              <sub>{name}</sub> = {formatValue(hovered.u)}
               <br />
               <span class="muted">
                 Substep {hovered.substep} ·{" "}
