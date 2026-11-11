@@ -3,49 +3,51 @@
 import type { JobResult } from "../worker/protocol";
 import type { Command } from "./commands";
 import { type Finished, stepOf } from "./results";
+import { rotationPoints, unitOf, unitsOf, withUnit } from "./units";
 
 export { largestAxis } from "./results";
+export { rotationPoints } from "./units";
 
 export const AXES = ["x", "y", "z"] as const;
 
-/** What a curve shows, with the symbols of its axes. */
+/** What a curve shows, with the symbols and the units of its axes. */
 export interface CurveQuantities {
   title: string;
+  /** The moment over the rotation of a rotation point (#98). */
+  moment: boolean;
   /** The quantity and the symbol of the horizontal axis, e.g. Displacement u. */
   x: string;
   u: string;
   /** The quantity and the symbol of the vertical axis, e.g. Force F. */
   y: string;
   f: string;
+  /** The units of the axes, if the model has units (#132); rotations are in rad. */
+  uUnit?: string;
+  fUnit?: string;
 }
 
-const FORCE: CurveQuantities = {
+const FORCE = {
   title: "Force–displacement",
+  moment: false,
   x: "Displacement",
   u: "u",
   y: "Force",
   f: "F",
-};
+} as const;
 
-const MOMENT: CurveQuantities = {
+const MOMENT = {
   title: "Moment–rotation",
+  moment: true,
   x: "Rotation",
   u: "φ",
   y: "Moment",
   f: "M",
-};
-
-/** The rotation points of the constraints of a command list (#98). */
-export const rotationPoints = (commands: readonly Command[]): Set<string> =>
-  new Set(
-    commands.flatMap((c) =>
-      c.command === "mpc.add" && c.rotation ? [c.rotation] : [],
-    ),
-  );
+} as const;
 
 /**
  * What the curve of a job shows: the force over the displacement, or the moment
- * over the rotation for a boundary of a rotation point of a constraint (#98).
+ * over the rotation for a boundary of a rotation point of a constraint (#98), with
+ * the units of the model (#132).
  */
 export function curveQuantities(
   commands: readonly Command[],
@@ -56,10 +58,21 @@ export function curveQuantities(
   const boundary = commands.find(
     (c) => c.command === "boundary.add" && c.name === name,
   );
-  return boundary?.command === "boundary.add" &&
-    rotationPoints(commands).has(boundary.pointset)
-    ? MOMENT
-    : FORCE;
+  const moment =
+    boundary?.command === "boundary.add" &&
+    rotationPoints(commands).has(boundary.pointset);
+  const units = unitsOf(commands);
+  return moment
+    ? {
+        ...MOMENT,
+        uUnit: unitOf("rotation", units),
+        fUnit: unitOf("moment", units),
+      }
+    : {
+        ...FORCE,
+        uUnit: unitOf("displacement", units),
+        fUnit: unitOf("force", units),
+      };
 }
 
 /** The curve of a job, if it has one. */
@@ -170,16 +183,19 @@ export function nearest(
   return best;
 }
 
-/** The curve of a job as CSV: substep, step and all components (empty if non-finite). */
+/**
+ * The curve of a job as CSV: substep, step and all components (empty if non-finite),
+ * with the units of the model in the header (#132).
+ */
 export function curveCsv(run: Finished, job: string): string {
   const result = run.results[job];
-  const moment = curveQuantities(run.commands, job) === MOMENT;
-  const [u, f] = moment ? ["phi", "M"] : ["u", "F"];
+  const q = curveQuantities(run.commands, job);
+  const [u, f] = q.moment ? ["phi", "M"] : ["u", "F"];
   const header = [
     "substep",
     "step",
-    ...AXES.map((a) => `${u}_${a}`),
-    ...AXES.map((a) => `${f}_${a}`),
+    ...AXES.map((a) => withUnit(`${u}_${a}`, q.uUnit)),
+    ...AXES.map((a) => withUnit(`${f}_${a}`, q.fUnit)),
   ];
   const rows = (result?.x ?? []).map((x, i) => {
     const y = result?.y?.[i] ?? [];

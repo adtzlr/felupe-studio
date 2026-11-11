@@ -87,6 +87,7 @@ function initialSection(
 }
 
 export const KIND_LABELS: Record<Kind, string> = {
+  settings: "Settings",
   mesh: "Mesh",
   merge: "Merge",
   cellset: "Cell set",
@@ -270,6 +271,24 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       axis: AXES,
       second: AXES,
       normal: AXES,
+    },
+  },
+  "model.settings": {
+    label: "Model settings",
+    tab: "mesh",
+    prefix: "settings",
+    single: true,
+    fields: {
+      units: {
+        label: "Units",
+        hint: "What the numbers mean; nothing is converted",
+      },
+      "units.length": { label: "Length", default: "mm" },
+      "units.force": { label: "Force", default: "N" },
+    },
+    options: {
+      "units.length": { mm: "mm", m: "m" },
+      "units.force": { N: "N", kN: "kN" },
     },
   },
   "point.add": {

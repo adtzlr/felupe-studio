@@ -149,7 +149,9 @@ def run(document, report=lambda event: None):
         c["name"] for c in document["commands"] if c["command"] == "section.add"
     ]
     points = [c["name"] for c in document["commands"] if c["command"] == "point.add"]
-    results_.reset(namespace, sections, points)
+    settings = [c for c in document["commands"] if c["command"] == "model.settings"]
+    units = settings[0].get("units") if settings else None
+    results_.reset(namespace, sections, points, units)
 
     commands = {c["name"]: c for c in document["commands"] if c["command"] == "job.add"}
     jobs = list(commands)

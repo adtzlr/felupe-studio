@@ -6,6 +6,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Added
 
+- Units of the model: the new command `model.settings` (at most one, *Model settings* in the *Mesh* tab) says what the numbers mean, the units of lengths (mm, m) and forces (N, kN); stresses follow (MPa, GPa, Pa, kPa). FElupe has no units, nothing is converted. The forms show the units at their labels (from `x-quantity` of the schema), also at the rows of the ramps; the browser at the values, the results at the scalar bar, the tooltips, the control points and the curve, and the CSV of curves and control points in the header (e.g. `u_x [mm]`); the script gets a comment. Rotations are always in rad. The samples *Rubber mount in shear* and *Rubber block with a rigid plate* are in mm and N (#132).
 - Script view: the ribbon tab **Script** shows the FElupe script of the model instead of the viewport, as it is exported and updated after every change, with highlighted Python and line numbers. The lines of the selected object are highlighted, a click on a line selects its object; *Copy* and *Download*. `felupe_studio.codegen.object_lines()` finds the lines of the objects (#130).
 - Keyboard shortcuts: Ctrl+S save, Ctrl+O open, Ctrl+Enter solve, Delete and F2 for the selected object, Esc clears the selection; F, 1–4 and N in the views; ←, →, Home and End step through the substeps; `?` opens the overview. One list (`core/shortcuts.ts`) feeds the handlers, the overview, the menus (with `aria-keyshortcuts`) and the tooltips. Not while typing, except saving and solving (#129).
 - A welcome panel for an empty model: *Import mesh*, *Open project*, the samples as cards with a picture, and links to the user guide and the tutorial. The pictures (`thumbnail.svg`) are made by `make_samples.py` from the models, in the colors and the default view of the viewport; the Samples dialog shows them too (#127).
@@ -13,6 +14,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Changed
 
+- Schema version 3 (for `model.settings`); projects of version 1 and 2 are migrated when they are opened.
 - Narrow windows (up to 1000 px): the browser and the properties are drawers over the views instead of squeezing the viewport (a button in the header opens the browser, a selection closes it and opens the properties, Esc closes them); the ribbon is one row that scrolls, and the header keeps one line. The layout below 800 px no longer stacks the panels below the viewport (#131).
 
 - The overlays of the viewports have fixed places and never overlap: the panels and messages at the bottom are stacked between the axes and the job panel, the cards of the results form one column on the right, and in a narrow view (also with the properties open) the job panel spans the width at the bottom while the legend and the cards move below the view toolbar. The tips are shorter and quieter (#128).

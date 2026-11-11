@@ -120,8 +120,46 @@ describe("force-displacement curve", () => {
       progress: { ...startProgress(), plan: { job_1: [4] } },
       results: { job_1: result },
     };
+    // rotations are always in rad
     expect(curveCsv(run, "job_1").split("\n")[0]).toBe(
-      "substep,step,phi_x,phi_y,phi_z,M_x,M_y,M_z",
+      "substep,step,phi_x [rad],phi_y [rad],phi_z [rad],M_x,M_y,M_z",
+    );
+    // with the units of the model (#132)
+    const settings = {
+      command: "model.settings",
+      name: "settings",
+      units: { length: "mm", force: "N" },
+    } as Command;
+    expect(
+      curveCsv({ ...run, commands: [settings, ...commands] }, "job_1"),
+    ).toMatch(/^substep,step,phi_x \[rad\],.*,M_z \[N mm\]\n/);
+  });
+
+  it("has the units of the model (#132)", () => {
+    const commands = [
+      {
+        command: "model.settings",
+        name: "settings",
+        units: { length: "m", force: "kN" },
+      },
+      { command: "job.add", name: "job_1", steps: ["load"], curve: "move" },
+    ] as unknown as Command[];
+    expect(curveQuantities(commands, "job_1")).toMatchObject({
+      uUnit: "m",
+      fUnit: "kN",
+    });
+    expect(curveQuantities(commands.slice(1), "job_1")).toMatchObject({
+      uUnit: undefined,
+      fUnit: undefined,
+    });
+    const run: Finished = {
+      state: "finished",
+      commands,
+      progress: { ...startProgress(), plan: { job_1: [4] } },
+      results: { job_1: result },
+    };
+    expect(curveCsv(run, "job_1").split("\n")[0]).toBe(
+      "substep,step,u_x [m],u_y [m],u_z [m],F_x [kN],F_y [kN],F_z [kN]",
     );
   });
 });

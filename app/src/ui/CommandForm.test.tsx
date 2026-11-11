@@ -9,7 +9,7 @@ import {
 } from "@testing-library/preact";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import fixture from "../../../tests/data/two_sections.json";
-import type { CommandList } from "../core/commands";
+import type { Command, CommandList } from "../core/commands";
 import { initialDraft } from "../core/form";
 import { ModelStore } from "../core/store";
 import { App } from "./App";
@@ -258,6 +258,51 @@ describe("editing in the properties panel", () => {
       },
     });
     expect(points.field("Nodes").value).toBe("0, 0, 0\n3, 1, 1");
+  });
+});
+
+describe("units of the model (#132)", () => {
+  it("are shown at the labels and the rows", () => {
+    const settings = {
+      command: "model.settings",
+      name: "settings",
+      units: { length: "mm", force: "N" },
+    } as Command;
+    const list = fixture as CommandList;
+    const store = new ModelStore({
+      ...list,
+      commands: [settings, ...list.commands],
+    });
+    render(<App store={store} />);
+    const tree = screen.getByRole("tree", { name: "Model" });
+    const properties = () => screen.getByRole("region", { name: "Properties" });
+    const select = (name: string) =>
+      fireEvent.click(within(tree).getByRole("treeitem", { name }));
+    select("umat_hard");
+    expect(within(properties()).getByLabelText("E [MPa]")).toBeTruthy();
+    expect(within(properties()).getByLabelText("ν")).toBeTruthy();
+    select("left");
+    expect(within(properties()).getByLabelText("Coordinate [mm]")).toBeTruthy();
+    select("move");
+    expect(within(properties()).getByLabelText("Value [mm]")).toBeTruthy();
+    select("step_1");
+    expect(
+      [...properties().querySelectorAll(".unit")].map((u) => u.textContent),
+    ).toEqual(["mm", "mm"]);
+
+    // the units of the settings are those of the form, before applying
+    select("settings");
+    fireEvent.change(within(properties()).getByLabelText("Length"), {
+      target: { value: "m" },
+    });
+    fireEvent.click(
+      within(properties()).getByRole("button", { name: "Apply" }),
+    );
+    expect(store.get("settings")).toMatchObject({
+      units: { length: "m", force: "N" },
+    });
+    select("umat_hard");
+    expect(within(properties()).getByLabelText("E [Pa]")).toBeTruthy();
   });
 });
 

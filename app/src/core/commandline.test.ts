@@ -202,10 +202,10 @@ describe("complete", () => {
   it("completes commands and keywords", () => {
     expect(labels("mat")).toEqual(["material.add"]);
     expect(labels("cell")).toEqual(["cellset.from_tag", "cellset.from_file"]);
-    expect(labels("de")).toEqual(["delete"]);
+    expect(labels("de")).toEqual(["delete", "model.settings"]); // contained
     expect(labels("tag")).toEqual(["cellset.from_tag"]); // contained
     expect(labels("undo")).toEqual([]); // complete already
-    expect(labels("")).toHaveLength(19);
+    expect(labels("")).toHaveLength(20);
   });
 
   it("completes names after delete and select", () => {

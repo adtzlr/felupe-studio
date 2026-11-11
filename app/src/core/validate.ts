@@ -17,6 +17,7 @@ export type CommandType = Command["command"];
 const AXES = ["x", "y", "z"] as const;
 
 export type Kind =
+  | "settings"
   | "mesh"
   | "merge"
   | "cellset"
@@ -30,8 +31,12 @@ export type Kind =
   | "job";
 
 /** Kind of object created by each command. */
+/** Commands of which a model has at most one. */
+export const SINGLE: string[] = ["model.settings", "mesh.merge"];
+
 export const KINDS: Record<CommandType, Kind> = {
   "mesh.import": "mesh",
+  "model.settings": "settings",
   "mesh.merge": "merge",
   "cellset.from_tag": "cellset",
   "cellset.from_file": "cellset",
@@ -280,10 +285,10 @@ export function validate(commands: readonly Command[]): Issue[] {
     }
 
     if (
-      cmd.command === "mesh.merge" &&
-      [...defined.values()].some(([, c]) => c.command === "mesh.merge")
+      SINGLE.includes(cmd.command) &&
+      [...defined.values()].some(([, c]) => c.command === cmd.command)
     ) {
-      add("only one mesh.merge is allowed.");
+      add(`only one ${cmd.command} is allowed.`);
     }
 
     const problem = nameProblem(name);

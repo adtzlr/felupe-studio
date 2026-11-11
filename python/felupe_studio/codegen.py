@@ -39,6 +39,9 @@ HELPERS = HELPERS[HELPERS.index(MARKER) + len(MARKER) :]
 
 AXES = ("x", "y", "z")
 
+# the unit of the stresses of the units of lengths and forces (#132)
+STRESS = {("mm", "N"): "MPa", ("mm", "kN"): "GPa", ("m", "N"): "Pa", ("m", "kN"): "kPa"}
+
 
 LINE_LENGTH = 88
 
@@ -154,7 +157,17 @@ def codegen(document, evaluate=True, check_schema=True):
     if pointsets and not sections:
         raise ValidationError(["Point sets need at least one section (a field)."])
 
-    out = [HEADER.format(version=__version__, schema=SCHEMA_VERSION), HELPERS]
+    out = [HEADER.format(version=__version__, schema=SCHEMA_VERSION)]
+    settings = get("model.settings")
+    units = settings[0].get("units") if settings else None
+    if units:
+        # FElupe has no units: the settings only say what the numbers mean (#132)
+        stress = STRESS[units["length"], units["force"]]
+        out.append(
+            f"# units: {units['length']} (lengths), {units['force']} (forces) and "
+            f"{stress} (stresses); FElupe does not convert them\n"
+        )
+    out.append(HELPERS)
 
     # 1. meshes and cell sets
     meshes = get("mesh.import")
@@ -475,6 +488,12 @@ def object_lines(script, document):
             if target.startswith(prefix) and kinds.get(name) == kind:
                 return [name]
         return []
+
+    # the comment of the units of the model settings (not in the syntax tree)
+    settings = [c["name"] for c in commands if c["command"] == "model.settings"]
+    for number, line in enumerate(script.splitlines(), start=1):
+        if settings and line.startswith("# units: "):
+            lines[settings[0]] = [[number, number]]
 
     for statement in ast.parse(script).body:
         if isinstance(statement, (ast.Assign, ast.AugAssign, ast.AnnAssign)):

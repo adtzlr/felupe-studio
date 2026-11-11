@@ -1,5 +1,5 @@
 import { hint } from "../core/shortcuts";
-import { hasCurve } from "../core/curve";
+import { curveQuantities, hasCurve } from "../core/curve";
 import {
   curvePoint,
   type Finished,
@@ -10,6 +10,7 @@ import {
   substepsOf,
 } from "../core/results";
 import type { ModelStore } from "../core/store";
+import { valueWithUnit } from "../core/units";
 import type { Quantity } from "../worker/protocol";
 
 interface Props {
@@ -35,6 +36,8 @@ export function ResultsControls({ store, results, running, onChange }: Props) {
   const step = stepOf(run, view.job, view.substep);
   const result = run.results[view.job];
   const point = curvePoint(result, view.substep, view.axis);
+  // the symbols and the units of the curve (#98, #132)
+  const q = curveQuantities(run.commands, view.job);
   const set = (change: Partial<ResultView>) => onChange({ ...view, ...change });
   return (
     <div class="results-controls">
@@ -98,8 +101,12 @@ export function ResultsControls({ store, results, running, onChange }: Props) {
         {step.name}: {step.substep} of {step.substeps}
         {point && (
           <>
-            <br />u<sub>{point.axis}</sub> = {formatValue(point.u)}, F
-            <sub>{point.axis}</sub> = {formatValue(point.f)}
+            <br />
+            {q.u}
+            <sub>{point.axis}</sub> ={" "}
+            {valueWithUnit(formatValue(point.u), q.uUnit)}, {q.f}
+            <sub>{point.axis}</sub> ={" "}
+            {valueWithUnit(formatValue(point.f), q.fUnit)}
           </>
         )}
       </div>

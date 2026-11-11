@@ -50,13 +50,15 @@ CORNERS = {"tetra5": ("tetra", 4)}
 _state = {"namespace": None, "sections": [], "records": {}, "surfaces": {}}
 
 
-def reset(namespace, sections, points=()):
+def reset(namespace, sections, points=(), units=None):
     """Start the results of a run: the namespace of its script, the names of the
-    sections and the names of the control points."""
+    sections and the names of the control points, and the units of the model (the
+    ``units`` of its settings, #132) for the headers of the exports."""
     _state.update(
         namespace=namespace,
         sections=list(sections),
         points=list(points),
+        units=units,
         records={},
         controls={},
     )
@@ -290,10 +292,19 @@ def control_csv(job):
     if not _state["records"].get(job):
         raise KeyError(f"No results of the job '{job}'.")
     rotations = _rotation_points()
+    units = _state.get("units")
+    length, force = (units["length"], units["force"]) if units else (None, None)
     header = ["substep"]
     for name in _state.get("points", []):
-        u, f = ("phi", "M") if name in rotations else ("u", "F")
-        header += [f"{name}.{q}_{a}" for q in (u, f) for a in "xyz"]
+        if name in rotations:
+            quantities = [("phi", "rad"), ("M", units and f"{force} {length}")]
+        else:
+            quantities = [("u", length), ("F", force)]
+        header += [
+            f"{name}.{q}_{a}" + (f" [{unit}]" if unit else "")
+            for q, unit in quantities
+            for a in "xyz"
+        ]
     rows = [",".join(header)]
     for substep, values in enumerate(_state["controls"][job], start=1):
         row = [str(substep)]

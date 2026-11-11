@@ -125,7 +125,7 @@ def single_body(tmp_path, monkeypatch):
     mesh, _ = bar()
     write(tmp_path / "bar.vtu", mesh)
     document = {
-        "schema_version": 2,
+        "schema_version": 3,
         "commands": [
             {"command": "mesh.import", "name": "specimen", "file": "bar.vtu"},
             {"command": "cellset.from_file", "name": "all_cells", "mesh": "specimen"},
@@ -161,7 +161,7 @@ def test_sections_from_tags_and_files_match_single_body(tmp_path, monkeypatch):
     mesh, tag = bar()
     write(tmp_path / "tagged.vtu", mesh, tag)
     tagged = {
-        "schema_version": 2,
+        "schema_version": 3,
         "commands": [
             {
                 "command": "mesh.import",
@@ -183,7 +183,7 @@ def test_sections_from_tags_and_files_match_single_body(tmp_path, monkeypatch):
     write(tmp_path / "left.vtu", fem.Cube(b=(1.5, 1, 1), n=(7, 5, 5)))
     write(tmp_path / "right.vtu", fem.Cube(a=(1.5, 0, 0), b=(3, 1, 1), n=(7, 5, 5)))
     files = {
-        "schema_version": 2,
+        "schema_version": 3,
         "commands": [
             {"command": "mesh.import", "name": "ml", "file": "left.vtu"},
             {"command": "mesh.import", "name": "mr", "file": "right.vtu"},
@@ -214,7 +214,7 @@ def test_lower_dimensional_and_split_cell_blocks(tmp_path, monkeypatch):
     ).write(tmp_path / "tetra.vtu")
 
     document = {
-        "schema_version": 2,
+        "schema_version": 3,
         "commands": [
             {
                 "command": "mesh.import",
@@ -278,6 +278,32 @@ def test_merge_decimals(two_sections):
     )
     script = codegen(two_sections)
     assert "[field_section_hard, field_section_soft], decimals=6" in script
+
+
+@pytest.mark.parametrize(
+    "length, force, stress",
+    [("mm", "N", "MPa"), ("mm", "kN", "GPa"), ("m", "N", "Pa"), ("m", "kN", "kPa")],
+)
+def test_units_comment(two_sections, length, force, stress):
+    # the units of the model settings are a comment, nothing is converted (#132)
+    script = codegen(two_sections)
+    two_sections["commands"].insert(
+        0,
+        {
+            "command": "model.settings",
+            "name": "settings",
+            "units": {"length": length, "force": force},
+        },
+    )
+    with_units = codegen(two_sections)
+    comment = (
+        f"# units: {length} (lengths), {force} (forces) and {stress} (stresses); "
+        "FElupe does not convert them\n"
+    )
+    assert with_units.replace("\n" + comment, "") == script
+    # settings without units add nothing
+    del two_sections["commands"][0]["units"]
+    assert codegen(two_sections) == script
 
 
 def test_evaluate_false(two_sections):
@@ -346,10 +372,10 @@ def test_longest_names_are_wrapped(two_sections, tmp_path, monkeypatch):
 
 def test_invalid_documents(two_sections):
     with pytest.raises(ValidationError):
-        codegen({"schema_version": 2, "commands": [{"command": "mesh.import"}]})
+        codegen({"schema_version": 3, "commands": [{"command": "mesh.import"}]})
 
     without_sections = {
-        "schema_version": 2,
+        "schema_version": 3,
         "commands": [
             {
                 "command": "pointset.add",
@@ -372,7 +398,7 @@ def test_mooney_rivlin_like_neo_hooke(tmp_path, monkeypatch):
         ("MooneyRivlin", {"C10": 0.5, "C01": 0.0}),
     ]:
         document = {
-            "schema_version": 2,
+            "schema_version": 3,
             "commands": [
                 {"command": "mesh.import", "name": "m", "file": "bar.vtu"},
                 {"command": "cellset.from_file", "name": "all", "mesh": "m"},
@@ -428,7 +454,7 @@ def test_every_cell_type_and_formulation(cell_type, formulation, tmp_path, monke
         umat["parameters"] = {"mu": 1.0}
         body.update(formulation="u-p-J", bulk=5.0)
     document = {
-        "schema_version": 2,
+        "schema_version": 3,
         "commands": [
             {"command": "mesh.import", "name": "m", "file": "bar.vtu"},
             {"command": "cellset.from_file", "name": "all", "mesh": "m"},
@@ -516,7 +542,7 @@ def test_mixed_sections_of_one_mesh(cell_type, formulations, tmp_path, monkeypat
         },
         {"command": "job.add", "name": "job_1", "steps": ["step_1"], "curve": "move"},
     ]
-    namespace = run({"schema_version": 2, "commands": commands}, tmp_path, monkeypatch)
+    namespace = run({"schema_version": 3, "commands": commands}, tmp_path, monkeypatch)
     force = namespace["job_1"].y[-1][0]
     # the force of the linear hexahedra with the same formulations (the quadratic
     # tetrahedra are softer and closer to the quadratic hexahedra, about 0.283)
@@ -804,6 +830,13 @@ def test_object_lines_of_the_glued_plate():
     assert code("rubber") == [
         ["rubber = fem.Hyperelastic(fem.mooney_rivlin, C10=0.4, C01=0.1)"]
     ]
+    # the comment of the units (#132)
+    assert code("settings") == [
+        [
+            "# units: mm (lengths), N (forces) and MPa (stresses); FElupe does not "
+            "convert them"
+        ]
+    ]
     # the region, the field and the solid body of a section
     section = code("rubber_block")
     assert section[0][0].startswith("region_rubber_block = ")
@@ -829,7 +862,7 @@ def test_object_lines_of_the_glued_plate():
 
 def test_object_lines_of_load_cases_and_merged_fields():
     document = {
-        "schema_version": 2,
+        "schema_version": 3,
         "commands": [
             {"command": "mesh.import", "name": "bar", "file": "bar.vtu"},
             {"command": "mesh.merge", "name": "merge", "decimals": 6},

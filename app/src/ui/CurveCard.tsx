@@ -18,6 +18,7 @@ import {
   type ResultView,
   stepOf,
 } from "../core/results";
+import { valueWithUnit } from "../core/units";
 
 interface Props {
   run: Finished;
@@ -144,10 +145,12 @@ export function CurveCard({ run, view, onChange, download }: Props) {
                 <th scope="col">
                   {q.u}
                   <sub>{name}</sub>
+                  {q.uUnit && ` [${q.uUnit}]`}
                 </th>
                 <th scope="col">
                   {q.f}
                   <sub>{name}</sub>
+                  {q.fUnit && ` [${q.fUnit}]`}
                 </th>
               </tr>
             </thead>
@@ -235,12 +238,14 @@ export function CurveCard({ run, view, onChange, download }: Props) {
                 <tspan class="sub" dy="3">
                   {name}
                 </tspan>
+                {q.uUnit && <tspan dy="-3"> [{q.uUnit}]</tspan>}
               </text>
               <text class="axis-label" x={MARGIN.left} y={12}>
                 {q.y} {q.f}
                 <tspan class="sub" dy="3">
                   {name}
                 </tspan>
+                {q.fUnit && <tspan dy="-3"> [{q.fUnit}]</tspan>}
               </text>
             </g>
             <path class="curve" d={linePath(points, x, y)} />
@@ -266,11 +271,13 @@ export function CurveCard({ run, view, onChange, download }: Props) {
             >
               <strong>
                 {q.f}
-                <sub>{name}</sub> = {formatValue(hovered.f)}
+                <sub>{name}</sub> ={" "}
+                {valueWithUnit(formatValue(hovered.f), q.fUnit)}
               </strong>
               <br />
               {q.u}
-              <sub>{name}</sub> = {formatValue(hovered.u)}
+              <sub>{name}</sub> ={" "}
+              {valueWithUnit(formatValue(hovered.u), q.uUnit)}
               <br />
               <span class="muted">
                 Substep {hovered.substep} ·{" "}

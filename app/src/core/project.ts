@@ -26,7 +26,17 @@ type SchemaNode = {
 export const MIGRATIONS: Record<
   number,
   (document: Record<string, unknown>) => Record<string, unknown>
-> = { 1: rampItems };
+> = { 1: rampItems, 2: modelSettings };
+
+/**
+ * Schema version 2 → 3: the settings of the model (#132) are new, all commands of
+ * version 2 stay as they are.
+ */
+function modelSettings(
+  document: Record<string, unknown>,
+): Record<string, unknown> {
+  return { ...document, schema_version: 3 };
+}
 
 /**
  * Schema version 1 → 2: the ramp of a step has items with their own values

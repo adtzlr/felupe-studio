@@ -62,7 +62,7 @@ def test_valid_document(document):
 @pytest.mark.parametrize(
     "change",
     [
-        lambda d: d.update(schema_version=3),
+        lambda d: d.update(schema_version=4),
         lambda d: d["commands"].append({"command": "mesh.delete", "name": "a"}),
         lambda d: find(d, "hard").update(name="1hard"),
         lambda d: find(d, "hard").update(name="h" * 25),
@@ -83,6 +83,13 @@ def test_valid_document(document):
         lambda d: d["commands"].insert(1, {"command": "mesh.merge", "name": "m"}),
         lambda d: d["commands"].insert(
             1, {"command": "mesh.merge", "name": "m", "decimals": 16}
+        ),
+        lambda d: d["commands"].insert(
+            0, {"command": "model.settings", "name": "s", "units": {"length": "mm"}}
+        ),
+        lambda d: d["commands"].__setitem__(
+            slice(0, 0),
+            [{"command": "model.settings", "name": f"s{i}"} for i in range(2)],
         ),
     ],
 )

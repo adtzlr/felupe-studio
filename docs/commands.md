@@ -4,7 +4,7 @@ Every action in FElupe Studio is a command. A project is a command list:
 
 ```json
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "commands": [
     {
       "command": "mesh.import",
@@ -26,10 +26,11 @@ The JSON schema [`python/felupe_studio/commands.schema.json`](../python/felupe_s
 
 The [command reference](reference.md) lists all properties of the commands; it is generated from the schema by `python docs/make_reference.py`, and a test checks that it is up to date. The [user guide](guide.md) shows how to build a model in the app.
 
-## Commands of schema version 2
+## Commands of schema version 3
 
 | Command             | Creates                     | References                                                   | FElupe                                                                                                                                                               |
 | ------------------- | --------------------------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `model.settings`    | settings (at most one)      |                                                              | the units of lengths and forces, a comment of the script; FElupe has no units, nothing is converted (see below)                                                      |
 | `mesh.import`       | mesh                        |                                                              | meshio, optional integer cell data `tag` and `cell_type` (one mesh per type of solid cells)                                                                          |
 | `mesh.merge`        | merge setting (at most one) |                                                              | `fem.field.merge([...], decimals=...)`: merges points that agree to `decimals`, e.g. files of different mesh generators; without it only identical points are merged |
 | `cellset.from_tag`  | cell set                    | mesh (imported with a tag)                                   | `fem.Mesh(points, cells[tag == value], cell_type)`                                                                                                                   |
@@ -92,6 +93,12 @@ A model with an optional bulk modulus is incompressible without it: a section wi
 
 Example messages: `192 / 192 cells assigned once.` and `Interface left_body / right_body: 25 shared points, 0 hanging.`
 
+## Units
+
+FElupe has no units: the numbers of a model only have to be consistent. The optional `units` of `model.settings` say what they mean, `length` (`mm` or `m`) and `force` (`N` or `kN`); stresses and moduli follow from them (mm and N: MPa, mm and kN: GPa, m and N: Pa, m and kN: kPa), moments are force times length. Nothing is converted: changing the units changes the meaning of the numbers, not the numbers. Rotations of rotation points are always in rad, the ramped values of point loads are factors of their force (no unit), strains have no unit.
+
+The properties of the schema have their physical quantity in `x-quantity` (`length`, `displacement`, `force`, `stress` or `ramped`: the quantity of the ramped target, a displacement, a rotation or a factor). The app shows the units at the labels of the forms (e.g. `E [MPa]`), in the browser, at the curves, in the tooltips and the control points of the results, and at the scalar bar; the CSV of curves and control points has them in the header (e.g. `u_x [mm]`). The script gets them as a comment.
+
 ## Generated script
 
 `felupe_studio.codegen(document)` validates the command list and returns a FElupe script that only needs FElupe, NumPy and meshio (and tensortrax for its models). Its structure does not depend on the order of the commands:
@@ -131,6 +138,7 @@ Older files are brought to the current schema with `MIGRATIONS[version]`, one st
 | From | To  | Migration                                                                                                                                         |
 | ---- | --- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1    | 2   | The ramp of a step gets items with their own values: `{boundary, also, start, end, num}` becomes `{num, items: [{target, start, end}, …]}` (#90). |
+| 2    | 3   | Nothing to change: version 3 adds `model.settings` with the units of the model (#132).                                                            |
 
 ## Forms (app)
 

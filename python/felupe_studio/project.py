@@ -37,8 +37,14 @@ def _ramp_items(document):
     return {**document, "schema_version": 2, "commands": commands}
 
 
+def _model_settings(document):
+    """Schema version 2 → 3: the settings of the model (#132) are new, all commands of
+    version 2 stay as they are."""
+    return {**document, "schema_version": 3}
+
+
 # migrations from a schema version to the next one: {version: function(document)}
-MIGRATIONS = {1: _ramp_items}
+MIGRATIONS = {1: _ramp_items, 2: _model_settings}
 
 
 class ProjectError(ValueError):

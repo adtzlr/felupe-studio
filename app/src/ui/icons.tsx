@@ -1,6 +1,8 @@
 // Stroke icons (24 × 24), drawn with currentColor.
 const PATHS = {
   logo: "M3 3 H21 V21 H3 Z M9 3 V21 M15 3 V21 M3 9 H21 M3 15 H21",
+  // the settings of the model (#132): two sliders
+  settings: "M4 8 H20 M4 16 H20 M9 5 V11 M15 13 V19",
   // the browser of the model as a drawer of narrow windows (#131)
   browser:
     "M4 5 H20 M4 5 V19 H20 V5 M9 5 V19 M5.5 9 H7.5 M5.5 12 H7.5 M5.5 15 H7.5",

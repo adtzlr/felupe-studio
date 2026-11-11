@@ -323,3 +323,22 @@ def test_displacements_and_forces_of_control_points(monkeypatch):
     )
     assert len(lines) == n + 1
     assert float(lines[-1].split(",")[4]) == pytest.approx(curve.y[-1][0], rel=1e-6)
+
+
+def test_units_of_the_control_points(monkeypatch):
+    # the columns of the control points with the units of the model settings (#132)
+    folder = Path(__file__).parents[1] / "app" / "public" / "samples" / "glued-plate"
+    document = json.loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
+    monkeypatch.chdir(folder)
+    run(document)
+    [job] = [c["name"] for c in document["commands"] if c["command"] == "job.add"]
+    header = results.export(job, "csv").decode().splitlines()[0].split(",")
+    assert header[:4] == [
+        "substep",
+        "plate.u_x [mm]",
+        "plate.u_y [mm]",
+        "plate.u_z [mm]",
+    ]
+    assert header[4] == "plate.F_x [N]"
+    assert header[7] == "tilt.phi_x [rad]"
+    assert header[10] == "tilt.M_x [N mm]"

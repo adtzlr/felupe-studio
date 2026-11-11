@@ -17,6 +17,7 @@ describe("ribbonGroups", () => {
       ["Cell set from tag"],
       ["Cell set of a mesh"],
       ["Point set"],
+      ["Model settings"],
     ]);
     expect(labels("sections")).toEqual([["Section"]]);
     expect(labels("loads")).toEqual([

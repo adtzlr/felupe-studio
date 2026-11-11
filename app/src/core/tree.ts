@@ -5,6 +5,14 @@ import type { Command } from "./commands";
 import type { Issue, Kind } from "./validate";
 import { KINDS } from "./validate";
 import { describeLoadcase } from "./loadcases";
+import {
+  boundaryQuantity,
+  rampedQuantity,
+  unitOf,
+  unitsOf,
+  unitsText,
+  valueWithUnit,
+} from "./units";
 import { MATERIAL_MODELS } from "./materials";
 
 export interface TreeNode {
@@ -25,6 +33,7 @@ export interface TreeNode {
 
 /** The groups of the browser: by kind, the control points in a group of their own. */
 const GROUPS: { kind: Kind | "point"; label: string }[] = [
+  { kind: "settings", label: "Settings" },
   { kind: "mesh", label: "Meshes" },
   { kind: "merge", label: "Merge" },
   { kind: "pointset", label: "Point Sets" },
@@ -40,8 +49,13 @@ const GROUPS: { kind: Kind | "point"; label: string }[] = [
 
 const AXES = ["x", "y", "z"] as const;
 
-function detail(cmd: Command): string {
+function detail(cmd: Command, commands: readonly Command[]): string {
+  // the values with the units of the model (#132)
+  const units = unitsOf(commands);
+  const length = unitOf("length", units);
   switch (cmd.command) {
+    case "model.settings":
+      return cmd.units ? unitsText(cmd.units) : "no units";
     case "mesh.import":
       return cmd.tag ? `${cmd.file} · tag ${cmd.tag}` : cmd.file;
     case "mesh.merge":
@@ -58,18 +72,18 @@ function detail(cmd: Command): string {
       return `${cmd.material} · ${cmd.formulation}`;
     case "pointset.add":
       if ("axis" in cmd.select)
-        return `${cmd.select.axis} == ${cmd.select.value}`;
+        return `${cmd.select.axis} == ${valueWithUnit(String(cmd.select.value), length)}`;
       if ("points" in cmd.select) {
         const [first, ...rest] = cmd.select.points;
         return rest.length
           ? `${cmd.select.points.length} nodes`
-          : `node (${first.join(", ")})`;
+          : `node ${valueWithUnit(`(${first.join(", ")})`, length)}`;
       }
       return `${cmd.select.ids.length} points`;
     case "point.add":
-      return `control (${cmd.coordinates.join(", ")})`;
+      return `control ${valueWithUnit(`(${cmd.coordinates.join(", ")})`, length)}`;
     case "load.add":
-      return `${cmd.points} · (${cmd.force.join(", ")})`;
+      return `${cmd.points} · ${valueWithUnit(`(${cmd.force.join(", ")})`, unitOf("force", units))}`;
     case "mpc.add":
       return [
         `${cmd.points} → ${cmd.center}`,
@@ -84,14 +98,18 @@ function detail(cmd: Command): string {
       const constrained = AXES.filter((a) => cmd.constrained.includes(a)).join(
         ", ",
       );
-      return `${cmd.pointset} · ${constrained}${value !== 0 ? ` = ${value}` : ""}`;
+      const unit = unitOf(boundaryQuantity(commands, cmd.pointset), units);
+      return `${cmd.pointset} · ${constrained}${value !== 0 ? ` = ${valueWithUnit(String(value), unit)}` : ""}`;
     }
     case "loadcase.add":
       return describeLoadcase(cmd);
     case "step.add":
       return cmd.ramp
         ? cmd.ramp.items
-            .map((i) => `${i.target}: ${i.start ?? 0} → ${i.end}`)
+            .map((i) => {
+              const unit = unitOf(rampedQuantity(commands, i.target), units);
+              return `${i.target}: ${i.start ?? 0} → ${valueWithUnit(String(i.end), unit)}`;
+            })
             .join(", ") + ` (${cmd.ramp.num})`
         : "no ramp";
     case "job.add":
@@ -140,7 +158,7 @@ export function deriveTree(
     label: cmd.name,
     kind: KINDS[cmd.command],
     ...(cmd.command === "point.add" ? { icon: "point" } : {}),
-    detail: detail(cmd),
+    detail: detail(cmd, commands),
     issues: messages.get(cmd.name) ?? [],
     children: [],
   });
@@ -182,8 +200,10 @@ export function deriveTree(
     groupOf(group)!.children.push(child);
   }
 
-  // the groups of the merge setting and of the control points only if they are used
+  // the groups of the settings, the merge setting and the control points only if
+  // they are used
   const optional = new Set([
+    "group:settings",
     "group:merge",
     "group:point",
     "group:constraint",

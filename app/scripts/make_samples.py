@@ -199,6 +199,11 @@ def rubber_mount():
         cell_data={"part": [np.concatenate(tags)]},
     )
     commands = [
+        {
+            "command": "model.settings",
+            "name": "settings",
+            "units": {"length": "mm", "force": "N"},
+        },
         {"command": "mesh.import", "name": "mount", "file": "mount.vtu", "tag": "part"},
         {
             "command": "cellset.from_tag",
@@ -277,6 +282,11 @@ def glued_plate():
     mesh = fem.Cube(b=(40, 40, 20), n=(9, 9, 5))
     cells = meshio.Mesh(mesh.points, [("hexahedron", mesh.cells)])
     commands = [
+        {
+            "command": "model.settings",
+            "name": "settings",
+            "units": {"length": "mm", "force": "N"},
+        },
         {"command": "mesh.import", "name": "block", "file": "block.vtu"},
         {"command": "cellset.from_file", "name": "all_cells", "mesh": "block"},
         {
