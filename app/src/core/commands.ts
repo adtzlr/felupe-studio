@@ -38,6 +38,11 @@ export type MaterialAdd =
   | MaterialNeoHooke
   | MaterialNeoHookeCompressible
   | MaterialMooneyRivlin
+  | MaterialYeoh
+  | MaterialThirdOrderDeformation
+  | MaterialOgden
+  | MaterialArrudaBoyce
+  | MaterialExtendedTube
   | MaterialLinearElasticLargeStrain;
 /**
  * This interface was referenced by `CommandList`'s JSON-Schema
@@ -238,6 +243,161 @@ export interface MaterialMooneyRivlin {
      * Material parameter of the second invariant
      */
     C01: number;
+    /**
+     * Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.
+     */
+    bulk?: number;
+  };
+}
+/**
+ * Isotropic hyperelastic Yeoh material (fem.Hyperelastic with fem.yeoh, needs tensortrax): a cubic polynomial of the first invariant. The shear modulus is 2 C10. Without a bulk modulus it needs the u-p-J formulation.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MaterialYeoh".
+ */
+export interface MaterialYeoh {
+  command: "material.add";
+  name: Name;
+  model: "Yeoh";
+  parameters: {
+    /**
+     * Material parameter of the linear term of the first invariant
+     */
+    C10: number;
+    /**
+     * Material parameter of the quadratic term of the first invariant
+     */
+    C20: number;
+    /**
+     * Material parameter of the cubic term of the first invariant
+     */
+    C30: number;
+    /**
+     * Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.
+     */
+    bulk?: number;
+  };
+}
+/**
+ * Isotropic hyperelastic third-order deformation material (fem.Hyperelastic with fem.third_order_deformation, needs tensortrax): terms of the first and second invariant up to the third order. The shear modulus is 2 (C10 + C01). Without a bulk modulus it needs the u-p-J formulation.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MaterialThirdOrderDeformation".
+ */
+export interface MaterialThirdOrderDeformation {
+  command: "material.add";
+  name: Name;
+  model: "ThirdOrderDeformation";
+  parameters: {
+    /**
+     * Material parameter of the linear term of the first invariant
+     */
+    C10: number;
+    /**
+     * Material parameter of the linear term of the second invariant
+     */
+    C01: number;
+    /**
+     * Material parameter of the mixed term of the first and second invariant
+     */
+    C11: number;
+    /**
+     * Material parameter of the quadratic term of the first invariant
+     */
+    C20: number;
+    /**
+     * Material parameter of the cubic term of the first invariant
+     */
+    C30: number;
+    /**
+     * Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.
+     */
+    bulk?: number;
+  };
+}
+/**
+ * Isotropic hyperelastic Ogden material (fem.Hyperelastic with fem.ogden, needs tensortrax): up to three terms of the principal stretches, each with a modulus μi and an exponent αi. The shear modulus is the sum of the moduli. Without a bulk modulus it needs the u-p-J formulation.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MaterialOgden".
+ */
+export interface MaterialOgden {
+  command: "material.add";
+  name: Name;
+  model: "Ogden";
+  parameters: {
+    /**
+     * Moduli of the terms, one to three, as many as exponents
+     *
+     * @minItems 1
+     * @maxItems 3
+     */
+    mu: [number] | [number, number] | [number, number, number];
+    /**
+     * Stretch exponents of the terms, one per modulus, not zero
+     *
+     * @minItems 1
+     * @maxItems 3
+     */
+    alpha: [number] | [number, number] | [number, number, number];
+    /**
+     * Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.
+     */
+    bulk?: number;
+  };
+}
+/**
+ * Isotropic hyperelastic Arruda-Boyce material, the eight-chain model (fem.Hyperelastic with fem.arruda_boyce, needs tensortrax). The chains lock at the limiting stretch. Without a bulk modulus it needs the u-p-J formulation.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MaterialArrudaBoyce".
+ */
+export interface MaterialArrudaBoyce {
+  command: "material.add";
+  name: Name;
+  model: "ArrudaBoyce";
+  parameters: {
+    /**
+     * Shear modulus of the chain network (the initial shear modulus for a large limiting stretch)
+     */
+    C1: number;
+    /**
+     * Limiting stretch at which the chains are locked
+     */
+    limit: number;
+    /**
+     * Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.
+     */
+    bulk?: number;
+  };
+}
+/**
+ * Isotropic hyperelastic extended tube material of Kaliske and Heinrich (fem.Hyperelastic with fem.extended_tube, needs tensortrax): a cross-link and a tube constraint contribution. The shear modulus is Gc + Ge. Without a bulk modulus it needs the u-p-J formulation.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MaterialExtendedTube".
+ */
+export interface MaterialExtendedTube {
+  command: "material.add";
+  name: Name;
+  model: "ExtendedTube";
+  parameters: {
+    /**
+     * Cross-link modulus
+     */
+    Gc: number;
+    /**
+     * Finite extensibility of the chains
+     */
+    delta: number;
+    /**
+     * Constraint (tube) modulus
+     */
+    Ge: number;
+    /**
+     * Exponent of the tube constraint
+     */
+    beta: number;
     /**
      * Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.
      */

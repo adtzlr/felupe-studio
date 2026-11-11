@@ -22,6 +22,7 @@ import numpy as np
 import pytest
 
 from felupe_studio import codegen
+from felupe_studio.materials import material_call
 
 HERE = Path(__file__).parent
 CASES = sorted(p.name for p in HERE.iterdir() if (p / "commands.json").exists())
@@ -34,6 +35,10 @@ SAME_BODY = [
     "bar_sections_files",
     "bar_sections_files_merged",
 ]
+
+# uniaxial tension of a cube (1 x 1 x 1, symmetric load case) per material model of
+# tensortrax, nearly incompressible with a bulk modulus of 5000 (#136)
+MATERIALS = [case for case in CASES if case.startswith("cube_")]
 
 RTOL, ATOL = 1e-8, 1e-12
 
@@ -141,3 +146,19 @@ def test_cell_types_close_to_hexahedra():
         hexahedra["jobs"]["job_1"]["force"],
         rtol=1e-3,
     )
+
+
+@pytest.mark.parametrize("case", MATERIALS)
+def test_material_matches_felupe(case):
+    # the stretch is 1 + u and the force is the nominal stress of the cube; the
+    # reference is the incompressible uniaxial tension of FElupe
+    commands = load(case)["commands"]
+    [material] = [c for c in commands if c["command"] == "material.add"]
+    func, args, _ = material_call(material)
+    umat = eval(f"{func}({', '.join(args)})", {"fem": fem})
+    curve = json.loads((HERE / case / "results.json").read_text(encoding="utf-8"))
+    u = np.array(curve["jobs"]["job_1"]["displacement"])
+    force = np.array(curve["jobs"]["job_1"]["force"])
+    _, stress, _ = fem.ViewMaterialIncompressible(umat).uniaxial(1 + u)
+    assert np.isclose(u[-1], 1)  # up to a stretch of 2
+    np.testing.assert_allclose(force, stress, rtol=1e-3, atol=1e-6)

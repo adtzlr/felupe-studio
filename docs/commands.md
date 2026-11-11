@@ -66,14 +66,21 @@ A `loadcase.add` creates the boundaries of a standard test with `fem.dof` on the
 
 The material models are the definitions `Material<Model>` of `material.add` in the command schema, the material registry. Every definition holds the label of the model (`x-label`), how FElupe creates it (`x-felupe`: a `class`, or a `function` of tensortrax for `fem.Hyperelastic`) and its parameters with label, description, bounds and default. The forms, the ribbon, the validation and the generated script read them from there (`felupe_studio.materials` in Python), so a new model needs a schema definition and tests, but no code in the app.
 
-| Model                      | Label                         | FElupe                                                       | Parameters                              |
-| -------------------------- | ----------------------------- | ------------------------------------------------------------ | --------------------------------------- |
-| `NeoHooke`                 | Neo-Hooke                     | `fem.NeoHooke(mu, bulk)`                                     | μ `mu`, optional K `bulk`               |
-| `NeoHookeCompressible`     | Neo-Hooke (compressible)      | `fem.NeoHookeCompressible(mu, lmbda)`                        | μ `mu`, λ `lmbda`                       |
-| `MooneyRivlin`             | Mooney-Rivlin                 | `fem.Hyperelastic(fem.mooney_rivlin, C10, C01)` (tensortrax) | C₁₀ `C10`, C₀₁ `C01`, optional K `bulk` |
-| `LinearElasticLargeStrain` | Linear elastic (large strain) | `fem.LinearElasticLargeStrain(E, nu)`                        | E `E`, ν `nu`                           |
+| Model                      | Label                         | FElupe                                                     | Parameters                                                               |
+| -------------------------- | ----------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `NeoHooke`                 | Neo-Hooke                     | `fem.NeoHooke(mu, bulk)`                                   | μ `mu`, optional K `bulk`                                                |
+| `NeoHookeCompressible`     | Neo-Hooke (compressible)      | `fem.NeoHookeCompressible(mu, lmbda)`                      | μ `mu`, λ `lmbda`                                                        |
+| `MooneyRivlin`             | Mooney-Rivlin                 | `fem.Hyperelastic(fem.mooney_rivlin, C10, C01)`            | C₁₀ `C10`, C₀₁ `C01`, optional K `bulk`                                  |
+| `Yeoh`                     | Yeoh                          | `fem.Hyperelastic(fem.yeoh, C10, C20, C30)`                | C₁₀ `C10`, C₂₀ `C20`, C₃₀ `C30`, optional K `bulk`                       |
+| `ThirdOrderDeformation`    | Third-order deformation       | `fem.Hyperelastic(fem.third_order_deformation, ...)`       | C₁₀ `C10`, C₀₁ `C01`, C₁₁ `C11`, C₂₀ `C20`, C₃₀ `C30`, optional K `bulk` |
+| `Ogden`                    | Ogden                         | `fem.Hyperelastic(fem.ogden, mu, alpha)`                   | μᵢ `mu`, αᵢ `alpha` (one to three terms), optional K `bulk`              |
+| `ArrudaBoyce`              | Arruda-Boyce                  | `fem.Hyperelastic(fem.arruda_boyce, C1, limit)`            | C₁ `C1`, λₘ `limit`, optional K `bulk`                                   |
+| `ExtendedTube`             | Extended tube                 | `fem.Hyperelastic(fem.extended_tube, Gc, delta, Ge, beta)` | Gc `Gc`, δ `delta`, Ge `Ge`, β `beta`, optional K `bulk`                 |
+| `LinearElasticLargeStrain` | Linear elastic (large strain) | `fem.LinearElasticLargeStrain(E, nu)`                      | E `E`, ν `nu`                                                            |
 
-A model with an optional bulk modulus is incompressible without it: a section with this material needs the `u-p-J` formulation (`fem.NearlyIncompressible(..., bulk)`). A bulk modulus marked `"x-felupe": "volumetric"` is added as `fem.Volumetric(bulk=...)`, e.g. `umat &= fem.Volumetric(bulk=5000.0)` for Mooney-Rivlin. The models of tensortrax need the package `tensortrax` in the generated script; the shear modulus of Mooney-Rivlin is 2 (C₁₀ + C₀₁).
+A model with an optional bulk modulus is incompressible without it: a section with this material needs the `u-p-J` formulation (`fem.NearlyIncompressible(..., bulk)`). A bulk modulus marked `"x-felupe": "volumetric"` is added as `fem.Volumetric(bulk=...)`, e.g. `umat &= fem.Volumetric(bulk=5000.0)` for Mooney-Rivlin. The models of `fem.Hyperelastic` are functions of tensortrax: they need the package `tensortrax` in the generated script, which the app loads before the first run of such a model. Their shear moduli are 2 (C₁₀ + C₀₁) for Mooney-Rivlin and third-order deformation, 2 C₁₀ for Yeoh, the sum of the moduli μᵢ for Ogden, Gc + Ge for the extended tube and about C₁ for Arruda-Boyce (exactly C₁ for a large limiting stretch). The lists `mu` and `alpha` of Ogden need the same number of values (`x-same-length` of the parameters, checked by the validation) and no exponent of zero.
+
+The ribbon groups the models by `x-group` of their definitions into menus, e.g. *Polynomial ▾* with Mooney-Rivlin, Yeoh and third-order deformation; a model without a group is a button of its own.
 
 ## Validation
 
@@ -165,8 +172,8 @@ Changes are applied with the model store: `store.update(name, command)` is one u
 
 ### Adding a material model
 
-1. Schema: a definition `Material<Model>` with `model` as a constant, `x-label`, `x-felupe` (`class` or tensortrax `function`) and its `parameters` with `x-label`, `description`, bounds and `default`, added to `MaterialAdd.oneOf` (`python/felupe_studio/commands.schema.json`); run `npm run schema:types`.
-2. Tests: the registry tests check the signature of FElupe and a stress-free state with a positive shear stiffness; add a golden case or a code generation test that runs the model with FElupe.
+1. Schema: a definition `Material<Model>` with `model` as a constant, `x-label`, optionally `x-group` (a menu of the ribbon), `x-felupe` (`class` or tensortrax `function`) and its `parameters` with `x-label`, `x-quantity` (the unit), `description`, bounds and `default`, added to `MaterialAdd.oneOf` next to the models of its group (`python/felupe_studio/commands.schema.json`); run `npm run schema:types`.
+2. Tests: the registry tests check the signature of FElupe and a stress-free state with a positive shear stiffness; add a golden case `cube_<model>` (uniaxial tension of a cube, compared with `fem.ViewMaterialIncompressible`) or a code generation test that runs the model with FElupe.
 
 The form, the ribbon button and the code generation follow without further code (see [Material models](#material-models)).
 
@@ -236,7 +243,7 @@ The viewport draws the imported meshes with the WebGL2 viewer of FElupe ([ADR 00
 - **Newton-Raphson method:** `tol` and `maxiter` of the job are passed to `job.evaluate()` if they are given (FElupe's defaults: 1.49e-8 and 16). The panel shows the iteration of the maximum, e.g. *Newton iteration 3 of 16*.
 - **Tolerance** is a setting of the job (`tol`, also in the generated script): the tolerance of the Newton-Raphson method, i.e. the norm of the residual forces relative to the norm of the reaction forces. Without it, FElupe takes the square root of the machine epsilon (1.49e-8); a looser tolerance, e.g. 0.05, needs fewer iterations.
 - **Cancel:** Python runs synchronously in the worker, so a run is cancelled by terminating the worker. A new worker loads Python again (Pyodide and the wheels come from the cache) and gets the mesh files again (`PyodideClient.restart()`).
-- **tensortrax** (Mooney-Rivlin) is a pinned wheel that is loaded only before the first run of a model with one of its materials (`lazy` in `config.wheels`), so it does not add to the start-up time. FElupe was imported before, so `load_tensortrax()` reloads `felupe.constitution` to make `fem.Hyperelastic` available.
+- **tensortrax** (the models of `fem.Hyperelastic`, e.g. Mooney-Rivlin or Ogden) is a pinned wheel that is loaded only before the first run of a model with one of its materials (`lazy` in `config.wheels`), so it does not add to the start-up time. FElupe was imported before, so `load_tensortrax()` reloads `felupe.constitution` to make `fem.Hyperelastic` available.
 
 ## Results (app)
 
@@ -274,6 +281,6 @@ The ribbon tab **Script** of the Model workspace shows the script of `felupe_stu
 
 **Export** (header, and the section *Export* of the File menu) lists the exports of the project; an export that is not possible says why. **Help** links the user guide and the command reference, lists the keyboard shortcuts and shows *About* (the versions of the app, FElupe, Python, Pyodide and the wheels, the load time, the license and the Pyodide benchmark).
 
-- **Python script** (`<project>.py`): the FElupe script of the model, generated in the worker (`felupe_studio.runner.script()`, without the schema check, see _Running jobs_). It reads the mesh files from its folder, so it runs next to them with FElupe, meshio and NumPy (and tensortrax for Mooney-Rivlin).
+- **Python script** (`<project>.py`): the FElupe script of the model, generated in the worker (`felupe_studio.runner.script()`, without the schema check, see _Running jobs_). It reads the mesh files from its folder, so it runs next to them with FElupe, meshio and NumPy (and tensortrax for the models of `fem.Hyperelastic`).
 - **Results of the job (XDMF)** (`<project>-<job>.xdmf`) and **Results of the substep (VTU)** (`<project>-<job>-<substep>.vtu`, the substep of the Results workspace), for ParaView: `felupe_studio.results.export()` writes the merged points that the cells use (without the bubble points of the MINI element) and one block of cells per section with meshio. Point data: `Displacement`; cell data (means of the quadrature points, the names of `fem.ViewSolid`): `Principal Values of Logarithmic Strain`, `Principal Values of Cauchy Stress`, `Equivalent of Cauchy Stress` and the index of the `Section`. The XDMF file is a time series with the substeps as time and the data inside the XML (`data_format="XML"`), so it is a single file without HDF5 (and h5py is not needed in the worker).
 - **Picture of the view** (`<project>.png`, or `<project>-<job>-<substep>.png` in the Results workspace): the 3D view at the resolution of the screen, with the scalar bar, the legend and the axis triad on the background of the viewport. The vendored viewer does not keep its drawing buffer, so the canvas is copied in the animation frame after its next draw (`app/src/viewer/snapshot.ts`) and the overlays are drawn on top.

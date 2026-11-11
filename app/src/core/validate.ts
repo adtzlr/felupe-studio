@@ -3,7 +3,7 @@
 // so the messages are identical.
 import type { Command } from "./commands";
 import { loadcaseProblems } from "./loadcases";
-import { needsBulk } from "./materials";
+import { materialProblems, needsBulk } from "./materials";
 import {
   NAME_MAX_LENGTH,
   NAME_PATTERN,
@@ -282,6 +282,12 @@ export function validate(commands: readonly Command[]): Issue[] {
       add(
         `constraint '${name}' with a rotation point connects all components x, y and z.`,
       );
+    }
+
+    if (cmd.command === "material.add") {
+      for (const problem of materialProblems(cmd)) {
+        add(`material '${name}': ${problem}`);
+      }
     }
 
     if (

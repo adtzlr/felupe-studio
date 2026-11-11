@@ -217,7 +217,14 @@ def _variants(name, node, command):
                 if "default" in p:
                     text = _default(text, p["default"])
                 symbol = p.get("x-label", key)
-                kind = " ".join(["number", *_bounds(p)])
+                if p.get("type") == "array":
+                    items = p["items"]
+                    item = (
+                        "numbers ≠ 0" if items.get("not") == {"const": 0} else "numbers"
+                    )
+                    kind = f"list of {p['minItems']} to {p['maxItems']} {item}"
+                else:
+                    kind = " ".join(["number", *_bounds(p)])
                 rows.append((f"`{key}` ({symbol})", kind, need, text))
             out.append(_table(rows, ("Parameter", "Type", "Required", "Description")))
         else:

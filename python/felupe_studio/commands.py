@@ -100,6 +100,7 @@ def _reference_errors(commands):
     # the registries read the schema of this module
     from .loadcases import problems as loadcase_problems
     from .materials import needs_bulk
+    from .materials import problems as material_problems
 
     keywords, reserved_names, reserved_prefixes = reserved()
     messages = []
@@ -191,6 +192,10 @@ def _reference_errors(commands):
                 f"commands/{i}: constraint '{name}' with a rotation point connects "
                 "all components x, y and z."
             )
+
+        if cmd["command"] == "material.add":
+            for problem in material_problems(cmd):
+                messages.append(f"commands/{i}: material '{name}': {problem}")
 
         if cmd["command"] in SINGLE and any(
             c["command"] == cmd["command"] for _, c in defined.values()

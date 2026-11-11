@@ -190,13 +190,56 @@ describe("fieldSpecs", () => {
       options: [
         { value: "NeoHooke", label: "Neo-Hooke" },
         { value: "NeoHookeCompressible", label: "Neo-Hooke (compressible)" },
-        { value: "MooneyRivlin", label: "Mooney-Rivlin" },
+        { value: "MooneyRivlin", label: "Mooney-Rivlin", group: "Polynomial" },
+        { value: "Yeoh", label: "Yeoh", group: "Polynomial" },
+        {
+          value: "ThirdOrderDeformation",
+          label: "Third-order deformation",
+          group: "Polynomial",
+        },
+        { value: "Ogden", label: "Ogden" },
+        { value: "ArrudaBoyce", label: "Arruda-Boyce" },
+        { value: "ExtendedTube", label: "Extended tube" },
         {
           value: "LinearElasticLargeStrain",
           label: "Linear elastic (large strain)",
         },
       ],
     });
+    // the lists of Ogden (#136): one to three values, no exponent of zero
+    const ogden = fieldSpecs("material.add", {
+      ...find("umat_hard"),
+      model: "Ogden",
+      parameters: { mu: [1], alpha: [2, 1] },
+    } as unknown as Draft);
+    expect(ogden.find((s) => s.key === "parameters.alpha")!.input).toEqual({
+      type: "numbers",
+      minItems: 1,
+      maxItems: 3,
+      nonzero: true,
+    });
+    expect(
+      draftErrors(
+        "material.add",
+        {
+          ...find("umat_hard"),
+          model: "Ogden",
+          parameters: { mu: [1], alpha: [2, 1] },
+        } as unknown as Draft,
+        editing("umat_hard"),
+      ),
+    ).toEqual({ "parameters.alpha": "Enter as many values as for μᵢ (1)." });
+    expect(
+      draftErrors(
+        "material.add",
+        {
+          ...find("umat_hard"),
+          model: "Ogden",
+          parameters: { mu: [1], alpha: [0] },
+        } as unknown as Draft,
+        editing("umat_hard"),
+      ),
+    ).toEqual({ "parameters.alpha": "Enter numbers other than 0." });
     const ramp = fieldSpecs("step.add", find("step_1")).find(
       (s) => s.key === "ramp.items",
     )!;

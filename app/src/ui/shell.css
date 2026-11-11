@@ -2000,6 +2000,26 @@ button {
   box-shadow: var(--shadow-md);
 }
 
+/* a menu of the ribbon (#136): placed in the window, the ribbon may scroll */
+.menu-fixed {
+  position: fixed;
+}
+
+.ribbon-caret {
+  color: var(--color-text-muted);
+}
+
+/* the label of a menu stays on one line with its caret */
+.ribbon-button[aria-haspopup="menu"] {
+  max-width: none;
+  white-space: nowrap;
+}
+
+.ribbon-button[aria-expanded="true"] {
+  border-color: var(--color-border-strong);
+  background: var(--color-hover);
+}
+
 .menu-item {
   display: grid;
   grid-template-columns: 1fr auto;

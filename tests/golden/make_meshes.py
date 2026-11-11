@@ -77,6 +77,20 @@ def main():
         [("quad", left_face), ("hexahedron", hexahedra), ("tetra", tetra.cells)],
     ).write(HERE / "bar_cell_types" / "bar.vtu", binary=False)
 
+    # a cube of 2 x 2 x 2 cells for the uniaxial tension of the material models
+    for case in MATERIAL_CASES:
+        write_vtu(HERE / case / "cube.vtu", fem.Cube(n=3))
+
+
+# the material tests of the models of tensortrax (#136)
+MATERIAL_CASES = [
+    "cube_arruda_boyce",
+    "cube_extended_tube",
+    "cube_ogden",
+    "cube_third_order_deformation",
+    "cube_yeoh",
+]
+
 
 if __name__ == "__main__":
     main()

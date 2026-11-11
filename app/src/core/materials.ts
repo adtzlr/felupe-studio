@@ -6,16 +6,18 @@ import { schema } from "./schema";
 interface ParameterNode {
   "x-label": string;
   description: string;
-  default?: number;
+  default?: number | number[];
 }
 
 interface DefinitionNode {
   description: string;
   "x-label": string;
+  "x-group"?: string;
   properties: {
     model: { const: string };
     parameters: {
       required?: string[];
+      "x-same-length"?: string[];
       properties: Record<string, ParameterNode>;
     };
   };
@@ -26,16 +28,21 @@ export interface MaterialParameter {
   label: string;
   description: string;
   required: boolean;
-  default?: number;
+  /** A number, or a list of numbers, e.g. the moduli of Ogden. */
+  default?: number | number[];
 }
 
 export interface MaterialModel {
   name: string;
   label: string;
+  /** The menu of the ribbon, e.g. `Polynomial` (#136). */
+  group?: string;
   description: string;
   parameters: MaterialParameter[];
   /** Incompressible without its (optional) bulk modulus: needs u-p-J. */
   optionalBulk: boolean;
+  /** Lists of values that need the same number of values (`x-same-length`). */
+  sameLength: string[];
 }
 
 const defs = schema.$defs as unknown as Record<string, DefinitionNode> & {
@@ -57,9 +64,11 @@ export const MATERIAL_MODELS: readonly MaterialModel[] =
     return {
       name: node.properties.model.const,
       label: node["x-label"],
+      ...(node["x-group"] ? { group: node["x-group"] } : {}),
       description: node.description,
       parameters,
       optionalBulk: parameters.some((p) => p.key === "bulk" && !p.required),
+      sameLength: node.properties.parameters["x-same-length"] ?? [],
     };
   });
 
@@ -70,4 +79,20 @@ export function needsBulk(material: Material): boolean {
   const model = MATERIAL_MODELS.find((m) => m.name === material.model);
   const parameters = material.parameters as Record<string, unknown>;
   return !!model?.optionalBulk && parameters.bulk === undefined;
+}
+
+/**
+ * What is wrong with the parameters of a material beyond the schema: lists of values
+ * that need the same number of values (like `problems` of felupe_studio.materials).
+ */
+export function materialProblems(material: Material): string[] {
+  const model = MATERIAL_MODELS.find((m) => m.name === material.model);
+  const values = material.parameters as Record<string, unknown>;
+  const keys = model?.sameLength ?? [];
+  const lengths = new Set(
+    keys.flatMap((k) => (Array.isArray(values[k]) ? [values[k].length] : [])),
+  );
+  return lengths.size > 1
+    ? [`${keys.join(" and ")} need the same number of values.`]
+    : [];
 }

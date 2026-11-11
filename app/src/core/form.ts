@@ -6,6 +6,7 @@
 import type { Quantity } from "./units";
 import type { Command } from "./commands";
 import { type Loadcase, loadcaseFieldErrors } from "./loadcases";
+import { MATERIAL_MODELS } from "./materials";
 import { KIND_LABELS, REGISTRY } from "./registry";
 import { schema } from "./schema";
 import {
@@ -24,6 +25,8 @@ export type Draft = Record<string, unknown>;
 export interface Option {
   value: string;
   label: string;
+  /** A group of options, e.g. a menu of the ribbon (`x-group`, #136). */
+  group?: string;
 }
 
 export type Input =
@@ -45,7 +48,13 @@ export type Input =
   /** Points, one per line: three coordinates each. */
   | { type: "coordinates"; minItems: number }
   /** A list of numbers, e.g. the coordinates x, y, z of a point. */
-  | { type: "numbers"; minItems: number; maxItems?: number }
+  | {
+      type: "numbers";
+      minItems: number;
+      maxItems?: number;
+      /** No item may be zero, e.g. an exponent of Ogden (#136). */
+      nonzero?: boolean;
+    }
   | {
       type: "reference";
       kind: RefKind;
@@ -110,6 +119,11 @@ interface Node {
   "x-label"?: string;
   /** The physical quantity of a value, e.g. `stress` (#132). */
   "x-quantity"?: Quantity;
+  /** A group of the definitions of a variant, e.g. `Polynomial` (#136). */
+  "x-group"?: string;
+  /** Lists of values that need the same number of values, e.g. of Ogden. */
+  "x-same-length"?: string[];
+  not?: Node;
   if?: Node;
   then?: Node;
   else?: { not?: Node };
@@ -288,6 +302,7 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
               ...(n["x-label"] && !REGISTRY[type].options?.[key]?.[ids[i]]
                 ? { label: n["x-label"] }
                 : {}),
+              ...(n["x-group"] ? { group: n["x-group"] } : {}),
             })),
             seeds: Object.fromEntries(ids.map((id) => [id, id])),
           });
@@ -354,6 +369,7 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
               type: "numbers",
               minItems,
               maxItems: property.maxItems,
+              ...(resolve(items).not?.const === 0 ? { nonzero: true } : {}),
             },
             raw.description,
             raw,
@@ -796,9 +812,16 @@ function fieldError(
         numbers.length >= input.minItems &&
         numbers.length <= (input.maxItems ?? Infinity) &&
         numbers.every((x) => typeof x === "number" && Number.isFinite(x));
-      return ok
-        ? undefined
-        : `Enter ${count}, separated by commas, with a point as decimal separator.`;
+      if (!ok) {
+        const range =
+          input.maxItems !== undefined && input.maxItems !== input.minItems
+            ? ` ${input.minItems} to ${input.maxItems}`
+            : "";
+        return `Enter${range} ${count}, separated by commas, with a point as decimal separator.`;
+      }
+      return input.nonzero && numbers.includes(0)
+        ? "Enter numbers other than 0."
+        : undefined;
     }
     case "coordinates": {
       const points = Array.isArray(value) ? (value as unknown[]) : [];
@@ -850,6 +873,29 @@ export function draftErrors(
   }
   if (type === "loadcase.add" && typeof draft.type === "string") {
     Object.assign(errors, loadcaseFieldErrors(draft as unknown as Loadcase));
+  }
+  if (type === "material.add") Object.assign(errors, sameLengthErrors(draft));
+  return errors;
+}
+
+/**
+ * Lists of values of a material that need the same number of values (`x-same-length`,
+ * e.g. the moduli and the exponents of Ogden, #136): an error at the later ones.
+ */
+function sameLengthErrors(draft: Draft): Record<string, string> {
+  const model = MATERIAL_MODELS.find((m) => m.name === draft.model);
+  const values = isObject(draft.parameters) ? draft.parameters : {};
+  const [first, ...rest] = model?.sameLength ?? [];
+  const errors: Record<string, string> = {};
+  const length = (key: string) =>
+    Array.isArray(values[key]) ? (values[key] as unknown[]).length : undefined;
+  for (const key of rest) {
+    const [a, b] = [length(first), length(key)];
+    if (a !== undefined && b !== undefined && a !== b) {
+      const label = model!.parameters.find((p) => p.key === first)!.label;
+      errors[`parameters.${key}`] =
+        `Enter as many values as for ${label} (${a}).`;
+    }
   }
   return errors;
 }

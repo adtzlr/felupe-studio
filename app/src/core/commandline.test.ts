@@ -219,8 +219,17 @@ describe("complete", () => {
       "Neo-Hooke",
       "Neo-Hooke (compressible)",
       "Mooney-Rivlin",
+      "Yeoh",
+      "Third-order deformation",
+      "Ogden",
+      "Arruda-Boyce",
+      "Extended tube",
       "Linear elastic (large strain)",
     ]);
+    // lists of values in the template of Ogden (#136)
+    expect(items[5].value).toBe(
+      '{"name":"material_1","model":"Ogden","parameters":{"mu":[1,0.2],"alpha":[1.7,-1.5]}}',
+    );
     expect(items[0].value).toBe(
       '{"name":"material_1","model":"NeoHooke","parameters":{"mu":1}}',
     );
@@ -238,7 +247,7 @@ describe("complete", () => {
     );
     expect(line).toBe("material.add ");
     const completion = complete(line, commands);
-    line = accept(line, completion, completion.items[3]);
+    line = accept(line, completion, completion.items[8]);
     expect(line).toBe(
       'material.add {"name":"material_1","model":"LinearElasticLargeStrain","parameters":{"E":1,"nu":0.3}}',
     );
