@@ -96,6 +96,7 @@ The **Results** workspace shows the deformed shape of a substep:
 - *Substep* and *Scale* of the displacements; *Undeformed* shows the shape before the deformation.
 - *Curve*: the force-displacement curve with the current substep; download it as CSV.
 - A hover over the model shows the value at the point under the pointer; *Nodes* shows the nodes of the deformed meshes.
+- *Min/Max* marks the minimum and the maximum of the contour with their values: a dot at a node (values at the points) or the outline of the outer faces of a cell (values of the cells). A click on a label or a marker shows where the value is (the node or the cell and its section, *inside* if it is not at the surface); a click elsewhere or Esc hides it again. A label whose point is hidden behind the model is dimmed.
 - The control points show their displacements and forces in the substep (rotations and moments for rotation points); the export has them for all substeps.
 
 ## The script

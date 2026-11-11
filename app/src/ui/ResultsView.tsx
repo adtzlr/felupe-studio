@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { useViewKeys } from "./hooks";
 import { withHint } from "../core/shortcuts";
 import { NodesButton, useShowNodes } from "./NodesButton";
-import { CONTROL_COLOR } from "../viewer/palette";
+import { CONTROL_COLOR, EXTREME_COLORS } from "../viewer/palette";
+import { extremeShape } from "../viewer/extremes";
 import { outlined } from "../viewer/pointsets";
 import {
   constraintLines,
@@ -36,7 +37,15 @@ import {
   Viewer,
   VIEWS,
 } from "../viewer/viewer";
-import type { Quantity, ResultPoint, ResultScene } from "../worker/protocol";
+import type { Vec3 } from "../viewer/picking";
+import type { Lines } from "../viewer/scene";
+import { formatTick } from "../viewer/scalarbar";
+import type {
+  Quantity,
+  ResultExtreme,
+  ResultPoint,
+  ResultScene,
+} from "../worker/protocol";
 
 /** Loads the result scenes of substeps (the worker client). */
 export interface ResultSource {
@@ -126,6 +135,22 @@ interface Hover {
 }
 
 const value = (v: number | null) => (v === null ? "–" : formatValue(v));
+
+/** The minimum and the maximum of a contour (#140). */
+type Extreme = "min" | "max";
+const EXTREMES: readonly Extreme[] = ["min", "max"];
+
+/** The value of an extreme like the value under the pointer. */
+function extremeInfo(scene: ResultScene, extreme: ResultExtreme): ProbeInfo {
+  const point = extreme.at === "point";
+  return {
+    label: scene.label,
+    value: extreme.value,
+    where: `${point ? "Node" : "Cell"} ${extreme.index} of ${extreme.section}`,
+    ...(point ? { displacement: extreme.displacement } : {}),
+    atPoint: point,
+  };
+}
 
 /** The symbols of the values of a control point: of a rotation point φ and M. */
 const symbols = (point: ResultPoint) =>
@@ -346,6 +371,11 @@ export function ResultsView({
   const [nodesShown, toggleNodes] = useShowNodes(showNodes, onShowNodes);
   // the table of the control points of the substep (#101)
   const [pointsShown, setPointsShown] = useState(true);
+  // the minimum and the maximum of the contour, one of them selected (#140)
+  const [extremesShown, setExtremesShown] = useState(false);
+  const [pinned, setPinned] = useState<Extreme>();
+  const pinnedNow = useRef(pinned);
+  pinnedNow.current = pinned;
   const host = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
   useViewKeys(active, viewer, toggleNodes);
@@ -432,31 +462,98 @@ export function ResultsView({
     const points = (scene?.points ?? []).flatMap((p) =>
       p.position.map((x, k) => x + scale * p.displacement[k]),
     );
+    // the minimum and the maximum, displaced like the surfaces (#140)
+    const extremes =
+      scene?.extremes && view && extremesShown ? scene.extremes : undefined;
+    // a dot at a node or a cell inside, the outlines of the outer faces of a cell
+    const shapes = extremes
+      ? Object.fromEntries(
+          EXTREMES.map((name) => [
+            name,
+            extremeShape(scene!, extremes[name], scale),
+          ]),
+        )
+      : undefined;
     viewer.current.setMarkers(
       scene && view
-        ? outlined(Float64Array.from(points), CONTROL_COLOR, 10)
+        ? [
+            ...outlined(Float64Array.from(points), CONTROL_COLOR, 10),
+            ...(shapes
+              ? EXTREMES.flatMap((name) => {
+                  const dot = shapes[name].dot;
+                  return dot
+                    ? outlined(Float64Array.from(dot), EXTREME_COLORS[name], 11)
+                    : [];
+                })
+              : []),
+          ]
         : [],
     );
-    viewer.current.setTargets(
-      (scene && view ? (scene.points ?? []) : []).map((p, i) => ({
+    viewer.current.setTargets([
+      ...(scene && view ? (scene.points ?? []) : []).map((p, i) => ({
         name: p.name,
         position: points.slice(3 * i, 3 * i + 3) as [number, number, number],
       })),
+      ...(shapes
+        ? EXTREMES.flatMap((name) =>
+            shapes[name].anchors.map((position) => ({
+              name: `@${name}`,
+              position,
+            })),
+          )
+        : []),
+    ]);
+    viewer.current.setLabels(
+      extremes
+        ? EXTREMES.map((name) => {
+            const extreme = extremes[name];
+            const info = extremeInfo(scene!, extreme);
+            return {
+              id: name,
+              position: shapes![name].anchors[0],
+              anchors: shapes![name].anchors,
+              tone: name,
+              text: `${name === "min" ? "Min." : "Max."} ${valueWithUnit(formatTick(extreme.value), unit)}`,
+              detail: [
+                `${info.where}${extreme.surface ? "" : " (inside)"}`,
+                ...(info.displacement
+                  ? [
+                      `u = ${valueWithUnit(`(${info.displacement.map((c) => value(c)).join(", ")})`, unitOf("displacement", units))}`,
+                    ]
+                  : []),
+              ],
+              expanded: pinned === name,
+              onClick: () => setPinned(pinned === name ? undefined : name),
+            };
+          })
+        : [],
     );
-    // the constraints, displaced like the surfaces (#99)
+    // the outlines of the extremes at cells, and the constraints, displaced like
+    // the surfaces (#99)
+    const outlines: Lines[] = shapes
+      ? EXTREMES.flatMap((name) => {
+          const outline = shapes[name].outline;
+          return outline
+            ? [{ positions: outline, color: EXTREME_COLORS[name], width: 3 }]
+            : [];
+        })
+      : [];
     if (scene && view && commands.some((c) => c.command === "mpc.add")) {
       const { nodes, place } = resultPlacement(scene, scale);
-      viewer.current.setLines(
-        constraintLines(constraintShapes(commands, nodes), {
+      viewer.current.setLines([
+        ...constraintLines(constraintShapes(commands, nodes), {
           highlight: HIGHLIGHT,
           place,
         }),
-      );
-    } else viewer.current.setLines([]);
+        ...outlines,
+      ]);
+    } else viewer.current.setLines(outlines);
   }, [
     scene,
     titled,
     look,
+    extremesShown,
+    pinned,
     view?.scale,
     view?.undeformed,
     nodesShown,
@@ -471,6 +568,29 @@ export function ResultsView({
     },
     [],
   );
+
+  // a click on the marker of the minimum or the maximum selects it, a click
+  // elsewhere into the view or Esc unselects it (#140)
+  useEffect(() => {
+    if (!extremesShown || !viewer.current) return;
+    const off = viewer.current.onPick((_, click) => {
+      const name = click.target?.startsWith("@")
+        ? (click.target.slice(1) as Extreme)
+        : undefined;
+      setPinned((current) => (name && current !== name ? name : undefined));
+    });
+    const escape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (!pinnedNow.current) return;
+      event.preventDefault();
+      setPinned(undefined);
+    };
+    window.addEventListener("keydown", escape, true);
+    return () => {
+      off();
+      window.removeEventListener("keydown", escape, true);
+    };
+  }, [extremesShown, scene]);
 
   // the value under the pointer, once per frame; none while the view is moved
   const [hover, setHover] = useState<Hover>();
@@ -487,6 +607,28 @@ export function ResultsView({
       const { width, height } = canvas.getBoundingClientRect();
       // a control point under the pointer (#101)
       const target = viewer.current.targetAt(last.x, last.y, width, height);
+      // the minimum or the maximum under the pointer (#140)
+      const extreme =
+        target === "@min" || target === "@max"
+          ? scene.extremes?.[target.slice(1) as Extreme]
+          : undefined;
+      if (extreme) {
+        const scale = view?.scale ?? 1;
+        const position = extreme.position.map(
+          (x, k) => x + scale * extreme.displacement[k],
+        ) as Vec3;
+        // a ring at a node, the outlines of a cell are drawn already
+        const ring =
+          extreme.at === "point"
+            ? viewer.current.project(position, width, height)
+            : undefined;
+        return setHover({
+          ...last,
+          width,
+          info: extremeInfo(scene, extreme),
+          ...(ring ? { ring } : {}),
+        });
+      }
       const point = scene.points?.find((p) => p.name === target);
       if (point) {
         const scale = view?.scale ?? 1;
@@ -562,6 +704,19 @@ export function ResultsView({
           ))}
           <span class="toolbar-separator" aria-hidden="true" />
           <NodesButton pressed={nodesShown} onToggle={toggleNodes} />
+          {scene?.extremes && (
+            <button
+              type="button"
+              aria-pressed={extremesShown}
+              title="Show the minimum and the maximum of the contour"
+              onClick={() => {
+                setExtremesShown(!extremesShown);
+                setPinned(undefined);
+              }}
+            >
+              Min/Max
+            </button>
+          )}
           {scene?.points && scene.points.length > 0 && (
             <button
               type="button"

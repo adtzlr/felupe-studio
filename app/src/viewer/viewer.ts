@@ -28,12 +28,14 @@ import {
 } from "./scene";
 import {
   deformedPositions,
+  depthOf,
   nearestNode,
   type Probe,
   probeAt,
   projectPoint,
 } from "./probe";
 import { snapshot } from "./snapshot";
+import { LabelLayer, type ViewLabel } from "./labels";
 import { renderScalarBar } from "./scalarbar";
 
 export type CreateViewer = typeof createViewer;
@@ -169,12 +171,25 @@ export class Viewer {
   >();
   /** The camera fits the model on the next draw (e.g. after it was empty). */
   private fitNext = true;
+  /** Labels at points of the view, e.g. of the extremes of a contour (#140). */
+  private labels: LabelLayer;
 
   constructor(element: HTMLElement, create: CreateViewer = createViewer) {
     this.handle = create(element, buildScene({ meshes: [] }), {
       wheelOnFocus: false,
     });
     const root = this.handle.root;
+    this.labels = new LabelLayer(
+      root,
+      (point, width, height) => this.project(point, width, height),
+      {
+        depth: (point) => {
+          const camera = this.handle.camera;
+          return camera ? depthOf(camera, point) : 0;
+        },
+        occluded: (point, width, height) => this.occluded(point, width, height),
+      },
+    );
     root.addEventListener(
       "pointerdown",
       (event) => (this.down = { x: event.clientX, y: event.clientY }),
@@ -213,10 +228,15 @@ export class Viewer {
     width: number,
     height: number,
   ): Probe | undefined {
+    const surfaces = this.drawnSurfaces();
+    const ray = surfaces && this.rayAt(x, y, width, height);
+    return ray ? probeAt(ray, surfaces) : undefined;
+  }
+
+  /** The drawn (deformed and scaled) surfaces of the result, or none. */
+  private drawnSurfaces() {
     const result = this.result;
     if (!result) return undefined;
-    const ray = this.rayAt(x, y, width, height);
-    if (!ray) return undefined;
     if (
       this.drawn?.result.scene !== result.scene ||
       this.drawn.result.scale !== result.scale
@@ -233,7 +253,32 @@ export class Viewer {
         })),
       };
     }
-    return probeAt(ray, this.drawn.surfaces);
+    return this.drawn.surfaces;
+  }
+
+  /** True if a point is behind the drawn faces (of the meshes and the result). */
+  private occluded(point: Vec3, width: number, height: number): boolean {
+    const camera = this.handle.camera;
+    const at = camera && projectPoint(camera, point, width, height);
+    const ray = at && this.rayAt(at[0], at[1], width, height);
+    if (!camera || !ray) return false;
+    const along = [0, 1, 2].reduce(
+      (sum, k) => sum + (point[k] - ray.origin[k]) * ray.direction[k],
+      0,
+    );
+    const faces = [
+      ...this.meshes.map((layer) => ({
+        positions: layer.surface.positions,
+        triangles: drawnTriangles(layer),
+      })),
+      ...(this.drawnSurfaces() ?? []),
+    ];
+    // a point on a face is not behind it
+    const tolerance = 0.005 * camera.radius;
+    return faces.some((f) => {
+      const hit = firstHit(ray, f.positions, f.triangles);
+      return !!hit && hit.distance < along - tolerance;
+    });
   }
 
   /** The position of a point in the view of the given size, in pixels. */
@@ -403,7 +448,13 @@ export class Viewer {
     this.handle.setView?.(null);
   }
 
+  /** Labels at points of the view, moved with the camera (#140). */
+  setLabels(labels: readonly ViewLabel[]): void {
+    this.labels.set(labels);
+  }
+
   dispose(): void {
+    this.labels.dispose();
     this.handle.dispose();
   }
 

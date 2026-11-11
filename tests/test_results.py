@@ -73,12 +73,19 @@ def test_substeps_restore_the_fields(two_materials):
     for substep, moved in enumerate(np.linspace(0, 0.5, 6), start=1):
         meta, surfaces = results.scene("job_1", substep, "displacement_x")
         meta = json.loads(meta)
+        extremes = meta.pop("extremes")
         assert meta == {
             "label": "Displacement x",
             "at": "point",
             "range": [0.0, pytest.approx(moved)],
             "points": [],
         }
+        # the maximum at a node of the moved end (#140)
+        assert extremes["max"]["value"] == pytest.approx(moved)
+        assert extremes["max"]["at"] == "point"
+        assert extremes["max"]["displacement"][0] == pytest.approx(moved)
+        if moved > 0:
+            assert extremes["max"]["position"][0] == pytest.approx(3)
         for surface in surfaces:
             data = arrays(surface)
             assert len(data["values"]) == len(data["positions"]) // 3
@@ -113,6 +120,37 @@ def test_ranges_of_all_substeps(two_materials, quantity):
     assert results.ranges("job_1", quantity) == json.dumps(ranges)
     assert json.loads(results.scene("job_1", 3, quantity)[0])["range"] == expected[2]
     assert json.loads(results.ranges("job_2", quantity)) == []
+
+
+def test_extremes_of_a_contour(two_materials):
+    # the minimum and the maximum with their node or cell (#140)
+    meta = json.loads(results.scene("job_1", 6, "stress_mises")[0])
+    low, high = meta["range"]
+    smallest, largest = meta["extremes"]["min"], meta["extremes"]["max"]
+    assert smallest["value"] == pytest.approx(low)
+    assert largest["value"] == pytest.approx(high)
+    assert largest["at"] == "cell" and largest["section"] in ("hard_body", "soft_body")
+    # the bar has 4 x 4 cells in its cross section: some cells are inside
+    assert isinstance(largest["surface"], bool)
+    # the position is the center of the points of the cell
+    namespace = results._state["namespace"]
+    field = namespace[f"field_{largest['section']}"]
+    mesh = field[0].region.mesh
+    cell = mesh.cells[largest["index"]][:8]
+    np.testing.assert_allclose(largest["position"], mesh.points[cell].mean(axis=0))
+    np.testing.assert_allclose(
+        largest["displacement"], field[0].values[cell].mean(axis=0)
+    )
+    stress = namespace[f"solid_{largest['section']}"].evaluate.cauchy_stress(field)
+    mises = fem.math.equivalent_von_mises(stress).mean(-2)
+    assert mises[largest["index"]] == pytest.approx(high)
+
+    meta = json.loads(results.scene("job_1", 1, "displacement")[0])
+    assert meta["label"] == "Displacement magnitude"
+    assert meta["extremes"]["min"]["value"] == 0
+    assert meta["extremes"]["min"]["at"] == "point"
+    # the fixed end is at the surface
+    assert meta["extremes"]["min"]["surface"] is True
 
 
 def test_surfaces_are_cached_per_run(two_materials):

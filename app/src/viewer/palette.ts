@@ -32,6 +32,9 @@ export const FORCE_COLOR = "#ff6fb5";
 /** Color of the markers of control points (#95). */
 export const CONTROL_COLOR = "#5ce1e6";
 
+/** Colors of the markers of the minimum and the maximum of a contour (#140). */
+export const EXTREME_COLORS = { min: "#8ab4ff", max: "#ff8a80" } as const;
+
 /** Color of point markers and arrows (boundaries and loads). */
 export const MARKER_COLOR = "#f5a524";
 

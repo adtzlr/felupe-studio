@@ -30,6 +30,9 @@
   --color-on-accent: #0b1220;
 
   --color-warning: #f5a524;
+  /* the minimum and the maximum of a contour (#140), like EXTREME_COLORS */
+  --color-min: #8ab4ff;
+  --color-max: #ff8a80;
   --color-error: #ff8f8f;
   --color-error-surface: #3a2329;
   --color-error-border: #6b3640;
@@ -1765,6 +1768,60 @@ button {
 .popover-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+/* labels at points of the view (#140), e.g. of the minimum and the maximum: the
+   box starts a little right of and above its point */
+.fv-labels {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.fv-label {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  gap: 1px;
+  margin: -26px 0 0 var(--space-10);
+  padding: var(--space-2) var(--space-6);
+  border: 1px solid var(--color-border-strong);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--color-overlay);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--leading-tight);
+  text-align: left;
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.fv-label.min {
+  border-left-color: var(--color-min);
+}
+
+.fv-label.max {
+  border-left-color: var(--color-max);
+}
+
+/* a label whose point is behind faces of the model */
+.fv-label.occluded {
+  border-style: dashed;
+  opacity: 0.6;
+}
+
+.fv-label-text {
+  font-weight: var(--weight-semibold);
+}
+
+.fv-label-detail {
+  color: var(--color-text-muted);
 }
 
 /* the scalar bar of a contour, drawn by the app (#139): the map with the outside

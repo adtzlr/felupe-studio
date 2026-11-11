@@ -1095,6 +1095,67 @@ describe("solve", () => {
     localStorage.clear();
   });
 
+  it("shows the minimum and the maximum of the contour (#140)", async () => {
+    const jobs = runner();
+    const extreme = (value: number, index: number, surface = true) => ({
+      value,
+      section: "section_hard",
+      at: "cell" as const,
+      index,
+      surface,
+      position: [1, 0.5, 0.5] as [number, number, number],
+      displacement: [0.1, 0, 0] as [number, number, number],
+    });
+    const resultScene = vi.fn(async (): Promise<ResultScene> => ({
+      label: "Max. principal Cauchy stress",
+      at: "cell",
+      range: [0.5, 2],
+      extremes: { min: extreme(0.5, 3), max: extreme(2, 7, false) },
+      points: [],
+      surfaces: [],
+    }));
+    render(
+      <App
+        store={new ModelStore(fixture as CommandList)}
+        files={await files()}
+        client={client(Promise.resolve(readyValue), { ...jobs, resultScene })}
+      />,
+    );
+    await waitFor(() =>
+      expect(solveButton().getAttribute("aria-disabled")).toBeNull(),
+    );
+    fireEvent.click(solveButton());
+    await waitFor(() => expect(jobs.run).toHaveBeenCalledTimes(1));
+    await act(async () =>
+      jobs.settle().resolve({
+        job_1: { substeps: 1, time: 0.1, x: [[0.5, 0, 0]], y: [[5, 0, 0]] },
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show results" }));
+    const toggle = await screen.findByRole("button", { name: "Min/Max" });
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    expect(document.querySelector(".fv-label")).toBeNull();
+
+    // (the toolbar goes away without WebGL2 once the viewer exists)
+    fireEvent.click(toggle);
+    const labels = () =>
+      [...document.querySelectorAll<HTMLButtonElement>(".fv-label")].map(
+        (l) => l.textContent,
+      );
+    expect(labels()).toEqual(["Min. 0.5", "Max. 2"]);
+    // a click selects the maximum: where it is
+    fireEvent.click(
+      document.querySelectorAll<HTMLButtonElement>(".fv-label")[1],
+    );
+    expect(labels()).toEqual([
+      "Min. 0.5",
+      "Max. 2Cell 7 of section_hard (inside)",
+    ]);
+    // Esc unselects it, but keeps the results
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(labels()).toEqual(["Min. 0.5", "Max. 2"]);
+  });
+
   it("exports the script and a picture of the view", async () => {
     const download = vi.fn();
     const script = vi.fn<(document: string) => Promise<string>>(
