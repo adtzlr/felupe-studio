@@ -15,6 +15,7 @@ interface Props {
   onOpen: () => void;
   onSamples: () => void;
   onSave: () => void;
+  onSaveAs: () => void;
   onShortcuts: () => void;
   onAbout: () => void;
   /** The browser is open as a drawer (narrow windows, #131), and its toggle. */
@@ -38,6 +39,7 @@ export function Header({
   onOpen,
   onSamples,
   onSave,
+  onSaveAs,
   onShortcuts,
   onAbout,
   browserOpen,
@@ -75,7 +77,7 @@ export function Header({
                   {
                     id: "open",
                     label: "Open project…",
-                    hint: "A project file with its mesh files, or mesh files to import",
+                    hint: "A project file with its mesh files, a project archive, or mesh files to import",
                     shortcut: { text: hint("open"), aria: ariaKeys("open") },
                     onSelect: onOpen,
                   },
@@ -87,8 +89,19 @@ export function Header({
                   {
                     id: "save",
                     label: "Save project",
+                    hint: "In its format: a project file or an archive",
                     shortcut: { text: hint("save"), aria: ariaKeys("save") },
                     onSelect: onSave,
+                  },
+                  {
+                    id: "save-as",
+                    label: "Save project as…",
+                    hint: "With another name, as a project file or an archive with the mesh files",
+                    shortcut: {
+                      text: hint("save-as"),
+                      aria: ariaKeys("save-as"),
+                    },
+                    onSelect: onSaveAs,
                   },
                 ],
               },
@@ -139,7 +152,7 @@ export function Header({
           class="icon-button"
           aria-label="Open project"
           title={withHint(
-            "Open a project file with its mesh files, or mesh files to import",
+            "Open a project file with its mesh files, a project archive, or mesh files to import",
             "open",
           )}
           onClick={onOpen}

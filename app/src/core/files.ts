@@ -30,6 +30,13 @@ export function exportName(project: string, suffix: string): string {
   return `${stemOf(project) || "untitled"}${suffix}`;
 }
 
+/** A size in bytes as text, e.g. "512 B", "31.4 kB" or "2.5 MB". */
+export function formatBytes(bytes: number): string {
+  if (bytes < 1000) return `${bytes} B`;
+  const [value, unit] = bytes < 1e6 ? [bytes / 1e3, "kB"] : [bytes / 1e6, "MB"];
+  return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${unit}`;
+}
+
 /** The media types of the downloads, by extension. */
 const TYPES: Record<string, string> = {
   ".json": "application/json",

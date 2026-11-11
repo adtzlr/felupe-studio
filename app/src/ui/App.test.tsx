@@ -52,7 +52,7 @@ const readyValue: Ready = {
 };
 
 /** Choose an item of the File menu of the header. */
-const fileMenu = (name: string) => {
+const fileMenu = (name: string | RegExp) => {
   fireEvent.click(screen.getByRole("button", { name: "File" }));
   fireEvent.click(
     within(screen.getByRole("menu", { name: "File" })).getByRole("menuitem", {
@@ -404,6 +404,7 @@ describe("menus of the header", () => {
       "Open project…",
       "Samples…",
       "Save project",
+      "Save project as…",
       "Python script",
       "Results of the job (XDMF)",
       "Results of the substep (VTU)",
@@ -413,6 +414,7 @@ describe("menus of the header", () => {
     // the shortcuts of the items (#129)
     expect(items[3].textContent).toBe("Save projectCtrl+S");
     expect(items[3].getAttribute("aria-keyshortcuts")).toBe("Control+S Meta+S");
+    expect(items[4].textContent).toBe("Save project as…Ctrl+Shift+S");
     expect(document.activeElement).toBe(items[0]);
     fireEvent.keyDown(items[0], { key: "ArrowUp" });
     expect(document.activeElement).toBe(items.at(-1));
@@ -420,8 +422,8 @@ describe("menus of the header", () => {
     fireEvent.keyDown(items[0], { key: "ArrowDown" });
     expect(document.activeElement).toBe(items[1]);
     // a blocked item says why in its tooltip
-    expect(items[4].getAttribute("aria-disabled")).toBe("true");
-    expect(items[4].title).toBeTruthy();
+    expect(items[5].getAttribute("aria-disabled")).toBe("true");
+    expect(items[5].title).toBeTruthy();
     fireEvent.keyDown(items[1], { key: "Escape" });
     expect(screen.queryByRole("menu")).toBeNull();
     expect(document.activeElement).toBe(file);
@@ -1374,9 +1376,112 @@ describe("samples", () => {
       "utf8",
     );
     expect(store.commands).toEqual(JSON.parse(text).commands);
+    // a sample is an archive (#150)
     expect(screen.getByRole("banner").textContent).toContain(
-      "rubber-mount.felupe.json",
+      "rubber-mount.felupe.zip",
     );
+  });
+
+  it("saves a sample as an archive, with the script and as a project file (#150)", async () => {
+    const store = new ModelStore();
+    const files = new MeshFiles(async (name) => ({
+      info: { file: name, points: 8, solids: [] },
+    }));
+    const download = vi.fn();
+    const script = vi.fn(async () => "import felupe as fem\n");
+    render(
+      <App
+        store={store}
+        files={files}
+        fetchSample={serve}
+        download={download}
+        client={client(Promise.resolve(readyValue), { script })}
+      />,
+    );
+    const sample = SAMPLES.find((s) => s.id === "rubber-mount")!;
+    fileMenu("Samples…");
+    const dialog = screen.getByRole("dialog", { name: "Samples" });
+    const card = within(dialog)
+      .getAllByRole("listitem")
+      .find((item) => item.textContent?.includes(sample.title))!;
+    fireEvent.click(within(card).getByRole("button", { name: /Open/ }));
+    await waitFor(() => expect(store.commands.length).toBeGreaterThan(0));
+    await waitFor(() => expect(files.names).toEqual(sample.files));
+    const { readArchive } = await import("../core/archive");
+    const saved = async (call: number) => {
+      const [name, blob] = download.mock.calls[call] as [string, Blob];
+      return {
+        name,
+        archive: readArchive(new Uint8Array(await blob.arrayBuffer())),
+      };
+    };
+
+    // Save: an archive that opens again to the same commands and mesh files
+    fireEvent.keyDown(window, { key: "s", ctrlKey: true });
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+    const first = await saved(0);
+    expect(first.name).toBe("rubber-mount.felupe.zip");
+    expect(JSON.parse(await first.archive.project!.text()).commands).toEqual(
+      store.commands,
+    );
+    expect(first.archive.files.map((f) => f.name)).toEqual(sample.files);
+    for (const file of first.archive.files) {
+      expect(new Uint8Array(await file.arrayBuffer())).toEqual(
+        files.dataOf(file.name),
+      );
+    }
+    expect(first.archive.script).toBeUndefined();
+
+    // Save as: another name, with the script
+    fireEvent.keyDown(window, { key: "S", ctrlKey: true, shiftKey: true });
+    let saveAs = screen.getByRole("dialog", { name: "Save project as" });
+    const name = within(saveAs).getByLabelText("Name") as HTMLInputElement;
+    expect(name.value).toBe("rubber-mount");
+    expect(
+      (within(saveAs).getByLabelText(/Project archive/) as HTMLInputElement)
+        .checked,
+    ).toBe(true);
+    const meshes = within(saveAs).getByLabelText("Mesh files");
+    expect(meshes.textContent).toContain(sample.files[0]);
+    expect(meshes.textContent).toMatch(/\d+(\.\d)? kB/);
+    fireEvent.input(name, { target: { value: "a/b" } });
+    expect(saveAs.textContent).toContain("A name has none of the characters");
+    expect(
+      (
+        within(saveAs).getByRole("button", {
+          name: "Save",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    fireEvent.input(name, { target: { value: "mount" } });
+    fireEvent.click(within(saveAs).getByLabelText(/Include the Python script/));
+    fireEvent.click(within(saveAs).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(2));
+    const second = await saved(1);
+    expect(second.name).toBe("mount.felupe.zip");
+    expect(await second.archive.script?.text()).toBe("import felupe as fem\n");
+    expect(script).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("banner").textContent).toContain(
+      "mount.felupe.zip",
+    );
+
+    // Save as a project file, and Save keeps that format
+    fileMenu(/Save project as/);
+    saveAs = screen.getByRole("dialog", { name: "Save project as" });
+    fireEvent.click(within(saveAs).getByLabelText(/Project file/));
+    expect(within(saveAs).queryByLabelText("Mesh files")).toBeNull();
+    fireEvent.click(within(saveAs).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(3));
+    const [jsonName, text] = download.mock.calls[2] as [string, string];
+    expect(jsonName).toBe("mount.felupe.json");
+    expect(JSON.parse(text).commands).toEqual(store.commands);
+    expect(screen.getByRole("banner").textContent).toContain(
+      "mount.felupe.json",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Save project" }));
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(4));
+    expect(download.mock.calls[3][0]).toBe("mount.felupe.json");
+    expect(typeof download.mock.calls[3][1]).toBe("string");
   });
 
   it("are offered with their pictures by the welcome panel", async () => {
@@ -1407,7 +1512,7 @@ describe("samples", () => {
       screen.queryByRole("region", { name: "Welcome to FElupe Studio" }),
     ).toBeNull();
     expect(screen.getByRole("banner").textContent).toContain(
-      "glued-plate.felupe.json",
+      "glued-plate.felupe.zip",
     );
   });
 
@@ -1433,7 +1538,7 @@ describe("samples", () => {
   });
 });
 
-describe("project archives (#149)", () => {
+describe("project archives (#149, #150)", () => {
   // a mesh file with the tag of the sections of the fixture
   const meshFiles = () =>
     new MeshFiles(async (name) => ({
@@ -1572,6 +1677,65 @@ describe("project archives (#149)", () => {
     ).toBeTruthy();
   });
 
+  it("makes a new project an archive with its first mesh file (#150)", async () => {
+    const store = new ModelStore();
+    render(<App store={store} files={meshFiles()} />);
+    const banner = () => screen.getByRole("banner").textContent;
+    expect(banner()).toContain("untitled.felupe.json");
+    act(() =>
+      store.apply({
+        type: "add",
+        command: {
+          command: "mesh.import",
+          name: "specimen",
+          file: "specimen.vtu",
+        } as Command,
+      }),
+    );
+    await waitFor(() => expect(banner()).toContain("untitled.felupe.zip"));
+    // a mesh file that is not loaded is listed as missing
+    fireEvent.keyDown(window, { key: "S", ctrlKey: true, shiftKey: true });
+    const saveAs = screen.getByRole("dialog", { name: "Save project as" });
+    expect(within(saveAs).getByLabelText("Mesh files").textContent).toContain(
+      "specimen.vtu not loaded",
+    );
+    expect(within(saveAs).getByRole("note").textContent).toContain(
+      "lacks the mesh files that are not loaded",
+    );
+    // without Python, no script
+    expect(
+      (
+        within(saveAs).getByLabelText(
+          /Include the Python script/,
+        ) as HTMLInputElement
+      ).disabled,
+    ).toBe(true);
+  });
+
+  it("restores the format of the project from the session (#150)", async () => {
+    const storage = new IndexedDBSession(new IDBFactory());
+    await storage.save({
+      project: projectText,
+      fileName: "bar.felupe.zip",
+      modified: false,
+      files: [{ name: "specimen.vtu", data: vtu }],
+    });
+    const store = new ModelStore();
+    const files = meshFiles();
+    const download = vi.fn();
+    render(
+      <App store={store} files={files} session={storage} download={download} />,
+    );
+    await waitFor(() => expect(store.commands).toEqual(fixture.commands));
+    await waitFor(() => expect(files.dataOf("specimen.vtu")).toEqual(vtu));
+    expect(screen.getByRole("banner").textContent).toContain("bar.felupe.zip");
+    fireEvent.click(screen.getByRole("button", { name: "Save project" }));
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+    const [name, blob] = download.mock.calls[0] as [string, Blob];
+    expect(name).toBe("bar.felupe.zip");
+    expect(blob.type).toBe("application/zip");
+  });
+
   it("keeps the model if an archive cannot be opened, and asks first", async () => {
     const store = new ModelStore(fixture as CommandList);
     render(<App store={store} files={meshFiles()} />);
@@ -1666,7 +1830,8 @@ describe("session in the browser", () => {
           { name: "specimen.vtu", data: new Uint8Array([7]) },
         ]);
         expect(JSON.parse(kept!.project).commands).toEqual(fixture.commands);
-        expect(kept?.fileName).toBe("untitled.felupe.json");
+        // a new project with a mesh file is an archive (#150)
+        expect(kept?.fileName).toBe("untitled.felupe.zip");
       },
       { timeout: 3000 },
     );

@@ -20,6 +20,7 @@ export interface ShortcutGroup {
 
 export type ShortcutId =
   | "save"
+  | "save-as"
   | "open"
   | "solve"
   | "undo"
@@ -47,6 +48,11 @@ export const SHORTCUTS: ShortcutGroup[] = [
     title: "General",
     shortcuts: [
       { id: "save", keys: [["Mod", "S"]], action: "Save the project" },
+      {
+        id: "save-as",
+        keys: [["Mod", "Shift", "S"]],
+        action: "Save the project as a file or an archive",
+      },
       {
         id: "open",
         keys: [["Mod", "O"]],

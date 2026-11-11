@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { exportName, isZip, mediaType, stemOf } from "./files";
+import { exportName, formatBytes, isZip, mediaType, stemOf } from "./files";
 
 describe("exports", () => {
   it("are named after the project", () => {
@@ -34,5 +34,15 @@ describe("ZIP files (#148)", () => {
     expect(isZip(bytes(0x50, 0x4b, 7, 8))).toBe(false);
     expect(isZip(new TextEncoder().encode('{"commands": []}'))).toBe(false);
     expect(isZip(bytes(0x50))).toBe(false);
+  });
+});
+
+describe("sizes of files (#150)", () => {
+  it("are given in B, kB or MB", () => {
+    expect(formatBytes(512)).toBe("512 B");
+    expect(formatBytes(1500)).toBe("1.5 kB");
+    expect(formatBytes(31_420)).toBe("31 kB");
+    expect(formatBytes(2_500_000)).toBe("2.5 MB");
+    expect(formatBytes(120_000_000)).toBe("120 MB");
   });
 });
