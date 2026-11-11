@@ -5,7 +5,9 @@ import {
   curvePoint,
   type Finished,
   formatValue,
+  nextSubstep,
   stepOf,
+  substepsAhead,
   substepsOf,
   viewOf,
 } from "./results";
@@ -97,5 +99,16 @@ describe("results view", () => {
     expect(formatValue(12345.6)).toBe("1.235e+4");
     expect(formatValue(0.0001234)).toBe("1.234e-4");
     expect(formatValue(0)).toBe("0");
+  });
+});
+
+describe("the substeps ahead (#141)", () => {
+  it("loop after the last substep", () => {
+    expect(nextSubstep(2, 5)).toBe(3);
+    expect(nextSubstep(5, 5)).toBe(1);
+    expect(substepsAhead(3, 5, 4)).toEqual([4, 5, 1, 2]);
+    // never the substep itself
+    expect(substepsAhead(2, 3, 4)).toEqual([3, 1]);
+    expect(substepsAhead(1, 1, 4)).toEqual([]);
   });
 });

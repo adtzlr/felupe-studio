@@ -58,6 +58,24 @@ export type Finished = Extract<JobRun, { state: "finished" }>;
 export const substepsOf = (run: Finished, job: string): number =>
   run.results[job]?.substeps ?? 0;
 
+/** The substep after a substep of a job with a number of substeps, looping (#141). */
+export const nextSubstep = (substep: number, total: number): number =>
+  substep >= total ? 1 : substep + 1;
+
+/** The next substeps after a substep (looping, without itself), e.g. to load ahead. */
+export function substepsAhead(
+  substep: number,
+  total: number,
+  count: number,
+): number[] {
+  const ahead: number[] = [];
+  for (let s = substep, i = 0; i < Math.min(count, total - 1); i++) {
+    s = nextSubstep(s, total);
+    ahead.push(s);
+  }
+  return ahead;
+}
+
 /**
  * The view of a finished run: the choices of a previous view are kept, the substep
  * is the last one of the job (the final state).

@@ -21,6 +21,7 @@ import {
   DEFAULT_CONTOUR,
 } from "../core/contour";
 import { formatValue, type ResultView } from "../core/results";
+import { SceneCache } from "../core/scenecache";
 import {
   resultUnit,
   type Units,
@@ -85,7 +86,13 @@ interface Props {
   contour?: ContourSettings;
   /** The range of the values of the shown substep, e.g. for a manual range. */
   onRange?: (range: readonly [number, number] | undefined) => void;
+  /** Substeps of the job to load ahead, e.g. while playing (#141). */
+  ahead?: readonly number[];
+  /** The scene of the view is shown, or it failed (e.g. to play on, #141). */
+  onShown?: (view: ResultView, ok: boolean) => void;
 }
+
+const NO_SUBSTEPS: readonly number[] = [];
 
 /** The range over all substeps of a job (#139), from the ranges of its substeps. */
 function useJobRange(
@@ -305,17 +312,32 @@ type Loaded =
   | { key: string; error: string }
   | undefined;
 
+/** A wanted scene: of a substep of a job and a quantity, keyed with the run. */
+interface Wanted {
+  key: string;
+  job: string;
+  substep: number;
+  quantity: Quantity;
+}
+
 /**
  * The scene of a substep, loaded from the worker: one request at a time, and the
- * latest wanted scene wins (e.g. while dragging the slider of the substeps).
+ * latest wanted scene wins (e.g. while dragging the slider of the substeps). Loaded
+ * scenes are kept (#141), and the scenes ahead (while playing) are loaded after the
+ * wanted one.
  */
 function useResultScene(
   source: ResultSource | undefined,
-  wanted: { key: string; job: string; substep: number; quantity: Quantity },
+  wanted: Wanted,
+  ahead: readonly Wanted[],
 ): { loaded: Loaded; loading: boolean } {
   const [loaded, setLoaded] = useState<Loaded>();
-  const latest = useRef(wanted);
-  latest.current = wanted;
+  const latest = useRef({ wanted, ahead });
+  latest.current = { wanted, ahead };
+  const cache = useRef(new SceneCache());
+  // the run of the kept scenes, and scenes that failed (not loaded ahead again)
+  const run = useRef("");
+  const failed = useRef(new Set<string>());
   const busy = useRef(false);
   const alive = useRef(true);
   useEffect(
@@ -325,27 +347,60 @@ function useResultScene(
     [],
   );
 
+  // show the wanted scene if it is kept
+  const show = () => {
+    const { key } = latest.current.wanted;
+    const scene = key ? cache.current.get(key) : undefined;
+    if (scene) setLoaded((l) => (l?.key === key ? l : { key, scene }));
+  };
+
+  const pump = async () => {
+    if (!source || busy.current || !alive.current) return;
+    const { wanted, ahead } = latest.current;
+    const next = [wanted, ...ahead].find(
+      (w) => w.key && !cache.current.has(w.key) && !failed.current.has(w.key),
+    );
+    if (!next) return;
+    busy.current = true;
+    try {
+      const scene = await source.resultScene(
+        next.job,
+        next.substep,
+        next.quantity,
+      );
+      if (next.key.startsWith(`${run.current}/`)) {
+        cache.current.set(next.key, scene);
+      }
+    } catch (error) {
+      failed.current.add(next.key);
+      const message = error instanceof Error ? error.message : String(error);
+      if (alive.current && next.key === latest.current.wanted.key) {
+        setLoaded({ key: next.key, error: message });
+      }
+    } finally {
+      busy.current = false;
+    }
+    if (!alive.current) return;
+    show();
+    void pump();
+  };
+
+  // a scene that failed is loaded again when it is wanted again
   useEffect(() => {
-    if (!source || !wanted.key || busy.current) return;
-    const load = async () => {
-      busy.current = true;
-      const { key, job, substep, quantity } = latest.current;
-      try {
-        const scene = await source.resultScene(job, substep, quantity);
-        if (alive.current) setLoaded({ key, scene });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (alive.current) setLoaded({ key, error: message });
-      } finally {
-        busy.current = false;
-      }
-      // a newer scene was wanted while this one was loading
-      if (alive.current && latest.current.key && latest.current.key !== key) {
-        void load();
-      }
-    };
-    void load();
-  }, [source, wanted.key]);
+    failed.current.delete(wanted.key);
+  }, [wanted.key]);
+
+  useEffect(() => {
+    // the scenes of an older run are dropped
+    const current = wanted.key.slice(0, wanted.key.indexOf("/"));
+    if (wanted.key && current !== run.current) {
+      run.current = current;
+      cache.current.clear();
+      failed.current.clear();
+    }
+    show();
+    void pump();
+  }, [source, wanted.key, ahead.map((w) => w.key).join()]);
 
   return {
     loaded,
@@ -367,6 +422,8 @@ export function ResultsView({
   commands = NO_COMMANDS,
   contour = DEFAULT_CONTOUR,
   onRange,
+  ahead = NO_SUBSTEPS,
+  onShown,
 }: Props) {
   const [nodesShown, toggleNodes] = useShowNodes(showNodes, onShowNodes);
   // the table of the control points of the substep (#101)
@@ -383,16 +440,21 @@ export function ResultsView({
     capture.current = async () => viewer.current?.snapshot();
   }
   const [available, setAvailable] = useState(true);
-  const wanted =
+  const wantedOf = (substep: number): Wanted =>
     view && active && !running
       ? {
-          key: `${generation}/${view.job}/${view.substep}/${view.quantity}`,
+          key: `${generation}/${view.job}/${substep}/${view.quantity}`,
           job: view.job,
-          substep: view.substep,
+          substep,
           quantity: view.quantity,
         }
-      : { key: "", job: "", substep: 0, quantity: "displacement" as const };
-  const { loaded, loading } = useResultScene(source, wanted);
+      : { key: "", job: "", substep: 0, quantity: "displacement" };
+  const wanted = wantedOf(view?.substep ?? 0);
+  const { loaded, loading } = useResultScene(
+    source,
+    wanted,
+    wanted.key ? ahead.map(wantedOf) : [],
+  );
   // a scene of an older run is not shown
   const scene =
     view &&
@@ -560,6 +622,12 @@ export function ResultsView({
     commands,
     createViewer,
   ]);
+
+  // the scene of the view is shown (or failed), e.g. to play on (#141)
+  useEffect(() => {
+    if (!view || !loaded || loaded.key !== wanted.key) return;
+    onShown?.(view, "scene" in loaded);
+  }, [loaded, view]);
 
   useEffect(
     () => () => {

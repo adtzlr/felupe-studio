@@ -1684,6 +1684,13 @@ button {
   gap: var(--space-4);
 }
 
+/* play and pause the substeps (#141) */
+.play-button {
+  width: var(--control-height-sm);
+  height: var(--control-height-sm);
+  padding: var(--space-2);
+}
+
 .contour-button {
   width: var(--control-height-sm);
   height: var(--control-height-sm);

@@ -45,6 +45,7 @@ import { ScriptView } from "./ScriptView";
 import { ShortcutsDialog } from "./ShortcutsDialog";
 import { useSession } from "./useSession";
 import { ResultsControls } from "./ResultsControls";
+import { usePlayer } from "./usePlayer";
 import { ResultsView } from "./ResultsView";
 import { Ribbon, type Workspace } from "./Ribbon";
 import { Sidebar } from "./Sidebar";
@@ -112,8 +113,19 @@ export function App({
     () => setResultView((previous) => finished && viewOf(finished, previous)),
     [finished],
   );
+  // play the substeps (#141): the next one follows once the current one is shown
+  const [shown, setShown] = useState<{ view: ResultView; ok: boolean }>();
+  const substeps =
+    finished && resultView ? substepsOf(finished, resultView.job) : 0;
   const notes = fileNotes(store.commands, files);
   const [workspace, setWorkspace] = useState<Workspace>("model");
+  const player = usePlayer({
+    enabled: workspace === "results" && run.state !== "running" && substeps > 1,
+    substep: resultView?.substep ?? 0,
+    total: substeps,
+    shown: shown && shown.view === resultView ? shown.ok : undefined,
+    onStep: (substep) => setResultView((view) => view && { ...view, substep }),
+  });
   const [tab, setTab] = useState("mesh");
   // narrow windows show the browser and the properties as drawers (#131)
   const narrow = useMedia(NARROW);
@@ -535,6 +547,12 @@ export function App({
     else if (is("substep-next")) moveSubstep("next");
     else if (is("substep-first")) moveSubstep("first");
     else if (is("substep-last")) moveSubstep("last");
+    // Space on a button presses it
+    else if (
+      is("play") &&
+      !(event.target as Element | null)?.closest?.("button, a, summary")
+    )
+      player.toggle();
     else return;
     event.preventDefault();
   };
@@ -665,6 +683,7 @@ export function App({
             contour={contour}
             onContour={changeContour}
             currentRange={shownRange}
+            player={player}
           />
         }
       />
@@ -753,6 +772,8 @@ export function App({
             commands={finished?.commands}
             contour={contour}
             onRange={setShownRange}
+            ahead={player.ahead}
+            onShown={(view, ok) => setShown({ view, ok })}
           >
             {finished && resultView?.curve && (
               <CurveCard
