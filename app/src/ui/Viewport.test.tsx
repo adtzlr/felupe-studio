@@ -403,7 +403,7 @@ describe("Viewport", () => {
     fireEvent.click(screen.getByRole("button", { name: "Nodes" }));
     await act(async () => {});
     expect(screen.getByRole("note", { name: "Tip" }).textContent).toContain(
-      "click a node",
+      "Click a node",
     );
     const canvas = viewer.handle.root.querySelector("canvas")!;
     // the nodes (0, 0, 0) and (1, 0, 0) are drawn at (38.6, 61.4) and (84.1, 61.4)
@@ -688,7 +688,7 @@ describe("Viewport", () => {
     render(view);
     await act(async () => {});
     expect(screen.getByRole("note", { name: "Tip" }).textContent).toContain(
-      "click a face to create a point set",
+      "Click a face to create a point set",
     );
     const canvas = viewer.handle.root.querySelector("canvas")!;
     await act(async () => {

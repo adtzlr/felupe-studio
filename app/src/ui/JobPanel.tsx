@@ -1,3 +1,5 @@
+import type { RefObject } from "preact";
+import { useEffect, useRef } from "preact/hooks";
 import {
   exceptionOf,
   fraction,
@@ -96,7 +98,36 @@ function Cutbacks({ progress }: { progress: JobProgress }) {
   );
 }
 
+/**
+ * Publish the height of the panel as `--job-panel-height` on its parent, so that the
+ * overlays of the viewports stay above it where it spans the width (#128).
+ */
+function useHeightOnParent(ref: RefObject<HTMLElement | null>, shown: boolean) {
+  useEffect(() => {
+    const element = ref.current;
+    const parent = element?.parentElement;
+    if (!element || !parent) return;
+    const set = () =>
+      parent.style.setProperty(
+        "--job-panel-height",
+        `${element.getBoundingClientRect().height}px`,
+      );
+    set();
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? undefined
+        : new ResizeObserver(set);
+    observer?.observe(element);
+    return () => {
+      observer?.disconnect();
+      parent.style.removeProperty("--job-panel-height");
+    };
+  }, [ref, shown]);
+}
+
 export function JobPanel({ run, store, onDismiss, onShowResults }: Props) {
+  const ref = useRef<HTMLElement>(null);
+  useHeightOnParent(ref, run.state !== "idle");
   if (run.state === "idle") return null;
   const titles = {
     running: `Solving ${run.progress.job ?? ""}`.trim(),
@@ -105,7 +136,7 @@ export function JobPanel({ run, store, onDismiss, onShowResults }: Props) {
     cancelled: "Cancelled",
   };
   return (
-    <section class="job-panel" aria-label="Job">
+    <section ref={ref} class="job-panel" aria-label="Job">
       <div class="job-head">
         <h2 aria-live="polite">{titles[run.state]}</h2>
         {run.state !== "running" && (

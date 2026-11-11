@@ -26,13 +26,13 @@ describe("design tokens", () => {
   });
 
   it("uses tokens for type, shapes, depth and stacking", () => {
-    const token = /^var\(--[\w-]+\)$/;
     for (const v of values("font-size"))
       expect(v).toMatch(/^var\(--text-[\w-]+\)$|em$/);
     for (const v of values("font-weight")) expect(v).toMatch(/^var\(--weight-/);
     for (const v of values("border-radius"))
       expect(v).toMatch(/^var\(--radius-|^50%$/);
-    for (const v of values("box-shadow")) expect(v).toMatch(token);
+    for (const v of values("box-shadow"))
+      expect(v).toMatch(/^(var\(--[\w-]+\)|none)$/);
     for (const v of values("z-index")) expect(v).toMatch(/^var\(--z-/);
   });
 

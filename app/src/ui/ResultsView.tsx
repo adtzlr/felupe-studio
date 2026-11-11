@@ -439,19 +439,24 @@ export function ResultsView({
         </div>
       )}
       {message && <p class="viewport-message muted">{message}</p>}
-      {view && !running && children}
+      {/* the cards of the results in one column on the right (#128) */}
+      <div class="overlay-side">
+        {view && !running && children}
+        {shown && pointsShown && scene.points && scene.points.length > 0 && (
+          <PointsCard
+            points={scene.points}
+            onClose={() => setPointsShown(false)}
+          />
+        )}
+      </div>
       {shown && hover && <ProbeTooltip hover={hover} />}
-      {shown && pointsShown && scene.points && scene.points.length > 0 && (
-        <PointsCard
-          points={scene.points}
-          onClose={() => setPointsShown(false)}
-        />
-      )}
-      {shown && loading && (
-        <p class="viewport-status muted" role="status">
-          Loading …
-        </p>
-      )}
+      <div class="overlay-bottom above-bars">
+        {shown && loading && (
+          <p class="viewport-status muted" role="status">
+            Loading …
+          </p>
+        )}
+      </div>
     </main>
   );
 }
