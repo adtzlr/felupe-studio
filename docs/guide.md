@@ -20,9 +20,18 @@ Every object of a model is a FElupe object, and every action creates or changes 
 
 In narrow windows (up to 1000 px, e.g. a tablet or a small laptop window), the browser and the properties are drawers over the viewport: the button left of the logo opens the browser, a selection opens the properties, Esc closes them. The ribbon is one row that scrolls.
 
-The project is kept in the browser with its mesh files: a reload restores it. To keep it, save the project file and keep it next to its mesh files.
+The project is kept in the browser with its mesh files: a reload restores it. To keep it elsewhere, save it.
 
-A **project archive** (`.felupe.zip`) is one file with the project and its mesh files. **Open project** (or a drop on the window) opens it in one step, also a folder of a project that you zipped yourself; files that the project does not use are listed and not opened. **Save project** saves a project opened from an archive as an archive again. Opening a project replaces the mesh files of the previous one; with unsaved changes, the app asks first.
+### Save and open
+
+A project is saved in one of two formats; the header shows its name with the suffix:
+
+- a **project file** (`.felupe.json`): the commands as text, e.g. for version control. Keep it next to its mesh files and open them together.
+- a **project archive** (`.felupe.zip`): one ZIP file with the project and its mesh files, to open it anywhere in one step. Any tool unpacks it; with the Python script inside, the unpacked folder runs with `python <name>.py`.
+
+**Save project** (Ctrl+S) saves in the format of the project without asking. A project opened from an archive or a sample is an archive, one opened from a project file stays a project file, and a new project becomes an archive with its first mesh file. **Save project as…** (Ctrl+Shift+S) chooses the name and the format, for an archive also *Include the Python script*, and lists the mesh files with their sizes (a mesh file that is not loaded is missing in the archive).
+
+**Open project** (or a drop on the window) opens a project file with its mesh files, an archive, also a folder of a project that you zipped yourself, or mesh files to import; files of an archive that the project does not use are listed and not opened. Opening a project replaces the mesh files of the previous one; with unsaved changes, the app asks first.
 
 ## Samples
 
@@ -122,6 +131,7 @@ The **Export** menu has
 | Keys | Action |
 | --- | --- |
 | Ctrl+S, Ctrl+O, Ctrl+Enter | Save, open, solve (⌘ on macOS) |
+| Ctrl+Shift+S | Save as a project file or an archive |
 | Ctrl+Z, Ctrl+Shift+Z | Undo, redo |
 | Delete, F2, Esc | Delete or rename the selected object, clear the selection |
 | F, 1–4, N | Fit, the views Iso, XY, XZ, YZ, show the nodes |
@@ -156,7 +166,7 @@ The sample *Rubber block with a rigid plate* glues the top face of a rubber bloc
 8. **Step:** `shift_and_tilt` with 8 increments ramps `shift` to 8 and `tilt_y` to 0.1.
 9. **Job:** `job` evaluates `shift_and_tilt` with the curve boundary `shift`.
 
-**Solve** and open the results: the top face stays plane, moves with the plate and tilts with it. The curve is the force of the plate in x over its displacement; the control points show the reaction force at `plate` and the moment about y at `tilt`. Compare your model with the sample: the project files have the same commands.
+**Solve** and open the results: the top face stays plane, moves with the plate and tilts with it. The curve is the force of the plate in x over its displacement; the control points show the reaction force at `plate` and the moment about y at `tilt`. Compare your model with the sample: the project files have the same commands. Finally, **File ▸ Save project as…** saves it as a *project archive* with its mesh file, e.g. `glued-plate.felupe.zip`, to open it again in one step.
 
 ## Limits of version 0.2
 

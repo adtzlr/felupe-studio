@@ -1530,6 +1530,38 @@ button {
   padding-left: var(--space-24);
 }
 
+/* save a project as a file or an archive (#150) */
+.save-as {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.name-with-suffix {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.name-with-suffix input {
+  flex: 1;
+}
+
+/* a choice with a line about it below its label */
+.save-as .check {
+  align-items: flex-start;
+}
+
+.save-as .check input {
+  margin-top: var(--space-2);
+}
+
+.save-as .check > span {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 .plan {
   padding: var(--space-8) var(--space-12);
   border-left: 2px solid var(--color-accent);
