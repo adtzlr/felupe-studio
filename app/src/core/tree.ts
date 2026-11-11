@@ -118,6 +118,7 @@ function detail(cmd: Command, commands: readonly Command[]): string {
         cmd.curve && `curve ${cmd.curve}`,
         cmd.cutback && "cutback",
         cmd.tol !== undefined && `tol ${cmd.tol}`,
+        cmd.maxiter !== undefined && `maxiter ${cmd.maxiter}`,
       ]
         .filter(Boolean)
         .join(" · ");

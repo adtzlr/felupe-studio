@@ -131,6 +131,24 @@ describe("migrations", () => {
     );
   });
 
+  it("turn the cutback of version 2 into settings (#133)", () => {
+    const old = structuredClone(fixture) as unknown as {
+      schema_version: number;
+      commands: Record<string, unknown>[];
+    };
+    old.schema_version = 2;
+    const job = old.commands.find((c) => c.command === "job.add")!;
+    job.cutback = true;
+    old.commands.push({ ...job, name: "job_2", cutback: false });
+    const document = parse(JSON.stringify(old));
+    expect(document.schema_version).toBe(3);
+    const [job1, job2] = document.commands.filter(
+      (c) => c.command === "job.add",
+    );
+    expect(job1).toMatchObject({ cutback: {} });
+    expect(job2).not.toHaveProperty("cutback");
+  });
+
   it("must exist for older files", () => {
     expect(() => parse('{"schema_version": 0, "commands": []}')).toThrow(
       "No migration from schema version 0",

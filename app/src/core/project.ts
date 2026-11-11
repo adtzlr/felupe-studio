@@ -26,16 +26,28 @@ type SchemaNode = {
 export const MIGRATIONS: Record<
   number,
   (document: Record<string, unknown>) => Record<string, unknown>
-> = { 1: rampItems, 2: modelSettings };
+> = { 1: rampItems, 2: cutbackSettings };
 
 /**
- * Schema version 2 → 3: the settings of the model (#132) are new, all commands of
- * version 2 stay as they are.
+ * Schema version 2 → 3: the cutback of a job has settings (#133), `"cutback": true`
+ * becomes `"cutback": {}` (the defaults of FElupe) and `false` is removed. The
+ * settings of the model (#132) are new.
  */
-function modelSettings(
+function cutbackSettings(
   document: Record<string, unknown>,
 ): Record<string, unknown> {
-  return { ...document, schema_version: 3 };
+  const commands = Array.isArray(document.commands) ? document.commands : [];
+  return {
+    ...document,
+    schema_version: 3,
+    commands: commands.map((command: unknown) => {
+      if (typeof command !== "object" || command === null) return command;
+      const cmd = command as Record<string, unknown>;
+      if (cmd.command !== "job.add" || !("cutback" in cmd)) return cmd;
+      const { cutback, ...rest } = cmd;
+      return cutback === true ? { ...rest, cutback: {} } : rest;
+    }),
+  };
 }
 
 /**

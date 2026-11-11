@@ -112,6 +112,20 @@ def test_migration_hook(monkeypatch):
         loads(json.dumps(old))
 
 
+def test_migration_of_the_cutback_from_version_2():
+    # "cutback": true becomes the settings of the cutback (#133)
+    old = json.loads((DATA / "two_sections.json").read_text(encoding="utf-8"))
+    old["schema_version"] = 2
+    jobs = [c for c in old["commands"] if c["command"] == "job.add"]
+    jobs[0]["cutback"] = True
+    old["commands"].append({**jobs[0], "name": "job_2", "cutback": False})
+    new = loads(json.dumps(old))
+    assert new["schema_version"] == 3
+    job_1, job_2 = [c for c in new["commands"] if c["command"] == "job.add"]
+    assert job_1["cutback"] == {}
+    assert "cutback" not in job_2
+
+
 def test_migration_of_ramps_from_version_1():
     old = json.loads((DATA / "two_sections.json").read_text(encoding="utf-8"))
     old["schema_version"] = 1

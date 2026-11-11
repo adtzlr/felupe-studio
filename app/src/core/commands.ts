@@ -582,11 +582,28 @@ export interface JobAdd {
    */
   curve?: string;
   /**
-   * Retry a substep that does not converge with smaller increments (fem.CutbackPlugin).
-   */
-  cutback?: boolean;
-  /**
    * Tolerance of the Newton-Raphson method: the norm of the residual forces relative to the reaction forces (default: the square root of the machine epsilon, 1.49e-8).
    */
   tol?: number;
+  /**
+   * The maximum number of Newton iterations of a substep (default 16).
+   */
+  maxiter?: number;
+  /**
+   * Retry a substep that does not converge with smaller increments (fem.CutbackPlugin); without a value, a parameter has the default of FElupe.
+   */
+  cutback?: {
+    /**
+     * The factor by which the increment is reduced after a failed attempt (default 0.5).
+     */
+    factor?: number;
+    /**
+     * The maximum number of successive cutbacks of the increment (default 10): the smallest increment of a substep is factor ** max_cutbacks.
+     */
+    max_cutbacks?: number;
+    /**
+     * The factor by which the increment is increased after a converged increment (default 2.0); 1 keeps the increment.
+     */
+    growth?: number;
+  };
 }

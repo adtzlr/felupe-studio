@@ -26,6 +26,15 @@ const seconds = (time: number) => `${time.toFixed(time < 10 ? 2 : 1)} s`;
 const usesCutback = (commands: readonly Command[]) =>
   commands.some((c) => c.command === "job.add" && c.cutback);
 
+/** The default maximum number of Newton iterations of a substep in FElupe. */
+const MAXITER = 16;
+
+/** The maximum number of Newton iterations of a job (#133). */
+const maxiterOf = (commands: readonly Command[], job: string | undefined) => {
+  const cmd = commands.find((c) => c.command === "job.add" && c.name === job);
+  return (cmd?.command === "job.add" && cmd.maxiter) || MAXITER;
+};
+
 /** A line of the running job that does not wrap, so the panel keeps its size. */
 const Line = ({ text, class: name }: { text: string; class?: string }) => (
   <p class={`job-line ${name ?? ""}`.trim()} title={text || undefined}>
@@ -40,9 +49,12 @@ const Line = ({ text, class: name }: { text: string; class?: string }) => (
 function Running({
   progress,
   cutback,
+  maxiter,
 }: {
   progress: JobProgress;
   cutback: boolean;
+  /** The maximum number of Newton iterations of the running job. */
+  maxiter: number;
 }) {
   const percent = Math.round(fraction(progress) * 100);
   const { job, jobs, failed } = progress;
@@ -52,7 +64,7 @@ function Running({
     : "Preparing the model …";
   const newton =
     job && progress.iteration > 0
-      ? `Newton iteration ${progress.iteration}` +
+      ? `Newton iteration ${progress.iteration} of ${maxiter}` +
         (progress.fnorm !== null
           ? ` · residuals ${progress.fnorm.toExponential(2)}`
           : "")
@@ -152,7 +164,11 @@ export function JobPanel({ run, store, onDismiss, onShowResults }: Props) {
         )}
       </div>
       {run.state === "running" && (
-        <Running progress={run.progress} cutback={usesCutback(run.commands)} />
+        <Running
+          progress={run.progress}
+          cutback={usesCutback(run.commands)}
+          maxiter={maxiterOf(run.commands, run.progress.job)}
+        />
       )}
       {run.state === "finished" && (
         <>

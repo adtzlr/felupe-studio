@@ -956,15 +956,38 @@
           "description": "The boundary, load case or point load of the force-displacement curve.",
           "$ref": "#/$defs/Name"
         },
-        "cutback": {
-          "description": "Retry a substep that does not converge with smaller increments (fem.CutbackPlugin).",
-          "type": "boolean",
-          "default": false
-        },
         "tol": {
           "description": "Tolerance of the Newton-Raphson method: the norm of the residual forces relative to the reaction forces (default: the square root of the machine epsilon, 1.49e-8).",
           "type": "number",
           "exclusiveMinimum": 0
+        },
+        "maxiter": {
+          "description": "The maximum number of Newton iterations of a substep (default 16).",
+          "type": "integer",
+          "minimum": 1
+        },
+        "cutback": {
+          "description": "Retry a substep that does not converge with smaller increments (fem.CutbackPlugin); without a value, a parameter has the default of FElupe.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "factor": {
+              "description": "The factor by which the increment is reduced after a failed attempt (default 0.5).",
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "exclusiveMaximum": 1
+            },
+            "max_cutbacks": {
+              "description": "The maximum number of successive cutbacks of the increment (default 10): the smallest increment of a substep is factor ** max_cutbacks.",
+              "type": "integer",
+              "minimum": 1
+            },
+            "growth": {
+              "description": "The factor by which the increment is increased after a converged increment (default 2.0); 1 keeps the increment.",
+              "type": "number",
+              "minimum": 1
+            }
+          }
         }
       }
     }

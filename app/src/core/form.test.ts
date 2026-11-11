@@ -137,8 +137,18 @@ describe("fieldSpecs", () => {
       "name:name*",
       "steps:reference*",
       "curve:reference",
-      "cutback:boolean",
       "tol:number",
+      "maxiter:number",
+      "cutback:toggle",
+    ]);
+    // the settings of a cutback (#133)
+    expect(
+      summary("job.add", { ...find("job_1"), cutback: {} } as Draft).slice(-4),
+    ).toEqual([
+      "cutback:toggle",
+      "cutback.factor:number",
+      "cutback.max_cutbacks:number",
+      "cutback.growth:number",
     ]);
   });
 

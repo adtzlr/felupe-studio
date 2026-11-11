@@ -73,7 +73,7 @@ def test_cutback_of_a_failing_substep(monkeypatch):
         run(document)
 
     job = next(c for c in document["commands"] if c["command"] == "job.add")
-    job["cutback"] = True
+    job["cutback"] = {}
     events = []
     results = run(document, events.append)
     failed = [e for e in events if e["event"] == "failed"]
@@ -81,6 +81,39 @@ def test_cutback_of_a_failing_substep(monkeypatch):
     last = [e for e in events if e["event"] == "converged"][-1]
     assert last["increments"] > 1
     assert results["job_1"]["y"][-1][0] > 0
+
+
+def test_settings_of_the_cutback(monkeypatch):
+    # a substep that one cutback by the default factor 0.5 does not recover, but one
+    # by the factor 0.25 (#133), like the golden case bar_cutback
+    monkeypatch.chdir(GOLDEN / "bar_two_materials")
+    document = copy.deepcopy(load("bar_two_materials"))
+    step = next(c for c in document["commands"] if c["command"] == "step.add")
+    step["ramp"]["num"] = 1
+    step["ramp"]["items"][0]["end"] = 5.0
+    job = next(c for c in document["commands"] if c["command"] == "job.add")
+
+    job["cutback"] = {"max_cutbacks": 1}
+    with pytest.raises(fem.NewtonConvergenceError):
+        run(document)
+
+    job["cutback"] = {"factor": 0.25, "max_cutbacks": 1}
+    events = []
+    run(document, events.append)
+    last = [e for e in events if e["event"] == "converged"][-1]
+    assert last["increments"] == 3  # 0.25, 0.75 (growth 2) and 1
+
+
+def test_maximum_iterations_of_a_job(monkeypatch):
+    monkeypatch.chdir(GOLDEN / "bar_two_materials")
+    document = copy.deepcopy(load("bar_two_materials"))
+    job = next(c for c in document["commands"] if c["command"] == "job.add")
+    job["maxiter"] = 2
+    events = []
+    with pytest.raises(fem.NewtonConvergenceError):
+        run(document, events.append)
+    iterations = [e["iteration"] for e in events if e["event"] == "iteration"]
+    assert max(iterations) <= 2
 
 
 def test_tolerance_of_a_job(monkeypatch):

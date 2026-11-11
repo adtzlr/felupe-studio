@@ -624,7 +624,7 @@ describe("solve", () => {
     expect(panel.textContent).toContain("Solving job_1");
     expect(panel.textContent).toContain("Step 1 of 1 · substep 3 of 4");
     expect(panel.textContent).toContain(
-      "Newton iteration 3 · residuals 1.50e-7",
+      "Newton iteration 3 of 16 · residuals 1.50e-7",
     );
     expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe(
       "50",

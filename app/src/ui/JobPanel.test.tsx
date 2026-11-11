@@ -12,12 +12,15 @@ afterEach(cleanup);
 const commands = (fixture as CommandList).commands;
 
 /** The lines of the panel of a running job. */
-function lines(progress: Partial<JobProgress>, cutback = false) {
+function lines(
+  progress: Partial<JobProgress>,
+  job: { cutback?: object; maxiter?: number } = {},
+) {
   const run = {
     state: "running" as const,
     progress: { ...startProgress(), ...progress },
     commands: commands.map((c) =>
-      c.command === "job.add" ? { ...c, cutback } : c,
+      c.command === "job.add" ? { ...c, ...job } : c,
     ) as Command[],
   };
   render(
@@ -50,12 +53,16 @@ describe("the panel of a running job", () => {
     expect(lines(substep)).toEqual(["Step 1 of 1 · substep 3 of 4", " "]);
     expect(lines({ ...substep, iteration: 2, fnorm: 1.5e-7 })).toEqual([
       "Step 1 of 1 · substep 3 of 4",
-      "Newton iteration 2 · residuals 1.50e-7",
+      "Newton iteration 2 of 16 · residuals 1.50e-7",
     ]);
+    // the maximum iterations of the job (#133)
+    expect(
+      lines({ ...substep, iteration: 2, fnorm: null }, { maxiter: 30 }),
+    ).toEqual(["Step 1 of 1 · substep 3 of 4", "Newton iteration 2 of 30"]);
   });
 
   it("has a line for the retries of a cutback from the start", () => {
-    expect(lines({}, true)).toEqual([
+    expect(lines({}, { cutback: {} })).toEqual([
       "Preparing the model …",
       " ",
       "Cutback: no retries",
@@ -63,7 +70,7 @@ describe("the panel of a running job", () => {
     expect(
       lines(
         { ...substep, failed: ["Step 1, substep 3: NewtonConvergenceError"] },
-        true,
+        { cutback: { factor: 0.25 } },
       ),
     ).toEqual([
       "Step 1 of 1 · substep 3 of 4",

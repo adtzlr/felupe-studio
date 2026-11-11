@@ -462,21 +462,25 @@ export function CommandForm({
         if (spec.input.type === "toggle") {
           const on = getValue(draft, spec.path) !== undefined;
           return (
-            <label
-              key={spec.key}
-              class="check form-toggle"
-              title={spec.description}
-            >
-              <input
-                id={id}
-                type="checkbox"
-                checked={on}
-                onChange={(event) =>
-                  change(spec, event.currentTarget.checked ? {} : undefined)
-                }
-              />
-              {spec.label}
-            </label>
+            <div key={spec.key} class="form-toggle">
+              <label class="check" title={spec.description}>
+                <input
+                  id={id}
+                  type="checkbox"
+                  checked={on}
+                  aria-describedby={spec.hint ? `${id}-hint` : undefined}
+                  onChange={(event) =>
+                    change(spec, event.currentTarget.checked ? {} : undefined)
+                  }
+                />
+                {spec.label}
+              </label>
+              {spec.hint && (
+                <small id={`${id}-hint`} class="muted">
+                  {spec.hint}
+                </small>
+              )}
+            </div>
           );
         }
         if (spec.input.type === "rows") {

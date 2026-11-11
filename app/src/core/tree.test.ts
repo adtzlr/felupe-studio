@@ -50,11 +50,11 @@ describe("deriveTree", () => {
     expect(find(tree, "job_1")!.detail).toBe("step_1 · curve move");
     const jobs = commands.map((c) =>
       c.command === "job.add"
-        ? { ...c, curve: undefined, cutback: true, tol: 0.05 }
+        ? { ...c, curve: undefined, cutback: {}, tol: 0.05, maxiter: 30 }
         : c,
     );
     expect(find(deriveTree(jobs), "job_1")!.detail).toBe(
-      "step_1 · cutback · tol 0.05",
+      "step_1 · cutback · tol 0.05 · maxiter 30",
     );
     // control points
     const control: Command = {

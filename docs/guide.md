@@ -82,7 +82,7 @@ A **Point load** is a force at every point of a point set or at a control point.
 
 A **Step** solves the model in increments. Its items are the sections, multi-point constraints and point loads (all of them, unless you choose some). *Ramped* lists the boundaries, load cases and point loads whose values change in the step, each with its own start and end value; *Increments* is the number of substeps of the step. All other boundaries keep their values.
 
-A **Job** evaluates its steps one after another. With a *Curve boundary* (a boundary, a load case or a point load) it records the force-displacement curve. *Cutback* retries a substep that does not converge with smaller increments; *Tolerance* is the tolerance of the Newton-Raphson method, which you may loosen, e.g. to 0.05, for a first try of a hard model.
+A **Job** evaluates its steps one after another. With a *Curve boundary* (a boundary, a load case or a point load) it records the force-displacement curve. *Tolerance* is the tolerance of the Newton-Raphson method, which you may loosen, e.g. to 0.05, for a first try of a hard model; *Max. iterations* is the number of Newton iterations a substep may take (16 by default). *Cutback* retries a substep that does not converge with smaller increments: the increment is reduced by the *Factor* (0.5) up to *Max. cutbacks* times in a row (10) and grows again by *Growth* (2) after every converged increment. Leave these fields empty for the defaults of FElupe; a smaller factor helps a substep that fails even after a few cutbacks.
 
 ### 7. Solve
 
