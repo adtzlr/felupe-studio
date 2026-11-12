@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { exportName, formatBytes, isZip, mediaType, stemOf } from "./files";
+import {
+  exportName,
+  formatBytes,
+  isZip,
+  mediaType,
+  projectNameProblem,
+  stemOf,
+  suffixOf,
+} from "./files";
 
 describe("exports", () => {
   it("are named after the project", () => {
@@ -44,5 +52,36 @@ describe("sizes of files (#150)", () => {
     expect(formatBytes(31_420)).toBe("31 kB");
     expect(formatBytes(2_500_000)).toBe("2.5 MB");
     expect(formatBytes(120_000_000)).toBe("120 MB");
+  });
+});
+
+describe("the name of a project (#205)", () => {
+  it("has a suffix of its format", () => {
+    expect(suffixOf("bar.felupe.zip")).toBe(".felupe.zip");
+    expect(suffixOf("bar.felupe.json")).toBe(".felupe.json");
+    expect(suffixOf("bar.json")).toBe(".json");
+  });
+
+  it("is a valid file name", () => {
+    expect(projectNameProblem("bar")).toBeUndefined();
+    expect(projectNameProblem(" spring 2 ")).toBeUndefined();
+    expect(projectNameProblem("  ")).toBe("Enter a name.");
+    expect(projectNameProblem("a/b")).toContain("none of the characters");
+    expect(projectNameProblem("a:b")).toContain("none of the characters");
+    expect(projectNameProblem("tab\there")).toContain("none of the characters");
+    expect(projectNameProblem(".bar")).toBe(
+      "A name does not start with a dot.",
+    );
+  });
+
+  it("is not the name of a mesh script of an archive with the script", () => {
+    const meshFiles = ["bushing.py", "plate.vtu"];
+    expect(projectNameProblem("bushing", { meshFiles })).toBeUndefined();
+    expect(projectNameProblem("bushing", { meshFiles, script: true })).toBe(
+      "bushing.py is a mesh script of the project: the archive would have two files bushing.py. Take another name or no script.",
+    );
+    expect(
+      projectNameProblem("plate", { meshFiles, script: true }),
+    ).toBeUndefined();
   });
 });

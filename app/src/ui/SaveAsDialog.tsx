@@ -3,7 +3,13 @@
 // summary of the mesh files with their sizes (missing ones are listed).
 import { useState } from "preact/hooks";
 import type { Command } from "../core/commands";
-import { ARCHIVE_SUFFIX, formatBytes, stemOf, SUFFIX } from "../core/files";
+import {
+  ARCHIVE_SUFFIX,
+  formatBytes,
+  projectNameProblem,
+  stemOf,
+  SUFFIX,
+} from "../core/files";
 import { type MeshFiles, meshFileNames } from "../core/meshfiles";
 import { Dialog } from "./Dialog";
 
@@ -55,11 +61,11 @@ export function SaveAsDialog({
   const [format, setFormat] = useState<ProjectFormat>(formatOf(fileName));
   const [script, setScript] = useState(false);
   const name = stem.trim();
-  const nameError = !name
-    ? "Enter a name."
-    : /[\\/:*?"<>|]/.test(name)
-      ? 'A name has none of the characters \\ / : * ? " < > |.'
-      : undefined;
+  // the script of an archive is not a mesh script of the project (#205)
+  const nameError = projectNameProblem(name, {
+    meshFiles: meshFileNames(commands),
+    script: format === "archive" && script && scriptAvailable,
+  });
   const meshes = meshFileNames(commands).map((file) => ({
     file,
     size: files.dataOf(file)?.byteLength,

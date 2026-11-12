@@ -22,6 +22,37 @@ export function stemOf(project: string): string {
   return project;
 }
 
+/** The suffix of a project file or archive, e.g. ".felupe.zip" of "bar.felupe.zip". */
+export const suffixOf = (project: string): string =>
+  project.slice(stemOf(project).length);
+
+/**
+ * The problem of a name (the stem) of a project, if any (#205): it is not empty, has
+ * none of the characters that file systems forbid and does not start with a dot.
+ * With `script`, the name of the script of an archive is not the name of a mesh
+ * script of the project (`meshFiles`), e.g. `bushing` with `bushing.py`.
+ */
+export function projectNameProblem(
+  stem: string,
+  {
+    meshFiles = [],
+    script = false,
+  }: {
+    meshFiles?: readonly string[];
+    script?: boolean;
+  } = {},
+): string | undefined {
+  const name = stem.trim();
+  if (!name) return "Enter a name.";
+  // eslint-disable-next-line no-control-regex
+  if (/[\\/:*?"<>|\u0000-\u001f]/.test(name))
+    return 'A name has none of the characters \\ / : * ? " < > |.';
+  if (name.startsWith(".")) return "A name does not start with a dot.";
+  if (script && meshFiles.includes(`${name}.py`))
+    return `${name}.py is a mesh script of the project: the archive would have two files ${name}.py. Take another name or no script.`;
+  return undefined;
+}
+
 /**
  * The name of an export of a project file or archive, e.g. "bar.py" of
  * "bar.felupe.json" or "bar.felupe.zip".

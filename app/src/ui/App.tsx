@@ -173,6 +173,9 @@ export function App({
   // the script view replaces the viewport while its ribbon tab is open (#130)
   const scriptShown = workspace === "model" && tab === "script";
   const [fileName, setFileName] = useState(`untitled${SUFFIX}`);
+  // the name of the last saved or opened project file: a renamed project is not
+  // saved until it is saved under its new name (#205)
+  const [savedName, setSavedName] = useState(fileName);
   // a new project is a project file until its first mesh file, then an archive
   // (#150); a project that was opened, restored or saved keeps its format
   const [fresh, setFresh] = useState(() => store.commands.length === 0);
@@ -183,7 +186,10 @@ export function App({
     meshesBefore.current = meshCount;
     if (!fresh || before > 0 || meshCount === 0) return;
     if (!fileName.endsWith(ARCHIVE_SUFFIX)) {
-      setFileName(`${stemOf(fileName)}${ARCHIVE_SUFFIX}`);
+      // the format of a new project changes, it is not renamed (#205)
+      const archive = `${stemOf(fileName)}${ARCHIVE_SUFFIX}`;
+      if (savedName === fileName) setSavedName(archive);
+      setFileName(archive);
     }
     setFresh(false);
   }, [meshCount]);
@@ -192,7 +198,7 @@ export function App({
   const [saved, setSaved] = useState<typeof store.commands | undefined>(
     store.commands,
   );
-  const modified = store.commands !== saved;
+  const modified = store.commands !== saved || fileName !== savedName;
   // an error, or a note (`info`), e.g. of the files of an archive that were not used
   const [error, setError] = useState<{
     title: string;
@@ -272,6 +278,7 @@ export function App({
         setSelection(undefined);
         setHidden(new Set());
         setFileName(name);
+        setSavedName(name);
         setSaved(store.commands);
         setError(undefined);
         return true;
@@ -388,6 +395,7 @@ export function App({
     setFresh(false);
     store.load(document);
     setFileName(restored.fileName);
+    setSavedName(restored.fileName);
     setSaved(restored.modified ? undefined : store.commands);
     await files.addFiles(
       restored.files.map((f) => new File([f.data as BlobPart], f.name)),
@@ -408,6 +416,7 @@ export function App({
     files.clear();
     setFresh(true);
     setFileName(`untitled${SUFFIX}`);
+    setSavedName(`untitled${SUFFIX}`);
     setSaved(store.commands);
     setSelection(undefined);
     setHidden(new Set());
@@ -484,6 +493,7 @@ export function App({
       }
     }
     setFileName(name);
+    setSavedName(name);
     setFresh(false);
     setSaved(commands);
   };
@@ -792,6 +802,8 @@ export function App({
         onSamples={() => setSamplesOpen(true)}
         onSave={() => void save()}
         onSaveAs={() => setSavingAs(true)}
+        // a new name without saving: the next save and the exports take it (#205)
+        onRename={setFileName}
         onShortcuts={() => setHelp("shortcuts")}
         onAbout={() => setHelp("about")}
         browserOpen={narrow && browserOpen}
