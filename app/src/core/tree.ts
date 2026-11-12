@@ -44,6 +44,7 @@ const GROUPS: { kind: Kind | "point"; label: string }[] = [
   { kind: "boundary", label: "Boundaries" },
   { kind: "constraint", label: "Constraints" },
   { kind: "load", label: "Loads" },
+  { kind: "pressure", label: "Pressures" },
   { kind: "step", label: "Steps" },
   { kind: "job", label: "Jobs" },
 ];
@@ -103,6 +104,8 @@ function detail(cmd: Command, commands: readonly Command[]): string {
       }`;
     case "load.add":
       return `${cmd.points} · ${valueWithUnit(`(${cmd.force.join(", ")})`, unitOf("force", units))}`;
+    case "pressure.add":
+      return `${cmd.faces} · ${valueWithUnit(String(cmd.pressure), unitOf("stress", units))}`;
     case "mpc.add":
       return [
         `${cmd.points} → ${cmd.center}`,
@@ -227,6 +230,7 @@ export function deriveTree(
     "group:merge",
     "group:point",
     "group:faceset",
+    "group:pressure",
     "group:constraint",
     "group:load",
   ]);

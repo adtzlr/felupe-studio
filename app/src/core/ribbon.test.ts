@@ -32,6 +32,7 @@ describe("ribbonGroups", () => {
       ["Control point"],
       ["Multi-point constraint"],
       ["Point load"],
+      ["Pressure"],
     ]);
     expect(labels("steps")).toEqual([["Step"], ["Job"]]);
   });
@@ -114,8 +115,20 @@ describe("unavailable", () => {
       "Create a point set first.",
     );
     expect(unavailable("job.add", empty)).toBe("Create a step first.");
+    expect(unavailable("pressure.add", { commands })).toBe(
+      "Create a face set first.",
+    );
+    const faces = {
+      command: "faceset.add",
+      name: "end",
+      section: "section_soft",
+      select: { axis: "x", value: 3 },
+    } as Command;
     for (const type of Object.keys(REGISTRY) as CommandType[]) {
-      expect(unavailable(type, { commands }), type).toBeUndefined();
+      expect(
+        unavailable(type, { commands: [...commands, faces] }),
+        type,
+      ).toBeUndefined();
     }
   });
 

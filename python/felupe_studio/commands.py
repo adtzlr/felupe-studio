@@ -32,6 +32,7 @@ KINDS = {
     "loadcase.add": "boundary",
     "mpc.add": "constraint",
     "load.add": "load",
+    "pressure.add": "pressure",
     "step.add": "step",
     "job.add": "job",
 }
@@ -39,7 +40,7 @@ KINDS = {
 AXES = ("x", "y", "z")
 
 # kinds of objects that a step can ramp (a load case is a boundary)
-RAMPED = ("boundary", "load")
+RAMPED = ("boundary", "load", "pressure")
 
 # references of a command: field name -> (kind, is a list)
 REFERENCES = {
@@ -54,10 +55,11 @@ REFERENCES = {
         "rotation": ("pointset", False),
     },
     "load.add": {"points": ("pointset", False)},
+    "pressure.add": {"faces": ("faceset", False)},
     "step.add": {
         "sections": ("section", True),
         "constraints": ("constraint", True),
-        "loads": ("load", True),
+        "loads": (("load", "pressure"), True),
     },
     # the curve of a job: a boundary (force-displacement) or a point load
     "job.add": {"steps": ("step", True), "curve": (("boundary", "load"), False)},

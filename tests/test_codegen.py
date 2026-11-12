@@ -1109,3 +1109,45 @@ def test_boundary_faces():
     # tetrahedrons have no boundary region in FElupe 12
     with pytest.raises(NotImplementedError, match="tetra cells"):
         boundary_faces(fem.Cube(n=2).triangulate(), plane=(2, 1.0))
+
+
+def test_pressure(tmp_path, monkeypatch):
+    "A pressure on a face set is in equilibrium with the reactions (#105)."
+    golden = Path(__file__).parent / "golden" / "block_pressure"
+    document = json.loads((golden / "commands.json").read_text(encoding="utf-8"))
+    shutil.copy(golden / "block.vtu", tmp_path)
+    namespace = run(document, tmp_path, monkeypatch)
+    # the end face x = 1 of the unit cube is pulled by 0.5 per deformed area: the
+    # deformation is homogeneous, and the reaction at x = 0 is the pressure times
+    # the deformed area of the end face
+    u = namespace["field"][0].values
+    points = namespace["field"].mesh_container.points
+    corner = np.flatnonzero(np.all(np.isclose(points, 1), axis=1))[0]
+    stretch = 1 + u[corner]
+    assert stretch[0] > 1 > stretch[1]
+    np.testing.assert_allclose(stretch[1], stretch[2])
+    job = namespace["job_1"]
+    reaction = np.array(job.y)[-1, 0]
+    np.testing.assert_allclose(reaction, -0.5 * stretch[1] * stretch[2], rtol=1e-8)
+
+    # a positive pressure pushes onto the faces, and a step without a ramp applies
+    # it in full
+    for command in document["commands"]:
+        if command["command"] == "pressure.add":
+            command["pressure"] = 0.2
+        if command["command"] == "step.add":
+            del command["ramp"]
+    script = codegen(document)
+    assert "items=[solid_body, pull]," in script
+    namespace = run(document, tmp_path, monkeypatch)
+    u = namespace["field"][0].values
+    assert u[corner, 0] < 0 < u[corner, 1]
+
+    # the step lists its pressures as loads, and a pressure is not a curve
+    document["commands"][-2]["loads"] = ["end"]
+    with pytest.raises(ValidationError, match="is a faceset, not a load or pressure"):
+        codegen(document)
+    del document["commands"][-2]["loads"]
+    document["commands"][-1]["curve"] = "pull"
+    with pytest.raises(ValidationError, match="is a pressure, not a boundary or load"):
+        codegen(document)

@@ -257,7 +257,9 @@ describe("fieldSpecs", () => {
       ["end", "ramp.items.end", "number", true],
     ]);
     expect(columns[0]).toMatchObject({ unique: true, label: "Item" });
-    expect(columns[0].input).toMatchObject({ kind: ["boundary", "load"] });
+    expect(columns[0].input).toMatchObject({
+      kind: ["boundary", "load", "pressure"],
+    });
   });
 
   it("has a label for every field of every variant", () => {

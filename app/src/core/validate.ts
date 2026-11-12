@@ -28,6 +28,7 @@ export type Kind =
   | "boundary"
   | "constraint"
   | "load"
+  | "pressure"
   | "step"
   | "job";
 
@@ -52,12 +53,13 @@ export const KINDS: Record<CommandType, Kind> = {
   "loadcase.add": "boundary",
   "mpc.add": "constraint",
   "load.add": "load",
+  "pressure.add": "pressure",
   "step.add": "step",
   "job.add": "job",
 };
 
 /** Kinds of objects that a step can ramp (a load case is a boundary). */
-export const RAMPED: readonly Kind[] = ["boundary", "load"];
+export const RAMPED: readonly Kind[] = ["boundary", "load", "pressure"];
 
 /** The kind or kinds of objects that a reference may point to. */
 export type RefKind = Kind | readonly Kind[];
@@ -81,10 +83,11 @@ export const REFERENCES: Partial<
     rotation: ["pointset", false],
   },
   "load.add": { points: ["pointset", false] },
+  "pressure.add": { faces: ["faceset", false] },
   "step.add": {
     sections: ["section", true],
     constraints: ["constraint", true],
-    loads: ["load", true],
+    loads: [["load", "pressure"], true],
   },
   // the curve of a job: a boundary (force-displacement) or a point load
   "job.add": { steps: ["step", true], curve: [["boundary", "load"], false] },

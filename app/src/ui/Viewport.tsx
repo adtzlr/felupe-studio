@@ -13,6 +13,7 @@ import {
   overConstrained,
 } from "../viewer/constraints";
 import { loadLines } from "../viewer/loads";
+import { pressureLines } from "../viewer/pressures";
 import type { MeshFiles } from "../core/meshfiles";
 import type { ModelStore } from "../core/store";
 import { useViewKeys } from "./hooks";
@@ -376,8 +377,15 @@ export function Viewport({
         selected,
         highlight: HIGHLIGHT,
       }),
+      // the pressures: arrows normal to the faces of their face sets (#105)
+      ...pressureLines(commands, sections, {
+        size,
+        hidden,
+        selected,
+        highlight: HIGHLIGHT,
+      }),
     ],
-    [symbols, size, hidden, selected, shapes, commands, nodes],
+    [symbols, size, hidden, selected, shapes, commands, nodes, sections],
   );
   // the points of the selected constraint that a boundary prescribes as well
   const overlaps = useMemo(() => {

@@ -20,6 +20,7 @@ export type Command =
   | LoadcaseAdd
   | MpcAdd
   | LoadAdd
+  | PressureAdd
   | StepAdd
   | JobAdd;
 /**
@@ -702,6 +703,24 @@ export interface LoadAdd {
   force: Coordinates2;
 }
 /**
+ * A pressure on the faces of a face set (fem.SolidBodyPressure), an item of the steps: a force per deformed area, normal to the faces. A positive pressure pushes onto the faces, a negative one pulls. A ramp of a step scales the pressure.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "PressureAdd".
+ */
+export interface PressureAdd {
+  command: "pressure.add";
+  name: Name;
+  /**
+   * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
+   */
+  faces: string;
+  /**
+   * The pressure; positive pushes onto the faces.
+   */
+  pressure: number;
+}
+/**
  * A step with all boundaries, optionally ramping items, each with its own values (fem.Step).
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
@@ -723,7 +742,7 @@ export interface StepAdd {
    */
   constraints?: [Name, ...Name[]];
   /**
-   * Point loads that are items of the step (default: all).
+   * Point loads and pressures that are items of the step (default: all).
    *
    * @minItems 1
    */
@@ -745,7 +764,7 @@ export interface StepAdd {
   };
 }
 /**
- * A ramped item: a boundary (its value, e.g. a displacement), a load case (the displacement of its moving faces) or a point load (a factor of its force).
+ * A ramped item: a boundary (its value, e.g. a displacement), a load case (the displacement of its moving faces), a point load (a factor of its force) or a pressure (a factor of its pressure).
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "RampItem".
