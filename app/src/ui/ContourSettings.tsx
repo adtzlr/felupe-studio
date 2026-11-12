@@ -1,6 +1,6 @@
 // The settings of the contour (#139) in a popover beside *Contour*: the color map,
 // the bands and the range. Esc or a click outside closes it.
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { COLOR_MAPS, type ColorMapId, colorOf } from "../core/colormaps";
 import {
   BAND_COUNTS,
@@ -55,6 +55,17 @@ export function ContourSettings({ settings, onChange, current }: Props) {
     setOpen(false);
     if (focus) button.current?.focus();
   };
+
+  // inside the window: moved to the left if it would reach beyond the right edge
+  useLayoutEffect(() => {
+    const width = panel.current?.offsetWidth;
+    if (!open || !width) return;
+    const left = Math.max(
+      8,
+      Math.min(place.left, window.innerWidth - width - 8),
+    );
+    if (left !== place.left) setPlace({ ...place, left });
+  }, [open, place]);
 
   useEffect(() => {
     if (!open) return;
