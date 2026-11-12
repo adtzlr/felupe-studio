@@ -1,0 +1,260 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "model.settings",
+      "name": "settings",
+      "units": {
+        "length": "mm",
+        "force": "N"
+      }
+    },
+    {
+      "command": "parameter.add",
+      "name": "inner_length",
+      "value": 100,
+      "quantity": "length",
+      "min": 60,
+      "max": 140,
+      "step": 10,
+      "description": "Length of the inner sleeve"
+    },
+    {
+      "command": "parameter.add",
+      "name": "outer_length",
+      "value": 60,
+      "quantity": "length",
+      "min": 30,
+      "max": 100,
+      "step": 10,
+      "description": "Length of the outer sleeve"
+    },
+    {
+      "command": "parameter.add",
+      "name": "sleeve",
+      "value": 5,
+      "quantity": "length",
+      "min": 2,
+      "max": 10,
+      "step": 1,
+      "description": "Thickness of the sleeves"
+    },
+    {
+      "command": "parameter.add",
+      "name": "runout",
+      "value": 0.2,
+      "min": 0,
+      "max": 0.4,
+      "step": 0.05,
+      "description": "Runout of the free faces of the rubber"
+    },
+    {
+      "command": "parameter.add",
+      "name": "cells_axial",
+      "value": 5,
+      "min": 2,
+      "max": 20,
+      "integer": true,
+      "description": "Cells along the axis"
+    },
+    {
+      "command": "parameter.add",
+      "name": "cells_radial",
+      "value": 7,
+      "min": 2,
+      "max": 20,
+      "integer": true,
+      "description": "Cells through the rubber"
+    },
+    {
+      "command": "parameter.add",
+      "name": "cells_around",
+      "value": 18,
+      "min": 8,
+      "max": 72,
+      "integer": true,
+      "description": "Cells around the axis"
+    },
+    {
+      "command": "mesh.script",
+      "name": "rubber_mesh",
+      "file": "bushing.py",
+      "item": "rubber"
+    },
+    {
+      "command": "mesh.script",
+      "name": "metal_mesh",
+      "file": "bushing.py",
+      "item": "metal"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "rubber_cells",
+      "mesh": "rubber_mesh"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "metal_cells",
+      "mesh": "metal_mesh"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 1
+      }
+    },
+    {
+      "command": "material.add",
+      "name": "steel",
+      "model": "LinearElasticLargeStrain",
+      "parameters": {
+        "E": 210000,
+        "nu": 0.3
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "rubber_body",
+      "cellset": "rubber_cells",
+      "material": "rubber",
+      "formulation": "u-p-J",
+      "bulk": 5000
+    },
+    {
+      "command": "section.add",
+      "name": "sleeves",
+      "cellset": "metal_cells",
+      "material": "steel",
+      "formulation": "u"
+    },
+    {
+      "command": "pointset.add",
+      "name": "inner",
+      "select": {
+        "radius": 25,
+        "axis": "x"
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "outer",
+      "select": {
+        "radius": 65,
+        "axis": "x"
+      }
+    },
+    {
+      "command": "point.add",
+      "name": "center",
+      "coordinates": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "command": "point.add",
+      "name": "turn",
+      "coordinates": [
+        0,
+        0,
+        10
+      ]
+    },
+    {
+      "command": "mpc.add",
+      "name": "connect",
+      "points": "inner",
+      "center": "center",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ],
+      "multiplier": 100000,
+      "rotation": "turn"
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "outer",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "radial",
+      "pointset": "center",
+      "constrained": [
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "hold",
+      "pointset": "center",
+      "constrained": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "torsion",
+      "pointset": "turn",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "cardanic",
+      "pointset": "turn",
+      "constrained": [
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "lock",
+      "pointset": "turn",
+      "constrained": [
+        "z"
+      ]
+    },
+    {
+      "command": "step.add",
+      "name": "loading",
+      "ramp": {
+        "num": 6,
+        "items": [
+          {
+            "target": "radial",
+            "end": 8
+          },
+          {
+            "target": "torsion",
+            "end": 0.5236
+          },
+          {
+            "target": "cardanic",
+            "end": -0.0873
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job",
+      "steps": [
+        "loading"
+      ],
+      "curve": "torsion"
+    }
+  ]
+}

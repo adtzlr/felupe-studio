@@ -47,10 +47,13 @@ An empty model shows a welcome panel with *Import mesh*, *Open project* and the 
 | Rubber mount in shear | three sections, the Mooney-Rivlin model, the shear load case |
 | Rubber block with a rigid plate | control points, a multi-point constraint with a rotation point, a step with several ramps |
 | Sandwich spring with parameters | parameters, a mesh made by a Python script, point sets at the bounds of the meshes |
+| Rubber-metal bushing (FElupe ex05) | a mesh script with the fineness of the mesh as parameters, point sets on cylinders, a rotation point for torsion and tilt |
 
 Open a sample, press **Solve** and look at the results; then change a value in the properties and solve again.
 
 The **sandwich spring** is a parametric sample: rubber discs between steel sheets, the base sheet fixed and the top sheet sheared by 12 mm. Its mesh comes from the script `sandwich_spring.py`, which gets the parameters *radius*, *layers*, *height*, *sheet* and *cells* and makes a dict of a rubber and a metal mesh on the same points. Opening it asks for the values first: with 5 layers instead of 3 the spring is softer by about 3/5, and the point sets `base` (`z == min`) and `top` (`z == max`) follow the height of the stack without a change.
+
+The **rubber-metal bushing** is the example ex05 of FElupe: a rubber body between two steel sleeves, made by `bushing.py` with the lengths of the sleeves, their thickness, the runout of the free faces and the fineness of the mesh (cells along the axis, through the rubber and around it) as parameters. The outside of the outer sleeve (`r = 65`) is fixed; the inside of the inner sleeve (`r = 25`) is connected to a control point at the axis with a rotation point, which moves it by 8 mm in z, twists it by 30° about x and tilts it by −5° about y. The curve is the moment of the torsion over its angle. The multiplier of the connection (100000) is large compared with the steel, so the moment of the torsion agrees with ex05, which prescribes the rotated positions, within 0.1 %; a finer mesh is a change of three parameters.
 
 ## Building a model
 

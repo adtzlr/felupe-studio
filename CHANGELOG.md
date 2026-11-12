@@ -6,6 +6,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Added
 
+- The sample *Rubber-metal bushing (FElupe ex05)*: a rubber body between two steel sleeves made by `bushing.py`, with the lengths, the sleeve thickness, the runout and the fineness of the mesh as parameters, point sets on cylinders and a rigid connection of the inner sleeve with a rotation point (radial, torsion and tilt). Its moment of the torsion agrees with ex05 within 0.1 %. A coarse golden case (#185).
 - The sample *Sandwich spring with parameters*: rubber discs between steel sheets, sheared by the top sheet, with a mesh made by `sandwich_spring.py` from the parameters radius, layers, height, sheet and cells, and point sets at the bounds of the meshes. Golden cases with 3 and 5 layers (#184).
 - The parameters of a project: opening a project with parameters shows their values first, with their units and a slider for a range; *Open* applies the changed values as one undo step before the meshes of scripts are made, *Keep the saved values* skips them. The dialog says which Python scripts the project runs and shows them. *All parameters…* in the menu of a parameter opens it later (#183).
 - A click on an object in the browser in the Results workspace shows its properties in the Model workspace; a click on a job with results shows its results instead. *Results* keeps the view (#196).

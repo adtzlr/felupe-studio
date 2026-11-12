@@ -101,6 +101,51 @@ def test_sandwich_spring_follows_its_parameters(monkeypatch):
     assert forces[3] / forces[5] == pytest.approx(5 / 3, rel=0.02)
 
 
+def test_bushing_matches_ex05(monkeypatch):
+    """The bushing (#185) with a rigid connection of the inner sleeve, compared with
+    the example ex05 of FElupe on the same mesh, which prescribes the rotated
+    positions of the inner sleeve: the moments of the torsion and the tilt."""
+    import runpy
+
+    import felupe as fem
+
+    folder = APP / "public" / "samples" / "bushing"
+    monkeypatch.chdir(folder)
+    results = run(loads((folder / "model.felupe.json").read_text(encoding="utf-8")))
+    torsion, tilt = np.array(results["job"]["y"])[-1, :2]
+
+    # ex05, with the mesh of the script and as many substeps
+    meshes = runpy.run_path("bushing.py")["mesh"]
+    regions = [fem.RegionHexahedron(meshes[m]) for m in ("rubber", "metal")]
+    fields = [fem.Field(r, dim=3).as_container() for r in regions]
+    field = fem.FieldContainer(fields).merge()
+    solids = [
+        fem.SolidBodyNearlyIncompressible(fem.NeoHooke(mu=1), fields[0], bulk=5000),
+        fem.SolidBody(fem.LinearElasticLargeStrain(E=2.1e5, nu=0.3), fields[1]),
+    ]
+    x, y, z = field.region.mesh.points.T
+    boundaries = fem.BoundaryDict(
+        inner=fem.Boundary(field[0], mask=np.isclose(np.hypot(y, z), 25)),
+        outer=fem.Boundary(field[0], mask=np.isclose(np.hypot(y, z), 65)),
+    )
+    inner = field.region.mesh.points[boundaries["inner"].points]
+    move = []
+    for progress in fem.math.linsteps([0, 1], num=6):
+        rotated = fem.math.rotate_points(inner, 30 * progress, axis=0)
+        rotated = fem.math.rotate_points(rotated, -5 * progress, axis=1)
+        move.append([0, 0, 8 * progress] + rotated - inner)
+    step = fem.Step(solids, ramp={boundaries["inner"]: move}, boundaries=boundaries)
+    fem.Job([step]).evaluate(x0=field, tol=0.01, verbose=0)
+    forces = sum(s.assemble.vector() for s in solids).toarray().reshape(-1, 3)
+    points = boundaries["inner"].points
+    deformed = inner + field[0].values[points]
+    moment = np.cross(deformed - [0, 0, 8], forces[points]).sum(axis=0)
+
+    # the same torsion; the tilt differs by the order of the two rotations of ex05
+    assert torsion == pytest.approx(moment[0], rel=0.002)
+    assert tilt == pytest.approx(moment[1], rel=0.01)
+
+
 @pytest.mark.parametrize("sample", SAMPLES, ids=[s["id"] for s in SAMPLES])
 def test_thumbnail_is_up_to_date(sample):
     "The picture of a sample (#127) is made from its project by make_samples.py."
