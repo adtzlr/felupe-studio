@@ -29,6 +29,7 @@ A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserve
 - [`loadcase.add`](#loadcaseadd): A load case of FElupe (fem.dof) on the merged field: the boundaries of a standard test.
 - [`mpc.add`](#mpcadd): A multi-point constraint (fem.MultiPointConstraint): the points of a point set follow a center point rigidly, connected by a penalty.
 - [`load.add`](#loadadd): A point load (fem.PointLoad): a force at every point of a point set or at a control point, an item of the steps.
+- [`pressure.add`](#pressureadd): A pressure on the faces of a face set (fem.SolidBodyPressure), an item of the steps: a force per deformed area, normal to the faces.
 - [`step.add`](#stepadd): A step with all boundaries, optionally ramping items, each with its own values (fem.Step).
 - [`job.add`](#jobadd): A job evaluating steps one after another (fem.Job).
 
@@ -282,7 +283,7 @@ The faces of the boundary on a plane with the given coordinate, e.g. z == 20.
 | `select.value` | number | yes |  |
 | `select.atol` | number > 0 |  | Absolute tolerance of the coordinates of the points (default 1e-8). |
 
-#### `centers`
+#### By centers
 
 The faces of the boundary with the given centers (the mean of the points of a face), e.g. picked faces. A center without a face is an error of the script.
 
@@ -382,6 +383,16 @@ A point load (fem.PointLoad): a force at every point of a point set or at a cont
 | `points` | name of a point set or control point | yes | The point set or the control point of the load. |
 | `force` | three numbers `[x, y, z]` | yes | The force fx, fy, fz at every point. |
 
+### `pressure.add`
+
+A pressure on the faces of a face set (fem.SolidBodyPressure), an item of the steps: a force per deformed area, normal to the faces. A positive pressure pushes onto the faces, a negative one pulls. A ramp of a step scales the pressure.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | name | yes | Name of the object. |
+| `faces` | name of a face set | yes | The face set of the pressure. |
+| `pressure` | number | yes | The pressure; positive pushes onto the faces. |
+
 ### `step.add`
 
 A step with all boundaries, optionally ramping items, each with its own values (fem.Step).
@@ -391,11 +402,11 @@ A step with all boundaries, optionally ramping items, each with its own values (
 | `name` | name | yes | Name of the object. |
 | `sections` | names of sections (at least 1, unique) |  | Sections whose solid bodies are items of the step (default: all). |
 | `constraints` | names of multi-point constraints (at least 1, unique) |  | Multi-point constraints that are items of the step (default: all). |
-| `loads` | names of point loads (at least 1, unique) |  | Point loads that are items of the step (default: all). |
+| `loads` | names of point loads or pressures (at least 1, unique) |  | Point loads and pressures that are items of the step (default: all). |
 | `ramp` | object |  | Ramp the values of items with fem.math.linsteps([start, end], num), with the same number of increments for all items. |
 | `ramp.num` | integer ≥ 1 | yes | Increments of the step. |
 | `ramp.items` | list of objects (at least 1) | yes | The ramped items, each with its own values. |
-| `ramp.items[].target` | name of a boundary, load case or point load | yes | The ramped boundary, load case or point load. |
+| `ramp.items[].target` | name of a boundary, load case, point load or pressure | yes | The ramped boundary, load case, point load or pressure. |
 | `ramp.items[].start` | number |  | Value at the start of the step (default 0). |
 | `ramp.items[].end` | number | yes | Value at the end of the step. |
 

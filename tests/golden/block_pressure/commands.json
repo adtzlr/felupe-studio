@@ -1,0 +1,115 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "mesh.import",
+      "name": "block",
+      "file": "block.vtu"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "all_cells",
+      "mesh": "block"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHookeCompressible",
+      "parameters": {
+        "mu": 1.0,
+        "lmbda": 2.0
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "body",
+      "cellset": "all_cells",
+      "material": "rubber",
+      "formulation": "u"
+    },
+    {
+      "command": "pointset.add",
+      "name": "x_min",
+      "select": {
+        "axis": "x",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "y_min",
+      "select": {
+        "axis": "y",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "z_min",
+      "select": {
+        "axis": "z",
+        "value": 0
+      }
+    },
+    {
+      "command": "faceset.add",
+      "name": "end",
+      "section": "body",
+      "select": {
+        "axis": "x",
+        "value": 1
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "symmetry_x",
+      "pointset": "x_min",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "symmetry_y",
+      "pointset": "y_min",
+      "constrained": [
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "symmetry_z",
+      "pointset": "z_min",
+      "constrained": [
+        "z"
+      ]
+    },
+    {
+      "command": "pressure.add",
+      "name": "pull",
+      "faces": "end",
+      "pressure": -0.5
+    },
+    {
+      "command": "step.add",
+      "name": "step_1",
+      "ramp": {
+        "num": 5,
+        "items": [
+          {
+            "target": "pull",
+            "end": 1
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "step_1"
+      ],
+      "curve": "symmetry_x"
+    }
+  ]
+}

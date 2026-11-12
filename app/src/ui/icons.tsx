@@ -31,6 +31,9 @@ const PATHS = {
     "M6 4 H18 Q20 4 20 6 V18 Q20 20 18 20 H6 Q4 20 4 18 V6 Q4 4 6 4 Z M8 12 H16",
   boundary: "M12 4 L19 16 H5 Z M4 20 H20",
   load: "M12 3 V17 M7 12 L12 17 L17 12 M5 21 H19",
+  // a pressure (#105): arrows onto a surface
+  pressure:
+    "M6 3 V13 M3.5 10.5 L6 13 L8.5 10.5 M12 3 V13 M9.5 10.5 L12 13 L14.5 10.5 M18 3 V13 M15.5 10.5 L18 13 L20.5 10.5 M3 17 H21 M3 21 H21",
   constraint:
     "M10 12 a2 2 0 1 0 4 0 a2 2 0 1 0 -4 0 M10.6 10.6 L5 5 M13.4 10.6 L19 5 M10.6 13.4 L5 19 M13.4 13.4 L19 19 M4 4 h2 v2 h-2 z M18 4 h2 v2 h-2 z M4 18 h2 v2 h-2 z M18 18 h2 v2 h-2 z",
   point:

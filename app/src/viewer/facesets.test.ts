@@ -10,6 +10,8 @@ import {
   selectedFaces,
 } from "./facesets";
 import { scaledSurface } from "./layers";
+import { FORCE_COLOR } from "./palette";
+import { pressureLines } from "./pressures";
 
 // the faces of a unit cube as quads of its corners (outward)
 const QUADS = [
@@ -176,5 +178,50 @@ describe("the faces of the sections (#142)", () => {
     expect(selectedFaces({ axis: "x", value: 20 }, body)).toHaveLength(1);
     // the triangles index the drawn (scaled) surface
     expect(body.surface.positions[3]).toBe(10);
+  });
+
+  it("have outward normals, for the arrows of pressures (#105)", async () => {
+    const { commands, files } = await model();
+    const sections = sectionFaces(commands, files, scaledSurface);
+    const body = sections.get("body")!;
+    const end = body.faces.find((f) => f.center[0] === 2)!;
+    expect(end.normal).toEqual([1, 0, 0]);
+    const bottom = body.faces.find((f) => f.center[2] === 0)!;
+    expect(bottom.normal).toEqual([0, 0, -1]);
+
+    const model2 = (pressure: number) =>
+      [
+        ...commands,
+        {
+          command: "faceset.add",
+          name: "end",
+          section: "body",
+          select: { axis: "x", value: 2 },
+        },
+        { command: "pressure.add", name: "push", faces: "end", pressure },
+      ] as Command[];
+    const options = { size: 10, highlight: "#ffff00" };
+    // onto the face: an arrow from outside to its center (shaft and two heads)
+    const [onto] = pressureLines(model2(0.1), sections, options);
+    expect(onto.color).toBe(FORCE_COLOR);
+    expect(Array.from(onto.positions.slice(0, 6))).toEqual(
+      [2.8, 0.5, 0.5, 2, 0.5, 0.5].map(Math.fround),
+    );
+    // a pull: from the center outwards; selected and hidden
+    const [pull] = pressureLines(model2(-0.1), sections, {
+      ...options,
+      selected: "push",
+    });
+    expect(Array.from(pull.positions.slice(0, 6))).toEqual(
+      [2, 0.5, 0.5, 2.8, 0.5, 0.5].map(Math.fround),
+    );
+    expect([pull.color, pull.width]).toEqual(["#ffff00", 3]);
+    expect(
+      pressureLines(model2(0.1), sections, {
+        ...options,
+        hidden: new Set(["push"]),
+      }),
+    ).toEqual([]);
+    expect(pressureLines(model2(0), sections, options)).toEqual([]);
   });
 });

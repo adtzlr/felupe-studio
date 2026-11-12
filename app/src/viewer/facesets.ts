@@ -26,6 +26,8 @@ export interface Face {
   nodes: Float64Array;
   /** The mean of its nodes. */
   center: Vec3;
+  /** The unit normal, outwards (of the triangles, weighted by their area). */
+  normal: Vec3;
 }
 
 /** The faces of the boundary of a section on the surface of its mesh. */
@@ -113,8 +115,23 @@ function compute(
       }
     });
     const center = sum.map((s) => (s / c.points.length) * scale) as Vec3;
+    const normal = [0, 0, 0];
+    for (const t of c.triangles) {
+      const [a, b, d] = [0, 1, 2].map((k) => 3 * triangles[3 * t + k]);
+      const u = [0, 1, 2].map((k) => positions[b + k] - positions[a + k]);
+      const v = [0, 1, 2].map((k) => positions[d + k] - positions[a + k]);
+      normal[0] += u[1] * v[2] - u[2] * v[1];
+      normal[1] += u[2] * v[0] - u[0] * v[2];
+      normal[2] += u[0] * v[1] - u[1] * v[0];
+    }
+    const length = Math.hypot(...normal) || 1;
     for (const t of c.triangles) ofTriangle[t] = faces.length;
-    faces.push({ triangles: c.triangles, nodes: coordinates, center });
+    faces.push({
+      triangles: c.triangles,
+      nodes: coordinates,
+      center,
+      normal: normal.map((n) => n / length) as Vec3,
+    });
   }
   const size = faces.length
     ? Math.hypot(...[0, 1, 2].map((k) => high[k] - low[k]))

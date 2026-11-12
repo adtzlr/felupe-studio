@@ -234,6 +234,15 @@ CHANGES = {
             "select": {"centers": [[3, 0.5, 0.5]]},
         },
     ),
+    "pressure on a point set": lambda d: d["commands"].insert(
+        9,
+        {
+            "command": "pressure.add",
+            "name": "inflate",
+            "faces": "left",
+            "pressure": 0.1,
+        },
+    ),
     "several errors": lambda d: (
         find(d, "hard").update(mesh="nomesh"),
         find(d, "job_1").update(name="hard"),

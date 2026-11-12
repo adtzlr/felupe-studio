@@ -143,6 +143,9 @@
           "$ref": "#/$defs/LoadAdd"
         },
         {
+          "$ref": "#/$defs/PressureAdd"
+        },
+        {
           "$ref": "#/$defs/StepAdd"
         },
         {
@@ -1229,6 +1232,29 @@
         }
       }
     },
+    "PressureAdd": {
+      "description": "A pressure on the faces of a face set (fem.SolidBodyPressure), an item of the steps: a force per deformed area, normal to the faces. A positive pressure pushes onto the faces, a negative one pulls. A ramp of a step scales the pressure.",
+      "type": "object",
+      "required": ["command", "name", "faces", "pressure"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "pressure.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "faces": {
+          "description": "The face set of the pressure.",
+          "$ref": "#/$defs/Name"
+        },
+        "pressure": {
+          "x-quantity": "stress",
+          "description": "The pressure; positive pushes onto the faces.",
+          "type": "number"
+        }
+      }
+    },
     "LoadAdd": {
       "description": "A point load (fem.PointLoad): a force at every point of a point set or at a control point, an item of the steps. A ramp of a step scales the force.",
       "type": "object",
@@ -1283,7 +1309,7 @@
           }
         },
         "loads": {
-          "description": "Point loads that are items of the step (default: all).",
+          "description": "Point loads and pressures that are items of the step (default: all).",
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
@@ -1315,13 +1341,13 @@
       }
     },
     "RampItem": {
-      "description": "A ramped item: a boundary (its value, e.g. a displacement), a load case (the displacement of its moving faces) or a point load (a factor of its force).",
+      "description": "A ramped item: a boundary (its value, e.g. a displacement), a load case (the displacement of its moving faces), a point load (a factor of its force) or a pressure (a factor of its pressure).",
       "type": "object",
       "required": ["target", "end"],
       "additionalProperties": false,
       "properties": {
         "target": {
-          "description": "The ramped boundary, load case or point load.",
+          "description": "The ramped boundary, load case, point load or pressure.",
           "$ref": "#/$defs/Name"
         },
         "start": {

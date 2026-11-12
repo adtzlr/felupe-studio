@@ -18,15 +18,22 @@ KIND_NAMES = {
     "material": "material",
     "section": "section",
     "pointset": "point set, control point",
+    "faceset": "face set",
     # a load case is referenced like a boundary
     "boundary": "boundary, load case",
     "constraint": "multi-point constraint",
     "load": "point load",
+    "pressure": "pressure",
     "step": "step",
 }
 
 # headings of the variants of the selection of a point set
-SELECT = {"axis": "By a plane", "points": "By coordinates", "ids": "By ids"}
+SELECT = {
+    "axis": "By a plane",
+    "points": "By coordinates",
+    "ids": "By ids",
+    "centers": "By centers",
+}
 
 
 def _ref(node):

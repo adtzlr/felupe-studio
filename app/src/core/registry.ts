@@ -64,6 +64,15 @@ function initialConstraint(
   };
 }
 
+/** A new pressure takes the last face set. */
+function initialPressure(
+  draft: Record<string, unknown>,
+  commands: readonly Command[],
+): Record<string, unknown> {
+  const sets = commands.filter((c) => c.command === "faceset.add");
+  return sets.length ? { ...draft, faces: sets.at(-1)!.name } : draft;
+}
+
 /** A new face set takes the last section. */
 function initialFaceSet(
   draft: Record<string, unknown>,
@@ -107,6 +116,7 @@ export const KIND_LABELS: Record<Kind, string> = {
   boundary: "Boundary",
   constraint: "Constraint",
   load: "Load",
+  pressure: "Pressure",
   step: "Step",
   job: "Job",
 };
@@ -403,6 +413,20 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         default: [0, 0, 0],
       },
     },
+  },
+  "pressure.add": {
+    label: "Pressure",
+    tab: "loads",
+    prefix: "pressure",
+    fields: {
+      faces: { label: "Faces", hint: "A face set" },
+      pressure: {
+        label: "Pressure",
+        hint: "Per deformed area, positive onto the faces; a ramp of a step scales it",
+        default: 0,
+      },
+    },
+    initial: initialPressure,
   },
   "step.add": {
     label: "Step",

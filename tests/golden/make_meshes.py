@@ -77,6 +77,9 @@ def main():
         [("quad", left_face), ("hexahedron", hexahedra), ("tetra", tetra.cells)],
     ).write(HERE / "bar_cell_types" / "bar.vtu", binary=False)
 
+    # a cube of 2 x 2 x 2 cells, pulled by a pressure on its end face (#105)
+    write_vtu(HERE / "block_pressure" / "block.vtu", fem.Cube(n=3))
+
     # a cube of 2 x 2 x 2 cells for the uniaxial tension of the material models
     for case in MATERIAL_CASES:
         write_vtu(HERE / case / "cube.vtu", fem.Cube(n=3))

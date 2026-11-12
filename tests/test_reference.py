@@ -26,7 +26,10 @@ def test_reference_documents_every_command():
 
 def test_reference_types_and_kinds():
     text = markdown()
-    target = "| `ramp.items[].target` | name of a boundary, load case or point load |"
+    target = (
+        "| `ramp.items[].target` | name of a boundary, load case, point load or "
+        "pressure |"
+    )
     assert target in text
     assert "| `steps` | names of steps (at least 1, unique) | yes |" in text
     assert (

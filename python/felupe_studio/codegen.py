@@ -9,7 +9,8 @@ of the commands:
 2. materials
 3. a region and a field container per section, merged into the top-level field
 4. solid bodies (created after the merge, see :func:`felupe.field.merge`)
-5. point sets, face sets, load cases (``fem.dof``) and boundaries on the merged field
+5. point sets, face sets, load cases (``fem.dof``) and boundaries on the merged field,
+   multi-point constraints, point loads and pressures
 6. steps and jobs
 """
 
@@ -396,13 +397,16 @@ def codegen(document, evaluate=True, check_schema=True):
         out.append("boundaries = {}")
 
     loads = {load["name"]: load for load in get("load.add")}
+    pressures = {p["name"]: p for p in get("pressure.add")}
 
     def ramped(name, values):
-        """Items of a ramp: a boundary, the moving boundaries of a load case, or a
-        point load (its force, scaled by the values)."""
+        """Items of a ramp: a boundary, the moving boundaries of a load case, a point
+        load (its force, scaled by the values) or a pressure (scaled by the values)."""
         if name in loads:
             force = f"[{', '.join(map(repr, loads[name]['force']))}]"
             return [f"{name}: np.outer({values}, {force})"]
+        if name in pressures:
+            return [f"{name}: {pressures[name]['pressure']!r} * {values}"]
         if name not in loadcases:
             return [f"boundaries[{_str(name)}]: {values}"]
         return [
@@ -445,6 +449,14 @@ def codegen(document, evaluate=True, check_schema=True):
             args = ["field", f"points={load['points']}", f"values={force}"]
             out.append(_call(load["name"], "fem.PointLoad", args))
 
+    if pressures:
+        out.append(
+            "\n# pressures on face sets: positive onto the faces, scaled by the ramps"
+        )
+        for p in pressures.values():
+            args = [f"field_{p['faces']}", f"pressure={p['pressure']!r}"]
+            out.append(_call(p["name"], "fem.SolidBodyPressure", args))
+
     # 6. steps and jobs
     steps = get("step.add")
     if steps:
@@ -454,7 +466,7 @@ def codegen(document, evaluate=True, check_schema=True):
             items = (
                 ["solid_" + n for n in names]
                 + step.get("constraints", [c["name"] for c in constraints])
-                + step.get("loads", list(loads))
+                + step.get("loads", [*loads, *pressures])
             )
             lines = [_List(items, prefix="items=")]
             if "ramp" in step:
