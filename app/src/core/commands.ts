@@ -114,6 +114,10 @@ export interface ModelSettings {
   command: "model.settings";
   name: Name;
   /**
+   * The type of the model: 3D (the default) or 2D, as plane strain (fem.FieldPlaneStrain, the forces per unit thickness) or axisymmetric (fem.FieldAxisymmetric: x is the axis of rotation, y the radius, the forces are the totals over the circumference). A 2D model has 2D cells (triangles and quads) and the components x and y.
+   */
+  analysis?: "3d" | "plane-strain" | "axisymmetric";
+  /**
    * The units of lengths and forces, which give the units of the stresses (e.g. mm and N give MPa). Without units, the numbers have none.
    */
   units?: {
@@ -186,7 +190,16 @@ export interface MeshImport {
    * Type of the solid cells to import, if the file has more than one (one mesh per cell type).
    */
   cell_type?:
-    "tetra" | "tetra10" | "hexahedron" | "hexahedron20" | "hexahedron27";
+    | "tetra"
+    | "tetra10"
+    | "hexahedron"
+    | "hexahedron20"
+    | "hexahedron27"
+    | "triangle"
+    | "triangle6"
+    | "quad"
+    | "quad8"
+    | "quad9";
   /**
    * Factor of the coordinates of the points, e.g. 1000 for a mesh in m of a model in mm. The points are multiplied after reading, before the cell sets; point sets and points are in the scaled coordinates.
    */
@@ -221,7 +234,16 @@ export interface MeshScript {
    * Type of the solid cells to take, if the mesh has more than one.
    */
   cell_type?:
-    "tetra" | "tetra10" | "hexahedron" | "hexahedron20" | "hexahedron27";
+    | "tetra"
+    | "tetra10"
+    | "hexahedron"
+    | "hexahedron20"
+    | "hexahedron27"
+    | "triangle"
+    | "triangle6"
+    | "quad"
+    | "quad8"
+    | "quad9";
 }
 /**
  * Merge points of the sections whose coordinates agree to the given number of decimals (fem.field.merge(..., decimals)). Without this command, only identical points are merged. Merged points take the rounded coordinates.

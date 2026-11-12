@@ -17,7 +17,9 @@ def load(case):
 
 
 def write(path, mesh, cell_type=None):
-    meshio.Mesh(mesh.points, [(cell_type or mesh.cell_type, mesh.cells)]).write(path)
+    # the points of 2D meshes with z = 0, like meshio writes them
+    points = np.pad(mesh.points, ((0, 0), (0, 3 - mesh.dim)))
+    meshio.Mesh(points, [(cell_type or mesh.cell_type, mesh.cells)]).write(path)
 
 
 def two_files(left="left.vtu", right="right.vtu"):
@@ -88,6 +90,38 @@ def test_non_conforming_interface(tmp_path):
         "hanging": 81 - 25,
     }
     assert "56 hanging" in report["messages"][-1]
+
+
+@pytest.mark.parametrize("analysis", ["plane-strain", "axisymmetric"])
+def test_non_conforming_interface_2d(tmp_path, analysis):
+    # the edges of 2D cells (#175): 9 points at the interface, 5 of them shared
+    write(tmp_path / "left.vtu", fem.Rectangle(b=(1.5, 1), n=(7, 5)))
+    right = fem.Rectangle(a=(1.5, 0), b=(3, 1), n=(7, 9))
+    write(tmp_path / "right.vtu", right.triangulate())
+    document = two_files()
+    settings = {"command": "model.settings", "name": "settings", "analysis": analysis}
+    document["commands"].insert(0, settings)
+    for cmd in document["commands"]:
+        if cmd["name"] == "fixed":
+            cmd["constrained"] = ["x", "y"]
+    report = check(document, tmp_path)
+    assert not report["ok"]
+    (interface,) = report["interfaces"]
+    assert interface["shared"] == 5 and interface["hanging"] == 4
+
+    write(tmp_path / "right.vtu", fem.Rectangle(a=(1.5, 0), b=(3, 1), n=(7, 5)))
+    report = check(document, tmp_path)
+    assert report["ok"]
+    assert report["interfaces"][0] == {
+        "sections": ["left_body", "right_body"],
+        "shared": 5,
+        "hanging": 0,
+    }
+
+    # the 2D cells of a 3D model
+    document["commands"].pop(0)
+    with pytest.raises(ValueError, match="quad cells, which are 2D cells"):
+        check(two_files(), tmp_path)
 
 
 def test_scaled_mesh(tmp_path):

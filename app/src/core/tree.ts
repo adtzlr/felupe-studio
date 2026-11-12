@@ -61,7 +61,14 @@ function detail(cmd: Command, commands: readonly Command[]): string {
   const length = unitOf("length", units);
   switch (cmd.command) {
     case "model.settings":
-      return cmd.units ? unitsText(cmd.units) : "no units";
+      return [
+        cmd.analysis === "plane-strain"
+          ? "plane strain"
+          : cmd.analysis === "axisymmetric" && "axisymmetric",
+        cmd.units ? unitsText(cmd.units) : "no units",
+      ]
+        .filter(Boolean)
+        .join(" · ");
     case "parameter.add":
       return describeParameter(cmd, units);
     case "mesh.import":

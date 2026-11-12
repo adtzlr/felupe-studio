@@ -10,6 +10,7 @@ import {
   type Finished,
   formatValue,
   QUANTITY_GROUPS,
+  quantityGroups,
   type ResultView,
   stepOf,
   substepsOf,
@@ -149,7 +150,7 @@ export function ResultsControls({
               set({ quantity: event.currentTarget.value as Quantity })
             }
           >
-            {QUANTITY_GROUPS.map((group) => (
+            {quantityGroups(run.commands).map((group) => (
               <optgroup key={group.label} label={group.label}>
                 {group.options.map((option) => (
                   <option key={option.id} value={option.id}>

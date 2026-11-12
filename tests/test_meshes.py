@@ -82,13 +82,13 @@ def test_ignores_faces_and_float_tags(tmp_path):
 
 
 def test_errors(tmp_path):
-    surface = fem.Rectangle(n=3)
-    meshio.Mesh(
-        np.pad(surface.points, ((0, 0), (0, 1))), [("quad", surface.cells)]
-    ).write(tmp_path / "surface.vtu")
-    info = inspect(tmp_path / "surface.vtu")
+    lines = fem.mesh.Line(n=3)
+    meshio.Mesh(np.pad(lines.points, ((0, 0), (0, 2))), [("line", lines.cells)]).write(
+        tmp_path / "lines.vtu"
+    )
+    info = inspect(tmp_path / "lines.vtu")
     assert info["error"].startswith("The file needs solid cells (tetra, ")
-    assert info["error"].endswith("found quad.")
+    assert info["error"].endswith("found line.")
 
     (tmp_path / "broken.vtu").write_text("not a mesh")
     assert inspect(tmp_path / "broken.vtu")["error"].startswith("meshio could not")
@@ -222,3 +222,39 @@ def test_meshes_of_scripts(tmp_path, monkeypatch):
     )
     assert "is not a dict" in json.loads(make("plain.py", {}, "left")[0])["error"]
     assert json.loads(make("plain.py", {})[0])["solids"][0]["cells"] == 1
+
+
+def test_2d_meshes(tmp_path):
+    # the 2D cells of a 2D model (#175): the quads of a 2D mesh, not the faces of
+    # the hexahedrons of a 3D mesh
+    surface = fem.Rectangle(b=(2, 1), n=3)
+    cube = fem.Cube(n=2)
+    meshio.Mesh(
+        np.pad(surface.points, ((0, 0), (0, 1))),
+        [("quad", surface.cells), ("line", [[0, 1]])],
+    ).write(tmp_path / "surface.vtu")
+    info = inspect(tmp_path / "surface.vtu")
+    assert info["solids"] == [
+        {
+            "cell_type": "quad",
+            "cells": 4,
+            "bounds": [[0.0, 0.0, 0.0], [2.0, 1.0, 0.0]],
+            "tags": [],
+        }
+    ]
+    assert info["ignored"] == ["line"]
+    solid = volume_cells(meshio.read(tmp_path / "surface.vtu"), dim=2)
+    assert solid.points.shape == (9, 2) and solid.cell_type == "quad"
+    # the 2D cells of a 3D model and the 3D cells of a 2D model
+    with pytest.raises(ValueError, match="which are 2D cells: set the analysis"):
+        volume_cells(meshio.read(tmp_path / "surface.vtu"))
+    with pytest.raises(ValueError, match="which are 3D cells: a 2D model"):
+        volume_cells(meshio.Mesh(cube.points, [("hexahedron", cube.cells)]), dim=2)
+
+    faces = fem.Rectangle(n=2)
+    meshio.Mesh(cube.points, [("hexahedron", cube.cells), ("quad", faces.cells)]).write(
+        tmp_path / "cube.vtu"
+    )
+    info = inspect(tmp_path / "cube.vtu")
+    assert [s["cell_type"] for s in info["solids"]] == ["hexahedron"]
+    assert info["ignored"] == ["quad"]

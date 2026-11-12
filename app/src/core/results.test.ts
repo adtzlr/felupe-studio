@@ -6,6 +6,7 @@ import {
   type Finished,
   formatValue,
   nextSubstep,
+  quantityGroups,
   stepOf,
   substepsAhead,
   substepsOf,
@@ -110,5 +111,21 @@ describe("the substeps ahead (#141)", () => {
     // never the substep itself
     expect(substepsAhead(2, 3, 4)).toEqual([3, 1]);
     expect(substepsAhead(1, 1, 4)).toEqual([]);
+  });
+});
+
+describe("quantities of the contour", () => {
+  const ids = (commands: Command[]) =>
+    quantityGroups(commands).flatMap((g) => g.options.map((o) => o.id));
+
+  it("has no displacement in z in a 2D model (#175)", () => {
+    expect(ids([])).toContain("displacement_z");
+    const settings = (analysis: string) =>
+      [{ command: "model.settings", analysis }] as Command[];
+    expect(ids(settings("3d"))).toContain("displacement_z");
+    expect(ids(settings("axisymmetric"))).not.toContain("displacement_z");
+    expect(ids(settings("plane-strain"))).toEqual(
+      ids([]).filter((id) => id !== "displacement_z"),
+    );
   });
 });

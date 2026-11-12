@@ -1,6 +1,7 @@
 // The view of the results of the last finished run (#28): the job, its substep, the
 // quantity of the contour, the scale of the deformation and the undeformed ghost.
 import type { JobResult, Quantity } from "../worker/protocol";
+import { analysisOf, is2d } from "./analysis";
 import type { Command } from "./commands";
 import type { JobRun } from "./jobs";
 import type { Series } from "./curve";
@@ -37,6 +38,17 @@ export const QUANTITY_GROUPS: {
     ],
   },
 ];
+
+/** The quantities of the contour of a model: no displacement in z in 2D (#175). */
+export function quantityGroups(
+  commands: readonly Command[],
+): typeof QUANTITY_GROUPS {
+  if (!is2d(analysisOf(commands))) return QUANTITY_GROUPS;
+  return QUANTITY_GROUPS.map((group) => ({
+    ...group,
+    options: group.options.filter((o) => o.id !== "displacement_z"),
+  }));
+}
 
 export interface ResultView {
   job: string;

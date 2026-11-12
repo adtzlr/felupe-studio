@@ -216,6 +216,32 @@ describe("boundary symbols", () => {
     expect([...control.points]).toEqual([5, 0.5, 0.5]);
   });
 
+  it("has no components in z in a 2D model (#175)", () => {
+    const plate = [Float64Array.from([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0])];
+    const symbols = (analysis: string, type: string) =>
+      boundarySymbols(
+        [
+          { command: "model.settings", analysis },
+          { command: "loadcase.add", name: "lc", type, symmetry: true },
+        ] as Command[],
+        plate,
+      ).map((s) => [s.name, s.components]);
+    // the symmetry plane z = 0 has all nodes of a 2D mesh
+    expect(symbols("3d", "uniaxial")).toContainEqual(["lc/symz", [2]]);
+    expect(symbols("plane-strain", "uniaxial")).toEqual([
+      ["lc/symx", [0]],
+      ["lc/symy", [1]],
+      ["lc/move", [0]],
+    ]);
+    // the top of a shear has only the component in z (the thickness)
+    expect(symbols("axisymmetric", "shear").map(([name]) => name)).toEqual([
+      "lc/bottom",
+      "lc/compression_bottom",
+      "lc/compression_top",
+      "lc/move",
+    ]);
+  });
+
   it("draws strokes and directions", () => {
     const symbols = boundarySymbols(commands, nodes);
     const fixed = symbols.find((s) => s.name === "fixed")!;

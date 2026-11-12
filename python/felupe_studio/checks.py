@@ -22,7 +22,7 @@ import numpy as np
 from scipy.spatial import cKDTree
 
 from ._helpers import run_mesh_script, volume_cells
-from .codegen import parameter_value
+from .codegen import analysis_of, parameter_value
 from .commands import validate
 
 # faces of the solid cells by their corner points (VTK ordering, quadratic cells
@@ -40,6 +40,9 @@ FACES = {
 }
 FACES.update(tetra10=FACES["tetra"])
 FACES.update(hexahedron20=FACES["hexahedron"], hexahedron27=FACES["hexahedron"])
+# the edges of the 2D cells of 2D models (#175)
+FACES.update(triangle=[[0, 1], [1, 2], [2, 0]], quad=[[0, 1], [1, 2], [2, 3], [3, 0]])
+FACES.update(triangle6=FACES["triangle"], quad8=FACES["quad"], quad9=FACES["quad"])
 
 # relative tolerance (to the diagonal of the model) of a point on a surface
 TOLERANCE = 1e-6
@@ -67,6 +70,24 @@ def triangles(faces):
     for q in quads:
         tri.extend([q[:, [0, 1, 2]], q[:, [0, 2, 3]]])
     return np.vstack(tri) if tri else np.zeros((0, 3), dtype=int)
+
+
+def on_segments(points, candidates, segments, tol):
+    """Return the candidate points which lie on one of the segments (the edges of
+    the 2D cells of a 2D model)."""
+    if len(candidates) == 0 or len(segments) == 0:
+        return np.zeros(0, dtype=int)
+    a = points[segments[:, 0]]
+    ab = points[segments[:, 1]] - a
+    length2 = np.einsum("ij,ij->i", ab, ab)
+    found = []
+    for p in candidates:
+        x = points[p]
+        t = np.einsum("ij,ij->i", x - a, ab) / np.where(length2 > 0, length2, 1)
+        nearest = a + np.clip(t, 0, 1)[:, None] * ab
+        if np.any(np.linalg.norm(nearest - x, axis=1) <= tol):
+            found.append(p)
+    return np.array(found, dtype=int)
 
 
 def on_triangles(points, candidates, tri, tol):
@@ -126,6 +147,8 @@ def check(document, directory="."):
     validate(document)
     commands = document["commands"]
     directory = Path(directory)
+    # the 2D cells of a 2D model (#175)
+    dim = 3 if analysis_of(commands) == "3d" else 2
 
     meshes = {
         c["name"]: volume_cells(
@@ -133,6 +156,7 @@ def check(document, directory="."):
             tag=c.get("tag"),
             cell_type=c.get("cell_type"),
             scale=c.get("scale", 1),
+            dim=dim,
         )
         for c in commands
         if c["command"] == "mesh.import"
@@ -152,6 +176,7 @@ def check(document, directory="."):
                 item=c.get("item"),
                 tag=c.get("tag"),
                 cell_type=c.get("cell_type"),
+                dim=dim,
             )
     # in the order of the commands, like the script
     order = [c["name"] for c in commands if c["name"] in meshes]
@@ -223,13 +248,15 @@ def check(document, directory="."):
             faces = boundary_faces(m.cells, m.cell_type)
             nodes.append(np.unique(m.cells))
             surface.append(np.unique(np.concatenate([f.ravel() for f in faces])))
-            tris.append(triangles(faces))
+            # the triangles of the faces, or the edges of 2D cells
+            tris.append(triangles(faces) if dim == 3 else np.vstack(faces))
+        on = on_triangles if dim == 3 else on_segments
 
         for i, j in combinations(range(len(sections)), 2):
             shared = np.intersect1d(nodes[i], nodes[j])
             hanging = np.union1d(
-                on_triangles(points, np.setdiff1d(surface[i], nodes[j]), tris[j], tol),
-                on_triangles(points, np.setdiff1d(surface[j], nodes[i]), tris[i], tol),
+                on(points, np.setdiff1d(surface[i], nodes[j]), tris[j], tol),
+                on(points, np.setdiff1d(surface[j], nodes[i]), tris[i], tol),
             )
             if len(shared) == 0 and len(hanging) == 0:
                 continue

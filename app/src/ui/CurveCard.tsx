@@ -16,7 +16,7 @@ import {
   saveCurve,
   scale,
   type Series,
-  SERIES,
+  seriesOf,
   type SeriesLabel,
   seriesLabel,
   seriesName,
@@ -194,7 +194,7 @@ export function CurveCard({ run, view, onChange, download }: Props) {
           })
         }
       >
-        {SERIES.map((s) => (
+        {seriesOf(result).map((s) => (
           <option key={s} value={s}>
             {seriesName(s, q)}
           </option>

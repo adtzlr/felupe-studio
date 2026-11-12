@@ -107,6 +107,21 @@ describe("deriveTree", () => {
     const tree = deriveTree([settings, ...commands]);
     expect(tree[0]).toMatchObject({ label: "Settings", count: 1 });
     expect(find(tree, "settings")!.detail).toBe("mm · N · MPa");
+    // the analysis of a 2D model (#175)
+    const planar = deriveTree([
+      { ...settings, analysis: "plane-strain" } as Command,
+      ...commands,
+    ]);
+    expect(find(planar, "settings")!.detail).toBe(
+      "plane strain · mm · N · MPa",
+    );
+    const axisymmetric = { command: "model.settings", name: "settings" };
+    expect(
+      find(
+        deriveTree([{ ...axisymmetric, analysis: "axisymmetric" } as Command]),
+        "settings",
+      )!.detail,
+    ).toBe("axisymmetric · no units");
     // the scale of a mesh (#135)
     const scaled = commands.map((c) =>
       c.command === "mesh.import" ? { ...c, scale: 1000 } : c,

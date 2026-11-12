@@ -43,6 +43,7 @@ The settings of the model, at most once. The units say what the numbers mean: FE
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | name | yes | Name of the object. |
+| `analysis` | `3d`, `plane-strain` or `axisymmetric` |  | The type of the model: 3D (the default) or 2D, as plane strain (fem.FieldPlaneStrain, the forces per unit thickness) or axisymmetric (fem.FieldAxisymmetric: x is the axis of rotation, y the radius, the forces are the totals over the circumference). A 2D model has 2D cells (triangles and quads) and the components x and y. |
 | `units` | object |  | The units of lengths and forces, which give the units of the stresses (e.g. mm and N give MPa). Without units, the numbers have none. |
 | `units.length` | `mm` or `m` | yes | Unit of the coordinates and the displacements. |
 | `units.force` | `N` or `kN` | yes | Unit of the forces. |
@@ -71,7 +72,7 @@ Import a mesh file (read with meshio).
 | `name` | name | yes | Name of the object. |
 | `file` | string | yes | File name of the mesh, e.g. specimen.vtu. |
 | `tag` | string |  | Name of an integer cell data array used to split the mesh into cell sets, e.g. material or gmsh:physical. |
-| `cell_type` | `tetra`, `tetra10`, `hexahedron`, `hexahedron20` or `hexahedron27` |  | Type of the solid cells to import, if the file has more than one (one mesh per cell type). |
+| `cell_type` | `tetra`, `tetra10`, `hexahedron`, `hexahedron20`, `hexahedron27`, `triangle`, `triangle6`, `quad`, `quad8` or `quad9` |  | Type of the solid cells to import, if the file has more than one (one mesh per cell type). |
 | `scale` | number > 0 |  | Factor of the coordinates of the points, e.g. 1000 for a mesh in m of a model in mm. The points are multiplied after reading, before the cell sets; point sets and points are in the scaled coordinates. Default `1`. |
 
 ### `mesh.script`
@@ -85,7 +86,7 @@ A mesh made by a Python script next to the project, e.g. with the mesh tools of 
 | `parameters` | names of parameters (unique) |  | The parameters of the model that the script gets as variables (default: all). |
 | `item` | string |  | The item of a dict of meshes, e.g. rubber. |
 | `tag` | string |  | Name of an integer cell data array of a meshio.Mesh used to split the mesh into cell sets. |
-| `cell_type` | `tetra`, `tetra10`, `hexahedron`, `hexahedron20` or `hexahedron27` |  | Type of the solid cells to take, if the mesh has more than one. |
+| `cell_type` | `tetra`, `tetra10`, `hexahedron`, `hexahedron20`, `hexahedron27`, `triangle`, `triangle6`, `quad`, `quad8` or `quad9` |  | Type of the solid cells to take, if the mesh has more than one. |
 
 ### `mesh.merge`
 

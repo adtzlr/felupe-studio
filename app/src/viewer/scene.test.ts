@@ -12,6 +12,7 @@ import {
   nodeObject,
   resultNodes,
   resultObjects,
+  sceneView,
 } from "./scene";
 
 /** Two cells (two triangles each) of a unit square in the xy-plane. */
@@ -103,7 +104,7 @@ describe("scene of the viewer", () => {
     const one = buildScene({
       meshes: [{ name: "a", surface: square(), color: categorical(0) }],
     });
-    expect(one).toMatchObject({ legend: null, view: "default", axes: true });
+    expect(one).toMatchObject({ legend: null, axes: true });
 
     const two = buildScene({
       meshes: [
@@ -247,6 +248,33 @@ describe("results", () => {
       nodes: new Int32Array([0, 1, 2, 3]),
     })),
   };
+
+  it("opens onto the xy-plane for 2D models (#175)", () => {
+    const flat = { ...scene.surfaces[0], displacement: new Float32Array(12) };
+    expect(sceneView({ meshes: [] })).toBe("default");
+    expect(
+      sceneView({
+        meshes: [],
+        result: {
+          scene: { ...scene, surfaces: [flat] },
+          scale: 1,
+          undeformed: false,
+        },
+      }),
+    ).toBe("xy");
+    // a displacement in z is not planar
+    expect(
+      sceneView({ meshes: [], result: { scene, scale: 1, undeformed: false } }),
+    ).toBe("default");
+    const markers = [{ positions: [0, 0, 5] }];
+    const plate = { name: "plate", surface, color: "#3987e5" };
+    expect(buildScene({ meshes: [plate], markers }).view).toBe("xy");
+    const solid = {
+      ...plate,
+      surface: { ...surface, positions: new Float32Array([0, 0, 0, 0, 0, 1]) },
+    };
+    expect(buildScene({ meshes: [plate, solid] }).view).toBe("default");
+  });
 
   it("draws the deformed sections with a common contour and ghosts", () => {
     const objects = resultObjects({ scene, scale: 2, undeformed: true });

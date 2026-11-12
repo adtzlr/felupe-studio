@@ -2,6 +2,7 @@
 // (felupe_studio.commands); both are tested with tests/data/validation_cases.json,
 // so the messages are identical.
 import type { Command } from "./commands";
+import { analysisOf, analysisProblems } from "./analysis";
 import { loadcaseFieldErrors, loadcaseProblems } from "./loadcases";
 import { materialProblems, needsBulk } from "./materials";
 import { parameterProblems } from "./parameters";
@@ -204,6 +205,8 @@ export function nameProblem(name: string): string | undefined {
 export function validate(commands: readonly Command[]): Issue[] {
   const issues: Issue[] = [];
   const defined = new Map<string, [number, Command]>();
+  // the type of the analysis of the settings (#175)
+  const analysis = analysisOf(commands);
   const kindOf = (name: string) => {
     const entry = defined.get(name);
     return entry ? KINDS[entry[1].command] : undefined;
@@ -218,6 +221,8 @@ export function validate(commands: readonly Command[]): Issue[] {
         message: `commands/${i}: ${message}`,
         ...(field ? { field } : {}),
       });
+    for (const problem of analysisProblems(cmd, analysis))
+      add(problem.message, problem.field);
 
     // references must point to objects of the right kind, created before
     for (const [field, [refKind, isList]] of Object.entries(
