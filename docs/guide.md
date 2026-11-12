@@ -46,8 +46,11 @@ An empty model shows a welcome panel with *Import mesh*, *Open project* and the 
 | Hexahedrons and tetrahedrons | a Gmsh file with two types of cells |
 | Rubber mount in shear | three sections, the Mooney-Rivlin model, the shear load case |
 | Rubber block with a rigid plate | control points, a multi-point constraint with a rotation point, a step with several ramps |
+| Sandwich spring with parameters | parameters, a mesh made by a Python script, point sets at the bounds of the meshes |
 
 Open a sample, press **Solve** and look at the results; then change a value in the properties and solve again.
+
+The **sandwich spring** is a parametric sample: rubber discs between steel sheets, the base sheet fixed and the top sheet sheared by 12 mm. Its mesh comes from the script `sandwich_spring.py`, which gets the parameters *radius*, *layers*, *height*, *sheet* and *cells* and makes a dict of a rubber and a metal mesh on the same points. Opening it asks for the values first: with 5 layers instead of 3 the spring is softer by about 3/5, and the point sets `base` (`z == min`) and `top` (`z == max`) follow the height of the stack without a change.
 
 ## Building a model
 

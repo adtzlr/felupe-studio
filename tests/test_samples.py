@@ -34,7 +34,12 @@ def test_sample_solves(sample, monkeypatch):
     # a canonical project file, as the app saves it
     assert dumps(document) == text
     assert errors(document) == []
-    files = {c["file"] for c in document["commands"] if c["command"] == "mesh.import"}
+    # the files of imported meshes and of scripts that make meshes (#182)
+    files = {
+        c["file"]
+        for c in document["commands"]
+        if c["command"] in ("mesh.import", "mesh.script")
+    }
     assert sorted(files) == sample["files"]
     assert all((folder / name).is_file() for name in files)
 
@@ -72,6 +77,28 @@ def test_glued_plate_moves_and_tilts(monkeypatch):
     # the shear force and the moment that tilts the plate
     assert points["plate"]["force"][0] > 0
     assert abs(points["tilt"]["force"][1]) > 0
+
+
+def test_sandwich_spring_follows_its_parameters(monkeypatch):
+    """The sandwich spring (#184) with 3 and 5 rubber layers: the same project with
+    another value of a parameter. The top follows the height of the stack (z ==
+    max), and the shear stiffness is about G A / (layers height)."""
+    folder = APP / "public" / "samples" / "sandwich-spring"
+    document = loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
+    monkeypatch.chdir(folder)
+    forces = {}
+    for layers in (3, 5):
+        for c in document["commands"]:
+            if c["name"] == "layers":
+                c["value"] = layers
+        results = run(document)["job"]
+        forces[layers] = np.array(results["y"])[-1, 0]
+        assert np.array(results["x"])[-1, 0] == pytest.approx(12)
+    # linear: 0.5 MPa * pi * 50² mm² / (layers * 8 mm) * 12 mm
+    for layers, force in forces.items():
+        linear = 0.5 * np.pi * 50**2 / (layers * 8) * 12
+        assert force == pytest.approx(linear, rel=0.05)
+    assert forces[3] / forces[5] == pytest.approx(5 / 3, rel=0.02)
 
 
 @pytest.mark.parametrize("sample", SAMPLES, ids=[s["id"] for s in SAMPLES])

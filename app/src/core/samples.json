@@ -64,5 +64,19 @@
     "files": [
       "block.vtu"
     ]
+  },
+  {
+    "id": "sandwich-spring",
+    "title": "Sandwich spring with parameters",
+    "description": "Rubber discs between steel sheets, sheared by the top sheet. A Python script makes the mesh from the radius, the number and the height of the layers, the thickness of the sheets and the fineness.",
+    "topics": [
+      "parameters",
+      "mesh script",
+      "point sets at bounds",
+      "shear"
+    ],
+    "files": [
+      "sandwich_spring.py"
+    ]
   }
 ]
