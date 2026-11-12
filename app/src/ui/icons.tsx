@@ -3,6 +3,9 @@ const PATHS = {
   logo: "M3 3 H21 V21 H3 Z M9 3 V21 M15 3 V21 M3 9 H21 M3 15 H21",
   // the settings of the model (#132): two sliders
   settings: "M4 8 H20 M4 16 H20 M9 5 V11 M15 13 V19",
+  // a parameter of the model (#180): a variable in braces
+  parameter:
+    "M9 4 C6.5 4 7.5 9.5 5 12 C7.5 14.5 6.5 20 9 20 M15 4 C17.5 4 16.5 9.5 19 12 C16.5 14.5 17.5 20 15 20 M10.5 9.5 L13.5 14.5 M13.5 9.5 L10.5 14.5",
   // the browser of the model as a drawer of narrow windows (#131)
   browser:
     "M4 5 H20 M4 5 V19 H20 V5 M9 5 V19 M5.5 9 H7.5 M5.5 12 H7.5 M5.5 15 H7.5",

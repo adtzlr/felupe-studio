@@ -21,6 +21,7 @@ import {
 } from "../core/form";
 import {
   boundaryQuantity,
+  type Quantity,
   rampedQuantity,
   unitOf,
   unitsOf,
@@ -196,6 +197,9 @@ export function CommandForm({
       const row = Array.isArray(items) ? items[spec.row ?? -1] : undefined;
       quantity = rampedQuantity(context.commands, row?.target);
     }
+    // the numbers of a parameter have the quantity of the parameter (#180)
+    if (quantity === "parameter")
+      quantity = draft.quantity as Quantity | undefined;
     return unitOf(quantity, units);
   };
 

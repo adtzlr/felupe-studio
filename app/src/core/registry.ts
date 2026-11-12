@@ -106,6 +106,7 @@ function initialSection(
 
 export const KIND_LABELS: Record<Kind, string> = {
   settings: "Settings",
+  parameter: "Parameter",
   mesh: "Mesh",
   merge: "Merge",
   cellset: "Cell set",
@@ -352,6 +353,39 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     options: {
       "units.length": { mm: "mm", m: "m" },
       "units.force": { N: "N", kN: "kN" },
+    },
+  },
+  // a parameter of the model (#180), e.g. a dimension of a mesh made by a script
+  "parameter.add": {
+    label: "Parameter",
+    tab: "mesh",
+    prefix: "parameter",
+    fields: {
+      value: { label: "Value", default: 1 },
+      quantity: {
+        label: "Quantity",
+        hint: "The unit of the value, from the model settings",
+        placeholder: "none (no unit)",
+      },
+      min: { label: "Minimum", placeholder: "none" },
+      max: { label: "Maximum", placeholder: "none" },
+      step: {
+        label: "Step",
+        hint: "Of the value, e.g. of a slider",
+        placeholder: "none",
+      },
+      integer: {
+        label: "Integer",
+        hint: "E.g. a number of layers or cells",
+      },
+      description: {
+        label: "Description",
+        hint: "What the parameter is, in a few words",
+        placeholder: "e.g. Radius of the rubber disc",
+      },
+    },
+    options: {
+      quantity: { length: "Length", force: "Force", stress: "Stress" },
     },
   },
   "point.add": {

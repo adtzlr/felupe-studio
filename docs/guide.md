@@ -55,6 +55,10 @@ Open a sample, press **Solve** and look at the results; then change a value in t
 
 FElupe has no units: the numbers of a model only need to fit together, e.g. millimetres, newtons and megapascals. **Model settings** (last button of the *Mesh* tab, at most one per model) say which units the numbers mean: the length (mm or m) and the force (N or kN); the unit of stresses and moduli follows (MPa, GPa, Pa or kPa). The forms, the browser and the results then show the units, e.g. *E [MPa]* or *u = (8, 0, 0) mm*, and the script gets them as a comment. Nothing is converted: if you change the units, the numbers stay the same and only their meaning changes. Rotations are always in rad.
 
+### Parameters
+
+A **Parameter** (*Mesh* tab, next to *Model settings*) is a named number of the model, e.g. the radius of a disc or the number of rubber layers. Its *Quantity* (length, force or stress) gives it the unit of the model settings; *Minimum*, *Maximum* and *Step* describe the values it may take, *Integer* makes it a whole number, and the *Description* says in a few words what it is. The browser lists the parameters below the settings, with their value and range; a value outside of the range is an issue of the parameter. The script defines the parameters as variables at its top, e.g. `radius = 50.0  # mm`, so you can change them there. In a later version, a mesh made by a Python script uses them, and opening such a project asks for their values.
+
 ### 1. Mesh
 
 **Import mesh** reads any mesh file that meshio reads, e.g. VTK (`.vtu`, `.vtk`), Gmsh (`.msh`), Abaqus (`.inp`), XDMF, Medit or Exodus; **Open project** accepts mesh files too. The solid cells are tetrahedrons or hexahedrons, linear or quadratic. A file with several types of cells gives one mesh per type. The dialog shows the size of the mesh; its *Scale* multiplies the coordinates, e.g. by 1000 for a mesh made in metres of a model in millimetres. The dialog suggests it if the mesh is very small or very large for the units of the model (smaller than 1 mm or larger than 10 m). Point sets and points use the scaled coordinates, so set the scale before you add them.

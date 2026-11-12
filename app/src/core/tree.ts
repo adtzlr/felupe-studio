@@ -14,6 +14,7 @@ import {
   valueWithUnit,
 } from "./units";
 import { MATERIAL_MODELS } from "./materials";
+import { describeParameter } from "./parameters";
 
 export interface TreeNode {
   /** Unique id: the object name, or `group:<kind>` for a group. */
@@ -34,6 +35,7 @@ export interface TreeNode {
 /** The groups of the browser: by kind, the control points in a group of their own. */
 const GROUPS: { kind: Kind | "point"; label: string }[] = [
   { kind: "settings", label: "Settings" },
+  { kind: "parameter", label: "Parameters" },
   { kind: "mesh", label: "Meshes" },
   { kind: "merge", label: "Merge" },
   { kind: "pointset", label: "Point Sets" },
@@ -58,6 +60,8 @@ function detail(cmd: Command, commands: readonly Command[]): string {
   switch (cmd.command) {
     case "model.settings":
       return cmd.units ? unitsText(cmd.units) : "no units";
+    case "parameter.add":
+      return describeParameter(cmd, units);
     case "mesh.import":
       return [
         cmd.file,
@@ -227,6 +231,7 @@ export function deriveTree(
   // sets only if they are used
   const optional = new Set([
     "group:settings",
+    "group:parameter",
     "group:merge",
     "group:point",
     "group:faceset",

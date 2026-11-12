@@ -104,6 +104,9 @@
           "$ref": "#/$defs/ModelSettings"
         },
         {
+          "$ref": "#/$defs/ParameterAdd"
+        },
+        {
           "$ref": "#/$defs/MeshImport"
         },
         {
@@ -214,6 +217,54 @@
               "enum": ["N", "kN"]
             }
           }
+        }
+      }
+    },
+    "ParameterAdd": {
+      "description": "A parameter of the model: a number, e.g. a dimension or the number of cells of a mesh made by a script. The generated script defines it as a variable at its top.",
+      "type": "object",
+      "required": ["command", "name", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "parameter.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "value": {
+          "x-quantity": "parameter",
+          "description": "The value of the parameter.",
+          "type": "number"
+        },
+        "quantity": {
+          "description": "The physical quantity of the value, for its unit of the model settings (e.g. mm for a length). Without it, the value has no unit.",
+          "enum": ["length", "force", "stress"]
+        },
+        "min": {
+          "x-quantity": "parameter",
+          "description": "The smallest value.",
+          "type": "number"
+        },
+        "max": {
+          "x-quantity": "parameter",
+          "description": "The largest value.",
+          "type": "number"
+        },
+        "step": {
+          "x-quantity": "parameter",
+          "description": "The step of the value, e.g. of a slider.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "integer": {
+          "description": "The value is an integer, e.g. a number of layers or cells (default false); the range and the step are integers too.",
+          "type": "boolean"
+        },
+        "description": {
+          "description": "What the parameter is, in a few words, e.g. Radius of the rubber disc.",
+          "type": "string",
+          "maxLength": 120
         }
       }
     },

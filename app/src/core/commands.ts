@@ -7,6 +7,7 @@
  */
 export type Command =
   | ModelSettings
+  | ParameterAdd
   | MeshImport
   | MeshMerge
   | CellSetFromTag
@@ -116,6 +117,44 @@ export interface ModelSettings {
      */
     force: "N" | "kN";
   };
+}
+/**
+ * A parameter of the model: a number, e.g. a dimension or the number of cells of a mesh made by a script. The generated script defines it as a variable at its top.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "ParameterAdd".
+ */
+export interface ParameterAdd {
+  command: "parameter.add";
+  name: Name;
+  /**
+   * The value of the parameter.
+   */
+  value: number;
+  /**
+   * The physical quantity of the value, for its unit of the model settings (e.g. mm for a length). Without it, the value has no unit.
+   */
+  quantity?: "length" | "force" | "stress";
+  /**
+   * The smallest value.
+   */
+  min?: number;
+  /**
+   * The largest value.
+   */
+  max?: number;
+  /**
+   * The step of the value, e.g. of a slider.
+   */
+  step?: number;
+  /**
+   * The value is an integer, e.g. a number of layers or cells (default false); the range and the step are integers too.
+   */
+  integer?: boolean;
+  /**
+   * What the parameter is, in a few words, e.g. Radius of the rubber disc.
+   */
+  description?: string;
 }
 /**
  * Import a mesh file (read with meshio).

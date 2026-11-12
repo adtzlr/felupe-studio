@@ -4,6 +4,10 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ## [Unreleased]
 
+### Added
+
+- Parameters of the model: `parameter.add` is a named number with an optional quantity (length, force or stress, with the unit of the model settings), a range, a step, *Integer* and a description. The *Mesh* tab has a *Parameter* button next to *Model settings*; the browser lists the parameters below the settings with their value and range; a value outside of its range and fractions of an integer parameter are issues. The script defines them as variables at its top (`radius = 50.0  # mm`). The first step of parametric projects (#154): meshes made by scripts use them next (#180).
+
 ### Changed
 
 - The default tolerance of the Newton-Raphson method is 0.01 (FElupe's default is 1.49e-8), like the force criterion of commercial codes: the norm of the residual forces relative to the norm of the reaction forces. The generated script always passes it (`job.evaluate(x0=field, tol=0.01)`), the form shows it as the placeholder. In the golden cases a job takes about half the time, and the forces deviate by less than 1 % of the largest force. Projects without a tolerance are not migrated: their results change slightly; set *Tolerance* to e.g. 1e-6 for curves that are fitted to test data. The golden cases compared with converged references set `tol: 1.49e-8` (#176).

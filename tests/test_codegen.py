@@ -35,10 +35,10 @@ def write(filename, mesh, tag=None, cell_type=None):
     ).write(filename)
 
 
-def run(document, directory, monkeypatch):
+def run(document, directory, monkeypatch, evaluate=True):
     """Generate the script, write it to the directory and run it there."""
     script = Path(directory) / "script.py"
-    script.write_text(codegen(document), encoding="utf-8")
+    script.write_text(codegen(document, evaluate=evaluate), encoding="utf-8")
     monkeypatch.chdir(directory)
     return runpy.run_path(str(script))
 
@@ -411,6 +411,85 @@ def test_units_comment(two_sections, length, force, stress):
     # settings without units add nothing
     del two_sections["commands"][0]["units"]
     assert codegen(two_sections) == script
+
+
+def test_parameters(two_sections, tmp_path, monkeypatch):
+    # the parameters of the model are variables at the top of the script (#180)
+    script = codegen(two_sections)
+    two_sections["commands"][:0] = [
+        {
+            "command": "model.settings",
+            "name": "settings",
+            "units": {"length": "mm", "force": "N"},
+        },
+        {
+            "command": "parameter.add",
+            "name": "radius",
+            "value": 50,
+            "quantity": "length",
+            "min": 10,
+            "max": 100,
+            "description": "Radius of the disc",
+        },
+        {"command": "parameter.add", "name": "layers", "value": 3, "integer": True},
+        {
+            "command": "parameter.add",
+            "name": "shear",
+            "value": 0.4,
+            "quantity": "stress",
+        },
+        {"command": "parameter.add", "name": "gamma", "value": 0.5},
+    ]
+    with_parameters = codegen(two_sections)
+    block = (
+        "# parameters\n"
+        "radius = 50.0  # mm\n"
+        "layers = 3\n"
+        "shear = 0.4  # MPa\n"
+        "gamma = 0.5\n"
+    )
+    units = (
+        "# units: mm (lengths), N (forces) and MPa (stresses); FElupe does not "
+        "convert them\n"
+    )
+    # after the imports and the units, before the helpers of the script
+    assert f"import numpy as np\n\n{units}\n{block}\n# regions" in with_parameters
+    assert with_parameters.replace(f"\n{units}", "").replace(f"\n{block}", "") == script
+    # the lines of the parameters (script view)
+    lines = object_lines(with_parameters, two_sections)
+    number = with_parameters.splitlines().index("radius = 50.0  # mm") + 1
+    assert lines["radius"] == [[number, number]]
+
+    # the script runs, with the parameters as variables
+    mesh, tag = bar()
+    write(tmp_path / "specimen.vtu", mesh, tag)
+    namespace = run(two_sections, tmp_path, monkeypatch, evaluate=False)
+    assert namespace["radius"] == 50.0 and isinstance(namespace["radius"], float)
+    assert namespace["layers"] == 3 and isinstance(namespace["layers"], int)
+
+    ruff = shutil.which("ruff")
+    if ruff:
+        path = tmp_path / "script.py"
+        path.write_text(with_parameters, encoding="utf-8")
+        for check in (
+            [ruff, "check", "--isolated", "--select", "E,F,W,I", str(path)],
+            [ruff, "format", "--isolated", "--check", str(path)],
+        ):
+            assert subprocess.run(check, capture_output=True).returncode == 0
+
+
+def test_parameter_problems(two_sections):
+    parameter = {"command": "parameter.add", "name": "layers", "value": 3}
+    two_sections["commands"].insert(0, parameter)
+    codegen(two_sections)
+    parameter.update(integer=True, value=3.0, min=1.0, max=10, step=1)
+    codegen(two_sections)  # integers stored as floats are integers
+    parameter.update(value=11)
+    with pytest.raises(ValidationError, match="larger than the maximum"):
+        codegen(two_sections)
+    parameter.update(value=2.5)
+    with pytest.raises(ValidationError, match="value of an integer parameter"):
+        codegen(two_sections)
 
 
 def test_evaluate_false(two_sections):

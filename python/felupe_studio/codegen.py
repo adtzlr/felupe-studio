@@ -5,6 +5,7 @@ hyperelastic models of tensortrax, e.g. Mooney-Rivlin), so an exported script ru
 outside of FElupe Studio as well. Its structure is fixed and independent of the order
 of the commands:
 
+0. the parameters of the model, as variables
 1. meshes and cell sets
 2. materials
 3. a region and a field container per section, merged into the top-level field
@@ -45,6 +46,45 @@ AXES = ("x", "y", "z")
 
 # the unit of the stresses of the units of lengths and forces (#132)
 STRESS = {("mm", "N"): "MPa", ("mm", "kN"): "GPa", ("m", "N"): "Pa", ("m", "kN"): "kPa"}
+
+
+def unit(quantity, units):
+    """Return the unit of a quantity (``length``, ``force`` or ``stress``) of the
+    units of the model settings, or None.
+
+    Examples
+    --------
+    >>> unit("stress", {"length": "mm", "force": "N"})
+    'MPa'
+    >>> unit("length", None) is None
+    True
+    """
+    if not units or quantity is None:
+        return None
+    if quantity == "stress":
+        return STRESS[units["length"], units["force"]]
+    return units[quantity]
+
+
+def parameter_line(parameter, units=None):
+    """Return the line of a parameter of the model in the script: a float, or an int
+    for an integer parameter, with its unit as a comment (#180).
+
+    Examples
+    --------
+    >>> parameter_line({"name": "radius", "value": 50, "quantity": "length"},
+    ...                {"length": "mm", "force": "N"})
+    'radius = 50.0  # mm'
+    >>> parameter_line({"name": "layers", "value": 3.0, "integer": True})
+    'layers = 3'
+    """
+    if parameter.get("integer"):
+        value = int(parameter["value"])
+    else:
+        value = float(parameter["value"])
+    line = f"{parameter['name']} = {value!r}"
+    suffix = unit(parameter.get("quantity"), units)
+    return f"{line}  # {suffix}" if suffix else line
 
 
 LINE_LENGTH = 88
@@ -228,6 +268,11 @@ def codegen(document, evaluate=True, check_schema=True):
             f"# units: {units['length']} (lengths), {units['force']} (forces) and "
             f"{stress} (stresses); FElupe does not convert them\n"
         )
+    # 0. the parameters of the model at the top, to be changed by hand (#180)
+    parameters = get("parameter.add")
+    if parameters:
+        lines = [parameter_line(p, units) for p in parameters]
+        out.append("\n".join(["# parameters", *lines]) + "\n")
     out.append(HELPERS)
     if facesets:
         out.append(f"\n{FACE_HELPERS}")

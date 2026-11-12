@@ -243,6 +243,66 @@ CHANGES = {
             "pressure": 0.1,
         },
     ),
+    # parameters of the model (#180)
+    "parameters": lambda d: (
+        d["commands"].insert(
+            0,
+            {
+                "command": "parameter.add",
+                "name": "radius",
+                "value": 50,
+                "quantity": "length",
+                "min": 10,
+                "max": 100,
+                "step": 0.5,
+                "description": "Radius of the disc",
+            },
+        ),
+        d["commands"].insert(
+            1,
+            {
+                "command": "parameter.add",
+                "name": "layers",
+                "value": 3,
+                "integer": True,
+                "min": 1,
+                "max": 10,
+            },
+        ),
+    ),
+    "parameter out of its range": lambda d: d["commands"].insert(
+        0,
+        {"command": "parameter.add", "name": "radius", "value": 120, "max": 100},
+    ),
+    "parameter below its range": lambda d: d["commands"].insert(
+        0,
+        {"command": "parameter.add", "name": "radius", "value": 5, "min": 10},
+    ),
+    "parameter with an empty range": lambda d: d["commands"].insert(
+        0,
+        {
+            "command": "parameter.add",
+            "name": "radius",
+            "value": 10,
+            "min": 10,
+            "max": 10,
+        },
+    ),
+    "integer parameter with fractions": lambda d: d["commands"].insert(
+        0,
+        {
+            "command": "parameter.add",
+            "name": "layers",
+            "value": 2.5,
+            "integer": True,
+            "min": 1,
+            "max": 10,
+            "step": 0.5,
+        },
+    ),
+    "parameter with a name of the script": lambda d: d["commands"].insert(
+        0, {"command": "parameter.add", "name": "field", "value": 1}
+    ),
     "several errors": lambda d: (
         find(d, "hard").update(mesh="nomesh"),
         find(d, "job_1").update(name="hard"),

@@ -123,6 +123,48 @@ describe("deriveTree", () => {
     expect(find(plain, "s")!.detail).toBe("no units");
   });
 
+  it("lists the parameters below the settings (#180)", () => {
+    const settings = {
+      command: "model.settings",
+      name: "settings",
+      units: { length: "mm", force: "N" },
+    } as Command;
+    const parameters = [
+      {
+        command: "parameter.add",
+        name: "radius",
+        value: 50,
+        quantity: "length",
+        min: 10,
+        max: 100,
+      },
+      { command: "parameter.add", name: "layers", value: 3, integer: true },
+      { command: "parameter.add", name: "gamma", value: 0.4, min: 0 },
+    ] as Command[];
+    // the commands of the parameters may be anywhere in the list
+    const tree = deriveTree([...commands, ...parameters, settings]);
+    expect(summary(tree).slice(0, 3)).toEqual([
+      ["Settings", 1, ["settings"]],
+      ["Parameters", 3, ["radius", "layers", "gamma"]],
+      ["Meshes", 1, ["specimen"]],
+    ]);
+    expect(find(tree, "radius")).toMatchObject({
+      kind: "parameter",
+      detail: "50 mm · 10–100",
+    });
+    expect(find(tree, "layers")!.detail).toBe("3");
+    expect(find(tree, "gamma")!.detail).toBe("0.4 · 0–∞");
+    // the group only with parameters
+    expect(find(deriveTree(commands), "group:parameter")).toBeUndefined();
+    // a value outside of its range is an issue at the parameter
+    const outside = [{ ...parameters[0], value: 120 } as Command, ...commands];
+    expect(
+      find(deriveTree(outside, validate(outside)), "radius")!.issues,
+    ).toEqual([
+      "commands/0: parameter 'radius': the value is larger than the maximum.",
+    ]);
+  });
+
   it("shows the merge group only with a merge command", () => {
     const merge: Command = {
       command: "mesh.merge",
