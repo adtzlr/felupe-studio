@@ -24,6 +24,7 @@ describe("ribbonGroups", () => {
       ["Point set"],
       ["Face set"],
       ["Model settings"],
+      ["Parameter"],
     ]);
     expect(labels("sections")).toEqual([["Section"]]);
     expect(labels("loads")).toEqual([

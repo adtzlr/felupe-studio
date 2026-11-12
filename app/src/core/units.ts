@@ -10,7 +10,8 @@ export interface Units {
 
 /**
  * The physical quantity of a value (`x-quantity` of the schema). A "displacement"
- * is a rotation at a rotation point, a "ramped" value is that of its target.
+ * is a rotation at a rotation point, a "ramped" value is that of its target, and a
+ * "parameter" value is of the quantity of its parameter (#180).
  */
 export type Quantity =
   | "length"
@@ -20,7 +21,8 @@ export type Quantity =
   | "moment"
   | "rotation"
   | "strain"
-  | "ramped";
+  | "ramped"
+  | "parameter";
 
 const STRESS: Record<string, string> = {
   "mm N": "MPa",

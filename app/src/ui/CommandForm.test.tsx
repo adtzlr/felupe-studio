@@ -396,6 +396,48 @@ describe("units of the model (#132)", () => {
     select("umat_hard");
     expect(within(properties()).getByLabelText("E [Pa]")).toBeTruthy();
   });
+
+  it("of a parameter follow its quantity (#180)", () => {
+    const list = fixture as CommandList;
+    const store = new ModelStore({
+      ...list,
+      commands: [
+        {
+          command: "model.settings",
+          name: "settings",
+          units: { length: "mm", force: "N" },
+        },
+        {
+          command: "parameter.add",
+          name: "radius",
+          value: 50,
+          quantity: "length",
+          min: 10,
+        },
+        ...list.commands,
+      ] as Command[],
+    });
+    render(<App store={store} />);
+    const tree = screen.getByRole("tree", { name: "Model" });
+    fireEvent.click(within(tree).getByRole("treeitem", { name: "radius" }));
+    const properties = screen.getByRole("region", { name: "Properties" });
+    expect(within(properties).getByLabelText("Value [mm]")).toBeTruthy();
+    expect(within(properties).getByLabelText("Minimum [mm]")).toBeTruthy();
+    // a stress, before applying
+    fireEvent.change(within(properties).getByLabelText("Quantity"), {
+      target: { value: "stress" },
+    });
+    expect(within(properties).getByLabelText("Value [MPa]")).toBeTruthy();
+    // a value below the minimum is an issue at the value
+    fireEvent.input(within(properties).getByLabelText("Value [MPa]"), {
+      target: { value: "5" },
+    });
+    fireEvent.click(within(properties).getByRole("button", { name: "Apply" }));
+    expect(store.get("radius")).toMatchObject({ value: 5, quantity: "stress" });
+    expect(properties.textContent).toContain(
+      "the value is smaller than the minimum.",
+    );
+  });
 });
 
 describe("a form for a new object", () => {

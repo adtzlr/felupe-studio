@@ -4,6 +4,7 @@
 import type { Command } from "./commands";
 import { loadcaseFieldErrors, loadcaseProblems } from "./loadcases";
 import { materialProblems, needsBulk } from "./materials";
+import { parameterProblems } from "./parameters";
 import {
   NAME_MAX_LENGTH,
   NAME_PATTERN,
@@ -18,6 +19,7 @@ const AXES = ["x", "y", "z"] as const;
 
 export type Kind =
   | "settings"
+  | "parameter"
   | "mesh"
   | "merge"
   | "cellset"
@@ -39,6 +41,7 @@ export const SINGLE: string[] = ["model.settings", "mesh.merge"];
 export const KINDS: Record<CommandType, Kind> = {
   "mesh.import": "mesh",
   "model.settings": "settings",
+  "parameter.add": "parameter",
   "mesh.merge": "merge",
   "cellset.from_tag": "cellset",
   "cellset.from_file": "cellset",
@@ -311,6 +314,12 @@ export function validate(commands: readonly Command[]): Issue[] {
     if (cmd.command === "material.add") {
       for (const problem of materialProblems(cmd)) {
         add(`material '${name}': ${problem.message}`, problem.field);
+      }
+    }
+
+    if (cmd.command === "parameter.add") {
+      for (const problem of parameterProblems(cmd)) {
+        add(`parameter '${name}': ${problem.message}`, problem.field);
       }
     }
 

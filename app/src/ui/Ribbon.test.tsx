@@ -65,6 +65,7 @@ describe("ribbon commands", () => {
       "Point set",
       "Face set",
       "Model settings",
+      "Parameter",
     ]);
     tab("Materials");
     // the models in menus of their groups, so the ribbon stays one row (#136)

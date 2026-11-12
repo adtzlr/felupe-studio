@@ -18,6 +18,7 @@ SINGLE = ("model.settings", "mesh.merge")
 KINDS = {
     "mesh.import": "mesh",
     "model.settings": "settings",
+    "parameter.add": "parameter",
     "mesh.merge": "merge",
     "cellset.from_tag": "cellset",
     "cellset.from_file": "cellset",
@@ -64,6 +65,41 @@ REFERENCES = {
     # the curve of a job: a boundary (force-displacement) or a point load
     "job.add": {"steps": ("step", True), "curve": (("boundary", "load"), False)},
 }
+
+
+# the names of the numbers of a parameter in the messages (#180)
+PARAMETER_FIELDS = {
+    "value": "value",
+    "min": "minimum",
+    "max": "maximum",
+    "step": "step",
+}
+
+
+def parameter_problems(parameter):
+    """Return the problems of a parameter of the model (#180): its value within its
+    range, and integers for an integer parameter.
+
+    Examples
+    --------
+    >>> parameter_problems({"name": "layers", "value": 3, "integer": True, "max": 2})
+    ['the value is larger than the maximum.']
+    >>> parameter_problems({"name": "layers", "value": 2.5, "integer": True})
+    ['the value of an integer parameter is an integer.']
+    """
+    problems = []
+    if parameter.get("integer"):
+        for key, label in PARAMETER_FIELDS.items():
+            if key in parameter and parameter[key] != int(parameter[key]):
+                problems.append(f"the {label} of an integer parameter is an integer.")
+    low, high = parameter.get("min"), parameter.get("max")
+    if low is not None and high is not None and low >= high:
+        problems.append("the minimum is not smaller than the maximum.")
+    if low is not None and parameter["value"] < low:
+        problems.append("the value is smaller than the minimum.")
+    if high is not None and parameter["value"] > high:
+        problems.append("the value is larger than the maximum.")
+    return problems
 
 
 class ValidationError(ValueError):
@@ -200,6 +236,10 @@ def _reference_errors(commands):
         if cmd["command"] == "material.add":
             for problem in material_problems(cmd):
                 messages.append(f"commands/{i}: material '{name}': {problem}")
+
+        if cmd["command"] == "parameter.add":
+            for problem in parameter_problems(cmd):
+                messages.append(f"commands/{i}: parameter '{name}': {problem}")
 
         if cmd["command"] in SINGLE and any(
             c["command"] == cmd["command"] for _, c in defined.values()

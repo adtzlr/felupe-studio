@@ -16,6 +16,7 @@ A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserve
 ## Commands
 
 - [`model.settings`](#modelsettings): The settings of the model, at most once.
+- [`parameter.add`](#parameteradd): A parameter of the model: a number, e.g. a dimension or the number of cells of a mesh made by a script.
 - [`mesh.import`](#meshimport): Import a mesh file (read with meshio).
 - [`mesh.merge`](#meshmerge): Merge points of the sections whose coordinates agree to the given number of decimals (fem.field.merge(..., decimals)).
 - [`cellset.from_tag`](#cellsetfrom_tag): Cell set of all cells of a mesh with the given tag value.
@@ -43,6 +44,21 @@ The settings of the model, at most once. The units say what the numbers mean: FE
 | `units` | object |  | The units of lengths and forces, which give the units of the stresses (e.g. mm and N give MPa). Without units, the numbers have none. |
 | `units.length` | `mm` or `m` | yes | Unit of the coordinates and the displacements. |
 | `units.force` | `N` or `kN` | yes | Unit of the forces. |
+
+### `parameter.add`
+
+A parameter of the model: a number, e.g. a dimension or the number of cells of a mesh made by a script. The generated script defines it as a variable at its top.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | name | yes | Name of the object. |
+| `value` | number | yes | The value of the parameter. |
+| `quantity` | `length`, `force` or `stress` |  | The physical quantity of the value, for its unit of the model settings (e.g. mm for a length). Without it, the value has no unit. |
+| `min` | number |  | The smallest value. |
+| `max` | number |  | The largest value. |
+| `step` | number > 0 |  | The step of the value, e.g. of a slider. |
+| `integer` | boolean |  | The value is an integer, e.g. a number of layers or cells (default false); the range and the step are integers too. |
+| `description` | string |  | What the parameter is, in a few words, e.g. Radius of the rubber disc. |
 
 ### `mesh.import`
 
