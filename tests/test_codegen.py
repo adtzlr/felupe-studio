@@ -10,7 +10,7 @@ import meshio
 import numpy as np
 import pytest
 
-from felupe_studio.codegen import codegen, object_lines
+from felupe_studio.codegen import TOL, codegen, object_lines
 from felupe_studio.commands import ValidationError
 
 DATA = Path(__file__).parent / "data"
@@ -45,6 +45,19 @@ def run(document, directory, monkeypatch):
 
 def force(namespace, job="job_1"):
     return np.array(namespace[job].y)[:, 0]
+
+
+# FElupe's default tolerance of the Newton-Raphson method (the square root of the
+# machine epsilon), for the comparison with converged references (#176)
+TIGHT = 1.49e-8
+
+
+def tight(document):
+    """Return the document with the tight tolerance for its jobs."""
+    for cmd in document["commands"]:
+        if cmd["command"] == "job.add":
+            cmd["tol"] = TIGHT
+    return document
 
 
 def uniaxial(name="job_1"):
@@ -116,7 +129,7 @@ def test_two_sections_matches_reference(two_sections, tmp_path, monkeypatch):
     # reference: the hand-written FElupe script checked with FElupe 12.0.0
     mesh, tag = bar()
     write(tmp_path / "specimen.vtu", mesh, tag)
-    namespace = run(two_sections, tmp_path, monkeypatch)
+    namespace = run(tight(two_sections), tmp_path, monkeypatch)
     assert np.isclose(force(namespace)[-1], 0.66322, rtol=1e-5)
     assert len(namespace["field"].fields) == 3  # u, and p, J of the soft section
 
@@ -149,7 +162,7 @@ def test_single_body_matches_felupe(tmp_path, monkeypatch):
     move = fem.math.linsteps([0, 0.5], num=5)
     step = fem.Step([solid], ramp={boundaries["move"]: move}, boundaries=boundaries)
     job = fem.CharacteristicCurve(steps=[step], boundary=boundaries["move"])
-    job.evaluate(verbose=0)
+    job.evaluate(verbose=0, tol=TOL)
 
     assert np.allclose(single_body(tmp_path, monkeypatch), np.array(job.y)[:, 0])
 
@@ -204,7 +217,7 @@ def test_volumetric_matches_felupe(volumetric, tmp_path, monkeypatch):
     move = fem.math.linsteps([0, 0.5], num=5)
     step = fem.Step([solid], ramp={boundaries["move"]: move}, boundaries=boundaries)
     job = fem.CharacteristicCurve(steps=[step], boundary=boundaries["move"])
-    job.evaluate(verbose=0)
+    job.evaluate(verbose=0, tol=TOL)
     reference = np.array(job.y)[:, 0]
     np.testing.assert_allclose(curve, reference, rtol=1e-8, atol=1e-12)
 
@@ -353,7 +366,7 @@ def test_cutback(two_sections, tmp_path, monkeypatch):
     assert (
         "plugins=[fem.CutbackPlugin(factor=0.25, max_cutbacks=4, growth=1.5)]" in script
     )
-    assert "job_1.evaluate(x0=field, maxiter=30)\n" in script
+    assert "job_1.evaluate(x0=field, tol=0.01, maxiter=30)\n" in script
     namespace = run(two_sections, tmp_path, monkeypatch)
     [cutback] = [
         p
@@ -467,7 +480,7 @@ def test_longest_names_are_wrapped(two_sections, tmp_path, monkeypatch):
 
     mesh, tag = bar()
     write(tmp_path / "specimen.vtu", mesh, tag)
-    namespace = run(document, tmp_path, monkeypatch)
+    namespace = run(tight(document), tmp_path, monkeypatch)
     assert np.isclose(
         force(namespace, job="job_1".ljust(24, "x"))[-1], 0.66322, rtol=1e-5
     )
@@ -656,7 +669,8 @@ def test_mixed_sections_of_one_mesh(cell_type, formulations, tmp_path, monkeypat
 def test_tolerance(two_sections, tmp_path, monkeypatch):
     mesh, tag = bar()
     write(tmp_path / "specimen.vtu", mesh, tag)
-    assert "job_1.evaluate(x0=field)\n" in codegen(two_sections)
+    # the default tolerance like commercial codes, always in the script (#176)
+    assert "job_1.evaluate(x0=field, tol=0.01)\n" in codegen(two_sections)
     for cmd in two_sections["commands"]:
         if cmd["command"] == "job.add":
             cmd["tol"] = 0.05
@@ -954,7 +968,7 @@ def test_object_lines_of_the_glued_plate():
     # the ramp and the step, and the evaluation of the job
     assert code("shift_and_tilt")[0][0].startswith("ramp_shift_and_tilt = [")
     assert code("shift_and_tilt")[0][-1] == ")"
-    assert code("job")[-1] == ["job.evaluate(x0=field)"]
+    assert code("job")[-1] == ["job.evaluate(x0=field, tol=0.01)"]
     # ranges are sorted and joined
     for ranges in lines.values():
         assert all(a <= b for a, b in ranges)
@@ -1116,7 +1130,8 @@ def test_pressure(tmp_path, monkeypatch):
     golden = Path(__file__).parent / "golden" / "block_pressure"
     document = json.loads((golden / "commands.json").read_text(encoding="utf-8"))
     shutil.copy(golden / "block.vtu", tmp_path)
-    namespace = run(document, tmp_path, monkeypatch)
+    # in equilibrium up to the tolerance of the Newton-Raphson method
+    namespace = run(tight(document), tmp_path, monkeypatch)
     # the end face x = 1 of the unit cube is pulled by 0.5 per deformed area: the
     # deformation is homogeneous, and the reaction at x = 0 is the pressure times
     # the deformed area of the end face

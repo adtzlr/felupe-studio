@@ -37,7 +37,8 @@ SAME_BODY = [
 ]
 
 # uniaxial tension of a cube (1 x 1 x 1, symmetric load case) per material model of
-# tensortrax, nearly incompressible with a bulk modulus of 5000 (#136)
+# tensortrax, nearly incompressible with a bulk modulus of 5000 (#136); the jobs of
+# these references have FElupe's tight tolerance, 1.49e-8 (#176)
 MATERIALS = [case for case in CASES if case.startswith("cube_")]
 
 RTOL, ATOL = 1e-8, 1e-12
@@ -54,18 +55,20 @@ def normalize(script):
     return re.sub(r"FElupe Studio \S+ ", "FElupe Studio ", script, count=1)
 
 
-def evaluate(case, tmp_path, monkeypatch):
-    """Run the generated script of a case and return the curves of its jobs."""
+def evaluate(case, tmp_path, monkeypatch, document=None):
+    """Run the generated script of a case (or of another command list with its
+    files) and return the curves of its jobs."""
+    document = document or load(case)
     for path in (HERE / case).iterdir():
         if path.name not in ("commands.json", "script.py", "results.json"):
             shutil.copy(path, tmp_path)
     script = tmp_path / "script.py"
-    script.write_text(codegen(load(case)), encoding="utf-8")
+    script.write_text(codegen(document), encoding="utf-8")
     monkeypatch.chdir(tmp_path)
     namespace = runpy.run_path(str(script))
 
     jobs = {}
-    for cmd in load(case)["commands"]:
+    for cmd in document["commands"]:
         if cmd["command"] == "job.add" and "curve" in cmd:
             job = namespace[cmd["name"]]
             jobs[cmd["name"]] = {
@@ -162,3 +165,19 @@ def test_material_matches_felupe(case):
     _, stress, _ = fem.ViewMaterialIncompressible(umat).uniaxial(1 + u)
     assert np.isclose(u[-1], 1)  # up to a stretch of 2
     np.testing.assert_allclose(force, stress, rtol=1e-3, atol=1e-6)
+
+
+@pytest.mark.parametrize("case", MATERIALS)
+def test_default_tolerance(case, tmp_path, monkeypatch):
+    # the default tolerance of a job, 0.01 like commercial codes, deviates from the
+    # converged curve by less than 1 % of the largest force (#176)
+    document = load(case)
+    for cmd in document["commands"]:
+        if cmd["command"] == "job.add":
+            del cmd["tol"]
+    loose = evaluate(case, tmp_path, monkeypatch, document)
+    reference = json.loads((HERE / case / "results.json").read_text(encoding="utf-8"))
+    for name, curve in loose["jobs"].items():
+        force = np.array(reference["jobs"][name]["force"])
+        deviation = np.abs(np.array(curve["force"]) - force).max() / force.max()
+        assert 0 < deviation < 0.01, f"{case}: {deviation:.2%}"

@@ -1388,7 +1388,7 @@
           "$ref": "#/$defs/Name"
         },
         "tol": {
-          "description": "Tolerance of the Newton-Raphson method: the norm of the residual forces relative to the reaction forces (default: the square root of the machine epsilon, 1.49e-8).",
+          "description": "Tolerance of the Newton-Raphson method: the norm of the residual forces relative to the reaction forces (default 0.01, like commercial codes).",
           "type": "number",
           "exclusiveMinimum": 0
         },

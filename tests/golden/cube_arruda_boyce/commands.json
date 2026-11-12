@@ -52,7 +52,8 @@
       "steps": [
         "step_1"
       ],
-      "curve": "tension"
+      "curve": "tension",
+      "tol": 1.49e-08
     }
   ]
 }

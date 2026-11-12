@@ -112,8 +112,11 @@ def test_problems():
     ],
 )
 def test_homogeneous_tests_of_a_cube(kind, analytical, tmp_path, monkeypatch):
-    # an eighth of a cube with symmetry planes: a homogeneous deformation
-    namespace = run(model({"type": kind}), tmp_path, monkeypatch)
+    # an eighth of a cube with symmetry planes: a homogeneous deformation, converged
+    # with FElupe's tight default tolerance for the comparison (#176)
+    document = model({"type": kind})
+    document["commands"][-1]["tol"] = 1.49e-8
+    namespace = run(document, tmp_path, monkeypatch)
     force = np.array(namespace["job_1"].y)[:, 0]
     np.testing.assert_allclose(force[-1], analytical(1.2), rtol=2e-3)
 

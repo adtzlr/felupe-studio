@@ -137,20 +137,27 @@ def _call(target, func, args):
     return _wrap(f"{target} = {func}", args)
 
 
+# the default tolerance of the Newton-Raphson method: the norm of the residual forces
+# relative to the norm of the reaction forces, looser than FElupe's default (the square
+# root of the machine epsilon) like commercial codes (#176)
+TOL = 0.01
+
+
 def evaluate_options(job):
     """Return the keyword arguments of ``Job.evaluate()`` of a ``job.add`` command,
-    besides ``x0``: the settings of the Newton-Raphson method that are given.
+    besides ``x0``: the settings of the Newton-Raphson method, the tolerance always
+    (:data:`TOL` by default) and the maximum number of iterations if it is given.
 
     Examples
     --------
+    >>> evaluate_options({"name": "job_1", "steps": ["step_1"]})
+    {'tol': 0.01}
     >>> evaluate_options({"name": "job_1", "steps": ["step_1"], "tol": 0.05})
     {'tol': 0.05}
     >>> evaluate_options({"name": "job_1", "steps": ["step_1"], "maxiter": 30})
-    {'maxiter': 30}
+    {'tol': 0.01, 'maxiter': 30}
     """
-    options = {}
-    if "tol" in job:
-        options["tol"] = float(job["tol"])
+    options = {"tol": float(job.get("tol", TOL))}
     if "maxiter" in job:
         options["maxiter"] = int(job["maxiter"])
     return options
