@@ -21,6 +21,10 @@ With real Pyodide, after the deployment of `main` has finished. Use the cases in
 - [ ] `bar_cell_types` (hexahedrons and tetrahedrons in one mesh file) shows results; with the formulation of a section changed to `u-p-J`, the tetrahedrons use the MINI element.
 - [ ] Every sample (File ▸ Samples…) opens, solves and shows results. *Rubber block with a rigid plate*: the top face stays plane and tilts with the plate; the control points show the force at `plate` and the moment at `tilt`; Export ▸ Control points (CSV) has all substeps.
 - [ ] A project file of the previous schema version (e.g. saved with the previous release) opens and is migrated; saved again, it has the current schema version.
+- [ ] Archives: a sample opens as `<id>.felupe.zip`; *Save project* downloads the archive, which opens again in one step (also a folder of a project zipped by hand); *Save project as…* with the script: the unpacked folder runs with `python <name>.py`.
+- [ ] Units: *Model settings* with mm and N; the forms, the browser, the curve and the scalar bar show the units.
+- [ ] Face sets and pressures: on the sample *Rubber block with a rigid plate*, a face set of a side face (click, *Create face set*) and a pressure on it ramped by the step; it solves, and the side face bulges in (positive) or out (negative).
+- [ ] Results: the contour settings (color map, bands, range over all substeps), *Min/Max* with its labels, and playing the substeps (Space).
 - [ ] Picking: a click on a face creates a point set of its plane; with Nodes shown, Shift+click picks nodes; *Control point at center* creates a control point.
 - [ ] Cancel a running job: Python loads again and Solve works again without opening the files again.
 - [ ] A failing job (a large ramp with few substeps) shows the traceback; with cutback it runs.
