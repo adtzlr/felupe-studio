@@ -15,6 +15,7 @@ import type {
   FromWorker,
   JobEvent,
   JobResult,
+  LiveSettings,
   MeshInfo,
   Quantity,
   ResultScene,
@@ -149,7 +150,7 @@ function inspected(id: number, inspect: (meshes: PyProxy) => PyProxy) {
  * tensortrax wheel first. Python runs synchronously: a job is cancelled by
  * terminating the worker.
  */
-async function run(id: number, document: string) {
+async function run(id: number, document: string, live?: LiveSettings) {
   const py = python();
   const runner = py.pyimport("felupe_studio.runner");
   try {
@@ -158,7 +159,26 @@ async function run(id: number, document: string) {
     }
     const report = (text: string) =>
       post({ type: "job-progress", id, event: JSON.parse(text) as JobEvent });
-    const results = runner.run_json(document, report) as string;
+    // a live event with the scene of the current fields (#207), its bytes
+    // transferred
+    const reportScene = (text: string, meta: string, surfaces: PyProxy) => {
+      const raw = surfaces.toJs({
+        dict_converter: Object.fromEntries,
+      }) as RawResultSurface[];
+      surfaces.destroy();
+      const scene = toResultScene(
+        JSON.parse(meta) as Omit<ResultScene, "surfaces">,
+        raw,
+      );
+      const event = { ...(JSON.parse(text) as object), scene } as JobEvent;
+      post({ type: "job-progress", id, event }, resultTransferables(scene));
+    };
+    const results = runner.run_json(
+      document,
+      report,
+      live ? JSON.stringify(live) : null,
+      reportScene,
+    ) as string;
     post({
       type: "job-result",
       id,
@@ -275,7 +295,7 @@ ctx.onmessage = async (event: MessageEvent<ToWorker>) => {
           message.item,
         );
       case "run":
-        return await run(message.id, message.document);
+        return await run(message.id, message.document, message.live);
       case "script":
         return script(message.id, message.document);
       case "script-view":

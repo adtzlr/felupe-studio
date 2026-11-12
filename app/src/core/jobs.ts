@@ -1,7 +1,13 @@
 // Running the jobs of the model in the Python worker (#27): the progress of a run
 // from the events of `felupe_studio.runner`, cancelling by restarting the worker, and
 // the results of the last finished run (for the Results workspace).
-import type { JobEvent, JobResult } from "../worker/protocol";
+import type {
+  JobEvent,
+  JobResult,
+  LiveSettings,
+  Quantity,
+  ResultScene,
+} from "../worker/protocol";
 import type { Command } from "./commands";
 
 /** The progress of a run, from the events of the runner. */
@@ -87,7 +93,50 @@ export function advance(progress: JobProgress, event: JobEvent): JobProgress {
         ...progress,
         times: { ...progress.times, [event.job]: event.time },
       };
+    case "live":
+      return progress;
   }
+}
+
+/** The live results of a job of a running run (#207). */
+export interface LiveJob {
+  /** The last converged substep, counted from 1 over all steps. */
+  substep: number;
+  /** The points of the curve of a characteristic curve, one per substep. */
+  x: (number | null)[][];
+  y: (number | null)[][];
+  /** The last scene of the current fields, and its substep. */
+  scene?: ResultScene;
+  sceneSubstep?: number;
+}
+
+/** The live results of a run (#207): the quantity of its scenes and the jobs. */
+export interface Live {
+  /** The quantity of the scenes; none without scenes (e.g. turned off). */
+  quantity?: Quantity;
+  jobs: Record<string, LiveJob>;
+}
+
+/** The live results after an event of the runner. */
+export function advanceLive(live: Live, event: JobEvent): Live {
+  if (event.event !== "live") return live;
+  const job = live.jobs[event.job] ?? { substep: 0, x: [], y: [] };
+  return {
+    ...live,
+    jobs: {
+      ...live.jobs,
+      [event.job]: {
+        ...job,
+        substep: event.substep,
+        ...(event.x && event.y
+          ? { x: [...job.x, event.x], y: [...job.y, event.y] }
+          : {}),
+        ...(event.scene
+          ? { scene: event.scene, sceneSubstep: event.substep }
+          : {}),
+      },
+    },
+  };
 }
 
 /** The fraction of the converged substeps of all jobs of a run (0 … 1). */
@@ -109,6 +158,8 @@ export type JobRun =
       progress: JobProgress;
       /** The command list of the run. */
       commands: readonly Command[];
+      /** The live results of the jobs (#207). */
+      live: Live;
     }
   | {
       state: "finished";
@@ -117,8 +168,20 @@ export type JobRun =
       /** The command list of the run: the results belong to this model. */
       commands: readonly Command[];
     }
-  | { state: "failed"; progress: JobProgress; message: string }
-  | { state: "cancelled"; progress: JobProgress };
+  | {
+      state: "failed";
+      progress: JobProgress;
+      message: string;
+      commands: readonly Command[];
+      /** The live results up to the failure (#207). */
+      live: Live;
+    }
+  | {
+      state: "cancelled";
+      progress: JobProgress;
+      commands: readonly Command[];
+      live: Live;
+    };
 
 /**
  * The exception of a Python traceback: its last line, without the module of the
@@ -159,6 +222,7 @@ export interface JobClient {
   run(
     document: string,
     onEvent: (event: JobEvent) => void,
+    live?: LiveSettings,
   ): Promise<Record<string, JobResult>>;
   restart(): void;
 }
@@ -191,30 +255,46 @@ export class JobRunner {
     return this.current.state === "running";
   }
 
-  /** Run the jobs of a command list (with its JSON text). */
-  async solve(commands: readonly Command[], document: string): Promise<void> {
+  /**
+   * Run the jobs of a command list (with its JSON text), with live scenes of a
+   * quantity (#207); without live settings, the live results have the points of
+   * the curves only.
+   */
+  async solve(
+    commands: readonly Command[],
+    document: string,
+    settings?: LiveSettings,
+  ): Promise<void> {
     if (this.running) return;
     this.count++;
     // the results of Python are replaced by this run
     this.last = undefined;
     let progress = startProgress();
-    this.set({ state: "running", progress, commands });
+    let live: Live = { quantity: settings?.quantity, jobs: {} };
+    this.set({ state: "running", progress, commands, live });
     try {
-      const results = await this.client.run(document, (event) => {
-        if (this.current.state !== "running") return;
-        progress = advance(progress, event);
-        this.set({ state: "running", progress, commands });
-      });
+      const results = await this.client.run(
+        document,
+        (event) => {
+          if (this.current.state !== "running") return;
+          if (event.event === "live") live = advanceLive(live, event);
+          else progress = advance(progress, event);
+          this.set({ state: "running", progress, commands, live });
+        },
+        settings,
+      );
       this.last = { state: "finished", progress, results, commands };
       this.set(this.last);
     } catch (error) {
       this.set(
         error instanceof Error && error.name === "CancelledError"
-          ? { state: "cancelled", progress }
+          ? { state: "cancelled", progress, commands, live }
           : {
               state: "failed",
               progress,
               message: error instanceof Error ? error.message : String(error),
+              commands,
+              live,
             },
       );
     }

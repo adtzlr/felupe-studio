@@ -90,6 +90,11 @@ interface Props {
   ahead?: readonly number[];
   /** The scene of the view is shown, or it failed (e.g. to play on, #141). */
   onShown?: (view: ResultView, ok: boolean) => void;
+  /**
+   * The live results of a run (#207): the last scene of a job (none yet, or without
+   * live scenes), its view and its status. They replace the loaded scenes.
+   */
+  live?: { scene?: ResultScene; view: ResultView; status: string };
 }
 
 const NO_SUBSTEPS: readonly number[] = [];
@@ -410,7 +415,7 @@ function useResultScene(
 
 export function ResultsView({
   source,
-  view,
+  view: loadedView,
   generation,
   active,
   running,
@@ -424,7 +429,10 @@ export function ResultsView({
   onRange,
   ahead = NO_SUBSTEPS,
   onShown,
+  live,
 }: Props) {
+  // the live results replace the view of the loaded results (#207)
+  const view = live ? live.view : loadedView;
   const [nodesShown, toggleNodes] = useShowNodes(showNodes, onShowNodes);
   // the table of the control points of the substep (#101)
   const [pointsShown, setPointsShown] = useState(true);
@@ -441,7 +449,7 @@ export function ResultsView({
   }
   const [available, setAvailable] = useState(true);
   const wantedOf = (substep: number): Wanted =>
-    view && active && !running
+    view && active && !running && !live
       ? {
           key: `${generation}/${view.job}/${substep}/${view.quantity}`,
           job: view.job,
@@ -456,22 +464,24 @@ export function ResultsView({
     wanted.key ? ahead.map(wantedOf) : [],
   );
   // a scene of an older run is not shown
-  const scene =
-    view &&
-    loaded &&
-    "scene" in loaded &&
-    loaded.key.startsWith(`${generation}/`)
+  const scene = live
+    ? live.scene
+    : view &&
+        loaded &&
+        "scene" in loaded &&
+        loaded.key.startsWith(`${generation}/`)
       ? loaded.scene
       : undefined;
   const error =
-    view && loaded && "error" in loaded && loaded.key === wanted.key
+    !live && view && loaded && "error" in loaded && loaded.key === wanted.key
       ? loaded.error
       : undefined;
   // the units of the model (#132): the title of the scalar bar and the tooltips
   const units = unitsOf(commands);
   // of the quantity of the shown scene (the key ends with it)
-  const unit =
-    scene && loaded
+  const unit = live?.scene
+    ? resultUnit(live.view.quantity, units)
+    : scene && loaded
       ? resultUnit(loaded.key.slice(loaded.key.lastIndexOf("/") + 1), units)
       : undefined;
   const titled = useMemo(
@@ -483,7 +493,7 @@ export function ResultsView({
   // substep, of all substeps of the job or manual
   const jobRange = useJobRange(
     source,
-    view && active && !running && contour.range === "job"
+    view && active && !running && !live && contour.range === "job"
       ? `${generation}/${view.job}/${view.quantity}`
       : undefined,
     view?.job ?? "",
@@ -737,15 +747,19 @@ export function ResultsView({
     };
   }, [scene, view?.scale]);
 
-  const message = running
-    ? "Solving …"
-    : !view
-      ? "Solve the model to see its results."
-      : error
-        ? `The results could not be shown: ${error}`
-        : !scene && loading
-          ? "Loading the results …"
-          : undefined;
+  const message = live
+    ? live.scene
+      ? undefined
+      : "Solving … the view follows the converged substeps."
+    : running
+      ? "Solving …"
+      : !view
+        ? "Solve the model to see its results."
+        : error
+          ? `The results could not be shown: ${error}`
+          : !scene && loading
+            ? "Loading the results …"
+            : undefined;
   const shown = !!scene && !message;
   return (
     <main class="viewport" aria-label="Results" hidden={!active}>
@@ -800,7 +814,7 @@ export function ResultsView({
       {message && <p class="viewport-message muted">{message}</p>}
       {/* the cards of the results in one column on the right (#128) */}
       <div class="overlay-side">
-        {view && !running && children}
+        {view && (!running || live) && children}
         {shown && pointsShown && scene.points && scene.points.length > 0 && (
           <PointsCard
             points={scene.points}
@@ -813,7 +827,12 @@ export function ResultsView({
         <ProbeTooltip hover={hover} units={units} unit={unit} />
       )}
       <div class="overlay-bottom above-bars">
-        {shown && loading && (
+        {live && (
+          <p class="viewport-status live-status" role="status">
+            {live.status}
+          </p>
+        )}
+        {!live && shown && loading && (
           <p class="viewport-status muted" role="status">
             Loading …
           </p>

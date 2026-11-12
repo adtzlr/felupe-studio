@@ -125,7 +125,32 @@ export type JobEvent =
       /** Increments of the substep, more than one after cutbacks. */
       increments: number;
     }
+  | {
+      /**
+       * The live results of a running job after a converged substep (#207): the
+       * point of the curve of a characteristic curve and, when due, the scene of
+       * the current fields.
+       */
+      event: "live";
+      job: string;
+      /** The substep, counted from 1 over all steps of the job. */
+      substep: number;
+      x?: (number | null)[];
+      y?: (number | null)[];
+      scene?: ResultScene;
+    }
   | { event: "finished"; job: string; time: number };
+
+/**
+ * The settings of the live scenes of a run (#207), `live` of
+ * `felupe_studio.runner.run`: the quantity, the least time between two scenes in
+ * seconds and the largest share of the time of a job spent on scenes.
+ */
+export interface LiveSettings {
+  quantity: Quantity;
+  interval?: number;
+  budget?: number;
+}
 
 /** Results of a job: for a characteristic curve, the displacements and forces. */
 export interface JobResult {
@@ -227,7 +252,7 @@ export type ToWorker =
       parameters: Record<string, number>;
       item?: string;
     }
-  | { type: "run"; id: number; document: string }
+  | { type: "run"; id: number; document: string; live?: LiveSettings }
   | { type: "script"; id: number; document: string }
   /** The script and the lines of its objects, as JSON text (#130). */
   | { type: "script-view"; id: number; document: string }

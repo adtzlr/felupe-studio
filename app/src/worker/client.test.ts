@@ -173,6 +173,15 @@ describe("jobs", () => {
     worker.reply({ type: "job-result", id: 1, results });
     await expect(run).resolves.toEqual(results);
     expect(onEvent).toHaveBeenCalledWith(event);
+    // with the settings of the live scenes (#207)
+    void client.run("{}", onEvent, { quantity: "stress_mises", interval: 2 });
+    await vi.waitFor(() => expect(worker.sent).toHaveLength(3));
+    expect(worker.sent[2]).toEqual({
+      type: "run",
+      id: 2,
+      document: "{}",
+      live: { quantity: "stress_mises", interval: 2 },
+    });
   });
 
   it("generates the script of a model", async () => {

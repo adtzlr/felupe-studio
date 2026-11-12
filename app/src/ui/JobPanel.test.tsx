@@ -22,6 +22,7 @@ function lines(
     commands: commands.map((c) =>
       c.command === "job.add" ? { ...c, ...job } : c,
     ) as Command[],
+    live: { jobs: {} },
   };
   render(
     <JobPanel

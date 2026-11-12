@@ -7,6 +7,7 @@ import type {
   FromWorker,
   JobEvent,
   JobResult,
+  LiveSettings,
   LoadTimings,
   MeshInfo,
   MeshSurface,
@@ -148,14 +149,16 @@ export class PyodideClient {
 
   /**
    * Run the jobs of a command list (JSON text), with an event for every substep and
-   * Newton iteration. Rejects with the Python traceback, or with a CancelledError.
+   * Newton iteration, and live results with scenes of a quantity (#207). Rejects
+   * with the Python traceback, or with a CancelledError.
    */
   async run(
     document: string,
     onEvent: (event: JobEvent) => void,
+    live?: LiveSettings,
   ): Promise<Record<string, JobResult>> {
     const message = await this.request(
-      { type: "run", document },
+      { type: "run", document, ...(live ? { live } : {}) },
       "job-result",
       (message) => {
         if (message.type === "job-progress") onEvent(message.event);

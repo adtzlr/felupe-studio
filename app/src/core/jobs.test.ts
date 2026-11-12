@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import type { JobEvent, JobResult } from "../worker/protocol";
+import type { JobEvent, JobResult, ResultScene } from "../worker/protocol";
 import type { Command } from "./commands";
 import {
   advance,
   exceptionOf,
   fraction,
   type JobClient,
+  type JobRun,
   JobRunner,
   solveBlocker,
   startProgress,
@@ -173,5 +174,65 @@ describe("solve", () => {
     // events of a stopped run are ignored
     client.emit(events[0]);
     expect(runner.run.state).toBe("cancelled");
+  });
+
+  it("keeps the live results of the jobs, also of a cancelled run (#207)", async () => {
+    const { client, settle } = fakeClient();
+    const runner = new JobRunner(client);
+    const solved = runner.solve(commands, "{}", { quantity: "stress_mises" });
+    expect(client.run).toHaveBeenCalledWith("{}", expect.any(Function), {
+      quantity: "stress_mises",
+    });
+    const scene = { label: "Stress", at: "cell", range: [0, 1], surfaces: [] };
+    client.emit(events[0]);
+    client.emit(events[1]);
+    client.emit({
+      event: "live",
+      job: "job_1",
+      substep: 1,
+      x: [0, 0, 0],
+      y: [0, 0, 0],
+    });
+    client.emit({
+      event: "live",
+      job: "job_1",
+      substep: 2,
+      x: [0.1, 0, 0],
+      y: [1, 0, 0],
+      scene: scene as unknown as ResultScene,
+    });
+    // a job that is no characteristic curve: scenes only
+    client.emit({
+      event: "live",
+      job: "job_2",
+      substep: 1,
+      scene: scene as unknown as ResultScene,
+    });
+    const live = (runner.run as Extract<JobRun, { state: "running" }>).live;
+    expect(live.quantity).toBe("stress_mises");
+    expect(live.jobs.job_1).toEqual({
+      substep: 2,
+      x: [
+        [0, 0, 0],
+        [0.1, 0, 0],
+      ],
+      y: [
+        [0, 0, 0],
+        [1, 0, 0],
+      ],
+      scene,
+      sceneSubstep: 2,
+    });
+    expect(live.jobs.job_2).toMatchObject({
+      substep: 1,
+      x: [],
+      sceneSubstep: 1,
+    });
+    // the progress is not changed by live events
+    expect(runner.run).toMatchObject({ progress: { substep: 1 } });
+    runner.cancel();
+    await solved;
+    expect(runner.run).toMatchObject({ state: "cancelled", commands, live });
+    settle();
   });
 });
