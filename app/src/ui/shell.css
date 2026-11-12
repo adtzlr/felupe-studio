@@ -2043,9 +2043,35 @@ button {
   text-overflow: ellipsis;
 }
 
-.curve-head select {
+.curve-head select,
+.curve-axes select {
   min-height: var(--control-height-xs);
   padding: 0 var(--space-4);
+}
+
+/* the quantities of the axes and their options (#197) */
+.curve-axes {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin-top: var(--space-4);
+  font-size: var(--text-sm);
+}
+
+.curve-axis {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--color-text-muted);
+}
+
+.curve-axes .link-button {
+  margin-left: auto;
+}
+
+.curve-note {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
 }
 
 .link-button {

@@ -3,6 +3,7 @@
 import type { JobResult, Quantity } from "../worker/protocol";
 import type { Command } from "./commands";
 import type { JobRun } from "./jobs";
+import type { Series } from "./curve";
 
 /** The quantities of the contour, in groups. */
 export const QUANTITY_GROUPS: {
@@ -48,8 +49,12 @@ export interface ResultView {
   undeformed: boolean;
   /** Show the force-displacement curve (of a job with a curve boundary). */
   curve: boolean;
-  /** The component of the curve (default: the largest displacement). */
-  axis?: number;
+  /**
+   * The quantities of the axes of the curve (#197), by default the force over the
+   * displacement of the component with the largest displacement.
+   */
+  curveX?: Series;
+  curveY?: Series;
 }
 
 export type Finished = Extract<JobRun, { state: "finished" }>;
