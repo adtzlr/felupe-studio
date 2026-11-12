@@ -114,10 +114,18 @@ export const SHORTCUTS: ShortcutGroup[] = [
       { keys: [["Shift", "Drag"], ["Right drag"]], action: "Pan" },
       { keys: [["Scroll"]], action: "Zoom" },
       { keys: [["Double-click"]], action: "Reset the view" },
-      { keys: [["Click"]], action: "Pick a face, or a node with Nodes shown" },
+      {
+        keys: [["Click"]],
+        action: "Pick the surface of a face, or a node with Nodes shown",
+      },
+      {
+        keys: [["Right click"]],
+        action:
+          "Deselect a surface or a node, a second time exclude the surface",
+      },
       {
         keys: [["Shift", "Click"]],
-        action: "Pick more nodes, or faces for a face set",
+        action: "Pick more nodes, or single faces",
       },
     ],
   },

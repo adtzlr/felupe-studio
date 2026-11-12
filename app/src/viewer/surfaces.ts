@@ -86,20 +86,37 @@ export function connectedFaces(
   return [...reached].sort((a, b) => a - b);
 }
 
-/** The nodes of faces, without duplicates (three coordinates each). */
+/** Picked faces of a section: indices of its faces. */
+export interface SectionPick {
+  of: SectionFaces;
+  faces: readonly number[];
+}
+
+/**
+ * The nodes of the faces of sections, without duplicates and without the nodes of
+ * excluded faces (three coordinates each).
+ */
 export function surfaceNodes(
-  faces: readonly Face[],
-  indices: readonly number[],
+  picks: readonly SectionPick[],
+  excluded: readonly SectionPick[] = [],
 ): Float64Array {
   const seen = new Set<string>();
+  for (const { of, faces } of excluded) {
+    for (const i of faces) {
+      const { nodes } = of.faces[i];
+      for (let p = 0; p < nodes.length; p += 3) seen.add(key(nodes, p));
+    }
+  }
   const result: number[] = [];
-  for (const i of indices) {
-    const { nodes } = faces[i];
-    for (let p = 0; p < nodes.length; p += 3) {
-      const k = key(nodes, p);
-      if (seen.has(k)) continue;
-      seen.add(k);
-      result.push(nodes[p], nodes[p + 1], nodes[p + 2]);
+  for (const { of, faces } of picks) {
+    for (const i of faces) {
+      const { nodes } = of.faces[i];
+      for (let p = 0; p < nodes.length; p += 3) {
+        const k = key(nodes, p);
+        if (seen.has(k)) continue;
+        seen.add(k);
+        result.push(nodes[p], nodes[p + 1], nodes[p + 2]);
+      }
     }
   }
   return Float64Array.from(result);
@@ -113,16 +130,17 @@ export interface CylinderSelect {
 }
 
 /**
- * A picked surface: its shape, its nodes, and whether the selection of the shape
- * selects exactly its nodes (of all drawn meshes) and its faces (of its section).
- * A plane or a cylinder that selects more, e.g. a part of a plane picked with
- * Shift, is stored by its nodes and faces instead.
+ * A picked surface: its shape, its nodes (without those of excluded faces, #195),
+ * and whether the selection of the shape selects exactly its nodes (of all drawn
+ * meshes) and its faces (of its section). A plane or a cylinder that selects more,
+ * e.g. a part of a plane picked with Shift or without the points of an excluded
+ * edge, is stored by its nodes and faces instead.
  */
 export type Surface = {
   nodes: Float64Array;
   /** The selection of the shape selects exactly the nodes of the surface. */
   exactPoints: boolean;
-  /** The plane selects exactly the faces of the surface (of its section). */
+  /** The plane selects exactly the faces of the surface (of its one section). */
   exactFaces: boolean;
 } & (
   | { kind: "plane"; plane: CoordinateSelect }
@@ -206,8 +224,9 @@ function circle(
 
 /**
  * The cylinder of faces about an axis parallel to x, y or z: the normals are normal
- * to the axis and not all parallel, and all nodes are at the same distance from the
- * axis (with a tolerance that covers their spread, up to 1e-3 of the radius).
+ * to the axis and not all parallel, all nodes are at the same distance from the
+ * axis (with a tolerance that covers their spread, up to 1e-3 of the radius), and
+ * every face spans at most 60° about the axis.
  */
 function cylinderOf(
   faces: readonly Face[],
@@ -241,6 +260,30 @@ function cylinderOf(
       ),
     );
     if (spread > 1e-3 * radius) continue;
+    // every face spans at most 60° about the axis (six segments around): the
+    // corners of a few planes, e.g. two sides of a box, are on a circle as well
+    const span = (face: Face) => {
+      const angles: number[] = [];
+      for (let p = 0; p < face.nodes.length; p += 3) {
+        angles.push(
+          Math.atan2(
+            face.nodes[p + j] - center[j],
+            face.nodes[p + i] - center[i],
+          ),
+        );
+      }
+      // relative to the first node, within (-180°, 180°]
+      const relative = angles.map((a) => {
+        const d = a - angles[0];
+        return d > Math.PI
+          ? d - 2 * Math.PI
+          : d <= -Math.PI
+            ? d + 2 * Math.PI
+            : d;
+      });
+      return Math.max(...relative) - Math.min(...relative);
+    };
+    if (faces.some((f) => span(f) > (60.5 * Math.PI) / 180)) continue;
     const select: CylinderSelect = { radius, axis: AXES[k] };
     if (center[i] !== 0 || center[j] !== 0) select.center = center;
     if (!isClose(radius + spread, radius, ATOL)) {
@@ -252,17 +295,18 @@ function cylinderOf(
 }
 
 /**
- * The simplest selection that describes picked faces: a plane normal to an axis, a
- * cylinder about an axis parallel to x, y or z, or else a surface of nodes. `all`
- * are the nodes of the drawn meshes (for the exact coordinate of a plane).
+ * The simplest selection that describes picked faces of one or more sections,
+ * without the nodes of excluded faces (#195): a plane normal to an axis, a cylinder
+ * about an axis parallel to x, y or z, or else a surface of nodes. `all` are the
+ * nodes of the drawn meshes (for the exact coordinate of a plane).
  */
 export function describeSurface(
-  of: SectionFaces,
-  indices: readonly number[],
+  picks: readonly SectionPick[],
   all: readonly Float64Array[],
+  excluded: readonly SectionPick[] = [],
 ): Surface {
-  const faces = indices.map((i) => of.faces[i]);
-  const nodes = surfaceNodes(of.faces, indices);
+  const faces = picks.flatMap(({ of, faces }) => faces.map((i) => of.faces[i]));
+  const nodes = surfaceNodes(picks, excluded);
   // the nodes of the meshes that a selection selects: as many as the surface has
   const drawn = all.length ? all : [nodes];
   const exactPoints = (select: PointSetAdd["select"]) =>
@@ -270,15 +314,17 @@ export function describeSurface(
   if (faces.length && nodes.length) {
     const plane = planeOf(faces, nodes, all);
     if (plane) {
-      const chosen = selectedFaces(plane, of);
+      const one = picks.length === 1 ? picks[0] : undefined;
+      const chosen = one ? selectedFaces(plane, one.of) : [];
       return {
         kind: "plane",
         plane,
         nodes,
         exactPoints: exactPoints(plane),
         exactFaces:
-          chosen.length === indices.length &&
-          chosen.every((f) => indices.includes(f)),
+          !!one &&
+          chosen.length === one.faces.length &&
+          chosen.every((f) => one.faces.includes(f)),
       };
     }
     const cylinder = cylinderOf(faces, nodes);
