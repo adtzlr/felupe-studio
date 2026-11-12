@@ -197,6 +197,21 @@ export function App({
     setSelection(id);
     setInspecting(id !== undefined);
   };
+  // a click in the browser in the Results workspace (#196): a job with results
+  // shows them, another object its properties in the Model workspace
+  const selectInBrowser = (id: string | undefined) => {
+    select(id);
+    if (workspace !== "results" || id === undefined) return;
+    if (finished?.results[id] && resultView) {
+      setResultView({
+        ...resultView,
+        job: id,
+        substep: substepsOf(finished, id),
+      });
+      return;
+    }
+    setWorkspace("model");
+  };
   const [creating, setCreating] = useState<RibbonItem | undefined>();
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
   // the settings of the contour of the results, kept in the browser (#139)
@@ -873,7 +888,7 @@ export function App({
           selected={selected}
           hidden={hidden}
           onSelect={(id) => {
-            select(id);
+            selectInBrowser(id);
             // the properties replace the browser drawer
             if (narrow) setBrowserOpen(false);
           }}
