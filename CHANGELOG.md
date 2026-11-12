@@ -4,6 +4,10 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ## [Unreleased]
 
+### Fixed
+
+- The contour settings: the selects stay inside the popover (they took the width of their longest option), the popover is wide enough for *Cool–warm (centered at 0)* and stays inside the window (#177).
+
 ## [0.3.0] - 2026-11-12
 
 Settings, results display, project archives and pressures: the units of a model, more material models (tensortrax), the settings of the solver in the properties, contour settings with the minimum and maximum of a contour and playing the substeps, project archives (`.felupe.zip`) with Save as, face sets and pressures. Projects of schema versions 1 (v0.1) and 2 (v0.2) are migrated when they are opened; projects saved with v0.3 have schema version 3. Archives are plain ZIP files with the project file, its mesh files and optionally the FElupe script (ADR 0007); face sets are stored by planes or by the centers of their faces (ADR 0008).
