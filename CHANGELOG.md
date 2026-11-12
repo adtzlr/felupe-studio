@@ -4,6 +4,10 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-12
+
+Settings, results display, project archives and pressures: the units of a model, more material models (tensortrax), the settings of the solver in the properties, contour settings with the minimum and maximum of a contour and playing the substeps, project archives (`.felupe.zip`) with Save as, face sets and pressures. Projects of schema versions 1 (v0.1) and 2 (v0.2) are migrated when they are opened; projects saved with v0.3 have schema version 3. Archives are plain ZIP files with the project file, its mesh files and optionally the FElupe script (ADR 0007); face sets are stored by planes or by the centers of their faces (ADR 0008).
+
 ### Added
 
 - Screenshots of the model, the results and a pressure in the user guide and the README, made from the sample *Rubber block with a rigid plate* with `docs/make_screenshots.py` (Playwright); the guide documents face sets, pressures and the new shortcuts (#143).
@@ -100,5 +104,6 @@ The first release: a model of hyperelastic solids, from mesh files to results, i
 - `felupe_studio.codegen()`: the command list as a readable FElupe script, checked by golden tests against reference curves.
 - JSON schema of the command list (schema version 1) as the single source of the app and of the package.
 
+[0.3.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.3.0
 [0.2.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.2.0
 [0.1.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.1.0
