@@ -1,15 +1,28 @@
 import { describe, expect, it } from "vitest";
 import type { Command } from "./commands";
 import {
+  axisTicks,
   curveCsv,
   curveQuantities,
   curveOf,
+  DEFAULT_CURVE,
+  defaultSeries,
   finitePoints,
+  fixedRange,
   hasCurve,
   linePath,
+  loadCurve,
+  logTicks,
+  monotonic,
   nearest,
   niceTicks,
+  plotted,
+  plottedPoints,
+  saveCurve,
   scale,
+  seriesLabel,
+  seriesName,
+  seriesValues,
 } from "./curve";
 import { startProgress } from "./jobs";
 import type { Finished } from "./results";
@@ -36,9 +49,13 @@ describe("force-displacement curve", () => {
     expect(hasCurve(result)).toBe(true);
     expect(hasCurve({ substeps: 1, time: 0 })).toBe(false);
     expect(hasCurve(undefined)).toBe(false);
-    const points = curveOf(result, 0);
+    const points = curveOf(result, "ux", "Fx");
     expect(points[2]).toEqual({ substep: 3, u: 0.2, f: null });
-    expect(curveOf(result, 1)[3]).toEqual({ substep: 4, u: 1.5, f: 0.3 });
+    expect(curveOf(result, "uy", "Fy")[3]).toEqual({
+      substep: 4,
+      u: 1.5,
+      f: 0.3,
+    });
     expect(finitePoints(points).map((p) => p.substep)).toEqual([1, 2, 4]);
   });
 
@@ -60,12 +77,12 @@ describe("force-displacement curve", () => {
     const y = scale([0, 10], [100, 0]);
     expect(y(5)).toBe(50);
     expect(scale([1, 1], [0, 10])(5)).toBe(0);
-    expect(linePath(curveOf(result, 0), x, y)).toBe(
+    expect(linePath(curveOf(result, "ux", "Fx"), x, y)).toBe(
       "M0.0,100.0L10.0,90.0M30.0,70.0",
     );
     // the nearest finite point to a pixel position
-    expect(nearest(curveOf(result, 0), 19, x)).toBe(1);
-    expect(nearest(curveOf(result, 0), 21, x)).toBe(3);
+    expect(nearest(curveOf(result, "ux", "Fx"), 19, x)).toBe(1);
+    expect(nearest(curveOf(result, "ux", "Fx"), 21, x)).toBe(3);
     expect(nearest([], 0, x)).toBeUndefined();
   });
 
@@ -161,5 +178,125 @@ describe("force-displacement curve", () => {
     expect(curveCsv(run, "job_1").split("\n")[0]).toBe(
       "substep,step,u_x [m],u_y [m],u_z [m],F_x [kN],F_y [kN],F_z [kN]",
     );
+  });
+});
+
+describe("axes of the curve (#197)", () => {
+  const q = curveQuantities([], "job_1");
+
+  it("plots any component over any other, or over the substep", () => {
+    expect(defaultSeries(result)).toEqual(["uy", "Fy"]);
+    expect(curveOf(result, "ux", "uy")[3]).toEqual({
+      substep: 4,
+      u: 0.3,
+      f: 1.5,
+    });
+    expect(curveOf(result, "substep", "Fx").map((p) => p.u)).toEqual([
+      1, 2, 3, 4,
+    ]);
+    expect(curveOf(result, "Fz", "Fx")[2]).toEqual({
+      substep: 3,
+      u: 0,
+      f: null,
+    });
+    expect(seriesName("uz", q)).toBe("uz");
+    expect(seriesName("substep", q)).toBe("Substep");
+    expect(seriesLabel("Fy", q)).toMatchObject({
+      quantity: "Force",
+      symbol: "F",
+    });
+    // the values of the axes at a substep, without the substep and a missing one
+    expect(seriesValues(result, 2, ["ux", "Fx"], q)).toMatchObject([
+      { label: { symbol: "u", component: "x" }, value: 0.1 },
+      { label: { symbol: "F", component: "x" }, value: 1 },
+    ]);
+    expect(seriesValues(result, 3, ["substep", "Fx"], q)).toEqual([]);
+    expect(seriesValues(result, 2, ["uy", "uy"], q)).toHaveLength(1);
+  });
+
+  it("negates values and takes logarithms of absolute values", () => {
+    const log = { scale: "log", negate: false } as const;
+    expect(plotted(-2, { scale: "linear", negate: true })).toBe(2);
+    expect(plotted(-100, log)).toBe(2);
+    expect(plotted(0, log)).toBeNull();
+    expect(plotted(null, DEFAULT_CURVE.x)).toBeNull();
+    const points = plottedPoints(curveOf(result, "ux", "Fx"), {
+      x: log,
+      y: { scale: "linear", negate: true },
+    });
+    expect(points[0]).toEqual({ substep: 1, u: null, f: -0 });
+    expect(points[3].f).toBe(-3);
+  });
+
+  it("has ticks of the values, of a fixed range, or of powers of ten", () => {
+    expect(axisTicks([0.1, 0.3], DEFAULT_CURVE.x)).toEqual({
+      domain: [0, 0.3],
+      ticks: [0, 0.1, 0.2, 0.3],
+    });
+    expect(
+      axisTicks([0.1, 0.3], {
+        scale: "linear",
+        negate: false,
+        min: 0.1,
+        max: 0.2,
+      }),
+    ).toEqual({
+      domain: [0.1, 0.2],
+      ticks: [0.1, 0.12, 0.14, 0.16, 0.18, 0.2],
+    });
+    expect(logTicks(-2.5, 1.2)).toEqual([-3, -2, -1, 0, 1, 2]);
+    expect(logTicks(0, 0)).toEqual([0, 1]);
+    expect(logTicks(-20, 0)).toEqual([-20, -16, -12, -8, -4, 0]);
+    const log = { scale: "log", negate: false } as const;
+    expect(axisTicks([-1, 0.5], log)).toEqual({
+      domain: [-1, 1],
+      ticks: [-1, 0, 1],
+    });
+    expect(axisTicks([], log).ticks).toEqual([0, 1]);
+    expect(axisTicks([], { ...log, min: 0.01, max: 10 })).toEqual({
+      domain: [-2, 1],
+      ticks: [-2, -1, 0, 1],
+    });
+    // a fixed range needs min < max, and positive limits on a log scale
+    expect(fixedRange({ ...log, min: 0, max: 10 })).toBeUndefined();
+    expect(fixedRange({ ...log, min: 2, max: 1 })).toBeUndefined();
+    expect(
+      fixedRange({ scale: "linear", negate: false, min: -1, max: 1 }),
+    ).toEqual([-1, 1]);
+  });
+
+  it("finds the nearest point in the plane if the curve turns back", () => {
+    const x = scale([0, 1], [0, 100]);
+    const y = scale([0, 1], [100, 0]);
+    const loop = [
+      { substep: 1, u: 0, f: 0 },
+      { substep: 2, u: 1, f: 0 },
+      { substep: 3, u: 1, f: 1 },
+      { substep: 4, u: 0.1, f: 1 },
+    ];
+    expect(monotonic(loop)).toBe(false);
+    expect(monotonic(curveOf(result, "ux", "Fx"))).toBe(true);
+    // at the top left: the last point, not the first one (nearer by x only)
+    expect(nearest(loop, 5, x, 5, y)).toBe(3);
+    expect(nearest(loop, 5, x)).toBe(0);
+  });
+
+  it("keeps the options of the axes in the browser", () => {
+    const storage = new Map<string, string>();
+    const fake = {
+      getItem: (k: string) => storage.get(k) ?? null,
+      setItem: (k: string, v: string) => storage.set(k, v),
+    } as unknown as Storage;
+    expect(loadCurve(fake)).toEqual(DEFAULT_CURVE);
+    const settings = {
+      x: { scale: "log", negate: false, min: 0.1, max: 10 },
+      y: { scale: "linear", negate: true },
+    } as const;
+    saveCurve(settings, fake);
+    expect(loadCurve(fake)).toEqual(settings);
+    storage.set("felupe-studio.curve", '{"x": {"scale": "cubic", "min": 1}}');
+    expect(loadCurve(fake)).toEqual(DEFAULT_CURVE);
+    storage.set("felupe-studio.curve", "not json");
+    expect(loadCurve(fake)).toEqual(DEFAULT_CURVE);
   });
 });

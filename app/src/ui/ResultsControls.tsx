@@ -1,8 +1,12 @@
 import type { ContourSettings as ContourSettingsType } from "../core/contour";
 import { hint, withHint } from "../core/shortcuts";
-import { curveQuantities, hasCurve } from "../core/curve";
 import {
-  curvePoint,
+  curveQuantities,
+  defaultSeries,
+  hasCurve,
+  seriesValues,
+} from "../core/curve";
+import {
   type Finished,
   formatValue,
   QUANTITY_GROUPS,
@@ -55,9 +59,15 @@ export function ResultsControls({
   const total = substepsOf(run, view.job);
   const step = stepOf(run, view.job, view.substep);
   const result = run.results[view.job];
-  const point = curvePoint(result, view.substep, view.axis);
-  // the symbols and the units of the curve (#98, #132)
+  // the symbols and the units of the curve (#98, #132), its axes (#197)
   const q = curveQuantities(run.commands, view.job);
+  const [defaultX, defaultY] = result ? defaultSeries(result) : [];
+  const values = seriesValues(
+    result,
+    view.substep,
+    [view.curveX ?? defaultX, view.curveY ?? defaultY].filter((s) => !!s),
+    q,
+  );
   const set = (change: Partial<ResultView>) => onChange({ ...view, ...change });
   return (
     <div class="results-controls">
@@ -167,14 +177,17 @@ export function ResultsControls({
       </div>
       <div class="results-info muted" aria-live="polite">
         {step.name}: {step.substep} of {step.substeps}
-        {point && (
+        {values.length > 0 && (
           <>
             <br />
-            {q.u}
-            <sub>{point.axis}</sub> ={" "}
-            {valueWithUnit(formatValue(point.u), q.uUnit)}, {q.f}
-            <sub>{point.axis}</sub> ={" "}
-            {valueWithUnit(formatValue(point.f), q.fUnit)}
+            {values.map(({ label, value }, i) => (
+              <span key={i}>
+                {i > 0 && ", "}
+                {label.symbol}
+                <sub>{label.component}</sub> ={" "}
+                {valueWithUnit(formatValue(value), label.unit)}
+              </span>
+            ))}
           </>
         )}
       </div>

@@ -1,8 +1,8 @@
-// The force-displacement curve of a job with a curve boundary (#29): the series of a
-// component, the scales and ticks of the chart and the values as CSV.
+// The force-displacement curve of a job with a curve boundary (#29): the quantities of
+// its axes (#197), the scales and ticks of the chart and the values as CSV.
 import type { JobResult } from "../worker/protocol";
 import type { Command } from "./commands";
-import { type Finished, stepOf } from "./results";
+import { type Finished, largestAxis, stepOf } from "./results";
 import { rotationPoints, unitOf, unitsOf, withUnit } from "./units";
 
 export { largestAxis } from "./results";
@@ -79,21 +79,243 @@ export function curveQuantities(
 export const hasCurve = (result: JobResult | undefined): boolean =>
   !!result?.x?.length && !!result.y?.length;
 
+/**
+ * A quantity of an axis of the curve (#197): a component of the displacement (or of
+ * the rotation) or of the reaction force (or of the moment) of the curve boundary,
+ * or the substep.
+ */
+export type Series = "ux" | "uy" | "uz" | "Fx" | "Fy" | "Fz" | "substep";
+
+export const SERIES: readonly Series[] = [
+  "ux",
+  "uy",
+  "uz",
+  "Fx",
+  "Fy",
+  "Fz",
+  "substep",
+];
+
+/** The label of a series: its quantity, its symbol, its component and its unit. */
+export interface SeriesLabel {
+  /** e.g. Displacement, Force, Rotation, Moment or Substep. */
+  quantity: string;
+  /** e.g. u, F, φ or M; empty for the substep. */
+  symbol: string;
+  /** x, y or z; empty for the substep. */
+  component: string;
+  unit?: string;
+}
+
+/** The label of a series of the curve of a job (the moment of a rotation point). */
+export function seriesLabel(series: Series, q: CurveQuantities): SeriesLabel {
+  if (series === "substep") {
+    return { quantity: "Substep", symbol: "", component: "" };
+  }
+  const component = series[1];
+  return series[0] === "u"
+    ? { quantity: q.x, symbol: q.u, component, unit: q.uUnit }
+    : { quantity: q.y, symbol: q.f, component, unit: q.fUnit };
+}
+
+/** The short name of a series, e.g. ux, Fz, φx or Substep. */
+export function seriesName(series: Series, q: CurveQuantities): string {
+  const label = seriesLabel(series, q);
+  return label.symbol ? `${label.symbol}${label.component}` : label.quantity;
+}
+
+/** The value of a series at a substep (counted from 0), null if not finite. */
+export function seriesValue(
+  result: JobResult,
+  series: Series,
+  index: number,
+): number | null {
+  if (series === "substep") return index + 1;
+  const row = series[0] === "u" ? result.x?.[index] : result.y?.[index];
+  const value = row?.[AXES.indexOf(series[1] as (typeof AXES)[number])];
+  return value === null || value === undefined || !Number.isFinite(value)
+    ? null
+    : value;
+}
+
+/**
+ * The quantities of the axes by default: the force over the displacement of the
+ * component with the largest displacement of the last substep.
+ */
+export function defaultSeries(result: JobResult): [Series, Series] {
+  const axis = AXES[largestAxis(result)] ?? "x";
+  return [`u${axis}`, `F${axis}`];
+}
+
+/**
+ * The values of the quantities of the axes of the curve at a substep (counted from
+ * 1), without the substep itself, e.g. ux and Fx for the results panel.
+ */
+export function seriesValues(
+  result: JobResult | undefined,
+  substep: number,
+  series: readonly Series[],
+  q: CurveQuantities,
+): { label: SeriesLabel; value: number }[] {
+  if (!result || !hasCurve(result)) return [];
+  return series
+    .filter((s, i) => s !== "substep" && series.indexOf(s) === i)
+    .flatMap((s) => {
+      const value = seriesValue(result, s, substep - 1);
+      return value === null ? [] : [{ label: seriesLabel(s, q), value }];
+    });
+}
+
 /** A point of the curve per substep (null for a non-finite value). */
 export interface CurvePoint {
   substep: number;
+  /** The value of the horizontal axis. */
   u: number | null;
+  /** The value of the vertical axis. */
   f: number | null;
 }
 
-export function curveOf(result: JobResult, axis: number): CurvePoint[] {
-  const x = result.x ?? [];
-  const y = result.y ?? [];
-  return x.map((value, i) => ({
+/** The points of the curve of a job with the quantities of its axes. */
+export function curveOf(result: JobResult, x: Series, y: Series): CurvePoint[] {
+  return (result.x ?? []).map((_, i) => ({
     substep: i + 1,
-    u: value[axis] ?? null,
-    f: y[i]?.[axis] ?? null,
+    u: seriesValue(result, x, i),
+    f: seriesValue(result, y, i),
   }));
+}
+
+/** The options of an axis of the curve (#197). */
+export interface CurveAxis {
+  scale: "linear" | "log";
+  /** Plot the negative values, e.g. a compression as positive values. */
+  negate: boolean;
+  /** A fixed range (both limits), else the range of the values. */
+  min?: number;
+  max?: number;
+}
+
+export interface CurveSettings {
+  x: CurveAxis;
+  y: CurveAxis;
+}
+
+export const DEFAULT_CURVE_AXIS: CurveAxis = { scale: "linear", negate: false };
+
+export const DEFAULT_CURVE: CurveSettings = {
+  x: DEFAULT_CURVE_AXIS,
+  y: DEFAULT_CURVE_AXIS,
+};
+
+/** The fixed range of an axis, if it is valid (min < max, positive on a log scale). */
+export function fixedRange(axis: CurveAxis): [number, number] | undefined {
+  const { min, max } = axis;
+  if (min === undefined || max === undefined || !(min < max)) return undefined;
+  if (axis.scale === "log" && !(min > 0)) return undefined;
+  return [min, max];
+}
+
+/**
+ * A value as it is plotted on an axis: negated, and on a log scale the logarithm of
+ * its absolute value (none for zero).
+ */
+export function plotted(value: number | null, axis: CurveAxis): number | null {
+  if (value === null) return null;
+  const v = axis.negate ? -value : value;
+  if (axis.scale === "linear") return v;
+  return v === 0 ? null : Math.log10(Math.abs(v));
+}
+
+/** The points of a curve as they are plotted on its axes. */
+export function plottedPoints(
+  points: readonly CurvePoint[],
+  settings: CurveSettings,
+): CurvePoint[] {
+  return points.map((p) => ({
+    substep: p.substep,
+    u: plotted(p.u, settings.x),
+    f: plotted(p.f, settings.y),
+  }));
+}
+
+/**
+ * The ticks of a log axis: exponents of ten that cover a range of exponents, at
+ * most about seven of them.
+ */
+export function logTicks(min: number, max: number): number[] {
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return [0, 1];
+  const low = Math.floor(min + 1e-9);
+  let high = Math.ceil(max - 1e-9);
+  if (high <= low) high = low + 1;
+  const step = Math.max(1, Math.ceil((high - low) / 6));
+  const ticks: number[] = [];
+  for (let t = low; t < high + step; t += step) ticks.push(t);
+  return ticks;
+}
+
+/**
+ * The domain and the ticks of an axis of plotted values: round ticks that cover the
+ * values (with zero on a linear scale) or the fixed range; on a log scale the
+ * exponents of ten.
+ */
+export function axisTicks(
+  values: readonly number[],
+  axis: CurveAxis,
+): { domain: [number, number]; ticks: number[] } {
+  const range = fixedRange(axis);
+  const within = (ticks: number[], [low, high]: [number, number]) =>
+    ticks.filter((t) => t >= low - 1e-9 && t <= high + 1e-9);
+  if (axis.scale === "log") {
+    if (range) {
+      const domain: [number, number] = [
+        Math.log10(range[0]),
+        Math.log10(range[1]),
+      ];
+      return { domain, ticks: within(logTicks(...domain), domain) };
+    }
+    const ticks = logTicks(Math.min(...values), Math.max(...values));
+    return { domain: [ticks[0], ticks[ticks.length - 1]], ticks };
+  }
+  if (range)
+    return { domain: range, ticks: within(niceTicks(...range), range) };
+  const ticks = niceTicks(Math.min(0, ...values), Math.max(0, ...values));
+  return { domain: [ticks[0], ticks[ticks.length - 1]], ticks };
+}
+
+const KEY = "felupe-studio.curve";
+
+/** An axis of settings kept in the browser, checked. */
+function axisOf(value: unknown): CurveAxis {
+  const v = (value ?? {}) as Partial<CurveAxis>;
+  const axis: CurveAxis = {
+    scale: v.scale === "log" ? "log" : "linear",
+    negate: v.negate === true,
+  };
+  if (typeof v.min === "number" && typeof v.max === "number") {
+    axis.min = v.min;
+    axis.max = v.max;
+  }
+  return axis;
+}
+
+/** The options of the axes kept in the browser, or the defaults. */
+export function loadCurve(storage?: Storage): CurveSettings {
+  try {
+    const text = (storage ?? localStorage).getItem(KEY);
+    if (!text) return DEFAULT_CURVE;
+    const value = JSON.parse(text) as Partial<CurveSettings>;
+    return { x: axisOf(value.x), y: axisOf(value.y) };
+  } catch {
+    return DEFAULT_CURVE;
+  }
+}
+
+/** Keep the options of the axes in the browser (where it can). */
+export function saveCurve(settings: CurveSettings, storage?: Storage) {
+  try {
+    (storage ?? localStorage).setItem(KEY, JSON.stringify(settings));
+  } catch {
+    // e.g. storage disabled: the settings last for the session
+  }
 }
 
 const finite = (
@@ -167,17 +389,34 @@ export function linePath(
   return path;
 }
 
-/** The index of the point nearest to a displacement, in pixels of the chart. */
+/** Whether the finite values of the horizontal axis only grow or only shrink. */
+export function monotonic(points: readonly CurvePoint[]): boolean {
+  const values = finitePoints(points).map((p) => p.u);
+  const rising = values.every((v, i) => i === 0 || v >= values[i - 1]);
+  const falling = values.every((v, i) => i === 0 || v <= values[i - 1]);
+  return rising || falling;
+}
+
+/**
+ * The index of the point nearest to a position in pixels of the chart: by the
+ * horizontal axis if its values are monotonic, else by the distance in the plane
+ * (e.g. a curve of uy over ux).
+ */
 export function nearest(
   points: readonly CurvePoint[],
   px: number,
   x: (u: number) => number,
+  py?: number,
+  y?: (f: number) => number,
 ): number | undefined {
+  const plane = py !== undefined && y !== undefined && !monotonic(points);
   let best: number | undefined;
   let distance = Infinity;
   points.forEach((point, i) => {
     if (!finite(point)) return;
-    const d = Math.abs(x(point.u) - px);
+    const d = plane
+      ? Math.hypot(x(point.u) - px, y(point.f) - py)
+      : Math.abs(x(point.u) - px);
     if (d < distance) [best, distance] = [i, d];
   });
   return best;

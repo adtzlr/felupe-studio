@@ -912,10 +912,31 @@ describe("solve", () => {
         "substep,step,u_x,u_y,u_z,F_x,F_y,F_z\n1,step_1,0,0,0,0,0,0\n",
       ),
     );
-    fireEvent.change(within(card).getByLabelText("Component"), {
-      target: { value: "1" },
+    // the quantities of the axes (#197): any component over any other
+    fireEvent.change(within(card).getByLabelText("Horizontal axis"), {
+      target: { value: "uy" },
+    });
+    fireEvent.change(within(card).getByLabelText("Vertical axis"), {
+      target: { value: "Fy" },
     });
     expect(panel.textContent).toContain("uy = 0, Fy = 0");
+    expect(card.textContent).toContain("Force–displacement · move");
+    fireEvent.change(within(card).getByLabelText("Horizontal axis"), {
+      target: { value: "substep" },
+    });
+    expect(card.textContent).toContain("Force–substep · move");
+    // the table has a column of each axis, the substep once
+    expect(
+      within(card)
+        .getAllByRole("columnheader")
+        .map((h) => h.textContent),
+    ).toEqual(["Substep", "Fy"]);
+    fireEvent.click(within(card).getByRole("button", { name: "Table" }));
+    expect(within(card).getByRole("img").getAttribute("aria-label")).toBe(
+      "Force Fy over the substep, 6 substeps",
+    );
+    expect(panel.textContent).toContain("Fy = 0");
+    expect(panel.textContent).not.toContain("uy =");
 
     fireEvent.click(
       within(card).getByRole("button", { name: "Close the curve" }),
