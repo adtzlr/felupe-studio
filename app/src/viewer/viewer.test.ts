@@ -238,6 +238,17 @@ describe("Viewer", () => {
     expect(handle.update.mock.lastCall![0].objects).toHaveLength(1);
   });
 
+  it("resets the camera to the default view with Iso", () => {
+    const { handle, create } = fake();
+    const viewer = new Viewer(document.createElement("div"), create);
+    viewer.setView("iso");
+    expect(handle.setView).toHaveBeenLastCalledWith("default");
+    viewer.setView("xz");
+    expect(handle.setView).toHaveBeenLastCalledWith("xz");
+    viewer.fit();
+    expect(handle.setView).toHaveBeenLastCalledWith(null);
+  });
+
   it("works without WebGL2", () => {
     const { create } = fake(false);
     const viewer = new Viewer(document.createElement("div"), create);

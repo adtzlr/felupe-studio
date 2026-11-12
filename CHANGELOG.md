@@ -21,6 +21,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Fixed
 
+- *Iso* (key 1) resets the camera to the default view, in which the viewer opens (like the plots of FElupe, onto the xy-plane for a planar model), instead of the isometric view.
 - The labels of a dialog that creates an object point to its own fields: with an object selected, the properties and the dialog had fields of the same ids, so a click on a label of the dialog focused the field of the properties (#181).
 - The contour settings: the selects stay inside the popover (they took the width of their longest option), the popover is wide enough for *Cool–warm (centered at 0)* and stays inside the window (#177).
 

@@ -105,7 +105,7 @@ export const SHORTCUTS: ShortcutGroup[] = [
     title: "Viewport",
     shortcuts: [
       { id: "fit", keys: [["F"]], action: "Fit the model into the view" },
-      { id: "view-iso", keys: [["1"]], action: "Isometric view" },
+      { id: "view-iso", keys: [["1"]], action: "Default view" },
       { id: "view-xy", keys: [["2"]], action: "View onto the xy-plane" },
       { id: "view-xz", keys: [["3"]], action: "View onto the xz-plane" },
       { id: "view-yz", keys: [["4"]], action: "View onto the yz-plane" },

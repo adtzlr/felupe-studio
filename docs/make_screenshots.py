@@ -77,7 +77,7 @@ def capture(context, url, out):
     # a face set of the top face and a pressure on it
     page.get_by_role("button", name="Model", exact=True).click()
     page.keyboard.press("Escape")
-    page.keyboard.press("1")  # the isometric view
+    page.keyboard.press("1")  # the default view
     canvas = page.locator("canvas.fv-gl").first.bounding_box()
     x, y = canvas["x"] + canvas["width"] * 0.55, canvas["y"] + canvas["height"] * 0.42
     page.mouse.click(x, y)

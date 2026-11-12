@@ -40,9 +40,18 @@ import { renderScalarBar } from "./scalarbar";
 
 export type CreateViewer = typeof createViewer;
 
-/** Camera presets: a view onto a plane of the global axes, or isometric. */
+/**
+ * Camera presets: the default view, in which a viewer opens (like the plots of
+ * FElupe, onto the xy-plane for a planar model), or a view onto a plane of the
+ * global axes.
+ */
 export const VIEWS = [
-  { id: "iso", label: "Iso", title: "Isometric view", shortcut: "view-iso" },
+  {
+    id: "iso",
+    label: "Iso",
+    title: "Default view, as the viewer opens",
+    shortcut: "view-iso",
+  },
   {
     id: "xy",
     label: "XY",
@@ -467,7 +476,9 @@ export class Viewer {
   /** Look at the model from a preset direction, fitted into the view. */
   setView(view: CameraView): void {
     this.flush();
-    this.handle.setView?.(view);
+    // "iso" is the default view of the scene, in which the viewer opens, not the
+    // isometric view of the vendored viewer
+    this.handle.setView?.(view === "iso" ? "default" : view);
   }
 
   /** Fit the model into the view and keep the direction. */
