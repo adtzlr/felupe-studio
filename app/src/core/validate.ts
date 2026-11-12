@@ -28,6 +28,7 @@ export type Kind =
   | "pointset"
   | "faceset"
   | "boundary"
+  | "symmetry"
   | "constraint"
   | "load"
   | "pressure"
@@ -56,6 +57,8 @@ export const KINDS: Record<CommandType, Kind> = {
   "boundary.add": "boundary",
   // a load case is referenced like a boundary (ramps of steps, curves of jobs)
   "loadcase.add": "boundary",
+  // symmetry planes (#186): boundaries of all steps, neither ramped nor a curve
+  "symmetry.add": "symmetry",
   "mpc.add": "constraint",
   "load.add": "load",
   "pressure.add": "pressure",

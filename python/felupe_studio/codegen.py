@@ -10,8 +10,8 @@ of the commands:
 2. materials
 3. a region and a field container per section, merged into the top-level field
 4. solid bodies (created after the merge, see :func:`felupe.field.merge`)
-5. point sets, face sets, load cases (``fem.dof``) and boundaries on the merged field,
-   multi-point constraints, point loads and pressures
+5. point sets, face sets, load cases and symmetry planes (``fem.dof``) and boundaries
+   on the merged field, multi-point constraints, point loads and pressures
 6. steps and jobs
 """
 
@@ -22,7 +22,7 @@ from textwrap import dedent
 
 from .__about__ import __version__
 from .commands import SCHEMA_VERSION, ValidationError, validate
-from .loadcases import loadcase_call, moving
+from .loadcases import loadcase_call, moving, symmetry_call
 from .materials import material_call
 
 HEADER = '''\
@@ -502,9 +502,16 @@ def codegen(document, evaluate=True, check_schema=True):
             func, args = loadcase_call(lc)
             out.append(_call(lc["name"], func, args))
 
+    # symmetry planes (#186): boundaries of all steps, like those of the load cases
+    symmetries = get("symmetry.add")
+    if symmetries:
+        out.append("\n# symmetry planes (fem.dof)")
+        for sym in symmetries:
+            out.append(_call(sym["name"], *symmetry_call(sym)))
+
     boundaries = get("boundary.add")
     out.append("\n# boundaries")
-    if boundaries or loadcases:
+    if boundaries or loadcases or symmetries:
         out.append("boundaries = {")
         for bc in boundaries:
             args = ["field[0]", f"mask={bc['pointset']}"]
@@ -515,7 +522,7 @@ def codegen(document, evaluate=True, check_schema=True):
                 args.append(f"value={bc['value']!r}")
             head = f"{_str(bc['name'])}: fem.Boundary"
             out.append(_wrap(head, args, level=1, end=","))
-        for name in loadcases:
+        for name in [*loadcases, *(sym["name"] for sym in symmetries)]:
             out.append(f'    **{{f"{name}/{{k}}": v for k, v in {name}.items()}},')
         out.append("}")
     else:

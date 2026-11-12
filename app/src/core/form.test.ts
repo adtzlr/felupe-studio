@@ -534,6 +534,33 @@ describe("editing a draft", () => {
     expect(schemaAccepts(displacement)).toBe(true);
   });
 
+  it("shows the coordinates of the chosen symmetry planes only (#186)", () => {
+    const keys = (draft: Draft) =>
+      fieldSpecs("symmetry.add", draft).map((spec) => spec.key);
+    const draft = initialDraft("symmetry.add", context);
+    expect(draft.axes).toEqual(["x"]);
+    expect(keys(draft)).toEqual(["name", "axes", "x"]);
+    const two = setValue(
+      "symmetry.add",
+      { ...draft, x: 1 },
+      ["axes"],
+      ["x", "z"],
+      context,
+    );
+    expect(keys(two)).toEqual(["name", "axes", "x", "z"]);
+    // a plane that is no longer chosen loses its coordinate
+    const one = setValue(
+      "symmetry.add",
+      { ...two, z: 2 },
+      ["axes"],
+      ["z"],
+      context,
+    );
+    expect(one).toMatchObject({ axes: ["z"], z: 2 });
+    expect("x" in one).toBe(false);
+    expect(schemaAccepts(one)).toBe(true);
+  });
+
   it("switches the variant of a point set", () => {
     const spec = fieldSpecs("pointset.add", find("left")).find(
       (s) => s.key === "select",

@@ -112,6 +112,8 @@ A **Boundary** prescribes displacement components of a point set: *Constrained* 
 
 A **Load case** creates the boundaries of a standard test at once (uniaxial, biaxial, planar, shear), optionally with symmetry planes. A step ramps the displacement of its moving end faces.
 
+A **Symmetry** (*Loads & BCs* › *Symmetry*) is a set of symmetry planes normal to x, y or z, like `fem.dof.symmetry`: on a plane, the displacement normal to it is zero and the displacements in the plane are free. *Planes normal to* chooses the planes, each at its coordinate (default 0). It holds in all steps and is neither ramped nor a curve. Use a load case for a homogeneous test of a cube or a bar (it has its own symmetry planes at x, y, z = 0), and a symmetry for a part: a half of a spring, a quarter of a bushing under a radial load, or a bar clamped at its ends (a load case without symmetry planes and a symmetry at the planes through its axis). A plane that a load case or another symmetry already has does no harm; the browser notes it. The viewport draws the planes like the boundaries and warns about a plane without nodes, e.g. a wrong coordinate.
+
 ### 5. Control points, multi-point constraints and point loads
 
 A **control point** is a point that is not a node of the meshes, e.g. the center of a rigid plate. *Control point at center* in the panel of a picked face, of picked nodes or of a selected point set creates one at the center of these points; then change its coordinates in the properties. A control point at the coordinates of a node is the node itself: the viewport warns about it.

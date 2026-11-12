@@ -29,6 +29,7 @@ A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserve
 - [`faceset.add`](#facesetadd): Faces of the boundary of a section, e.g. for a pressure: on a plane, or the faces with the given centers (picked in the viewport).
 - [`boundary.add`](#boundaryadd): Prescribe displacement components of a point set (fem.Boundary).
 - [`loadcase.add`](#loadcaseadd): A load case of FElupe (fem.dof) on the merged field: the boundaries of a standard test.
+- [`symmetry.add`](#symmetryadd): Symmetry planes normal to x, y or z (fem.dof.symmetry): on a plane, the displacement component normal to it is zero and the components in the plane are free.
 - [`mpc.add`](#mpcadd): A multi-point constraint (fem.MultiPointConstraint): the points of a point set follow a center point rigidly, connected by a penalty.
 - [`load.add`](#loadadd): A point load (fem.PointLoad): a force at every point of a point set or at a control point, an item of the steps.
 - [`pressure.add`](#pressureadd): A pressure on the faces of a face set (fem.SolidBodyPressure), an item of the steps: a force per deformed area, normal to the faces.
@@ -410,6 +411,18 @@ FElupe: `fem.dof.shear`
 | `normal` | axis: `x`, `y` or `z` |  | Normal of the sheared end faces (default y). |
 | `compression` | number |  | Displacement of the moving face along the normal, held during the shear (default 0). |
 | `symmetry` | boolean |  | Symmetry plane normal to the third axis at its zero coordinate. Default `true`. |
+
+### `symmetry.add`
+
+Symmetry planes normal to x, y or z (fem.dof.symmetry): on a plane, the displacement component normal to it is zero and the components in the plane are free. A half, a quarter or an eighth of a model, without a load case.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | name | yes | Name of the object. |
+| `axes` | list of axis: `x`, `y` or `z` (at least 1, unique) | yes | The normals of the symmetry planes. |
+| `x` | number |  | Coordinate of the plane normal to x (default 0), only with x in axes. |
+| `y` | number |  | Coordinate of the plane normal to y (default 0), only with y in axes. |
+| `z` | number |  | Coordinate of the plane normal to z (default 0), only with z in axes. |
 
 ### `mpc.add`
 

@@ -47,6 +47,19 @@ export function loadcaseProblems(loadcase: Loadcase): string[] {
   return [];
 }
 
+/**
+ * The normals of the symmetry planes of a load case, at the zero coordinates: x, y
+ * and z of a uniaxial, biaxial or planar load case, the third axis of a shear load
+ * case (none without symmetry), like `symmetry_planes()` in Python (#186).
+ */
+export function loadcasePlanes(loadcase: Loadcase): ("x" | "y" | "z")[] {
+  if (!value(loadcase, "symmetry")) return [];
+  const axes = ["x", "y", "z"] as const;
+  if (loadcase.type !== "shear") return [...axes];
+  const used = [value(loadcase, "axis"), value(loadcase, "normal")];
+  return axes.filter((a) => !used.includes(a));
+}
+
 /** A short description, e.g. `uniaxial x, clamped`. */
 export function describeLoadcase(loadcase: Loadcase): string {
   const axes = [value(loadcase, "axis")];

@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { Command } from "../core/commands";
 import type { Loadcase } from "../core/loadcases";
+import type { Symmetry } from "../core/symmetry";
 import {
   AXIS_COLORS,
   boundaryLines,
   boundarySymbols,
   direction,
+  emptyPlanes,
   loadcaseParts,
   modelSize,
   strokes,
@@ -67,6 +69,60 @@ describe("boundaries of load cases like fem.dof", () => {
             .map((p) => p.key)
             .sort(),
         ).toEqual(Object.keys(boundaries).sort());
+      });
+    }
+  }
+});
+
+describe("symmetry planes like fem.dof.symmetry (#186)", () => {
+  for (const [mesh, data] of Object.entries(fixture) as unknown as [
+    string,
+    {
+      points: number[];
+      symmetries: {
+        symmetry: Record<string, unknown>;
+        boundaries: Case["boundaries"];
+      }[];
+    },
+  ][]) {
+    const nodes = [Float64Array.from(data.points)];
+    const index = new Map<string, number>();
+    for (let p = 0; p < data.points.length; p += 3) {
+      index.set(data.points.slice(p, p + 3).join(" "), p / 3);
+    }
+    for (const { symmetry, boundaries } of data.symmetries) {
+      it(`${mesh}: ${JSON.stringify(symmetry)}`, () => {
+        const command = {
+          command: "symmetry.add",
+          name: "sym",
+          ...symmetry,
+        } as unknown as Command;
+        const symbols = boundarySymbols([command], nodes);
+        const empty = Object.entries(boundaries)
+          .filter(([, b]) => b.points.length === 0)
+          .map(
+            ([key]) =>
+              `${key.slice(3)} = ${(symmetry[key.slice(3)] as number) ?? 0}`,
+          );
+        expect(emptyPlanes(command as Symmetry, nodes)).toEqual(empty);
+        expect(symbols.map((s) => s.name).sort()).toEqual(
+          Object.entries(boundaries)
+            .filter(([, b]) => b.points.length > 0)
+            .map(([key]) => `sym/${key}`)
+            .sort(),
+        );
+        for (const symbol of symbols) {
+          const expected = boundaries[symbol.name.slice(4)];
+          const points: number[] = [];
+          for (let p = 0; p < symbol.points.length; p += 3) {
+            points.push(
+              index.get([...symbol.points.subarray(p, p + 3)].join(" "))!,
+            );
+          }
+          expect(points.sort((a, b) => a - b)).toEqual(expected.points);
+          expect(symbol.components).toEqual(expected.components);
+          expect(symbol.value).toBe(0);
+        }
       });
     }
   }

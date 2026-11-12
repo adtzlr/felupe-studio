@@ -77,6 +77,12 @@ def main():
         [("quad", left_face), ("hexahedron", hexahedra), ("tetra", tetra.cells)],
     ).write(HERE / "bar_cell_types" / "bar.vtu", binary=False)
 
+    # the quarter of the bar at y, z >= 0.5 (the same points), with symmetry planes
+    # at y = 0.5 and z = 0.5 (#186)
+    write_vtu(
+        HERE / "bar_symmetry_quarter" / "bar.vtu", bar(a=(0, 0.5, 0.5), n=(13, 3, 3))
+    )
+
     # a cube of 2 x 2 x 2 cells, pulled by a pressure on its end face (#105)
     write_vtu(HERE / "block_pressure" / "block.vtu", fem.Cube(n=3))
 

@@ -20,6 +20,7 @@ export type Command =
   | FaceSetAdd
   | BoundaryAdd
   | LoadcaseAdd
+  | SymmetryAdd
   | MpcAdd
   | LoadAdd
   | PressureAdd
@@ -758,6 +759,34 @@ export interface LoadcaseShear {
    * Symmetry plane normal to the third axis at its zero coordinate.
    */
   symmetry?: boolean;
+}
+/**
+ * Symmetry planes normal to x, y or z (fem.dof.symmetry): on a plane, the displacement component normal to it is zero and the components in the plane are free. A half, a quarter or an eighth of a model, without a load case.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "SymmetryAdd".
+ */
+export interface SymmetryAdd {
+  command: "symmetry.add";
+  name: Name;
+  /**
+   * The normals of the symmetry planes.
+   *
+   * @minItems 1
+   */
+  axes: [Axis, ...Axis[]];
+  /**
+   * Coordinate of the plane normal to x (default 0), only with x in axes.
+   */
+  x?: number;
+  /**
+   * Coordinate of the plane normal to y (default 0), only with y in axes.
+   */
+  y?: number;
+  /**
+   * Coordinate of the plane normal to z (default 0), only with z in axes.
+   */
+  z?: number;
 }
 /**
  * A multi-point constraint (fem.MultiPointConstraint): the points of a point set follow a center point rigidly, connected by a penalty. With a rotation point, they also rotate about the center point.

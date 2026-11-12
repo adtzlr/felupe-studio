@@ -33,6 +33,8 @@ const PATHS = {
   section:
     "M6 4 H18 Q20 4 20 6 V18 Q20 20 18 20 H6 Q4 20 4 18 V6 Q4 4 6 4 Z M8 12 H16",
   boundary: "M12 4 L19 16 H5 Z M4 20 H20",
+  // symmetry planes (#186): a plane between mirrored halves
+  symmetry: "M12 3 V21 M9 7 L4 12 L9 17 Z M15 7 L20 12 L15 17 Z",
   load: "M12 3 V17 M7 12 L12 17 L17 12 M5 21 H19",
   // a pressure (#105): arrows onto a surface
   pressure:

@@ -33,6 +33,8 @@ KINDS = {
     "boundary.add": "boundary",
     # a load case is referenced like a boundary (ramps of steps, curves of jobs)
     "loadcase.add": "boundary",
+    # symmetry planes (#186): boundaries of all steps, neither ramped nor a curve
+    "symmetry.add": "symmetry",
     "mpc.add": "constraint",
     "load.add": "load",
     "pressure.add": "pressure",
@@ -293,6 +295,52 @@ def _reference_errors(commands):
                 "these components."
             )
 
+    return messages
+
+
+def _number(value):
+    """A coordinate as text like in the app (JavaScript), e.g. 0 or 12.5."""
+    value = float(value)
+    return str(int(value)) if value.is_integer() else repr(value)
+
+
+def notes(commands):
+    """Return notes about a command list that are not errors: the planes of symmetry
+    objects that a load case or another symmetry object already has (#186). The same
+    plane twice prescribes the same degrees of freedom twice, which does no harm.
+
+    Examples
+    --------
+    >>> [note] = notes([
+    ...     {"command": "loadcase.add", "name": "t", "type": "uniaxial"},
+    ...     {"command": "symmetry.add", "name": "h", "axes": ["x"]},
+    ... ])
+    >>> note.removeprefix("commands/1: ")
+    "the plane x = 0 of symmetry 'h' is already a symmetry plane of load case 't'."
+    """
+    from .loadcases import symmetry_planes
+
+    owners = {}  # (axis, coordinate) -> the first object with the plane
+    for cmd in commands:
+        if cmd["command"] == "loadcase.add":
+            for axis in symmetry_planes(cmd):
+                owners.setdefault((axis, 0.0), f"load case '{cmd['name']}'")
+    messages = []
+    for i, cmd in enumerate(commands):
+        if cmd["command"] != "symmetry.add":
+            continue
+        for axis in AXES:
+            if axis not in cmd["axes"]:
+                continue
+            plane = (axis, float(cmd.get(axis, 0)))
+            if plane in owners:
+                messages.append(
+                    f"commands/{i}: the plane {axis} = {_number(plane[1])} of "
+                    f"symmetry '{cmd['name']}' is already a symmetry plane of "
+                    f"{owners[plane]}."
+                )
+            else:
+                owners[plane] = f"symmetry '{cmd['name']}'"
     return messages
 
 

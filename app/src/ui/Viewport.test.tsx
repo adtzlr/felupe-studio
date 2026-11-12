@@ -712,6 +712,53 @@ describe("Viewport", () => {
     expect(lines()).toEqual([[HIGHLIGHT, 4]]);
   });
 
+  it("draws symmetry planes and warns about planes without nodes (#186)", async () => {
+    const { files } = meshFiles();
+    await files.add("a.vtu", new Uint8Array());
+    const store = new ModelStore();
+    store.apply(
+      [
+        mesh("a", "a.vtu"),
+        { command: "symmetry.add", name: "half", axes: ["x"] },
+        { command: "symmetry.add", name: "off", axes: ["y", "z"], y: 5 },
+      ].map((command) => ({
+        type: "add" as const,
+        command: command as Command,
+      })),
+    );
+    const viewer = fakeViewer();
+    const view = (selected?: string) => (
+      <Viewport
+        store={store}
+        files={files}
+        hidden={new Set()}
+        selected={selected}
+        createViewer={viewer.create}
+      />
+    );
+    const { rerender } = render(view());
+    await act(async () => {});
+    const lines = () =>
+      viewer.handle.update.mock
+        .lastCall![0].objects.filter((o) => o.type === "lines")
+        .map((o) => [o.color, o.positions.size / 6]);
+    // strokes in x at the two points of x = 0, in z at the three points of z = 0
+    expect(lines()).toEqual([
+      ["#d62728", 2],
+      ["#1f77b4", 3],
+    ]);
+    expect(screen.queryByText(/no node of the meshes/)).toBeNull();
+    rerender(view("off"));
+    await act(async () => {});
+    expect(lines()).toEqual([
+      ["#d62728", 2],
+      [HIGHLIGHT, 3],
+    ]);
+    expect(screen.getAllByRole("status").map((e) => e.textContent)).toEqual([
+      "off: no node of the meshes on the plane y = 5",
+    ]);
+  });
+
   it("shows a tip about picking until the first pick", async () => {
     localStorage.removeItem("felupe-studio.tip.pick");
     const { files } = meshFiles();

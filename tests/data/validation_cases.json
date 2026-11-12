@@ -112,7 +112,8 @@
         }
       ]
     },
-    "errors": []
+    "errors": [],
+    "notes": []
   },
   {
     "name": "unknown mesh",
@@ -229,7 +230,8 @@
     },
     "errors": [
       "commands/1: cellset.from_tag 'hard' references unknown mesh 'nomesh' in 'mesh'."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "wrong kind",
@@ -346,7 +348,8 @@
     },
     "errors": [
       "commands/5: 'umat_hard' in 'cellset' of 'section_hard' is a material, not a cellset."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "unknown point set",
@@ -463,7 +466,8 @@
     },
     "errors": [
       "commands/9: boundary.add 'fixed' references unknown pointset 'right2' in 'pointset'."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "step with a cell set",
@@ -583,7 +587,8 @@
     },
     "errors": [
       "commands/11: 'hard' in 'sections' of 'step_1' is a cellset, not a section."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "ramp of a point set",
@@ -700,7 +705,8 @@
     },
     "errors": [
       "commands/11: step 'step_1' ramps unknown boundary or load 'left'."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "unknown curve",
@@ -817,7 +823,8 @@
     },
     "errors": [
       "commands/12: job.add 'job_1' references unknown boundary or load 'fixed2' in 'curve'."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "ramp of two items",
@@ -936,7 +943,8 @@
         }
       ]
     },
-    "errors": []
+    "errors": [],
+    "notes": []
   },
   {
     "name": "ramp of an unknown item",
@@ -1061,7 +1069,8 @@
     },
     "errors": [
       "commands/11: step 'step_1' ramps unknown boundary or load 'left'."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "ramp of an item twice",
@@ -1182,7 +1191,8 @@
     },
     "errors": [
       "commands/11: step 'step_1' ramps 'move' twice."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "control point pinned",
@@ -1316,7 +1326,8 @@
         }
       ]
     },
-    "errors": []
+    "errors": [],
+    "notes": []
   },
   {
     "name": "control point without stiffness",
@@ -1451,7 +1462,8 @@
     },
     "errors": [
       "commands/9: control point 'pin' has no stiffness in z: it needs a boundary or a multi-point constraint of these components."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "constraint of a control point",
@@ -1587,7 +1599,8 @@
     },
     "errors": [
       "commands/9: control point 'pin' has no stiffness in z: it needs a boundary or a multi-point constraint of these components."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "constraint with a rotation point",
@@ -1735,7 +1748,8 @@
       "commands/10: control point 'turn' is at the coordinates of control point 'pin': the script merges them.",
       "commands/13: constraint 'glue' with a rotation point connects all components x, y and z.",
       "commands/9: control point 'pin' has no stiffness in y and z: it needs a boundary or a multi-point constraint of these components."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "constraint of a cell set",
@@ -1863,7 +1877,8 @@
     },
     "errors": [
       "commands/11: 'hard' in 'points' of 'glue' is a cellset, not a pointset."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "step with a constraint",
@@ -1995,7 +2010,8 @@
     },
     "errors": [
       "commands/12: 'fixed' in 'constraints' of 'step_1' is a boundary, not a constraint."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "point load ramped and recorded",
@@ -2127,7 +2143,8 @@
         }
       ]
     },
-    "errors": []
+    "errors": [],
+    "notes": []
   },
   {
     "name": "point load of a cell set",
@@ -2254,7 +2271,8 @@
     },
     "errors": [
       "commands/11: 'hard' in 'points' of 'pull' is a cellset, not a pointset."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "step with a load that is a boundary",
@@ -2374,7 +2392,8 @@
     },
     "errors": [
       "commands/11: 'fixed' in 'loads' of 'step_1' is a boundary, not a load or pressure."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "duplicate name",
@@ -2492,7 +2511,8 @@
     "errors": [
       "commands/2: name 'hard' is already used by commands/1.",
       "commands/6: section.add 'section_soft' references unknown cellset 'soft' in 'cellset'."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "mesh without tag",
@@ -2609,7 +2629,8 @@
     "errors": [
       "commands/1: cell set 'hard' uses tag values, but mesh 'specimen' was imported without a tag.",
       "commands/2: cell set 'soft' uses tag values, but mesh 'specimen' was imported without a tag."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "mesh with cell type",
@@ -2725,7 +2746,8 @@
         }
       ]
     },
-    "errors": []
+    "errors": [],
+    "notes": []
   },
   {
     "name": "NeoHooke without bulk",
@@ -2841,7 +2863,8 @@
     },
     "errors": [
       "commands/6: section 'section_soft' uses the displacement formulation with NeoHooke 'umat_soft' without a bulk modulus. Add 'bulk' to the material or use 'u-p-J'."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "NeoHooke with bulk",
@@ -2956,7 +2979,8 @@
         }
       ]
     },
-    "errors": []
+    "errors": [],
+    "notes": []
   },
   {
     "name": "MooneyRivlin without bulk",
@@ -3073,7 +3097,8 @@
     },
     "errors": [
       "commands/6: section 'section_soft' uses the displacement formulation with MooneyRivlin 'umat_soft' without a bulk modulus. Add 'bulk' to the material or use 'u-p-J'."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "load case ramped and recorded",
@@ -3193,7 +3218,8 @@
         }
       ]
     },
-    "errors": []
+    "errors": [],
+    "notes": []
   },
   {
     "name": "load case with the same axes",
@@ -3316,7 +3342,8 @@
     },
     "errors": [
       "commands/11: load case 'shear' needs different axes for 'axis' and 'normal'."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "load case without support",
@@ -3439,7 +3466,8 @@
     },
     "errors": [
       "commands/11: load case 'pull' needs symmetry planes or clamped end faces, otherwise the transversal displacements are free."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "keyword",
@@ -3556,7 +3584,8 @@
     },
     "errors": [
       "commands/12: name 'lambda' is reserved for the generated script."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "reserved name",
@@ -3673,7 +3702,8 @@
     },
     "errors": [
       "commands/12: name 'field' is reserved for the generated script."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "reserved prefix",
@@ -3790,7 +3820,8 @@
     },
     "errors": [
       "commands/12: name 'solid_a' is reserved for the generated script."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "used before defined",
@@ -3908,7 +3939,8 @@
     "errors": [
       "commands/0: job.add 'job_1' references unknown step 'step_1' in 'steps'.",
       "commands/0: job.add 'job_1' references unknown boundary or load 'move' in 'curve'."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "removed material",
@@ -4016,7 +4048,8 @@
     },
     "errors": [
       "commands/4: section.add 'section_hard' references unknown material 'umat_hard' in 'material'."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "two merges",
@@ -4143,7 +4176,8 @@
     },
     "errors": [
       "commands/2: only one mesh.merge is allowed."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "ogden with fewer exponents than moduli",
@@ -4267,7 +4301,8 @@
     },
     "errors": [
       "commands/4: material 'umat_soft': mu and alpha need the same number of values."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "two model settings",
@@ -4396,7 +4431,8 @@
     },
     "errors": [
       "commands/1: only one model.settings is allowed."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "face set of a cell set",
@@ -4522,7 +4558,8 @@
     },
     "errors": [
       "commands/9: 'hard' in 'section' of 'end' is a cellset, not a section."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "face set of a later section",
@@ -4653,7 +4690,8 @@
     },
     "errors": [
       "commands/5: faceset.add 'end' references unknown section 'section_soft' in 'section'."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "pressure on a point set",
@@ -4776,7 +4814,8 @@
     },
     "errors": [
       "commands/9: 'left' in 'faces' of 'inflate' is a pointset, not a faceset."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "parameters",
@@ -4909,7 +4948,660 @@
         }
       ]
     },
-    "errors": []
+    "errors": [],
+    "notes": []
+  },
+  {
+    "name": "symmetry planes",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "symmetry.add",
+          "name": "half",
+          "axes": [
+            "y",
+            "z"
+          ],
+          "y": 0.5
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [],
+    "notes": []
+  },
+  {
+    "name": "symmetry ramped",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "symmetry.add",
+          "name": "half",
+          "axes": [
+            "y"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              },
+              {
+                "target": "half",
+                "end": 0
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/12: step 'step_1' ramps unknown boundary or load 'half'."
+    ],
+    "notes": []
+  },
+  {
+    "name": "symmetry as a curve",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "symmetry.add",
+          "name": "half",
+          "axes": [
+            "y"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "half"
+        }
+      ]
+    },
+    "errors": [
+      "commands/13: 'half' in 'curve' of 'job_1' is a symmetry, not a boundary or load."
+    ],
+    "notes": []
+  },
+  {
+    "name": "symmetry planes of a load case",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "symmetry.add",
+          "name": "half",
+          "axes": [
+            "x",
+            "z"
+          ]
+        },
+        {
+          "command": "loadcase.add",
+          "name": "test",
+          "type": "uniaxial"
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [],
+    "notes": [
+      "commands/11: the plane x = 0 of symmetry 'half' is already a symmetry plane of load case 'test'.",
+      "commands/11: the plane z = 0 of symmetry 'half' is already a symmetry plane of load case 'test'."
+    ]
+  },
+  {
+    "name": "symmetry planes twice",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "symmetry.add",
+          "name": "half",
+          "axes": [
+            "y"
+          ],
+          "y": 0.5
+        },
+        {
+          "command": "symmetry.add",
+          "name": "quarter",
+          "axes": [
+            "y",
+            "z"
+          ],
+          "y": 0.5,
+          "z": 12.5
+        },
+        {
+          "command": "loadcase.add",
+          "name": "shear",
+          "type": "shear"
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [],
+    "notes": [
+      "commands/12: the plane y = 0.5 of symmetry 'quarter' is already a symmetry plane of symmetry 'half'."
+    ]
   },
   {
     "name": "parameter out of its range",
@@ -5032,7 +5724,8 @@
     },
     "errors": [
       "commands/0: parameter 'radius': the value is larger than the maximum."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "parameter below its range",
@@ -5155,7 +5848,8 @@
     },
     "errors": [
       "commands/0: parameter 'radius': the value is smaller than the minimum."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "parameter with an empty range",
@@ -5279,7 +5973,8 @@
     },
     "errors": [
       "commands/0: parameter 'radius': the minimum is not smaller than the maximum."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "integer parameter with fractions",
@@ -5406,7 +6101,8 @@
     "errors": [
       "commands/0: parameter 'layers': the value of an integer parameter is an integer.",
       "commands/0: parameter 'layers': the step of an integer parameter is an integer."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "mesh script",
@@ -5521,7 +6217,8 @@
         }
       ]
     },
-    "errors": []
+    "errors": [],
+    "notes": []
   },
   {
     "name": "mesh script with a parameter that is none",
@@ -5648,7 +6345,8 @@
     "errors": [
       "commands/0: mesh.script 'made' references unknown parameter 'radius' in 'parameters'.",
       "commands/0: mesh.script 'made' references unknown parameter 'umat_soft' in 'parameters'."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "parameter with a name of the script",
@@ -5770,7 +6468,8 @@
     },
     "errors": [
       "commands/0: name 'field' is reserved for the generated script."
-    ]
+    ],
+    "notes": []
   },
   {
     "name": "several errors",
@@ -5888,6 +6587,7 @@
     "errors": [
       "commands/1: cellset.from_tag 'hard' references unknown mesh 'nomesh' in 'mesh'.",
       "commands/12: name 'hard' is already used by commands/1."
-    ]
+    ],
+    "notes": []
   }
 ]
