@@ -1115,6 +1115,15 @@ button {
   font-size: var(--text-md);
 }
 
+/* the feature angle of a picked surface (#189): a compact select with its label */
+.pick-angle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-6);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
 /* a tip is quieter than a panel with actions */
 .pick-panel.tip {
   padding: var(--space-4) var(--space-4) var(--space-4) var(--space-12);
