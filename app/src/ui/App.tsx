@@ -54,6 +54,7 @@ import { JobPanel } from "./JobPanel";
 import type { Capture } from "../viewer/viewer";
 import { safeName } from "../worker/files";
 import { CurveCard } from "./CurveCard";
+import { ParametersDialog, parametersOf } from "./ParametersDialog";
 import { NewProjectDialog } from "./NewProjectDialog";
 import { SamplesDialog } from "./SamplesDialog";
 import { SaveAsDialog } from "./SaveAsDialog";
@@ -138,11 +139,16 @@ export function App({
   const [shown, setShown] = useState<{ view: ResultView; ok: boolean }>();
   const substeps =
     finished && resultView ? substepsOf(finished, resultView.job) : 0;
-  // the meshes of scripts with the parameters of the model, made in the worker (#182)
-  useEffect(
-    () => makeMeshes(store.commands, files),
-    [store.commands, files, files.revision],
-  );
+  // the parameters of a project, when it is opened and from the menu (#183)
+  const [parametersShown, setParametersShown] = useState<{
+    project: string;
+    opening: boolean;
+  }>();
+  // the meshes of scripts with the parameters of the model, made in the worker
+  // (#182), after the parameters of an opened project are set (#183)
+  useEffect(() => {
+    if (!parametersShown?.opening) makeMeshes(store.commands, files);
+  }, [store.commands, files, files.revision, parametersShown]);
   // notes about the mesh files, and about face sets on cells without faces (#142)
   const meshNotes = fileNotes(store.commands, files);
   const faceNotes = faceSetNotes(store.commands, files);
@@ -320,6 +326,9 @@ export function App({
           return;
         }
         if (await openProject(projects[0], name)) {
+          // its parameters first, if it has any, before its meshes are made (#183)
+          if (parametersOf(store.commands).length)
+            setParametersShown({ project: name, opening: true });
           await files.addFiles(meshes);
           if (ignored.length) {
             setError({
@@ -630,6 +639,16 @@ export function App({
         ...(blocker ? { blocker } : {}),
         onSelect: () => duplicateObject(name),
       },
+      ...(command.command === "parameter.add"
+        ? [
+            {
+              id: "parameters",
+              label: "All parameters…",
+              onSelect: () =>
+                setParametersShown({ project: fileName, opening: false }),
+            },
+          ]
+        : []),
       {
         id: "rename",
         label: "Rename",
@@ -1062,6 +1081,15 @@ export function App({
             setImporting(undefined);
             select(name);
           }}
+        />
+      )}
+      {parametersShown && (
+        <ParametersDialog
+          store={store}
+          files={files}
+          project={parametersShown.project}
+          opening={parametersShown.opening}
+          onClose={() => setParametersShown(undefined)}
         />
       )}
       {creating && (

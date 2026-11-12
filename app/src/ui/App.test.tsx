@@ -153,6 +153,61 @@ describe("App shell", () => {
     expect(screen.getByRole("status").textContent).toContain("13 commands");
   });
 
+  it("asks for the parameters of an opened project before its meshes (#183)", async () => {
+    const store = new ModelStore();
+    const make = vi.fn(async (file: string) => ({
+      info: { file, error: "no mesh in the test" },
+    }));
+    const files = new MeshFiles(undefined, { write: async () => {}, make });
+    render(<App store={store} files={files} />);
+    const project = JSON.stringify({
+      schema_version: 3,
+      commands: [
+        {
+          command: "parameter.add",
+          name: "radius",
+          value: 50,
+          min: 10,
+          max: 100,
+        },
+        { command: "mesh.script", name: "disc", file: "disc.py" },
+      ],
+    });
+    fireEvent.change(screen.getByTestId("open-file"), {
+      target: {
+        files: [
+          new File([project], "disc.felupe.json"),
+          new File(["mesh = None\n"], "disc.py"),
+        ],
+      },
+    });
+    const dialog = await screen.findByRole("dialog", {
+      name: "Parameters of disc.felupe.json",
+    });
+    // the meshes wait for the values
+    await act(async () => {});
+    expect(make).not.toHaveBeenCalled();
+    fireEvent.input(within(dialog).getByRole("spinbutton"), {
+      target: { value: "60" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Open" }));
+    await waitFor(() =>
+      expect(make).toHaveBeenCalledWith("disc.py", { radius: 60 }, undefined),
+    );
+    expect(make).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    // later from the menu of a parameter
+    const tree = screen.getByRole("tree", { name: "Model" });
+    fireEvent.click(
+      within(tree).getByRole("button", { name: "Actions of radius" }),
+    );
+    fireEvent.click(screen.getByRole("menuitem", { name: "All parameters…" }));
+    expect(
+      screen.getByRole("dialog", { name: "Parameters" }).textContent,
+    ).toContain("10 to 100");
+  });
+
   it("shows why a project file could not be opened", async () => {
     render(<App store={new ModelStore()} />);
     const file = new File(['{"schema_version": 7}'], "new.felupe.json");
