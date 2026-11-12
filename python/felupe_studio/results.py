@@ -271,9 +271,15 @@ def scene(job, substep, quantity):
         ``nodes`` (the point of the mesh of every point of the surface, -1 inside a
         subdivided face) as bytes.
     """
-    kind, component, label = QUANTITIES[quantity]
     _restore(job, substep)
+    return current_scene(job, substep, quantity)
 
+
+def current_scene(job, substep, quantity):
+    """Return the result of the current fields for the viewer, like :func:`scene`
+    without restoring a substep: e.g. the live results of a running job after a
+    converged substep (#207), whose fields are current."""
+    kind, component, label = QUANTITIES[quantity]
     at = "point" if kind == "displacement" else "cell"
     surfaces = []
     low, high = np.inf, -np.inf

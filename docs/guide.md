@@ -138,6 +138,8 @@ A **Job** evaluates its steps one after another. With a *Curve* (a boundary, a l
 
 **Solve** runs the jobs. It is available when the model has a job, no issues and its mesh files; otherwise its tooltip tells you what is missing. The job panel shows the substep and the Newton iterations; *Cancel* stops the job. If a job fails, the panel shows the message and the Python traceback.
 
+While a job runs, **Show live results** in the job panel (or the Results workspace) shows it **live**: the deformed model with the contour of the last converged substep and the curve growing with every substep, marked *Live · substep 7 of 20*. The scenes show the quantity that was chosen when you pressed Solve; a quantity chosen during the run applies after it. Substeps cannot be chosen until the run is over, then the results replace the live view. After a failed or cancelled run, the last live scene and the curve stay until the next run (*Failed after substep 7 of 20*). To save time on large models, clear **Live results** in the Results ribbon: the scenes take at most about a tenth of the time of a job, the curve always grows.
+
 ## Results
 
 The **Results** workspace shows the deformed shape of a substep:

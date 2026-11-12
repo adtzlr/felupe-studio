@@ -24,7 +24,12 @@ import type {
   Ready,
   ScriptView as ScriptViewData,
 } from "../worker/client";
-import type { JobEvent, JobResult, ResultScene } from "../worker/protocol";
+import type {
+  JobEvent,
+  JobResult,
+  LiveSettings,
+  ResultScene,
+} from "../worker/protocol";
 import { App, NARROW } from "./App";
 
 afterEach(cleanup);
@@ -678,14 +683,19 @@ describe("solve", () => {
       resolve: (results: Record<string, JobResult>) => void;
       reject: (error: Error) => void;
     };
-    const run = vi.fn(
-      (_document: string, onEvent: (event: JobEvent) => void) => {
-        emit = onEvent;
-        return new Promise<Record<string, JobResult>>((resolve, reject) => {
-          settle = { resolve, reject };
-        });
-      },
-    );
+    // with the settings of the live scenes (#207), checked by the calls
+    const run = vi.fn<
+      (
+        document: string,
+        onEvent: (event: JobEvent) => void,
+        live?: LiveSettings,
+      ) => Promise<Record<string, JobResult>>
+    >((_document: string, onEvent: (event: JobEvent) => void) => {
+      emit = onEvent;
+      return new Promise<Record<string, JobResult>>((resolve, reject) => {
+        settle = { resolve, reject };
+      });
+    });
     const restart = vi.fn(() => {
       const error = new Error("Cancelled.");
       error.name = "CancelledError";
@@ -1195,6 +1205,111 @@ describe("solve", () => {
     expect(
       document.querySelector(".app-scalar-bar .fv-bar-title")!.textContent,
     ).toBe("Displacement [mm]");
+  });
+
+  it("shows a running job live in the results (#207)", async () => {
+    const jobs = runner();
+    const resultScene = vi.fn(() => new Promise<ResultScene>(() => {}));
+    render(
+      <App
+        store={new ModelStore(fixture as CommandList)}
+        files={await files()}
+        client={client(Promise.resolve(readyValue), { ...jobs, resultScene })}
+      />,
+    );
+    await waitFor(() =>
+      expect(solveButton().getAttribute("aria-disabled")).toBeNull(),
+    );
+    fireEvent.click(solveButton());
+    await waitFor(() => expect(jobs.run).toHaveBeenCalledTimes(1));
+    // the scenes show the quantity of the view, live results are on by default
+    expect(jobs.run.mock.calls[0][2]).toEqual({ quantity: "displacement" });
+    jobs.emit({
+      event: "start",
+      jobs: ["job_1"],
+      substeps: { job_1: [4] },
+    });
+    jobs.emit({
+      event: "substep",
+      job: "job_1",
+      step: 0,
+      steps: 1,
+      substep: 1,
+      substeps: 4,
+    });
+    const job = screen.getByRole("region", { name: "Job" });
+    fireEvent.click(
+      within(job).getByRole("button", { name: "Show live results" }),
+    );
+    const live = (substep: number, withScene = true) =>
+      jobs.emit({
+        event: "live",
+        job: "job_1",
+        substep,
+        x: [0.1 * substep, 0, 0],
+        y: [substep, 0, 0],
+        ...(withScene
+          ? {
+              scene: {
+                label: "Displacement",
+                at: "point",
+                range: [0, 0.1 * substep],
+                surfaces: [],
+              } as ResultScene,
+            }
+          : {}),
+      });
+    live(1, false);
+    const results = () => screen.getByRole("main", { name: "Results" });
+    expect(results().textContent).toContain(
+      "Solving … the view follows the converged substeps.",
+    );
+    live(2);
+    live(3, false);
+    expect(within(results()).getByRole("status").textContent).toBe(
+      "Live · substep 2 of 4",
+    );
+    // no scene is requested from the busy worker
+    expect(resultScene).not.toHaveBeenCalled();
+    // the curve grows with every converged substep
+    const card = screen.getByRole("region", {
+      name: "Force-displacement curve",
+    });
+    fireEvent.click(within(card).getByRole("button", { name: "Table" }));
+    expect(within(card).getAllByRole("row")).toHaveLength(4);
+    // the controls: the status, no substeps to choose, a quantity for the next run
+    const panel = screen.getByRole("tabpanel");
+    expect(panel.textContent).toContain("Live · substep 2 of 4");
+    const slider = within(panel).getByRole("slider") as HTMLInputElement;
+    expect(slider.disabled).toBe(true);
+    fireEvent.change(within(panel).getByLabelText("Contour"), {
+      target: { value: "stress_mises" },
+    });
+    expect(panel.textContent).toContain(
+      "Live: Displacement (magnitude) · changes apply after the run",
+    );
+    // at the end, the results replace the live view, with the chosen quantity
+    await act(async () =>
+      jobs.settle().resolve({
+        job_1: {
+          substeps: 4,
+          time: 0.1,
+          x: [1, 2, 3, 4].map((i) => [0.1 * i, 0, 0]),
+          y: [1, 2, 3, 4].map((i) => [i, 0, 0]),
+        },
+      }),
+    );
+    await waitFor(() =>
+      expect(resultScene).toHaveBeenCalledWith("job_1", 4, "stress_mises"),
+    );
+    expect(within(results()).queryByText(/Live ·/)).toBeNull();
+    // the next run shows the scenes of the chosen quantity, and none when off
+    fireEvent.click(
+      within(screen.getByRole("tabpanel")).getByLabelText("Live results"),
+    );
+    fireEvent.click(solveButton());
+    await waitFor(() => expect(jobs.run).toHaveBeenCalledTimes(2));
+    expect(jobs.run.mock.calls[1][2]).toBeUndefined();
   });
 
   it("changes the color map, the bands and the range of the contour (#139)", async () => {

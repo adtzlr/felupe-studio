@@ -19,6 +19,8 @@ interface Props {
   onDismiss: () => void;
   /** Show the results (switches to the Results workspace), if offered. */
   onShowResults?: () => void;
+  /** Show the live results of a running job (#207), if offered. */
+  onShowLive?: () => void;
 }
 
 const seconds = (time: number) => `${time.toFixed(time < 10 ? 2 : 1)} s`;
@@ -149,7 +151,13 @@ function useHeightOnParent(ref: RefObject<HTMLElement | null>, shown: boolean) {
   }, [ref, shown]);
 }
 
-export function JobPanel({ run, store, onDismiss, onShowResults }: Props) {
+export function JobPanel({
+  run,
+  store,
+  onDismiss,
+  onShowResults,
+  onShowLive,
+}: Props) {
   const ref = useRef<HTMLElement>(null);
   useHeightOnParent(ref, run.state !== "idle");
   if (run.state === "idle") return null;
@@ -181,6 +189,13 @@ export function JobPanel({ run, store, onDismiss, onShowResults }: Props) {
           maxiter={maxiterOf(run.commands, run.progress.job)}
           solver={solverOf(run.commands, run.progress.job)}
         />
+      )}
+      {run.state === "running" && onShowLive && (
+        <div class="actions">
+          <button type="button" class="button" onClick={onShowLive}>
+            Show live results
+          </button>
+        </div>
       )}
       {run.state === "finished" && (
         <>

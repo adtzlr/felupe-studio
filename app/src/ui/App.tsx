@@ -13,6 +13,7 @@ import {
   SUFFIX,
 } from "../core/files";
 import { JobRunner, solveBlocker } from "../core/jobs";
+import { liveResults, loadLiveOn, saveLiveOn } from "../core/live";
 import { type ResultView, substepsOf, viewOf } from "../core/results";
 import {
   ariaKeys,
@@ -131,11 +132,32 @@ export function App({
   const run = useJobs(jobs);
   const finished = jobs?.results;
   const [resultView, setResultView] = useState<ResultView>();
+  // the last view of the results, also of the live results (#207): its choices
+  // (e.g. the quantity) are kept for the next run
+  const lastView = useRef<ResultView | undefined>(undefined);
+  if (resultView) lastView.current = resultView;
   // a finished run shows its last substep, with the choices of the previous view
   useEffect(
-    () => setResultView((previous) => finished && viewOf(finished, previous)),
+    () =>
+      setResultView(
+        (previous) =>
+          finished && viewOf(finished, previous ?? lastView.current),
+      ),
     [finished],
   );
+  // the live results of a run (#207): scenes of a quantity while the jobs run, if
+  // they are on, the curves always; the shown job and the choices of the view
+  const [liveOn, setLiveOn] = useState(loadLiveOn);
+  const [liveChoice, setLiveChoice] = useState<string>();
+  const [, setLiveBase] = useState<ResultView>();
+  const live = finished
+    ? undefined
+    : liveResults(run, liveChoice, lastView.current);
+  const changeLive = (view: ResultView) => {
+    setLiveChoice(view.job);
+    lastView.current = view;
+    setLiveBase(view);
+  };
   // play the substeps (#141): the next one follows once the current one is shown
   const [shown, setShown] = useState<{ view: ResultView; ok: boolean }>();
   const substeps =
@@ -448,7 +470,18 @@ export function App({
   const solve = async () => {
     if (!jobs) return;
     const { serialize } = await import("../core/project");
-    await jobs.solve(store.commands, serialize(store.document));
+    setLiveChoice(undefined);
+    // the scenes of the running jobs show the quantity of the view (#207)
+    await jobs.solve(
+      store.commands,
+      serialize(store.document),
+      liveOn
+        ? {
+            quantity:
+              (resultView ?? lastView.current)?.quantity ?? "displacement",
+          }
+        : undefined,
+    );
   };
 
   /**
@@ -898,10 +931,31 @@ export function App({
             results={
               finished && resultView
                 ? { run: finished, view: resultView }
-                : undefined
+                : live
+                  ? {
+                      run: live.run,
+                      // the quantity of the next run, the scenes keep theirs
+                      view: {
+                        ...live.view,
+                        quantity:
+                          lastView.current?.quantity ?? live.view.quantity,
+                      },
+                    }
+                  : undefined
             }
             running={run.state === "running"}
-            onChange={setResultView}
+            onChange={live ? changeLive : setResultView}
+            live={
+              live && {
+                status: live.status,
+                quantity: live.view.quantity,
+              }
+            }
+            liveOn={liveOn}
+            onLiveOn={(on) => {
+              setLiveOn(on);
+              saveLiveOn(on);
+            }}
             contour={contour}
             onContour={changeContour}
             currentRange={shownRange}
@@ -999,17 +1053,29 @@ export function App({
             capture={captureResults}
             showNodes={showNodes}
             onShowNodes={setShowNodes}
-            commands={finished?.commands}
+            commands={finished?.commands ?? live?.run.commands}
             contour={contour}
             onRange={setShownRange}
             ahead={player.ahead}
             onShown={(view, ok) => setShown({ view, ok })}
+            live={live}
           >
             {finished && resultView?.curve && (
               <CurveCard
                 run={finished}
                 view={resultView}
                 onChange={setResultView}
+                download={download}
+              />
+            )}
+            {/* the curve grows with the converged substeps (#207) */}
+            {live?.view.curve && (
+              <CurveCard
+                run={live.run}
+                view={live.view}
+                onChange={(view) =>
+                  changeLive({ ...view, substep: live.view.substep })
+                }
                 download={download}
               />
             )}
@@ -1025,6 +1091,11 @@ export function App({
                     setWorkspace("results");
                     jobs?.dismiss();
                   }
+            }
+            onShowLive={
+              workspace === "results" || !liveOn
+                ? undefined
+                : () => setWorkspace("results")
             }
           />
         </div>

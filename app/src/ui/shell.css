@@ -1083,6 +1083,25 @@ button {
   pointer-events: none;
 }
 
+/* the status of the live results of a running job (#207) */
+.live-status {
+  align-self: center;
+  padding: var(--space-4) var(--space-12);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.live-badge {
+  color: var(--color-accent);
+  font-weight: var(--weight-semibold);
+}
+
+.live-note {
+  font-size: var(--text-xs);
+}
+
 .view-toolbar {
   position: absolute;
   top: var(--overlay-inset);

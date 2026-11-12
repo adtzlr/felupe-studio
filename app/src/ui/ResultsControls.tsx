@@ -14,6 +14,12 @@ import {
   stepOf,
   substepsOf,
 } from "../core/results";
+
+/** The label of a quantity, e.g. "Von Mises stress". */
+const quantityLabel = (quantity: Quantity) =>
+  QUANTITY_GROUPS.flatMap((group) => group.options).find(
+    (option) => option.id === quantity,
+  )?.label ?? quantity;
 import type { ModelStore } from "../core/store";
 import { valueWithUnit } from "../core/units";
 import type { Quantity } from "../worker/protocol";
@@ -34,6 +40,38 @@ interface Props {
   currentRange?: readonly [number, number];
   /** Play the substeps (#141). */
   player?: Player;
+  /**
+   * The live results of a run (#207): their status and the quantity of their
+   * scenes. The substep follows the run; a chosen quantity applies after it.
+   */
+  live?: { status: string; quantity?: Quantity };
+  /** Whether the next run shows live scenes (#207), and its switch. */
+  liveOn?: boolean;
+  onLiveOn?: (on: boolean) => void;
+}
+
+/** The switch of the live scenes of the next run (#207). */
+function LiveSwitch({
+  on,
+  onChange,
+}: {
+  on?: boolean;
+  onChange?: (on: boolean) => void;
+}) {
+  if (on === undefined || !onChange) return null;
+  return (
+    <label
+      class="check"
+      title="Show the deformed model of a running job, after converged substeps (applies to the next run; off for the fastest run)"
+    >
+      <input
+        type="checkbox"
+        checked={on}
+        onChange={(event) => onChange(event.currentTarget.checked)}
+      />
+      Live results
+    </label>
+  );
 }
 
 /** The controls of the results in the ribbon: job, quantity, substep and shape. */
@@ -46,13 +84,26 @@ export function ResultsControls({
   onContour,
   currentRange,
   player,
+  live,
+  liveOn,
+  onLiveOn,
 }: Props) {
-  if (running) return <span class="muted">Solving …</span>;
+  const liveSwitch = <LiveSwitch on={liveOn} onChange={onLiveOn} />;
+  if (running && !live)
+    return (
+      <div class="results-controls">
+        <span class="muted">Solving …</span>
+        {liveSwitch}
+      </div>
+    );
   if (!results)
     return (
-      <span class="muted">
-        Results will appear here after the jobs have run (Solve).
-      </span>
+      <div class="results-controls">
+        <span class="muted">
+          Results will appear here after the jobs have run (Solve).
+        </span>
+        {liveSwitch}
+      </div>
     );
   const { run, view } = results;
   const jobs = Object.keys(run.results);
@@ -109,6 +160,11 @@ export function ResultsControls({
             ))}
           </select>
         </label>
+        {live?.quantity && live.quantity !== view.quantity && (
+          <span class="muted live-note" role="note">
+            Live: {quantityLabel(live.quantity)} · changes apply after the run
+          </span>
+        )}
         {contour && onContour && (
           <ContourSettings
             settings={contour}
@@ -131,7 +187,7 @@ export function ResultsControls({
                   : "Play the substeps (the range of all substeps in the contour settings keeps the colors comparable)",
               "play",
             )}
-            disabled={total < 2}
+            disabled={total < 2 || !!live}
             onClick={player.toggle}
           >
             <Icon name={player.playing ? "pause" : "play"} />
@@ -142,7 +198,13 @@ export function ResultsControls({
           title={`${hint("substep-previous")} and ${hint("substep-next")} step through the substeps, ${hint("substep-first")} and ${hint("substep-last")} go to the first and the last one`}
         >
           <span>
-            Substep {view.substep} of {total}
+            {live ? (
+              <span class="live-badge">{live.status}</span>
+            ) : (
+              <>
+                Substep {view.substep} of {total}
+              </>
+            )}
           </span>
           <input
             type="range"
@@ -150,7 +212,7 @@ export function ResultsControls({
             max={total}
             step={1}
             value={view.substep}
-            disabled={total < 2}
+            disabled={total < 2 || !!live}
             onInput={(event) =>
               set({ substep: Number(event.currentTarget.value) })
             }
@@ -161,7 +223,7 @@ export function ResultsControls({
             <span>Speed</span>
             <select
               value={player.speed}
-              disabled={total < 2}
+              disabled={total < 2 || !!live}
               onChange={(event) =>
                 player.setSpeed(Number(event.currentTarget.value) as Speed)
               }
@@ -223,7 +285,8 @@ export function ResultsControls({
           Curve
         </label>
       )}
-      {store.commands !== run.commands && (
+      {liveSwitch}
+      {!live && store.commands !== run.commands && (
         <span class="warning" role="note">
           The model was changed after solving.
         </span>

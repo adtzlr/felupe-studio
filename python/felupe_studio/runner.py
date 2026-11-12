@@ -105,6 +105,93 @@ class Progress(fem.Plugin):
         )
 
 
+class Live(fem.Plugin):
+    """A plugin that reports the live results of a running job (#207) after every
+    converged substep, after the :class:`~felupe_studio.results.Recorder`: the point
+    of the curve of a characteristic curve (cheap, every substep) and, when it is due,
+    the scene of a quantity of the current fields.
+
+    A scene is due at the last substep of every step, else at most every
+    ``interval`` seconds and only while the time spent on scenes is at most
+    ``budget`` of the time of the job, so that live scenes slow down a job by about
+    that share at most.
+
+    Parameters
+    ----------
+    report : callable
+        Called with the dict of an event ``live``: the ``job``, the ``substep``
+        (counted from 1 over all steps), ``x`` and ``y`` of a characteristic curve
+        and the ``scene`` (the label as JSON text and the surfaces, see
+        :func:`felupe_studio.results.scene`).
+    job : str
+        The name of the job.
+    substeps : list of int
+        The substeps of every step of the job.
+    curve : felupe.CharacteristicCurve or None
+        The job, if it is a characteristic curve.
+    quantity : str or None, optional
+        The quantity of the scenes (none without scenes).
+    interval : float, optional
+        The least time between two scenes in seconds (default 1).
+    budget : float, optional
+        The largest share of the time of the job spent on scenes (default 0.1).
+    clock : callable, optional
+        The time in seconds (default :func:`time.perf_counter`).
+    """
+
+    def __init__(
+        self,
+        report,
+        job,
+        substeps,
+        curve=None,
+        quantity=None,
+        interval=1.0,
+        budget=0.1,
+        clock=time.perf_counter,
+    ):
+        self.report = report
+        self.job = job
+        self.substeps = substeps
+        self.curve = curve
+        self.quantity = quantity
+        self.interval = interval
+        self.budget = budget
+        self.clock = clock
+        self.started = clock()
+        self.last = None
+        self.spent = 0.0
+
+    def due(self, now, state):
+        """Whether the scene of the converged substep is due."""
+        if self.quantity is None:
+            return False
+        if state.substepnumber >= self.substeps[state.stepnumber] - 1:
+            return True
+        if self.last is not None and now - self.last < self.interval:
+            return False
+        return self.spent <= self.budget * (now - self.started)
+
+    def after_substep(self, context, state):
+        event = {
+            "event": "live",
+            "job": self.job,
+            "substep": results_.substeps(self.job),
+        }
+        if self.curve is not None and self.curve.x:
+            event["x"] = [_number(v) for v in self.curve.x[-1]]
+            event["y"] = [_number(v) for v in self.curve.y[-1]]
+        now = self.clock()
+        if self.due(now, state):
+            event["scene"] = results_.current_scene(
+                self.job, event["substep"], self.quantity
+            )
+            self.last = self.clock()
+            self.spent += self.last - now
+        if "x" in event or "scene" in event:
+            self.report(event)
+
+
 def _number(value):
     """A float for JSON (None for missing or non-finite values)."""
     try:
@@ -114,7 +201,7 @@ def _number(value):
     return value if value == value and abs(value) != float("inf") else None
 
 
-def run(document, report=lambda event: None):
+def run(document, report=lambda event: None, live=None, clock=time.perf_counter):
     """Run the jobs of a command list.
 
     Parameters
@@ -123,8 +210,15 @@ def run(document, report=lambda event: None):
         The command list (or its JSON text).
     report : callable, optional
         Called with a dict for every event: ``start`` (with the substeps of the steps
-        of every job), ``substep``, ``iteration``, ``failed``, ``converged`` and
-        ``finished``.
+        of every job), ``substep``, ``iteration``, ``failed``, ``converged``,
+        ``live`` (see :class:`Live`) and ``finished``.
+    live : dict or None, optional
+        The settings of the live scenes of the running jobs (#207): the
+        ``quantity`` and optionally the ``interval`` and the ``budget`` of
+        :class:`Live`. Without them, the live events have only the points of the
+        curves of characteristic curves.
+    clock : callable, optional
+        The time in seconds, e.g. a fake clock for tests of the live scenes.
 
     Returns
     -------
@@ -164,6 +258,10 @@ def run(document, report=lambda event: None):
         job = namespace[name]
         job.dispatcher.add_plugin(Progress(report, name, substeps[name]))
         job.dispatcher.add_plugin(results_.Recorder(name, namespace["field"]))
+        curve = job if isinstance(job, fem.CharacteristicCurve) else None
+        job.dispatcher.add_plugin(
+            Live(report, name, substeps[name], curve, clock=clock, **(live or {}))
+        )
         started = time.perf_counter()
         options = evaluate_options(commands[name])
         # the linear solver of the script (#203): the same source, in its namespace
@@ -199,8 +297,20 @@ def script_view(text):
     return json.dumps({"script": source, "lines": object_lines(source, document)})
 
 
-def run_json(text, report):
+def run_json(text, report, live=None, report_scene=None):
     """:func:`run` with JSON texts for the worker: the command list, the events (given
-    to ``report``) and the results."""
-    results = run(text, lambda event: report(json.dumps(event)))
+    to ``report``), the settings of the live scenes (#207) and the results. A live
+    event with a scene is given to ``report_scene`` instead: the event without the
+    scene as JSON text, the label of the scene as JSON text and its surfaces (the
+    worker transfers their bytes)."""
+
+    def send(event):
+        scene = event.pop("scene", None)
+        if scene is not None and report_scene is not None:
+            report_scene(json.dumps(event), *scene)
+        else:
+            report(json.dumps(event))
+
+    settings = json.loads(live) if live else None
+    results = run(text, send, settings)
     return json.dumps(results)
