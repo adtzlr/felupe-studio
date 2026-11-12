@@ -36,6 +36,15 @@ import {
 } from "../viewer/facesets";
 import { axisOf, type Vec3 } from "../viewer/picking";
 import {
+  connectedFaces,
+  describeSurface,
+  FEATURE_ANGLE,
+  FEATURE_ANGLES,
+  nodesSelect,
+  type Surface,
+} from "../viewer/surfaces";
+import { toName } from "../core/importmesh";
+import {
   type CoordinateSelect,
   centerOf,
   controlName,
@@ -112,11 +121,16 @@ interface Picked {
   section?: string;
 }
 
-/** Faces picked with Shift, of one section (#142). */
+/**
+ * Picked faces of one section: the connected surface of a clicked face up to the
+ * feature angle (#189), and faces added or removed with Shift (#142).
+ */
 interface PickedFaces {
   section: string;
   /** Indices of the faces of the section. */
   faces: number[];
+  /** The clicked face of a connected surface, to follow the feature angle. */
+  seed?: number;
 }
 
 const isFaceSet = (c: Command): c is FaceSetAdd => c.command === "faceset.add";
@@ -149,6 +163,51 @@ type Node3 = [number, number, number];
 
 const sameNode = (a: readonly number[], b: readonly number[]) =>
   a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
+
+/** The feature angle of picked surfaces in degrees, kept in the browser (#189). */
+const ANGLE = "felupe-studio.feature-angle";
+
+function storedAngle(): number {
+  try {
+    const value = Number(localStorage.getItem(ANGLE));
+    return (FEATURE_ANGLES as readonly number[]).includes(value)
+      ? value
+      : FEATURE_ANGLE;
+  } catch {
+    return FEATURE_ANGLE;
+  }
+}
+
+function storeAngle(angle: number): void {
+  try {
+    localStorage.setItem(ANGLE, String(angle));
+  } catch {
+    // storage may be unavailable, e.g. in a private window
+  }
+}
+
+/**
+ * A short description of a picked surface, e.g. "Cylinder r = 25 about x", or of a
+ * part of it if the shape selects more (then stored by its nodes and faces).
+ */
+function surfaceTitle(surface: Surface): string {
+  const title = shapeTitle(surface);
+  return surface.exactPoints ? title : `Part of the ${title.toLowerCase()}`;
+}
+
+function shapeTitle(surface: Surface): string {
+  if (surface.kind === "plane") {
+    return `Plane ${surface.plane.axis} = ${formatNumber(surface.plane.value)}`;
+  }
+  if (surface.kind === "cylinder") {
+    const { radius, axis, center } = surface.cylinder;
+    const through = center
+      ? ` through (${center.map(formatNumber).join(", ")})`
+      : "";
+    return `Cylinder r = ${formatNumber(radius)} about ${axis}${through}`;
+  }
+  return "Surface";
+}
 
 /** The tip about picking is shown until the first pick or until it is dismissed. */
 const TIP = "felupe-studio.tip.pick";
@@ -200,6 +259,10 @@ export function Viewport({
   const [pickedNodes, setPickedNodes] = useState<Node3[]>([]);
   // the faces picked with Shift (#142)
   const [pickedFaces, setPickedFaces] = useState<PickedFaces>();
+  // the feature angle of a clicked surface (#189)
+  const [angle, setAngle] = useState(storedAngle);
+  const angleRef = useRef(angle);
+  angleRef.current = angle;
   const [copied, setCopied] = useState(false);
   const [tip, setTip] = useState(() => !tipSeen());
   const hideTip = () => {
@@ -285,6 +348,20 @@ export function Viewport({
     () => (picked?.select ? selectedPoints(picked.select, nodes) : undefined),
     [picked, nodes],
   );
+  // the picked faces as a plane, a cylinder or a surface of nodes, and the points
+  // of the point set it would create (#189)
+  const surface = useMemo(() => {
+    const of = pickedFaces && sections.get(pickedFaces.section);
+    return of ? describeSurface(of, pickedFaces.faces, nodes) : undefined;
+  }, [pickedFaces, sections, nodes]);
+  const surfacePoints = useMemo(() => {
+    if (!surface) return undefined;
+    if (surface.kind === "plane" && surface.exactPoints)
+      return selectedPoints(surface.plane, nodes);
+    if (surface.kind === "cylinder" && surface.exactPoints)
+      return selectedPoints(surface.cylinder, nodes);
+    return surface.nodes;
+  }, [surface, nodes]);
   const controls = useMemo(
     () => commands.filter(isControl).filter((c) => !hidden.has(c.name)),
     [commands, hidden],
@@ -301,6 +378,7 @@ export function Viewport({
       ...outlined(points(others), POINTS),
       ...(chosen ? outlined(points([chosen]), HIGHLIGHT, 9) : []),
       ...(preview ? outlined(preview, HIGHLIGHT, 9) : []),
+      ...(surfacePoints ? outlined(surfacePoints, HIGHLIGHT, 9) : []),
       ...outlined(Float64Array.from(pickedNodes.flat()), HIGHLIGHT, 9),
       // the control points, always shown (#95)
       ...outlined(
@@ -322,7 +400,16 @@ export function Viewport({
         11,
       ),
     ];
-  }, [commands, hidden, selected, nodes, preview, pickedNodes, controls]);
+  }, [
+    commands,
+    hidden,
+    selected,
+    nodes,
+    preview,
+    surfacePoints,
+    pickedNodes,
+    controls,
+  ]);
 
   // the nodes of the selected point set (by nodes) that the meshes do not have; the
   // script raises an error for them (#92)
@@ -467,6 +554,8 @@ export function Viewport({
             if (current?.section !== at.section) {
               return { section: at.section, faces: [at.face] };
             }
+            // faces added or removed: no longer the surface of a seed, which the
+            // feature angle would change
             const others = current.faces.filter((f) => f !== at.face);
             const faces =
               others.length < current.faces.length
@@ -478,6 +567,20 @@ export function Viewport({
           return;
         }
         setPickedNodes([]);
+        // a face of a section: its connected surface up to the feature angle (#189)
+        const at =
+          pick && faceAt(sectionsRef.current, pick.mesh, pick.triangle);
+        const of = at && sectionsRef.current.get(at.section);
+        if (at && of) {
+          setPicked(undefined);
+          setPickedFaces({
+            section: at.section,
+            faces: connectedFaces(of, at.face, angleRef.current),
+            seed: at.face,
+          });
+          hideTip();
+          return;
+        }
         setPickedFaces(undefined);
         setPicked(pick && planeOf(pick));
         if (pick) hideTip();
@@ -504,6 +607,17 @@ export function Viewport({
     controls,
     createViewer,
   ]);
+
+  // a changed feature angle follows the clicked face, and is kept (#189)
+  const chooseAngle = (value: number) => {
+    setAngle(value);
+    storeAngle(value);
+    setPickedFaces((current) => {
+      const of = current && sections.get(current.section);
+      if (!current || current.seed === undefined || !of) return current;
+      return { ...current, faces: connectedFaces(of, current.seed, value) };
+    });
+  };
 
   // Escape clears a picked face or picked nodes, before the app clears the selection
   // (a listener of the capture phase)
@@ -758,30 +872,101 @@ export function Viewport({
             </button>
           </div>
         )}
-        {shown && pickedFaces && (
+        {shown && pickedFaces && surface && (
           <div class="pick-panel" role="status" aria-label="Picked faces">
             <span>
-              <strong>
-                {pickedFaces.faces.length}{" "}
-                {pickedFaces.faces.length === 1 ? "face" : "faces"}
-              </strong>{" "}
-              of {pickedFaces.section}{" "}
-              <span class="muted">· Shift+click for more</span>
+              <strong>{surfaceTitle(surface)}</strong>
+              {surface.kind === "plane" &&
+                surface.exactPoints &&
+                (() => {
+                  const at = boundOf(surface.plane, nodes);
+                  return "bound" in at ? (
+                    <span class="muted"> ({at.bound})</span>
+                  ) : null;
+                })()}{" "}
+              <span class="muted">
+                · {pickedFaces.faces.length}{" "}
+                {pickedFaces.faces.length === 1 ? "face" : "faces"} of{" "}
+                {pickedFaces.section} · {(surfacePoints?.length ?? 0) / 3}{" "}
+                points · Shift+click adds or removes faces
+              </span>
             </span>
-            {onCreateFaceSet && (
+            <label
+              class="pick-angle"
+              title="The largest angle between the normals of neighbouring faces of a picked surface"
+            >
+              Angle{" "}
+              <select
+                aria-label="Feature angle"
+                value={String(angle)}
+                onChange={(event) =>
+                  chooseAngle(Number(event.currentTarget.value))
+                }
+              >
+                {FEATURE_ANGLES.map((a) => (
+                  <option key={a} value={String(a)}>
+                    {a}°
+                  </option>
+                ))}
+              </select>
+            </label>
+            {onCreatePointSet && (
               <button
                 type="button"
                 class="button primary"
                 onClick={() => {
+                  const taken = new Set(commands.map((c) => c.name));
+                  onCreatePointSet(
+                    surface.kind === "plane" && surface.exactPoints
+                      ? {
+                          name: planeName(surface.plane, nodes, commands),
+                          select: boundOf(surface.plane, nodes),
+                        }
+                      : surface.kind === "cylinder" && surface.exactPoints
+                        ? {
+                            name: toName(
+                              `r_${surface.cylinder.radius}`,
+                              taken,
+                              "points",
+                            ),
+                            select: surface.cylinder,
+                          }
+                        : {
+                            name: toName("surface", taken, "points"),
+                            select: nodesSelect(surface.nodes),
+                          },
+                  );
+                  setPickedFaces(undefined);
+                }}
+              >
+                Create point set
+              </button>
+            )}
+            {onCreateFaceSet && (
+              <button
+                type="button"
+                class="button"
+                onClick={() => {
                   const of = sections.get(pickedFaces.section);
                   if (!of) return;
-                  const select = {
-                    centers: pickedFaces.faces.map((f) =>
-                      of.faces[f].center.map((x) => +x.toPrecision(12)),
-                    ) as [Node3, ...Node3[]],
-                  };
+                  const taken = new Set(commands.map((c) => c.name));
+                  const select =
+                    surface.kind === "plane" && surface.exactFaces
+                      ? surface.plane
+                      : {
+                          centers: pickedFaces.faces.map((f) =>
+                            of.faces[f].center.map((x) => +x.toPrecision(12)),
+                          ) as [Node3, ...Node3[]],
+                        };
                   onCreateFaceSet({
-                    name: faceSetName(select, of, commands),
+                    name:
+                      surface.kind === "cylinder"
+                        ? toName(
+                            `faces_r_${surface.cylinder.radius}`,
+                            taken,
+                            "faces",
+                          )
+                        : faceSetName(select, of, commands),
                     section: pickedFaces.section,
                     select,
                   });
@@ -791,6 +976,25 @@ export function Viewport({
                 Create face set
               </button>
             )}
+            {onCreateControlPoint &&
+              surfacePoints &&
+              surfacePoints.length > 0 && (
+                <button
+                  type="button"
+                  class="button"
+                  onClick={() => {
+                    controlAt(
+                      surfacePoints,
+                      surface.kind === "plane" && surface.exactPoints
+                        ? planeName(surface.plane, nodes, commands)
+                        : undefined,
+                    );
+                    setPickedFaces(undefined);
+                  }}
+                >
+                  Control point at center
+                </button>
+              )}
             <button
               type="button"
               class="icon-button"

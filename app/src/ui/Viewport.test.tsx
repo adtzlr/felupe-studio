@@ -853,6 +853,7 @@ describe("Viewport", () => {
     }
     const viewer = fakeViewer();
     const create = vi.fn();
+    const createPoints = vi.fn();
     const view = (selected?: string) => (
       <Viewport
         store={store}
@@ -860,6 +861,7 @@ describe("Viewport", () => {
         hidden={new Set()}
         selected={selected}
         onCreateFaceSet={create}
+        onCreatePointSet={createPoints}
         createViewer={viewer.create}
       />
     );
@@ -878,22 +880,43 @@ describe("Viewport", () => {
         );
       });
 
-    // a face: the faces of its section on its plane
+    // a face: the connected surface of its section up to the feature angle, here
+    // the plane z = 0 of both faces (#189)
     await click(50, 50);
-    expect(screen.getByRole("status", { name: "Picked face" })).toBeTruthy();
-    const button = screen.getByRole("button", { name: "Create face set" });
-    expect(button.title).toBe("The 2 faces of body on the plane");
-    fireEvent.click(button);
+    const panel = () => screen.getByRole("status", { name: "Picked faces" });
+    expect(panel().textContent).toContain(
+      "Plane z = 0 (min) · 2 faces of body · 6 points",
+    );
+    const angle = within(panel()).getByLabelText(
+      "Feature angle",
+    ) as HTMLSelectElement;
+    expect(angle.value).toBe("30");
+    fireEvent.change(angle, { target: { value: "60" } });
+    expect(localStorage.getItem("felupe-studio.feature-angle")).toBe("60");
+    fireEvent.click(
+      within(panel()).getByRole("button", { name: "Create face set" }),
+    );
     expect(create).toHaveBeenLastCalledWith({
       name: "faces_z_min",
       section: "body",
       select: { axis: "z", value: 0 },
     });
+    await click(50, 50);
+    fireEvent.click(
+      within(panel()).getByRole("button", { name: "Create point set" }),
+    );
+    expect(createPoints).toHaveBeenLastCalledWith({
+      name: "z_min",
+      select: { bound: "min", axis: "z" },
+    });
+    localStorage.removeItem("felupe-studio.feature-angle");
 
-    // faces picked with Shift, highlighted
+    // faces picked with Shift, highlighted; a part of the plane is stored by the
+    // centers of its faces
     await click(50, 50, true);
-    const panel = () => screen.getByRole("status", { name: "Picked faces" });
-    expect(panel().textContent).toContain("1 face of body");
+    expect(panel().textContent).toContain(
+      "Part of the plane z = 0 · 1 face of body · 4 points",
+    );
     await click(94, 50, true);
     expect(panel().textContent).toContain("2 faces of body");
     const surfaces = () =>
@@ -904,18 +927,14 @@ describe("Viewport", () => {
     await click(94, 50, true);
     expect(panel().textContent).toContain("1 face of body");
     await click(94, 50, true);
+    await click(50, 50, true);
     fireEvent.click(
       within(panel()).getByRole("button", { name: "Create face set" }),
     );
     expect(create).toHaveBeenLastCalledWith({
       name: "faces",
       section: "body",
-      select: {
-        centers: [
-          [0.5, 0.5, 0],
-          [1.5, 0.5, 0],
-        ],
-      },
+      select: { centers: [[1.5, 0.5, 0]] },
     });
     expect(screen.queryByRole("status", { name: "Picked faces" })).toBeNull();
 
