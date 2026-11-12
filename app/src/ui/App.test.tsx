@@ -977,6 +977,80 @@ describe("solve", () => {
     expect(panel.textContent).toContain("Substep 5 of 6");
   });
 
+  it("leaves the results for the properties of a clicked object (#196)", async () => {
+    const jobs = runner();
+    const list = fixture as CommandList;
+    const store = new ModelStore({
+      ...list,
+      commands: [
+        ...list.commands,
+        { command: "job.add", name: "job_2", steps: ["step_1"], curve: "move" },
+      ] as Command[],
+    });
+    render(
+      <App
+        store={store}
+        files={await files()}
+        client={client(Promise.resolve(readyValue), {
+          ...jobs,
+          resultScene: () => new Promise<ResultScene>(() => {}),
+        })}
+      />,
+    );
+    await waitFor(() =>
+      expect(solveButton().getAttribute("aria-disabled")).toBeNull(),
+    );
+    fireEvent.click(solveButton());
+    await waitFor(() => expect(jobs.run).toHaveBeenCalledTimes(1));
+    const result = (substeps: number) => ({
+      substeps,
+      time: 0.1,
+      x: Array.from({ length: substeps }, () => [0, 0, 0]),
+      y: Array.from({ length: substeps }, () => [0, 0, 0]),
+    });
+    jobs.emit({
+      event: "start",
+      jobs: ["job_1", "job_2"],
+      substeps: { job_1: [6], job_2: [3] },
+    });
+    await act(async () =>
+      jobs.settle().resolve({ job_1: result(6), job_2: result(3) }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show results" }));
+    const panel = () => screen.getByRole("tabpanel");
+    const inResults = () =>
+      !document.querySelector<HTMLElement>('main[aria-label="Results"]')!
+        .hidden;
+    expect(inResults()).toBe(true);
+    expect(panel().textContent).toContain("Substep 6 of 6");
+    const tree = screen.getByRole("tree", { name: "Model" });
+
+    // a job with results: its results
+    fireEvent.click(within(tree).getByRole("treeitem", { name: "job_2" }));
+    expect(inResults()).toBe(true);
+    expect(panel().textContent).toContain("Substep 3 of 3");
+    expect(screen.queryByRole("region", { name: "Properties" })).toBeNull();
+    // the eye keeps the results
+    fireEvent.click(
+      within(tree).getByRole("button", { name: "Hide section_soft" }),
+    );
+    expect(inResults()).toBe(true);
+
+    // another object: its properties in the Model workspace
+    fireEvent.click(
+      within(tree).getByRole("treeitem", { name: "section_soft" }),
+    );
+    expect(inResults()).toBe(false);
+    const properties = screen.getByRole("region", { name: "Properties" });
+    expect(
+      (within(properties).getByLabelText("Name") as HTMLInputElement).value,
+    ).toBe("section_soft");
+    // the results keep their view
+    fireEvent.click(screen.getByRole("button", { name: "Results" }));
+    expect(inResults()).toBe(true);
+    expect(panel().textContent).toContain("Substep 3 of 3");
+  });
+
   it("shows the results with the units of the model (#132)", async () => {
     const jobs = runner();
     let resolveScene: (scene: ResultScene) => void = () => {};
