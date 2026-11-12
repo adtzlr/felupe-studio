@@ -772,7 +772,7 @@ export function Viewport({
               <span class="muted">
                 {nodesShown
                   ? "Click a node to pick it, Shift+click for more."
-                  : "Click a face for a point set or a face set of its plane, Shift+click faces to pick them."}
+                  : "Click a face to pick its surface for a point set or a face set, Shift+click single faces."}
               </span>
               <button
                 type="button"

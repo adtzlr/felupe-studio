@@ -70,6 +70,13 @@ function detail(cmd: Command, commands: readonly Command[]): string {
       ]
         .filter(Boolean)
         .join(" · ");
+    case "mesh.script":
+      return [
+        cmd.item ? `${cmd.file} [${cmd.item}]` : cmd.file,
+        cmd.tag && `tag ${cmd.tag}`,
+      ]
+        .filter(Boolean)
+        .join(" · ");
     case "mesh.merge":
       return `decimals = ${cmd.decimals}`;
     case "cellset.from_tag":

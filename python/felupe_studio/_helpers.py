@@ -8,6 +8,7 @@ is used by :mod:`felupe_studio.checks`.
 from types import SimpleNamespace
 
 import felupe as fem
+import meshio
 import numpy as np
 
 # --- embedded in generated scripts ---
@@ -156,3 +157,40 @@ def boundary_faces(mesh, plane=None, centers=None, atol=None):
             "faces; take the faces of one side, or a plane."
         )
     return result
+
+
+# --- embedded in generated scripts with meshes of scripts ---
+def script_mesh(file, parameters, item=None):
+    """Run a Python script that makes a mesh, with the parameters as variables, and
+    return its variable ``mesh`` as a meshio mesh. The mesh is a ``fem.Mesh``, a
+    ``fem.MeshContainer``, a ``meshio.Mesh`` or a dict of names and meshes, of which
+    ``item`` is taken."""
+    import runpy
+
+    namespace = runpy.run_path(str(file), init_globals=dict(parameters))
+    if "mesh" not in namespace:
+        raise ValueError(f"The script '{file}' makes no variable 'mesh'.")
+    mesh = namespace["mesh"]
+    if isinstance(mesh, dict):
+        if item not in mesh:
+            raise ValueError(
+                f"The mesh of '{file}' is a dict of {list(mesh)}: take one of them, "
+                f"not {item!r}."
+            )
+        mesh = mesh[item]
+    elif item is not None:
+        raise ValueError(f"The mesh of '{file}' is not a dict with an item {item!r}.")
+    if isinstance(mesh, (fem.Mesh, fem.MeshContainer)):
+        mesh = mesh.as_meshio()
+    if not isinstance(mesh, meshio.Mesh):
+        raise TypeError(
+            f"The mesh of '{file}' is a {type(mesh).__name__}, not a fem.Mesh, a "
+            "fem.MeshContainer, a meshio.Mesh or a dict of them."
+        )
+    return mesh
+
+
+def run_mesh_script(file, parameters, item=None, tag=None, cell_type=None):
+    """Return the solid cells of the mesh of a script, like ``volume_cells()``."""
+    mesh = script_mesh(file, parameters, item)
+    return volume_cells(mesh, tag=tag, cell_type=cell_type)

@@ -40,6 +40,8 @@ export const SINGLE: string[] = ["model.settings", "mesh.merge"];
 
 export const KINDS: Record<CommandType, Kind> = {
   "mesh.import": "mesh",
+  // a mesh made by a script (#182)
+  "mesh.script": "mesh",
   "model.settings": "settings",
   "parameter.add": "parameter",
   "mesh.merge": "merge",
@@ -75,6 +77,7 @@ export const kindsOf = (kind: RefKind): readonly Kind[] =>
 export const REFERENCES: Partial<
   Record<CommandType, Record<string, [RefKind, boolean]>>
 > = {
+  "mesh.script": { parameters: ["parameter", true] },
   "cellset.from_tag": { mesh: ["mesh", false] },
   "cellset.from_file": { mesh: ["mesh", false] },
   "section.add": { cellset: ["cellset", false], material: ["material", false] },
@@ -258,7 +261,10 @@ export function validate(commands: readonly Command[]): Issue[] {
     // cell sets from tags need a mesh imported with a tag
     if (cmd.command === "cellset.from_tag" && defined.has(cmd.mesh)) {
       const mesh = defined.get(cmd.mesh)![1];
-      if (mesh.command === "mesh.import" && mesh.tag === undefined) {
+      if (
+        (mesh.command === "mesh.import" || mesh.command === "mesh.script") &&
+        mesh.tag === undefined
+      ) {
         add(
           `cell set '${name}' uses tag values, but mesh '${mesh.name}' was imported without a tag.`,
           "mesh",

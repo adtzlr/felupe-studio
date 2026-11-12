@@ -13,6 +13,7 @@ from felupe_studio.commands import RAMPED, REFERENCES, SCHEMA_VERSION, schema
 
 # names of the kinds of objects that a reference points to
 KIND_NAMES = {
+    "parameter": "parameter",
     "mesh": "mesh",
     "cellset": "cell set",
     "material": "material",

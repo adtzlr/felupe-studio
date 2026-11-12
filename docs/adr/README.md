@@ -12,5 +12,6 @@ Short records of decisions that shape felupe-studio. A record is changed by a ne
 | [0006](0006-control-points.md)         | Control points                 | Accepted |
 | [0007](0007-project-archives.md)       | Project archives               | Accepted |
 | [0008](0008-face-sets.md)              | Face sets                      | Accepted |
+| [0009](0009-mesh-scripts.md)           | Meshes made by scripts         | Accepted |
 
 Template: Context, Decision, Consequences, Alternatives.

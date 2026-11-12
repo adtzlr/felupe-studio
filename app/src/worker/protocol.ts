@@ -59,6 +59,8 @@ export interface MeshInfo {
   ignored?: string[];
   /** Why the file cannot be used. */
   error?: string;
+  /** The traceback of an error of a script that makes a mesh (#182). */
+  traceback?: string;
 }
 
 /**
@@ -217,6 +219,14 @@ export type ToWorker =
   | { type: "benchmark"; id: number; sizes: number[] }
   | { type: "write-file"; id: number; name: string; data: ArrayBuffer }
   | { type: "inspect-mesh"; id: number; name: string }
+  /** Run a script with parameters and inspect its mesh, or an item (#182). */
+  | {
+      type: "make-mesh";
+      id: number;
+      file: string;
+      parameters: Record<string, number>;
+      item?: string;
+    }
   | { type: "run"; id: number; document: string }
   | { type: "script"; id: number; document: string }
   /** The script and the lines of its objects, as JSON text (#130). */

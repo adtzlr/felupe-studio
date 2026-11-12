@@ -21,7 +21,8 @@ import meshio
 import numpy as np
 from scipy.spatial import cKDTree
 
-from ._helpers import volume_cells
+from ._helpers import run_mesh_script, volume_cells
+from .codegen import parameter_value
 from .commands import validate
 
 # faces of the solid cells by their corner points (VTK ordering, quadratic cells
@@ -136,6 +137,25 @@ def check(document, directory="."):
         for c in commands
         if c["command"] == "mesh.import"
     }
+    # the meshes made by scripts with the parameters of the model (#182)
+    values = {
+        c["name"]: parameter_value(c)
+        for c in commands
+        if c["command"] == "parameter.add"
+    }
+    for c in commands:
+        if c["command"] == "mesh.script":
+            names = c.get("parameters", list(values))
+            meshes[c["name"]] = run_mesh_script(
+                directory / c["file"],
+                {n: values[n] for n in names},
+                item=c.get("item"),
+                tag=c.get("tag"),
+                cell_type=c.get("cell_type"),
+            )
+    # in the order of the commands, like the script
+    order = [c["name"] for c in commands if c["name"] in meshes]
+    meshes = {name: meshes[name] for name in order}
 
     # cell sets as indices of the cells of their mesh
     cellsets = {}

@@ -6,10 +6,14 @@ import type {
   CellSetFromFile,
   CellSetFromTag,
   Command,
-  MeshImport,
   SectionAdd,
 } from "../core/commands";
-import type { MeshFiles } from "../core/meshfiles";
+import {
+  isMesh,
+  type MeshCommand,
+  type MeshFiles,
+  meshStatus,
+} from "../core/meshfiles";
 import { solidOf } from "../core/meshinfo";
 import type { MeshSurface } from "../worker/protocol";
 import { categorical, UNASSIGNED } from "./palette";
@@ -75,7 +79,7 @@ export function defaultColorBy(commands: readonly Command[]): ColorBy {
 /** The cells of a cell set (non-zero), or undefined if the tag is not available. */
 export function cellMask(
   cellset: CellSet,
-  mesh: MeshImport,
+  mesh: MeshCommand,
   surface: MeshSurface,
 ): Uint8Array | undefined {
   const mask = new Uint8Array(surface.cells);
@@ -97,7 +101,7 @@ const indices = (mask: Uint8Array) => {
 
 /** The groups of cells of a mesh to color, and the label of the other cells. */
 function groupsOf(
-  mesh: MeshImport,
+  mesh: MeshCommand,
   masks: Map<string, Uint8Array>,
   commands: readonly Command[],
   colorBy: ColorBy,
@@ -129,9 +133,8 @@ export function viewportContent(
   hidden: ReadonlySet<string>,
   colorBy: ColorBy = defaultColorBy(commands),
 ): ViewportContent {
-  const imports = commands.filter(
-    (c): c is MeshImport => c.command === "mesh.import",
-  );
+  // imported meshes and meshes made by scripts (#182)
+  const imports = commands.filter(isMesh);
   const meshes: MeshLayer[] = [];
   const reading = new Set<string>();
   // legend entries with visible cells, by their position in the model
@@ -139,14 +142,17 @@ export function viewportContent(
   const other = colorBy === "cellset" ? "No cell set" : "No section";
 
   imports.forEach((mesh, index) => {
-    const status = files.get(mesh.file)?.status;
+    const status = meshStatus(mesh, commands, files);
     if (status?.state === "reading") reading.add(mesh.file);
     if (hidden.has(mesh.name) || status?.state !== "ready") return;
     const choice = solidOf(status.info, mesh.cell_type);
     const raw =
       "solid" in choice ? status.surfaces[choice.solid.cell_type] : undefined;
     if (!raw) return;
-    const surface = scaledSurface(raw, mesh.scale);
+    const surface = scaledSurface(
+      raw,
+      mesh.command === "mesh.import" ? mesh.scale : undefined,
+    );
 
     // the cells of the cell sets of this mesh
     const masks = new Map<string, Uint8Array>();

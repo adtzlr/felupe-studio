@@ -1598,6 +1598,19 @@ button {
   background: var(--color-bar);
 }
 
+/* the traceback of a script that makes a mesh (#182) */
+.traceback {
+  align-self: stretch;
+  font-size: var(--text-sm);
+}
+
+.traceback pre {
+  margin: var(--space-6) 0 0;
+  overflow-x: auto;
+  font: var(--text-sm) var(--font-mono);
+  white-space: pre;
+}
+
 .shell.dragging {
   outline: 2px dashed var(--color-accent);
   outline-offset: -6px;

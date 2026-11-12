@@ -59,6 +59,7 @@ describe("ribbon commands", () => {
         .map((b) => b.textContent);
     expect(names()).toEqual([
       "Import mesh",
+      "Mesh script",
       "Merge points",
       "Cell set from tag",
       "Cell set of a mesh",

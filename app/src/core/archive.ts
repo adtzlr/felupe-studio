@@ -54,7 +54,9 @@ function meshFilesOf(text: string): Set<string> | undefined {
     return new Set(
       document.commands.flatMap((command: unknown) => {
         const c = command as Record<string, unknown> | null;
-        return c?.command === "mesh.import" && typeof c.file === "string"
+        // the files of imported meshes and of scripts that make meshes (#182)
+        return (c?.command === "mesh.import" || c?.command === "mesh.script") &&
+          typeof c.file === "string"
           ? [c.file]
           : [];
       }),
@@ -154,7 +156,10 @@ export function readArchive(bytes: Uint8Array): Archive {
   const name = project.path.slice(0, -SUFFIX.length);
   const used = meshFilesOf(new TextDecoder().decode(project.data));
   const rest = entries.filter((e) => e !== project);
-  const script = rest.find(({ path }) => path === `${name}.py`);
+  // a script of the model's meshes may have the name of the FElupe script (#182)
+  const script = used?.has(`${name}.py`)
+    ? undefined
+    : rest.find(({ path }) => path === `${name}.py`);
   const others = rest.filter((e) => e !== script);
   const uses = (path: string) => !used || used.has(path);
   return {

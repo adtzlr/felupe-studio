@@ -28,6 +28,8 @@ import type { Session, SessionStorage } from "../core/session";
 import {
   faceSetNotes,
   fileNotes,
+  isScript,
+  makeMeshes,
   MeshFiles,
   meshFileNames,
 } from "../core/meshfiles";
@@ -50,6 +52,7 @@ import { ImportMeshDialog } from "./ImportMeshDialog";
 import { Inspector } from "./Inspector";
 import { JobPanel } from "./JobPanel";
 import type { Capture } from "../viewer/viewer";
+import { safeName } from "../worker/files";
 import { CurveCard } from "./CurveCard";
 import { NewProjectDialog } from "./NewProjectDialog";
 import { SamplesDialog } from "./SamplesDialog";
@@ -135,6 +138,11 @@ export function App({
   const [shown, setShown] = useState<{ view: ResultView; ok: boolean }>();
   const substeps =
     finished && resultView ? substepsOf(finished, resultView.job) : 0;
+  // the meshes of scripts with the parameters of the model, made in the worker (#182)
+  useEffect(
+    () => makeMeshes(store.commands, files),
+    [store.commands, files, files.revision],
+  );
   // notes about the mesh files, and about face sets on cells without faces (#142)
   const meshNotes = fileNotes(store.commands, files);
   const faceNotes = faceSetNotes(store.commands, files);
@@ -323,11 +331,23 @@ export function App({
         }
         return;
       }
-      if (meshes.length === 1) {
-        setImporting({ file: meshes[0] });
-      } else if (meshes.length > 1) {
-        await files.addFiles(meshes);
+      // scripts that make meshes (#182): kept, and one alone is used by a new mesh
+      // script
+      const scripts = meshes.filter((file) => isScript(file.name));
+      const others = meshes.filter((file) => !isScript(file.name));
+      if (scripts.length) await files.addFiles(scripts);
+      if (others.length === 1) {
+        setImporting({ file: others[0] });
+      } else if (others.length > 1) {
+        await files.addFiles(others);
         setImporting({});
+      } else if (scripts.length === 1) {
+        setCreating({
+          id: "mesh.script",
+          type: "mesh.script",
+          label: REGISTRY["mesh.script"].label,
+          preset: { file: safeName(scripts[0].name) },
+        });
       }
     },
     [files, openProject, store, modified],

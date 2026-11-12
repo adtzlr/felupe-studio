@@ -78,6 +78,8 @@
           "np",
           "points",
           "points_at",
+          "run_mesh_script",
+          "script_mesh",
           "single_point",
           "vertex_region",
           "volume_cells"
@@ -108,6 +110,9 @@
         },
         {
           "$ref": "#/$defs/MeshImport"
+        },
+        {
+          "$ref": "#/$defs/MeshScript"
         },
         {
           "$ref": "#/$defs/MeshMerge"
@@ -187,6 +192,47 @@
           "type": "number",
           "exclusiveMinimum": 0,
           "default": 1
+        }
+      }
+    },
+    "MeshScript": {
+      "description": "A mesh made by a Python script next to the project, e.g. with the mesh tools of FElupe. The script runs with the parameters of the model as variables and makes a variable mesh: a fem.Mesh, a fem.MeshContainer, a meshio.Mesh or a dict of names and meshes (one mesh object per item).",
+      "type": "object",
+      "required": ["command", "name", "file"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "mesh.script"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "file": {
+          "description": "File name of the script, e.g. bushing.py.",
+          "type": "string",
+          "pattern": "\\.py$"
+        },
+        "parameters": {
+          "description": "The parameters of the model that the script gets as variables (default: all).",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Name"
+          }
+        },
+        "item": {
+          "description": "The item of a dict of meshes, e.g. rubber.",
+          "type": "string",
+          "minLength": 1
+        },
+        "tag": {
+          "description": "Name of an integer cell data array of a meshio.Mesh used to split the mesh into cell sets.",
+          "type": "string",
+          "minLength": 1
+        },
+        "cell_type": {
+          "description": "Type of the solid cells to take, if the mesh has more than one.",
+          "enum": ["tetra", "tetra10", "hexahedron", "hexahedron20", "hexahedron27"]
         }
       }
     },
