@@ -12,10 +12,12 @@ Every object of a model is a FElupe object, and every action creates or changes 
 
 ## The window
 
+![The Model workspace with the sample "Rubber block with a rigid plate": the model browser, the viewport with the multi-point constraint of the plate selected, and its properties](images/model.png)
+
 - **Header:** the menus **File** (new, open, samples, save and the exports) and **Help** (this guide, the command reference, the keyboard shortcuts and *About* with the versions of FElupe, Python and Pyodide), buttons for Open, Save, Export, Undo and Redo, and **Solve**.
 - **Ribbon:** the workspaces **Model** and **Results**. The tabs of the model create its objects in the order in which a model is usually built: Mesh, Materials, Sections, Loads & BCs, Steps & Job. A button that cannot be used yet tells you what is missing, e.g. "Create a cell set and a material first."
 - **Model browser** (left): the objects of the model in groups. A number at an object counts its issues. A click on an object selects it in the viewport and opens its **properties**, where you edit and **Apply** or **Delete** it. After a change, **Apply** (Enter) takes it over and **Reset** (Esc) discards it; an issue of the object is shown at its field, e.g. a missing material at *Material*. The tooltip of a symbol, e.g. C₁₀, names its key in the project file (`C10`). A right click on an object, its **⋯** button or Shift+F10 opens its menu: **Duplicate** (Ctrl+D) creates a copy with the next free name, e.g. `rubber_2`, right after the original and selects it, so a second material or boundary that differs in one value is quick to make; objects that use the original keep using it. **Rename** (F2), **Show/Hide** (H) and **Delete** (Del) work on the selected object too.
-- **Viewport:** the meshes with their point sets, boundaries, control points, constraints and loads. The toolbar has the views, *Fit*, *Color by* (mesh, cell set or section) and *Nodes*.
+- **Viewport:** the meshes with their point sets, face sets, boundaries, control points, constraints, point loads and pressures. The toolbar has the views, *Fit*, *Color by* (mesh, cell set or section) and *Nodes*.
 - **Footer:** the command line, the state of Python, the number of commands and issues, and the history: the commands in their order, with Undo (Ctrl+Z) and Redo (Ctrl+Shift+Z).
 
 In narrow windows (up to 1000 px, e.g. a tablet or a small laptop window), the browser and the properties are drawers over the viewport: the button left of the logo opens the browser, a selection opens the properties, Esc closes them. The ribbon is one row that scrolls.
@@ -93,6 +95,8 @@ A **Point load** is a force at every point of a point set or at a control point.
 
 A **Pressure** (Loads & BCs) acts on the faces of a face set, normal to the faces and per deformed area: a positive pressure pushes onto the faces, a negative one pulls. Like a point load, it is applied in full unless a step ramps it, and a ramp is a factor of the pressure. The viewport draws arrows onto (or away from) the faces.
 
+![A face set of the top face of the block and a pressure of 0.1 MPa on it, drawn as arrows onto the faces](images/pressure.png)
+
 ### 6. Steps and jobs
 
 A **Step** solves the model in increments. Its items are the sections, multi-point constraints, point loads and pressures (all of them, unless you choose some). *Ramped* lists the boundaries, load cases, point loads and pressures whose values change in the step, each with its own start and end value; *Increments* is the number of substeps of the step. All other boundaries keep their values.
@@ -106,6 +110,8 @@ A **Job** evaluates its steps one after another. With a *Curve* (a boundary, a l
 ## Results
 
 The **Results** workspace shows the deformed shape of a substep:
+
+![The Results workspace: the von Mises stress of the last substep with its minimum and maximum, the scalar bar and the force-displacement curve of the job](images/results.png)
 
 - *Contour*: the displacement, the logarithmic strains or the Cauchy stresses (principal values and von Mises). The button beside it sets the **color map** (Turbo, Viridis, Cool–warm for signed values, centered at zero, or Grayscale for printing), **bands** (continuous or 6–20 discrete bands) and the **range**: of the substep, over all substeps of the job (to compare substeps), or manual, where values outside are drawn in an extra color. The settings are kept in the browser and used by the picture export.
 - *Substep* and *Scale* of the displacements; *Undeformed* shows the shape before the deformation.
@@ -138,6 +144,8 @@ The **Export** menu has
 | Ctrl+Shift+S | Save as a project file or an archive |
 | Ctrl+Z, Ctrl+Shift+Z | Undo, redo |
 | Delete, F2, Esc | Delete or rename the selected object, clear the selection |
+| Ctrl+D, H | Duplicate the selected object, show or hide it |
+| Shift+click | Pick more nodes (with *Nodes* shown), or faces for a face set |
 | F, 1–4, N | Fit, the views Iso, XY, XZ, YZ, show the nodes |
 | ←, →, Home, End | The previous, next, first or last substep of the results |
 | Space | Play or pause the substeps of the results |

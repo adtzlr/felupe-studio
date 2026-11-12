@@ -115,7 +115,10 @@ export const SHORTCUTS: ShortcutGroup[] = [
       { keys: [["Scroll"]], action: "Zoom" },
       { keys: [["Double-click"]], action: "Reset the view" },
       { keys: [["Click"]], action: "Pick a face, or a node with Nodes shown" },
-      { keys: [["Shift", "Click"]], action: "Pick more nodes" },
+      {
+        keys: [["Shift", "Click"]],
+        action: "Pick more nodes, or faces for a face set",
+      },
     ],
   },
   {
