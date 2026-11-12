@@ -78,5 +78,19 @@
     "files": [
       "sandwich_spring.py"
     ]
+  },
+  {
+    "id": "bushing",
+    "title": "Rubber-metal bushing (FElupe ex05)",
+    "description": "A rubber bushing between two steel sleeves, the inner sleeve moved radially, twisted and tilted by a rigid connection. A script makes the mesh from the lengths of the sleeves, the runout and the fineness.",
+    "topics": [
+      "parameters",
+      "mesh script",
+      "point sets on cylinders",
+      "rotation point"
+    ],
+    "files": [
+      "bushing.py"
+    ]
   }
 ]

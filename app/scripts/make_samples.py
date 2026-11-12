@@ -78,6 +78,19 @@ SAMPLES = [
         "of the layers, the thickness of the sheets and the fineness.",
         "topics": ["parameters", "mesh script", "point sets at bounds", "shear"],
     },
+    {
+        "id": "bushing",
+        "title": "Rubber-metal bushing (FElupe ex05)",
+        "description": "A rubber bushing between two steel sleeves, the inner sleeve "
+        "moved radially, twisted and tilted by a rigid connection. A script makes the "
+        "mesh from the lengths of the sleeves, the runout and the fineness.",
+        "topics": [
+            "parameters",
+            "mesh script",
+            "point sets on cylinders",
+            "rotation point",
+        ],
+    },
 ]
 
 
@@ -563,6 +576,243 @@ def sandwich_spring():
     write("sandwich-spring", commands, {"sandwich_spring.py": SANDWICH_SPRING})
 
 
+# the script of the mesh of the bushing (#185), like the example ex05 of FElupe
+BUSHING = '''"""A rubber-metal bushing, like the example ex05 of FElupe.
+
+FElupe Studio runs this script with the parameters of the model as variables:
+the lengths of the sleeves, their thickness, the runout of the rubber and the
+fineness of the mesh. The inner sleeve is inside at the radius 25, the outer sleeve
+outside at the radius 65 (the point sets of the model). It makes a dict of the
+rubber and the metal meshes, revolved about the x axis.
+"""
+
+import felupe as fem
+import numpy as np
+
+# the parameters of the model, or these values if the script runs alone
+inner_length = globals().get("inner_length", 100)
+outer_length = globals().get("outer_length", 60)
+sleeve = globals().get("sleeve", 5)
+runout = globals().get("runout", 0.2)
+cells_axial = globals().get("cells_axial", 5)
+cells_radial = globals().get("cells_radial", 7)
+cells_around = globals().get("cells_around", 18)
+
+# the inside of the inner sleeve and the outside of the outer sleeve
+INNER, OUTER = 25, 65
+inside, outside = INNER + sleeve, OUTER - sleeve
+
+# the section of the rubber between two lines in the xy plane, with runouts
+bottom = fem.mesh.Line(a=-inner_length / 2, b=inner_length / 2, n=cells_axial + 1)
+top = fem.mesh.Line(a=-outer_length / 2, b=outer_length / 2, n=cells_axial + 1)
+bottom.update(points=np.pad(bottom.points, ((0, 0), (0, 1)), constant_values=inside))
+top.update(points=np.pad(top.points, ((0, 0), (0, 1)), constant_values=outside))
+section = fem.mesh.fill_between(bottom, top, n=cells_radial + 1)
+section = section.add_runouts(
+    axis=1, centerpoint=[0, (inside + outside) / 2], values=[runout], normalize=True
+)
+
+# revolved about the x axis, with the sleeves
+around = {"n": cells_around + 1, "phi": 360}
+rubber = section.revolve(**around)
+metal = fem.MeshContainer(
+    [
+        fem.Rectangle(
+            a=(-inner_length / 2, INNER),
+            b=(inner_length / 2, inside),
+            n=(cells_axial + 1, 3),
+        ).revolve(**around),
+        fem.Rectangle(
+            a=(-outer_length / 2, outside),
+            b=(outer_length / 2, OUTER),
+            n=(cells_axial + 1, 3),
+        ).revolve(**around),
+    ],
+    merge=True,
+).stack()
+mesh = {"rubber": rubber, "metal": metal}
+'''
+
+
+def bushing():
+    """A rubber-metal bushing like the example ex05 of FElupe (#185), made by a
+    script with parameters (#182). The outside of the outer sleeve (r = 65) is
+    fixed; the inside of the inner sleeve (r = 25), point sets on cylinders (#181),
+    is connected to a control point at the axis with a rotation point: moved by
+    8 mm in z, twisted by 30° about x and tilted by -5° about y. The multiplier of
+    the constraint is large compared with the steel: the moment of the torsion is
+    within 0.1 % of ex05, which prescribes the rotated positions."""
+
+    def parameter(name, value, description, **options):
+        return {
+            "command": "parameter.add",
+            "name": name,
+            "value": value,
+            **options,
+            "description": description,
+        }
+
+    length = {"quantity": "length"}
+    commands = [
+        {
+            "command": "model.settings",
+            "name": "settings",
+            "units": {"length": "mm", "force": "N"},
+        },
+        parameter(
+            "inner_length",
+            100,
+            "Length of the inner sleeve",
+            **length,
+            min=60,
+            max=140,
+            step=10,
+        ),
+        parameter(
+            "outer_length",
+            60,
+            "Length of the outer sleeve",
+            **length,
+            min=30,
+            max=100,
+            step=10,
+        ),
+        parameter(
+            "sleeve", 5, "Thickness of the sleeves", **length, min=2, max=10, step=1
+        ),
+        parameter(
+            "runout",
+            0.2,
+            "Runout of the free faces of the rubber",
+            min=0,
+            max=0.4,
+            step=0.05,
+        ),
+        parameter(
+            "cells_axial", 5, "Cells along the axis", integer=True, min=2, max=20
+        ),
+        parameter(
+            "cells_radial", 7, "Cells through the rubber", integer=True, min=2, max=20
+        ),
+        parameter(
+            "cells_around", 18, "Cells around the axis", integer=True, min=8, max=72
+        ),
+        {
+            "command": "mesh.script",
+            "name": "rubber_mesh",
+            "file": "bushing.py",
+            "item": "rubber",
+        },
+        {
+            "command": "mesh.script",
+            "name": "metal_mesh",
+            "file": "bushing.py",
+            "item": "metal",
+        },
+        {"command": "cellset.from_file", "name": "rubber_cells", "mesh": "rubber_mesh"},
+        {"command": "cellset.from_file", "name": "metal_cells", "mesh": "metal_mesh"},
+        {
+            "command": "material.add",
+            "name": "rubber",
+            "model": "NeoHooke",
+            "parameters": {"mu": 1},
+        },
+        {
+            "command": "material.add",
+            "name": "steel",
+            "model": "LinearElasticLargeStrain",
+            "parameters": {"E": 210000, "nu": 0.3},
+        },
+        {
+            "command": "section.add",
+            "name": "rubber_body",
+            "cellset": "rubber_cells",
+            "material": "rubber",
+            "formulation": "u-p-J",
+            "bulk": 5000,
+        },
+        {
+            "command": "section.add",
+            "name": "sleeves",
+            "cellset": "metal_cells",
+            "material": "steel",
+            "formulation": "u",
+        },
+        {
+            "command": "pointset.add",
+            "name": "inner",
+            "select": {"radius": 25, "axis": "x"},
+        },
+        {
+            "command": "pointset.add",
+            "name": "outer",
+            "select": {"radius": 65, "axis": "x"},
+        },
+        # the center of the inner sleeve at the axis, and its rotation point beside
+        {"command": "point.add", "name": "center", "coordinates": [0, 0, 0]},
+        {"command": "point.add", "name": "turn", "coordinates": [0, 0, 10]},
+        {
+            "command": "mpc.add",
+            "name": "connect",
+            "points": "inner",
+            "center": "center",
+            "constrained": ["x", "y", "z"],
+            "multiplier": 100000,
+            "rotation": "turn",
+        },
+        {
+            "command": "boundary.add",
+            "name": "fixed",
+            "pointset": "outer",
+            "constrained": ["x", "y", "z"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "radial",
+            "pointset": "center",
+            "constrained": ["z"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "hold",
+            "pointset": "center",
+            "constrained": ["x", "y"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "torsion",
+            "pointset": "turn",
+            "constrained": ["x"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "cardanic",
+            "pointset": "turn",
+            "constrained": ["y"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "lock",
+            "pointset": "turn",
+            "constrained": ["z"],
+        },
+        {
+            "command": "step.add",
+            "name": "loading",
+            "ramp": {
+                "num": 6,
+                "items": [
+                    {"target": "radial", "end": 8},
+                    {"target": "torsion", "end": 0.5236},
+                    {"target": "cardanic", "end": -0.0873},
+                ],
+            },
+        },
+        {"command": "job.add", "name": "job", "steps": ["loading"], "curve": "torsion"},
+    ]
+    write("bushing", commands, {"bushing.py": BUSHING})
+
+
 def two_materials():
     """A bar with a stiff and a soft half, from the cell tag "material"."""
     mesh = fem.Cube(b=(30, 10, 10), n=(13, 5, 5))
@@ -773,6 +1023,7 @@ def main():
     hex_tet()
     glued_plate()
     sandwich_spring()
+    bushing()
     INDEX.write_text(json.dumps(SAMPLES, indent=2) + "\n", encoding="utf-8")
 
 
