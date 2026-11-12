@@ -9,7 +9,7 @@ of the commands:
 2. materials
 3. a region and a field container per section, merged into the top-level field
 4. solid bodies (created after the merge, see :func:`felupe.field.merge`)
-5. point sets, load cases (``fem.dof``) and boundaries on the merged field
+5. point sets, face sets, load cases (``fem.dof``) and boundaries on the merged field
 6. steps and jobs
 """
 
@@ -34,8 +34,11 @@ import numpy as np
 '''
 
 MARKER = "# --- embedded in generated scripts ---\n"
+FACES = "\n\n# --- embedded in generated scripts with face sets ---\n"
 HELPERS = files("felupe_studio").joinpath("_helpers.py").read_text(encoding="utf-8")
 HELPERS = HELPERS[HELPERS.index(MARKER) + len(MARKER) :]
+# the helpers of face sets (#142), only in scripts with face sets
+HELPERS, FACE_HELPERS = HELPERS.split(FACES)
 
 AXES = ("x", "y", "z")
 
@@ -205,6 +208,7 @@ def codegen(document, evaluate=True, check_schema=True):
     pointsets = [c for c in commands if c["command"] in ("pointset.add", "point.add")]
     if pointsets and not sections:
         raise ValidationError(["Point sets need at least one section (a field)."])
+    facesets = get("faceset.add")
 
     out = [HEADER.format(version=__version__, schema=SCHEMA_VERSION)]
     settings = get("model.settings")
@@ -217,6 +221,8 @@ def codegen(document, evaluate=True, check_schema=True):
             f"{stress} (stresses); FElupe does not convert them\n"
         )
     out.append(HELPERS)
+    if facesets:
+        out.append(f"\n{FACE_HELPERS}")
 
     # 1. meshes and cell sets
     meshes = get("mesh.import")
@@ -344,6 +350,24 @@ def codegen(document, evaluate=True, check_schema=True):
             else:
                 out.append(_call(ps["name"], "np.zeros", ["len(points)", "dtype=bool"]))
                 out.append(f"{ps['name']}[{sel['ids']!r}] = True")
+
+    # face sets: boundary regions of the merged meshes of the sections (#142)
+    if facesets:
+        out.append("\n# face sets: the faces of the sections, with a field each")
+        for fs in facesets:
+            mesh = f"region_{fs['section']}.mesh"
+            sel = fs["select"]
+            if "axis" in sel:
+                args = [mesh, f"plane=({AXES.index(sel['axis'])}, {sel['value']!r})"]
+            else:
+                centers = (f"[{', '.join(map(repr, c))}]" for c in sel["centers"])
+                args = [mesh, _List(centers, prefix="centers=")]
+            if "atol" in sel:
+                args.append(f"atol={sel['atol']!r}")
+            out.append(_call(f"region_{fs['name']}", "boundary_faces", args))
+            fields = f"[fem.Field(region_{fs['name']}, dim=3)]"
+            out.append(_call(f"field_{fs['name']}", "fem.FieldContainer", [fields]))
+            out.append(f"field_{fs['name']}.link(field)")
 
     loadcases = {lc["name"]: lc for lc in get("loadcase.add")}
     if loadcases:
@@ -540,6 +564,8 @@ def object_lines(script, document):
         for prefix, kind in [
             ("region_", "section.add"),
             ("field_", "section.add"),
+            ("region_", "faceset.add"),
+            ("field_", "faceset.add"),
             ("solid_", "section.add"),
             ("ramp_", "step.add"),
         ]:
@@ -583,10 +609,10 @@ def object_lines(script, document):
                 for name in owners(target.id):
                     add(name, statement)
         elif isinstance(statement, ast.Expr) and isinstance(statement.value, ast.Call):
-            func = statement.value.func  # e.g. job.evaluate(...)
+            func = statement.value.func  # e.g. job.evaluate(...), field_top.link()
             if isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
-                if func.value.id in names:
-                    add(func.value.id, statement)
+                for name in owners(func.value.id):
+                    add(name, statement)
 
     # sorted ranges, joined where they touch
     for name, ranges in lines.items():

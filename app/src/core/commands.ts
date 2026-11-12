@@ -15,6 +15,7 @@ export type Command =
   | SectionAdd
   | PointSetAdd
   | PointAdd
+  | FaceSetAdd
   | BoundaryAdd
   | LoadcaseAdd
   | MpcAdd
@@ -494,6 +495,39 @@ export interface PointAdd {
   command: "point.add";
   name: Name;
   coordinates: Coordinates1;
+}
+/**
+ * Faces of the boundary of a section, e.g. for a pressure: on a plane, or the faces with the given centers (picked in the viewport). The script makes a boundary region of the faces and a field of it, linked to the merged field. Faces of tetrahedrons have no boundary region in FElupe 12.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "FaceSetAdd".
+ */
+export interface FaceSetAdd {
+  command: "faceset.add";
+  name: Name;
+  /**
+   * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
+   */
+  section: string;
+  select:
+    | {
+        axis: Axis;
+        value: number;
+        /**
+         * Absolute tolerance of the coordinates of the points (default 1e-8).
+         */
+        atol?: number;
+      }
+    | {
+        /**
+         * @minItems 1
+         */
+        centers: [Coordinates, ...Coordinates[]];
+        /**
+         * Absolute tolerance of the centers (default 1e-6 of the size of the section).
+         */
+        atol?: number;
+      };
 }
 /**
  * Prescribe displacement components of a point set (fem.Boundary).

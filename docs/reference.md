@@ -11,7 +11,7 @@ A project file is a JSON document `{"schema_version": 3, "commands": [...]}`. Ev
 
 Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
 
-A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `DIMENSIONS`, `REGIONS`, `SimpleNamespace`, `boundaries`, `control_points`, `fem`, `field`, `meshio`, `mixed_region`, `np`, `points`, `points_at`, `single_point`, `vertex_region`, `volume_cells`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
+A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `DIMENSIONS`, `REGIONS`, `SimpleNamespace`, `boundaries`, `boundary_faces`, `control_points`, `fem`, `field`, `meshio`, `mixed_region`, `np`, `points`, `points_at`, `single_point`, `vertex_region`, `volume_cells`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
 
 ## Commands
 
@@ -24,6 +24,7 @@ A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserve
 - [`section.add`](#sectionadd): Assign a material and a formulation to a cell set.
 - [`pointset.add`](#pointsetadd): Points of the merged mesh selected by a plane, by the coordinates of points or by point ids.
 - [`point.add`](#pointadd): A control point that is not a node of the meshes, e.g. the center point of a multi-point constraint.
+- [`faceset.add`](#facesetadd): Faces of the boundary of a section, e.g. for a pressure: on a plane, or the faces with the given centers (picked in the viewport).
 - [`boundary.add`](#boundaryadd): Prescribe displacement components of a point set (fem.Boundary).
 - [`loadcase.add`](#loadcaseadd): A load case of FElupe (fem.dof) on the merged field: the boundaries of a standard test.
 - [`mpc.add`](#mpcadd): A multi-point constraint (fem.MultiPointConstraint): the points of a point set follow a center point rigidly, connected by a penalty.
@@ -258,6 +259,37 @@ A control point that is not a node of the meshes, e.g. the center point of a mul
 | --- | --- | --- | --- |
 | `name` | name | yes | Name of the object. |
 | `coordinates` | three numbers `[x, y, z]` | yes | The coordinates x, y and z of a point. |
+
+### `faceset.add`
+
+Faces of the boundary of a section, e.g. for a pressure: on a plane, or the faces with the given centers (picked in the viewport). The script makes a boundary region of the faces and a field of it, linked to the merged field. Faces of tetrahedrons have no boundary region in FElupe 12.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | name | yes | Name of the object. |
+| `section` | name of a section | yes | The section whose boundary has the faces. |
+| `select` | one of the variants below | yes |  |
+
+Variants of `select`:
+
+#### By a plane
+
+The faces of the boundary on a plane with the given coordinate, e.g. z == 20.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `select.axis` | axis: `x`, `y` or `z` | yes |  |
+| `select.value` | number | yes |  |
+| `select.atol` | number > 0 |  | Absolute tolerance of the coordinates of the points (default 1e-8). |
+
+#### `centers`
+
+The faces of the boundary with the given centers (the mean of the points of a face), e.g. picked faces. A center without a face is an error of the script.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `select.centers` | list of three numbers `[x, y, z]` (at least 1) | yes |  |
+| `select.atol` | number > 0 |  | Absolute tolerance of the centers (default 1e-6 of the size of the section). |
 
 ### `boundary.add`
 

@@ -993,3 +993,119 @@ def test_object_lines_of_load_cases_and_merged_fields():
     pull = [text[a - 1] for a, _ in lines["pull"]]
     assert pull[0].startswith("pull = fem.dof.uniaxial(")
     assert pull[1].strip().startswith('**{f"pull/{k}"')
+
+
+def test_face_sets(two_sections, tmp_path, monkeypatch):
+    "Face sets (#142): boundary regions of the sections, with a linked field."
+    mesh, tag = bar()
+    write(tmp_path / "specimen.vtu", mesh, tag)
+    commands = two_sections["commands"]
+    # the right end face of the soft section, and picked faces of the hard one
+    end = {
+        "command": "faceset.add",
+        "name": "end",
+        "section": "section_soft",
+        "select": {"axis": "x", "value": 3},
+    }
+    picked = {
+        "command": "faceset.add",
+        "name": "picked",
+        "section": "section_hard",
+        "select": {"centers": [[0.125, 0.125, 1.0], [0.375, 0.125, 1.0]]},
+    }
+    commands[9:9] = [end, picked]
+    script = codegen(two_sections)
+    assert "region_end = boundary_faces(region_section_soft.mesh, plane=(0, 3))\n" in (
+        script
+    )
+    assert "field_end = fem.FieldContainer([fem.Field(region_end, dim=3)])\n" in script
+    assert "field_end.link(field)\n" in script
+    # the script without the evaluation of the jobs (which link the fields of their
+    # items again)
+    path = tmp_path / "script.py"
+    path.write_text(codegen(two_sections, evaluate=False), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    namespace = runpy.run_path(str(path))
+    # 4 x 4 faces on the end face, their area and their outward normal
+    region = namespace["region_end"]
+    assert len(region.mesh.cells) == 16
+    np.testing.assert_allclose(region.dV.sum(), 1.0)
+    np.testing.assert_allclose(region.normals[0], 1.0)
+    # the field shares the values of the merged field
+    assert namespace["field_end"][0].values is namespace["field"][0].values
+    # the picked faces on the top face, with the normal z
+    region = namespace["region_picked"]
+    assert len(region.mesh.cells) == 2
+    np.testing.assert_allclose(region.normals[2], 1.0)
+    centers = region.mesh.points[region.mesh.cells_faces].mean(axis=1)
+    np.testing.assert_allclose(
+        centers[np.argsort(centers[:, 0])], picked["select"]["centers"]
+    )
+
+    # the helpers of face sets are only in scripts with face sets
+    assert "def boundary_faces(" in script
+    assert "def boundary_faces(" not in codegen(
+        {**two_sections, "commands": commands[:9] + commands[11:]}
+    )
+    ruff = shutil.which("ruff")
+    if ruff:
+        lint = [ruff, "check", "--isolated", "--select", "E,F,W,I", str(path)]
+        assert subprocess.run(lint, capture_output=True).returncode == 0
+        fmt = [ruff, "format", "--isolated", "--check", str(path)]
+        assert subprocess.run(fmt, capture_output=True).returncode == 0
+
+    # the lines of a face set in the script view
+    lines = object_lines(script, two_sections)
+    text = script.splitlines()
+    assert [text[a - 1 : b] for a, b in lines["end"]] == [
+        [
+            "region_end = boundary_faces(region_section_soft.mesh, plane=(0, 3))",
+            "field_end = fem.FieldContainer([fem.Field(region_end, dim=3)])",
+            "field_end.link(field)",
+        ]
+    ]
+
+    # a center without a face, and a tolerance
+    picked["select"] = {"centers": [[0.1, 0.1, 1.0]]}
+    with pytest.raises(ValueError, match=r"no face with the center \[\[0.1"):
+        run(two_sections, tmp_path, monkeypatch)
+    picked["select"]["atol"] = 0.05
+    assert "atol=0.05" in codegen(two_sections)
+    namespace = run(two_sections, tmp_path, monkeypatch)
+    assert len(namespace["region_picked"].mesh.cells) == 1
+
+    # the section must be a section
+    end["section"] = "hard"
+    with pytest.raises(ValidationError, match="is a cellset, not a section"):
+        codegen(two_sections)
+
+
+def test_boundary_faces():
+    "The faces of picked centers are exact, also in a ring around a face (#142)."
+    from felupe_studio._helpers import boundary_faces
+
+    quadratic = fem.Cube(n=4).add_midpoints_edges()
+    for mesh in [
+        fem.Cube(n=4),
+        quadratic,
+        quadratic.add_midpoints_faces().add_midpoints_volumes(),
+    ]:
+        faces = boundary_faces(mesh, plane=(2, 1.0))
+        assert len(faces.mesh.cells) == 9
+        middle = mesh.points[faces.mesh.cells_faces].mean(axis=1)
+        # a ring of 8 faces around the face in the middle: its points are all in
+        # the ring, but it is not picked
+        ring = middle[np.linalg.norm(middle[:, :2] - 0.5, axis=1) > 1e-8]
+        assert len(boundary_faces(mesh, centers=ring).mesh.cells) == 8
+        # three faces of a corner cell
+        corner = [[0.0, 1 / 6, 1 / 6], [1 / 6, 0.0, 1 / 6], [1 / 6, 1 / 6, 0.0]]
+        assert len(boundary_faces(mesh, centers=corner).mesh.cells) == 3
+
+    # both sides of a plate of one cell: the points select the rim too
+    plate = fem.Cube(b=(1, 1, 0.1), n=(3, 3, 2))
+    centers = [[0.25, 0.25, 0.0], [0.25, 0.25, 0.1], [0.75, 0.25, 0.0]]
+    with pytest.raises(ValueError, match="take the faces of one side"):
+        boundary_faces(plate, centers=centers)
+    # tetrahedrons have no boundary region in FElupe 12
+    with pytest.raises(NotImplementedError, match="tetra cells"):
+        boundary_faces(fem.Cube(n=2).triangulate(), plane=(2, 1.0))

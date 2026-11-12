@@ -73,6 +73,8 @@ export interface MeshSurface {
   triangles: Uint32Array;
   /** The face of a cell of every triangle, to shade faces flat (linear cells). */
   faces?: Uint32Array;
+  /** The face of every triangle of curved faces (quadratic cells), for face sets. */
+  curvedFaces?: Uint32Array;
   /** Two points per segment of the edges of the faces. */
   edges: Uint32Array;
   /** The solid cell of every triangle. */

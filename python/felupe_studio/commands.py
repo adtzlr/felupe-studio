@@ -26,6 +26,7 @@ KINDS = {
     "pointset.add": "pointset",
     # a control point is a point set of one point (boundaries, constraints, curves)
     "point.add": "pointset",
+    "faceset.add": "faceset",
     "boundary.add": "boundary",
     # a load case is referenced like a boundary (ramps of steps, curves of jobs)
     "loadcase.add": "boundary",
@@ -45,6 +46,7 @@ REFERENCES = {
     "cellset.from_tag": {"mesh": ("mesh", False)},
     "cellset.from_file": {"mesh": ("mesh", False)},
     "section.add": {"cellset": ("cellset", False), "material": ("material", False)},
+    "faceset.add": {"section": ("section", False)},
     "boundary.add": {"pointset": ("pointset", False)},
     "mpc.add": {
         "points": ("pointset", False),

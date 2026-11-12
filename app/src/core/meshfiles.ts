@@ -126,6 +126,52 @@ export class MeshFiles {
   }
 }
 
+/** The cell types whose faces have a boundary region in FElupe 12 (#142). */
+export const FACE_CELL_TYPES = ["hexahedron", "hexahedron20", "hexahedron27"];
+
+/** The type of the solid cells of a section, if its mesh file is read. */
+export function sectionCellType(
+  commands: readonly Command[],
+  section: string,
+  files: MeshFiles,
+): string | undefined {
+  const sec = commands.find((c) => c.name === section);
+  if (sec?.command !== "section.add") return undefined;
+  const set = commands.find((c) => c.name === sec.cellset);
+  if (
+    set?.command !== "cellset.from_tag" &&
+    set?.command !== "cellset.from_file"
+  )
+    return undefined;
+  const mesh = commands.find((c) => c.name === set.mesh);
+  if (mesh?.command !== "mesh.import") return undefined;
+  const status = files.get(mesh.file)?.status;
+  if (status?.state !== "ready") return undefined;
+  const choice = solidOf(status.info, mesh.cell_type);
+  return "solid" in choice ? choice.solid.cell_type : undefined;
+}
+
+/**
+ * Problems of face sets that need the mesh files (#142): faces of tetrahedrons have
+ * no boundary region in FElupe 12.
+ */
+export function faceSetNotes(
+  commands: readonly Command[],
+  files: MeshFiles,
+): Map<string, string[]> {
+  const notes = new Map<string, string[]>();
+  for (const command of commands) {
+    if (command.command !== "faceset.add") continue;
+    const type = sectionCellType(commands, command.section, files);
+    if (type && !FACE_CELL_TYPES.includes(type)) {
+      notes.set(command.name, [
+        `The faces of ${type} cells of '${command.section}' have no boundary region in FElupe 12; a face set needs a section of hexahedrons.`,
+      ]);
+    }
+  }
+  return notes;
+}
+
 /** The names of the mesh files of a model (`file` of `mesh.import`), once each. */
 export function meshFileNames(commands: readonly Command[]): string[] {
   return [

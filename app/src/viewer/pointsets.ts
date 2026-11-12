@@ -20,7 +20,7 @@ export interface CoordinateSelect {
 export const ATOL = 1e-8;
 const RTOL = 1e-5;
 
-const isClose = (a: number, b: number, atol: number) =>
+export const isClose = (a: number, b: number, atol: number) =>
   Math.abs(a - b) <= atol + RTOL * Math.abs(b);
 
 /** Whether the node at index `p` of an array is at a point (like `np.isclose`). */

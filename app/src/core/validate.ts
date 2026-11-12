@@ -24,6 +24,7 @@ export type Kind =
   | "material"
   | "section"
   | "pointset"
+  | "faceset"
   | "boundary"
   | "constraint"
   | "load"
@@ -45,6 +46,7 @@ export const KINDS: Record<CommandType, Kind> = {
   "pointset.add": "pointset",
   // a control point is a point set of one point (boundaries, constraints, curves)
   "point.add": "pointset",
+  "faceset.add": "faceset",
   "boundary.add": "boundary",
   // a load case is referenced like a boundary (ramps of steps, curves of jobs)
   "loadcase.add": "boundary",
@@ -71,6 +73,7 @@ export const REFERENCES: Partial<
   "cellset.from_tag": { mesh: ["mesh", false] },
   "cellset.from_file": { mesh: ["mesh", false] },
   "section.add": { cellset: ["cellset", false], material: ["material", false] },
+  "faceset.add": { section: ["section", false] },
   "boundary.add": { pointset: ["pointset", false] },
   "mpc.add": {
     points: ["pointset", false],

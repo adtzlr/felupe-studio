@@ -63,13 +63,14 @@ def surface(solid, tags=None):
         ``positions`` (three coordinates per point of the surface), ``triangles``
         (three points per triangle, oriented outwards), ``faces`` (the face of a cell
         of every triangle, to shade the faces of linear cells flat; ``None`` for
-        curved faces of quadratic cells), ``edges`` (two points per segment of the
-        edges of the faces) and ``owners`` (the solid cell of every triangle) as
-        bytes, ``tags`` (the ``int32`` values of the tags of the cells as bytes by
-        name), ``nodes`` (the ``float64`` coordinates of the points of the cells, to
-        preview point sets), ``isnode`` (``uint8``, 1 for a point of the surface that
-        is a point of the mesh, 0 for a point inside a subdivided face) and the
-        number of ``cells``.
+        curved faces of quadratic cells), ``curved`` (the face of every triangle of
+        curved faces, for face sets; ``None`` for linear cells), ``edges`` (two
+        points per segment of the edges of the faces) and ``owners`` (the solid
+        cell of every triangle) as bytes, ``tags`` (the ``int32`` values of the tags
+        of the cells as bytes by name), ``nodes`` (the ``float64`` coordinates of
+        the points of the cells, to preview point sets), ``isnode`` (``uint8``, 1 for
+        a point of the surface that is a point of the mesh, 0 for a point inside a
+        subdivided face) and the number of ``cells``.
     """
     points = np.asarray(solid.points, dtype=float)
     points = np.pad(points, ((0, 0), (0, 3 - points.shape[1])))
@@ -104,6 +105,7 @@ def surface(solid, tags=None):
         "positions": _bytes(stack("positions", (0, 3)), "<f4"),
         "triangles": _bytes(stack("triangles", (0, 3)), "<u4"),
         "faces": _bytes(stack("faces", 0), "<u4") if order == 1 else None,
+        "curved": _bytes(stack("faces", 0), "<u4") if order > 1 else None,
         "edges": _bytes(stack("edges", (0, 2)), "<u4"),
         "owners": _bytes(stack("owners", 0), "<u4"),
         "isnode": _bytes(stack("isnode", 0), "u1"),

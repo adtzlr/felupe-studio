@@ -95,3 +95,64 @@ def mixed_region(mesh):
         bubble = fem.mesh.add_midpoints_volumes(mesh, cell_type_new="tetra5")
         return fem.RegionTetraMINI(bubble)
     return REGIONS[mesh.cell_type](mesh)
+
+
+# --- embedded in generated scripts with face sets ---
+# boundary regions by cell type of the solid cells (no tetrahedrons in FElupe 12)
+BOUNDARY_REGIONS = {
+    "hexahedron": fem.RegionHexahedronBoundary,
+    "hexahedron20": fem.RegionQuadraticHexahedronBoundary,
+    "hexahedron27": fem.RegionTriQuadraticHexahedronBoundary,
+}
+
+
+def boundary_faces(mesh, plane=None, centers=None, atol=None):
+    """Return the boundary region of faces of the outer surface of a mesh: the faces
+    on a plane ``(axis, value)``, or the faces with the given centers (the mean of
+    the points of a face, the nearest face within ``atol``, by default 1e-6 of the
+    size of the mesh). Picked faces are selected by the points of their faces on
+    their cells; a ``ValueError`` is raised if these select more faces, e.g. both
+    sides of a plate that is one cell thick."""
+    if mesh.cell_type not in BOUNDARY_REGIONS:
+        raise NotImplementedError(
+            f"Faces of {mesh.cell_type} cells have no boundary region in FElupe."
+        )
+    region = BOUNDARY_REGIONS[mesh.cell_type]
+    points = mesh.points
+    if plane is not None:
+        axis, value = plane
+        tolerance = 1e-8 if atol is None else atol
+        return region(mesh, mask=np.isclose(points[:, axis], value, atol=tolerance))
+
+    # the nearest outer face of every center
+    outer = region(mesh, grad=False)
+    faces = outer.mesh.cells_faces
+    centers = np.atleast_2d(np.asarray(centers, dtype=float))
+    if atol is None:
+        atol = 1e-6 * np.linalg.norm(np.ptp(points[np.unique(mesh.cells)], axis=0))
+    distance = np.linalg.norm(
+        points[faces].mean(axis=1)[:, None] - centers[None], axis=2
+    )
+    nearest = distance.argmin(axis=0)
+    missing = centers[distance[nearest, np.arange(len(centers))] > atol]
+    if len(missing):
+        raise ValueError(f"There is no face with the center {missing.tolist()}.")
+    chosen = np.unique(nearest)
+
+    # the boundary region of the cells of the chosen faces (each cell once) and of
+    # the points of these faces
+    cells = {tuple(c): i for i, c in enumerate(np.sort(mesh.cells, axis=1))}
+    owners = sorted(
+        {cells[tuple(c)] for c in np.sort(outer.mesh.cells[chosen], axis=1)}
+    )
+    selected = mesh.copy()
+    selected.update(cells=mesh.cells[owners])
+    mask = np.zeros(len(points), dtype=bool)
+    mask[faces[chosen]] = True
+    result = region(selected, mask=mask)
+    if len(result.mesh.cells) != len(chosen):
+        raise ValueError(
+            f"The points of the {len(chosen)} faces select {len(result.mesh.cells)} "
+            "faces; take the faces of one side, or a plane."
+        )
+    return result

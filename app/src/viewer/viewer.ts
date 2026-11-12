@@ -70,6 +70,8 @@ export interface Pick {
   mesh: string;
   point: Vec3;
   normal: Vec3;
+  /** The hit triangle of the surface of the mesh (e.g. of a face of a face set). */
+  triangle: number;
 }
 
 /** Color of the faces of a picked plane. */
@@ -131,6 +133,17 @@ function tolerance(meshes: readonly MeshLayer[]): number {
   return Number.isFinite(tol) && tol > 0 ? tol : 1e-9;
 }
 
+/** The index in the surface of a triangle of `drawnTriangles()`. */
+function surfaceTriangle(layer: MeshLayer, drawn: number): number {
+  const { surface, hidden } = layer;
+  if (!hidden) return drawn;
+  let count = -1;
+  for (let t = 0; t < surface.owners.length; t++) {
+    if (!hidden[surface.owners[t]] && ++count === drawn) return t;
+  }
+  return -1;
+}
+
 /** The triangles of the cells that are drawn. */
 function drawnTriangles(layer: MeshLayer): Uint32Array {
   const { surface, hidden } = layer;
@@ -162,6 +175,7 @@ export class Viewer {
     surfaces: { positions: Float32Array; triangles: Uint32Array }[];
   };
   private plane: { point: Vec3; normal: Vec3 } | undefined;
+  private faces: readonly Highlight[] = [];
   private nodes = false;
   private targets: readonly Target[] = [];
   private scheduled = false;
@@ -332,6 +346,12 @@ export class Viewer {
     this.schedule();
   }
 
+  /** Faces drawn over the meshes, e.g. of the face sets (#142). */
+  setFaces(faces: readonly Highlight[]): void {
+    this.faces = faces;
+    this.schedule();
+  }
+
   /**
    * Listen to picks: a face, or undefined for a click beside the model, and a node
    * near the click if the nodes are shown.
@@ -361,10 +381,18 @@ export class Viewer {
     for (const layer of this.meshes) {
       const hit = firstHit(ray, layer.surface.positions, drawnTriangles(layer));
       if (hit && (!best || hit.distance < best.distance)) {
-        best = { mesh: layer.name, ...hit };
+        const triangle = surfaceTriangle(layer, hit.triangle);
+        best = { mesh: layer.name, ...hit, triangle };
       }
     }
-    return best && { mesh: best.mesh, point: best.point, normal: best.normal };
+    return (
+      best && {
+        mesh: best.mesh,
+        point: best.point,
+        normal: best.normal,
+        triangle: best.triangle,
+      }
+    );
   }
 
   /** Points that a click picks by their name, e.g. the control points (#95). */
@@ -487,19 +515,21 @@ export class Viewer {
   /** The faces of the meshes in the highlighted plane. */
   private highlights(): Highlight[] {
     const plane = this.plane;
-    if (!plane) return [];
+    if (!plane) return [...this.faces];
     const tol = tolerance(this.meshes);
-    return this.meshes.map((layer) => ({
-      positions: layer.surface.positions,
-      triangles: trianglesInPlane(
-        layer.surface.positions,
-        drawnTriangles(layer),
-        plane.point,
-        plane.normal,
-        tol,
-      ),
-      color: HIGHLIGHT,
-    }));
+    return this.meshes
+      .map((layer) => ({
+        positions: layer.surface.positions,
+        triangles: trianglesInPlane(
+          layer.surface.positions,
+          drawnTriangles(layer),
+          plane.point,
+          plane.normal,
+          tol,
+        ),
+        color: HIGHLIGHT,
+      }))
+      .concat(this.faces);
   }
 
   private schedule() {

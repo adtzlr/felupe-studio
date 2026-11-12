@@ -64,10 +64,12 @@
           "yield"
         ],
         "names": [
+          "BOUNDARY_REGIONS",
           "DIMENSIONS",
           "REGIONS",
           "SimpleNamespace",
           "boundaries",
+          "boundary_faces",
           "control_points",
           "fem",
           "field",
@@ -124,6 +126,9 @@
         },
         {
           "$ref": "#/$defs/PointAdd"
+        },
+        {
+          "$ref": "#/$defs/FaceSetAdd"
         },
         {
           "$ref": "#/$defs/BoundaryAdd"
@@ -924,6 +929,71 @@
         "coordinates": {
           "x-quantity": "length",
           "$ref": "#/$defs/Coordinates"
+        }
+      }
+    },
+    "FaceSetAdd": {
+      "description": "Faces of the boundary of a section, e.g. for a pressure: on a plane, or the faces with the given centers (picked in the viewport). The script makes a boundary region of the faces and a field of it, linked to the merged field. Faces of tetrahedrons have no boundary region in FElupe 12.",
+      "type": "object",
+      "required": ["command", "name", "section", "select"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "faceset.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "section": {
+          "description": "The section whose boundary has the faces.",
+          "$ref": "#/$defs/Name"
+        },
+        "select": {
+          "oneOf": [
+            {
+              "description": "The faces of the boundary on a plane with the given coordinate, e.g. z == 20.",
+              "type": "object",
+              "required": ["axis", "value"],
+              "additionalProperties": false,
+              "properties": {
+                "axis": {
+                  "$ref": "#/$defs/Axis"
+                },
+                "value": {
+                  "x-quantity": "length",
+                  "type": "number"
+                },
+                "atol": {
+                  "x-quantity": "length",
+                  "description": "Absolute tolerance of the coordinates of the points (default 1e-8).",
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              }
+            },
+            {
+              "description": "The faces of the boundary with the given centers (the mean of the points of a face), e.g. picked faces. A center without a face is an error of the script.",
+              "type": "object",
+              "required": ["centers"],
+              "additionalProperties": false,
+              "properties": {
+                "centers": {
+                  "x-quantity": "length",
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "$ref": "#/$defs/Coordinates"
+                  }
+                },
+                "atol": {
+                  "x-quantity": "length",
+                  "description": "Absolute tolerance of the centers (default 1e-6 of the size of the section).",
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              }
+            }
+          ]
         }
       }
     },
