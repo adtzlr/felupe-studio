@@ -437,5 +437,31 @@ export function buildScene(content: SceneContent): Scene {
         ? content.meshes.map((m) => ({ label: m.name, color: m.color }))
         : null
       : content.legend && [...content.legend];
-  return { objects, legend, view: "default", axes: true };
+  return { objects, legend, view: sceneView(content), axes: true };
+}
+
+/**
+ * The view in which the viewer opens: onto the xy-plane for meshes in the xy-plane
+ * (the 2D models, #175), like the plots of FElupe, otherwise the default view. The
+ * markers and arrows (with a thickness in z) do not count.
+ */
+export function sceneView(content: SceneContent): "xy" | "default" {
+  const positions = [
+    ...content.meshes.map((m) => m.surface.positions),
+    ...(content.result?.scene.surfaces.flatMap((s) => [
+      s.positions,
+      s.displacement,
+    ]) ?? []),
+  ];
+  let points = 0;
+  let size = 0;
+  let depth = 0;
+  for (const p of positions) {
+    for (let i = 0; i + 2 < p.length; i += 3) {
+      points += 1;
+      size = Math.max(size, Math.abs(p[i]), Math.abs(p[i + 1]));
+      depth = Math.max(depth, Math.abs(p[i + 2]));
+    }
+  }
+  return points > 0 && depth <= 1e-9 * size ? "xy" : "default";
 }

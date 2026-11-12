@@ -77,17 +77,19 @@ def moving(loadcase):
     return keys
 
 
-def symmetry_call(symmetry):
+def symmetry_call(symmetry, dim=3):
     """Return the function and the arguments of a ``symmetry.add`` command (#186): the
     planes normal to its axes at their coordinates (default 0), on the displacement
-    field of the merged field.
+    field of the merged field (of a 2D model the axes x and y, #175).
 
     Examples
     --------
     >>> symmetry_call({"axes": ["z", "x"], "z": 5})
     ('fem.dof.symmetry', ['field[0]', 'axes=(True, False, True)', 'x=0.0', 'z=5.0'])
+    >>> symmetry_call({"axes": ["y"]}, dim=2)
+    ('fem.dof.symmetry', ['field[0]', 'axes=(False, True)', 'y=0.0'])
     """
-    axes = tuple(a in symmetry["axes"] for a in AXES)
+    axes = tuple(a in symmetry["axes"] for a in AXES[:dim])
     args = ["field[0]", f"axes={axes!r}"]
     args += [
         f"{a}={float(symmetry.get(a, 0))!r}" for a in AXES if a in symmetry["axes"]

@@ -196,6 +196,8 @@ export class Viewer {
   >();
   /** The camera fits the model on the next draw (e.g. after it was empty). */
   private fitNext = true;
+  /** The default view of the scene: onto the xy-plane for a 2D model (#175). */
+  private view: "xy" | "default" = "default";
   /** Labels at points of the view, e.g. of the extremes of a contour (#140). */
   private labels: LabelLayer;
 
@@ -486,9 +488,9 @@ export class Viewer {
   /** Look at the model from a preset direction, fitted into the view. */
   setView(view: CameraView): void {
     this.flush();
-    // "iso" is the default view of the scene, in which the viewer opens, not the
-    // isometric view of the vendored viewer
-    this.handle.setView?.(view === "iso" ? "default" : view);
+    // "iso" is the default view of the scene, in which the viewer opens (onto the
+    // xy-plane for a 2D model), not the isometric view of the vendored viewer
+    this.handle.setView?.(view === "iso" ? this.view : view);
   }
 
   /** Fit the model into the view and keep the direction. */
@@ -579,6 +581,7 @@ export class Viewer {
       lines: this.lines,
       legend: this.legend,
     });
+    this.view = scene.view === "xy" ? "xy" : "default";
     this.handle.update(scene, { keepView: !this.fitNext });
     // the scalar bar of a contour with settings (#139), drawn by the app
     const look = this.result?.look;

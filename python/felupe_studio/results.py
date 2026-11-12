@@ -46,7 +46,7 @@ QUANTITIES = {
 
 # corner points of cell types of regions which are not drawn by their points, e.g.
 # the bubble point of the MINI element
-CORNERS = {"tetra5": ("tetra", 4)}
+CORNERS = {"tetra5": ("tetra", 4), "triangle4": ("triangle", 3)}
 
 _state = {"namespace": None, "sections": [], "records": {}, "surfaces": {}}
 
@@ -155,6 +155,13 @@ def _surface(section):
     return _state["surfaces"][section]
 
 
+def _3d(array):
+    """Return points or vectors with three components: those of a 2D model (#175)
+    in the plane z = 0."""
+    array = np.asarray(array)
+    return np.pad(array, [(0, 0)] * (array.ndim - 1) + [(0, 3 - array.shape[-1])])
+
+
 def _restore(job, substep):
     """Write the values of the fields of a substep of a job back into the fields,
     in-place (shared with the fields of the sections)."""
@@ -191,7 +198,7 @@ def _values(section, kind, component):
     fields (at the points of the cells or at the cells), its values at the points of
     the surface and the displacements of the points of the surface."""
     surface, cells, _ = _surface(section)
-    u = _state["namespace"][f"field_{section}"][0].values
+    u = _3d(_state["namespace"][f"field_{section}"][0].values)
     displacement = surface.interpolate(u)
     if kind == "displacement":
         # the values at the points of the cells (not of bubbles) and the surface
@@ -298,7 +305,7 @@ def current_scene(job, substep, quantity):
         surfaces.append(
             {
                 "name": section,
-                "positions": _bytes(surface.interpolate(mesh.points), "<f4"),
+                "positions": _bytes(_3d(surface.interpolate(mesh.points)), "<f4"),
                 "displacement": _bytes(displacement, "<f4"),
                 "triangles": _bytes(surface.triangles, "<u4"),
                 "faces": _bytes(surface.faces, "<u4") if order == 1 else None,
@@ -329,7 +336,7 @@ def _extremes(section, at, data):
         return {}
     surface, cells, _ = _surface(section)
     mesh = _state["namespace"][f"field_{section}"][0].region.mesh
-    u = _state["namespace"][f"field_{section}"][0].values
+    u = _3d(_state["namespace"][f"field_{section}"][0].values)
     nodes = np.unique(cells)
     # the nodes and the cells at the surface (the view marks an extreme inside)
     outer = surface_nodes(surface) if at == "point" else surface.owners
@@ -338,7 +345,7 @@ def _extremes(section, at, data):
         i = finite[pick(data[finite])]
         index = int(nodes[i] if at == "point" else i)
         points = [nodes[i]] if at == "point" else cells[i]
-        position = mesh.points[points].mean(axis=0)
+        position = _3d(mesh.points[points]).mean(axis=0)
         displacement = u[points].mean(axis=0)
         result[name] = {
             "value": float(data[i]),
@@ -418,13 +425,14 @@ def _export_mesh():
     used = np.unique(np.concatenate([cells.ravel() for _, cells in blocks]))
     index = np.full(len(points), -1)
     index[used] = np.arange(len(used))
-    return points[used], [(t, index[cells]) for t, cells in blocks], used
+    # the points of 2D models in the plane z = 0, like the viewer (#175)
+    return _3d(points[used]), [(t, index[cells]) for t, cells in blocks], used
 
 
 def _export_data(used):
     """Return the point data and the cell data of the current values of the fields."""
     field = _state["namespace"]["field"]
-    point_data = {"Displacement": field[0].values[used]}
+    point_data = {"Displacement": _3d(field[0].values[used])}
     cell_data = {
         name: [_data(kind, section) for section in _state["sections"]]
         for name, kind in EXPORTED.items()

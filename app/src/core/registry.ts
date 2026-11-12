@@ -413,6 +413,12 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     prefix: "settings",
     single: true,
     fields: {
+      // the type of the model (#175): 3D, or 2D in the xy-plane
+      analysis: {
+        label: "Analysis",
+        hint: "Axisymmetric: x is the axis of rotation, y the radius, the forces are totals over the circumference. Plane strain: the forces are per unit thickness",
+        placeholder: "3D",
+      },
       units: {
         label: "Units",
         hint: "What the numbers mean; nothing is converted",
@@ -421,6 +427,11 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       "units.force": { label: "Force", default: "N" },
     },
     options: {
+      analysis: {
+        "3d": "3D",
+        "plane-strain": "Plane strain (2D)",
+        axisymmetric: "Axisymmetric (2D)",
+      },
       "units.length": { mm: "mm", m: "m" },
       "units.force": { N: "N", kN: "kN" },
     },

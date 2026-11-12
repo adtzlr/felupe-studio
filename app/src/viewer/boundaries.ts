@@ -3,6 +3,7 @@
 // the lines that draw them. The boundaries of the load cases follow `fem.dof`
 // (`symmetry`, `uniaxial`, `biaxial`, `shear`) on the nodes of the drawn meshes; a
 // test compares them with FElupe (`boundaries.fixture.json`).
+import { analysisOf, is2d } from "../core/analysis";
 import type { Command } from "../core/commands";
 import { type Loadcase, LOADCASE_DEFAULTS } from "../core/loadcases";
 import { type Symmetry, symmetryPlanes } from "../core/symmetry";
@@ -268,7 +269,11 @@ export function boundarySymbols(
       }
     }
   }
-  return symbols.filter((s) => s.points.length > 0);
+  // a 2D model has no displacements in z (#175)
+  const dim = is2d(analysisOf(commands)) ? 2 : 3;
+  return symbols
+    .map((s) => ({ ...s, components: s.components.filter((k) => k < dim) }))
+    .filter((s) => s.points.length > 0 && s.components.length > 0);
 }
 
 /** The planes of a symmetry without a node of the drawn meshes, e.g. `y = 5` (#186). */

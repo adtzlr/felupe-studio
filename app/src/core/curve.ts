@@ -96,6 +96,18 @@ export const SERIES: readonly Series[] = [
   "substep",
 ];
 
+/**
+ * The series of the curve of a job: the components of its displacements and
+ * forces (two in a 2D model, #175) and the substep.
+ */
+export function seriesOf(result: JobResult | undefined): Series[] {
+  const count = result?.x?.[0]?.length ?? 3;
+  return SERIES.filter(
+    (s) =>
+      s === "substep" || AXES.indexOf(s[1] as (typeof AXES)[number]) < count,
+  );
+}
+
 /** The label of a series: its quantity, its symbol, its component and its unit. */
 export interface SeriesLabel {
   /** e.g. Displacement, Force, Rotation, Moment or Substep. */
@@ -430,11 +442,13 @@ export function curveCsv(run: Finished, job: string): string {
   const result = run.results[job];
   const q = curveQuantities(run.commands, job);
   const [u, f] = q.moment ? ["phi", "M"] : ["u", "F"];
+  // two components in a 2D model (#175)
+  const axes = AXES.slice(0, result?.x?.[0]?.length ?? 3);
   const header = [
     "substep",
     "step",
-    ...AXES.map((a) => withUnit(`${u}_${a}`, q.uUnit)),
-    ...AXES.map((a) => withUnit(`${f}_${a}`, q.fUnit)),
+    ...axes.map((a) => withUnit(`${u}_${a}`, q.uUnit)),
+    ...axes.map((a) => withUnit(`${f}_${a}`, q.fUnit)),
   ];
   const rows = (result?.x ?? []).map((x, i) => {
     const y = result?.y?.[i] ?? [];
@@ -443,8 +457,8 @@ export function curveCsv(run: Finished, job: string): string {
     return [
       String(i + 1),
       stepOf(run, job, i + 1).name,
-      ...AXES.map((_, a) => cell(x[a])),
-      ...AXES.map((_, a) => cell(y[a])),
+      ...axes.map((_, a) => cell(x[a])),
+      ...axes.map((_, a) => cell(y[a])),
     ].join(",");
   });
   return [header.join(","), ...rows].join("\n") + "\n";

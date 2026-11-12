@@ -71,6 +71,33 @@ describe("face sets and the mesh files (#142)", () => {
   });
 });
 
+describe("the cells of the analysis (#175)", () => {
+  // the mesh without its tag, which the files do not have
+  const mesh = commands.map((c) =>
+    c.command === "mesh.import" ? { ...c, tag: undefined } : c,
+  );
+  const settings = (analysis: string) =>
+    [
+      { command: "model.settings", name: "settings", analysis },
+      ...mesh,
+    ] as Command[];
+
+  it("are 3D cells in a 3D model and 2D cells in a 2D model", async () => {
+    const quads = await files("quad");
+    expect(fileNotes(settings("plane-strain"), quads).size).toBe(0);
+    expect(fileNotes(mesh, quads).get("specimen")).toEqual([
+      "The file 'specimen.vtu' has quad cells, which are 2D cells: set the analysis of the settings to plane strain or axisymmetric.",
+    ]);
+    const hexahedrons = await files("hexahedron");
+    expect(fileNotes(mesh, hexahedrons).size).toBe(0);
+    expect(
+      fileNotes(settings("axisymmetric"), hexahedrons).get("specimen"),
+    ).toEqual([
+      "The file 'specimen.vtu' has hexahedron cells, but a 2D model has 2D cells (triangles or quads).",
+    ]);
+  });
+});
+
 describe("meshes made by scripts (#182)", () => {
   const script: Command[] = [
     { command: "parameter.add", name: "radius", value: 50 },

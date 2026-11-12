@@ -15,13 +15,19 @@ height = 8.0  # mm
 sheet = 2.0  # mm
 cells = 4
 
-# regions by cell type of the solid cells
+# regions by cell type of the solid cells: of 3D models, and of 2D models (plane
+# strain or axisymmetric, #175)
 REGIONS = {
     "tetra": fem.RegionTetra,
     "tetra10": fem.RegionQuadraticTetra,
     "hexahedron": fem.RegionHexahedron,
     "hexahedron20": fem.RegionQuadraticHexahedron,
     "hexahedron27": fem.RegionTriQuadraticHexahedron,
+    "triangle": fem.RegionTriangle,
+    "triangle6": fem.RegionQuadraticTriangle,
+    "quad": fem.RegionQuad,
+    "quad8": fem.RegionQuadraticQuad,
+    "quad9": fem.RegionBiQuadraticQuad,
 }
 
 # topological dimension of meshio cell types (wedges and pyramids are solid cells
@@ -29,32 +35,53 @@ REGIONS = {
 DIMENSIONS = {
     **dict.fromkeys(["line", "line3"], 1),
     **dict.fromkeys(["triangle", "triangle6", "quad", "quad8", "quad9"], 2),
-    **dict.fromkeys(["wedge", "wedge15", "pyramid", "pyramid13", *REGIONS], 3),
+    **dict.fromkeys(["wedge", "wedge15", "pyramid", "pyramid13"], 3),
+    **dict.fromkeys(["tetra", "tetra10", "hexahedron", "hexahedron20"], 3),
+    "hexahedron27": 3,
 }
 
 
 def solid_types(mesh):
-    """Return the types of the solid cells of a meshio mesh, in the order of blocks."""
-    types = [b.type for b in mesh.cells if DIMENSIONS.get(b.type) == 3]
+    """Return the types of the solid cells of a meshio mesh, in the order of blocks:
+    the cells of the highest dimension, e.g. the quads of a 2D mesh but not the
+    quads of the faces of a mesh of hexahedrons."""
+    dimension = max((DIMENSIONS.get(b.type, 0) for b in mesh.cells), default=0)
+    if dimension < 2:
+        return []
+    types = [b.type for b in mesh.cells if DIMENSIONS.get(b.type) == dimension]
     return list(dict.fromkeys(types))
 
 
-def volume_cells(mesh, tag=None, cell_type=None, scale=1.0):
+def volume_cells(mesh, tag=None, cell_type=None, scale=1.0, dim=3):
     """Return the points (multiplied by the scale), the cell type, the solid cells and
     their tags (optional) of a meshio mesh. Lower-dimensional cell blocks (e.g.
     boundary faces) are ignored. A mesh with more than one type of solid cells needs
-    the cell type to take."""
+    the cell type to take. The cells are 3D cells, or 2D cells for a 2D model (plane
+    strain or axisymmetric) with ``dim=2``. The points of 2D cells have the
+    coordinates x and y only (the z of a mesh file is dropped)."""
     types = solid_types(mesh)
     if cell_type is None and len(types) == 1:
         cell_type = types[0]
     if cell_type not in types:
         raise ValueError(f"Expected the type of solid cells to take, one of {types}.")
+    if dim == 3 and DIMENSIONS[cell_type] == 2:
+        raise ValueError(
+            f"The mesh has {cell_type} cells, which are 2D cells: set the analysis "
+            "of the model settings to plane strain or axisymmetric."
+        )
+    if dim == 2 and DIMENSIONS[cell_type] == 3:
+        raise ValueError(
+            f"The mesh has {cell_type} cells, which are 3D cells: a 2D model (plane "
+            "strain or axisymmetric) has 2D cells."
+        )
     blocks = [i for i, b in enumerate(mesh.cells) if b.type == cell_type]
     cells = np.vstack([mesh.cells[i].data for i in blocks])
     tags = None
     if tag is not None:
         tags = np.concatenate([np.ravel(mesh.cell_data[tag][i]) for i in blocks])
     points = mesh.points if scale == 1 else mesh.points * scale
+    if DIMENSIONS[cell_type] == 2:
+        points = np.asarray(points)[:, :2]
     return SimpleNamespace(points=points, cell_type=cell_type, cells=cells, tags=tags)
 
 
@@ -87,8 +114,9 @@ def points_at(points, coordinates, atol=1e-8):
 
 
 def mixed_region(mesh):
-    """Return the region of the mixed fields (u-p-J) of a mesh. Linear tetrahedra get
-    a bubble point in every cell (MINI element), the dual fields are linear.
+    """Return the region of the mixed fields (u-p-J) of a mesh. Linear tetrahedra and
+    triangles get a bubble point in every cell (MINI element), the dual fields are
+    linear.
 
     Only the points of the cells are kept: the dual fields of tetrahedra are fields of
     the points, and a point of another section would be a free degree of freedom
@@ -98,6 +126,9 @@ def mixed_region(mesh):
     if mesh.cell_type == "tetra":
         bubble = fem.mesh.add_midpoints_volumes(mesh, cell_type_new="tetra5")
         return fem.RegionTetraMINI(bubble)
+    if mesh.cell_type == "triangle":
+        bubble = fem.mesh.add_midpoints_faces(mesh, cell_type_new="triangle4")
+        return fem.RegionTriangleMINI(bubble)
     return REGIONS[mesh.cell_type](mesh)
 
 
@@ -131,10 +162,10 @@ def script_mesh(file, parameters, item=None):
     return mesh
 
 
-def run_mesh_script(file, parameters, item=None, tag=None, cell_type=None):
+def run_mesh_script(file, parameters, item=None, tag=None, cell_type=None, dim=3):
     """Return the solid cells of the mesh of a script, like ``volume_cells()``."""
     mesh = script_mesh(file, parameters, item)
-    return volume_cells(mesh, tag=tag, cell_type=cell_type)
+    return volume_cells(mesh, tag=tag, cell_type=cell_type, dim=dim)
 
 
 # meshes

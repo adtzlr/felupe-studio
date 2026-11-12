@@ -309,6 +309,29 @@ def uses_solver_helpers(jobs):
     )
 
 
+# the fields of the displacements by the type of the analysis of a model (#175)
+FIELDS = {
+    "3d": ("fem.Field", 3, None),
+    "plane-strain": ("fem.FieldPlaneStrain", 2, "planestrain=True"),
+    "axisymmetric": ("fem.FieldAxisymmetric", 2, "axisymmetric=True"),
+}
+
+
+def analysis_of(commands):
+    """Return the type of the analysis of a command list (#175): ``"3d"`` (the
+    default), ``"plane-strain"`` or ``"axisymmetric"``.
+
+    Examples
+    --------
+    >>> analysis_of([{"command": "model.settings", "analysis": "axisymmetric"}])
+    'axisymmetric'
+    >>> analysis_of([])
+    '3d'
+    """
+    settings = [c for c in commands if c["command"] == "model.settings"]
+    return settings[0].get("analysis", "3d") if settings else "3d"
+
+
 # the parameters of fem.CutbackPlugin of the settings of a cutback (#133)
 CUTBACK = {"factor": float, "max_cutbacks": int, "growth": float}
 
@@ -367,12 +390,25 @@ def codegen(document, evaluate=True, check_schema=True):
     out = [HEADER.format(version=__version__, schema=SCHEMA_VERSION)]
     settings = get("model.settings")
     units = settings[0].get("units") if settings else None
+    # a 2D model (#175): fields of two components, plane strain or axisymmetric
+    analysis = analysis_of(commands)
+    field_class, dim, mixed_flag = FIELDS[analysis]
+    axes = AXES[:dim]
     if units:
         # FElupe has no units: the settings only say what the numbers mean (#132)
         stress = STRESS[units["length"], units["force"]]
         out.append(
             f"# units: {units['length']} (lengths), {units['force']} (forces) and "
             f"{stress} (stresses); FElupe does not convert them\n"
+        )
+    if analysis == "axisymmetric":
+        out.append(
+            "# axisymmetric: x is the axis of rotation, y the radius; the forces are "
+            "the\n# totals over the circumference\n"
+        )
+    elif analysis == "plane-strain":
+        out.append(
+            "# plane strain in the xy-plane: the forces are per unit thickness in z\n"
         )
     # 0. the parameters of the model at the top, to be changed by hand (#180)
     parameters = get("parameter.add")
@@ -396,6 +432,8 @@ def codegen(document, evaluate=True, check_schema=True):
                 # a mesh made by a script with the parameters of the model (#182)
                 names = [p["name"] for p in parameters]
                 args = script_args(mesh, names)
+                if dim == 2:
+                    args.append("dim=2")
                 out.append(_call(mesh["name"], "run_mesh_script", args))
                 continue
             args = [f"meshio.read({_str(mesh['file'])})"]
@@ -405,6 +443,9 @@ def codegen(document, evaluate=True, check_schema=True):
             # the factor of the coordinates, e.g. from m to mm (#135)
             if mesh.get("scale", 1) != 1:
                 args.append(f"scale={mesh['scale']!r}")
+            # the 2D cells of a 2D model (#175)
+            if dim == 2:
+                args.append("dim=2")
             out.append(_call(mesh["name"], "volume_cells", args))
 
     cellsets = [c for c in commands if c["command"].startswith("cellset.")]
@@ -439,14 +480,13 @@ def codegen(document, evaluate=True, check_schema=True):
             else:
                 out.append(_call(region, "mixed_region", [c]))
             if sec["formulation"] == "u":
-                fields = f"[fem.Field({region}, dim=3)]"
+                fields = f"[{field_class}({region}, dim={dim})]"
                 out.append(
                     _call(f"field_{sec['name']}", "fem.FieldContainer", [fields])
                 )
             else:
-                out.append(
-                    _call(f"field_{sec['name']}", "fem.FieldsMixed", [region, "n=3"])
-                )
+                args = [region, "n=3", *([mixed_flag] if mixed_flag else [])]
+                out.append(_call(f"field_{sec['name']}", "fem.FieldsMixed", args))
 
         controls = get("point.add")
         if controls:
@@ -507,7 +547,7 @@ def codegen(document, evaluate=True, check_schema=True):
                 out.append("solid_points = np.unique(solid_points)")
         for ps in pointsets:
             if ps["command"] == "point.add":
-                point = f"[{', '.join(map(repr, ps['coordinates']))}]"
+                point = f"[{', '.join(map(repr, ps['coordinates'][:dim]))}]"
                 out.append(_call(ps["name"], "points_at", ["points", point]))
                 continue
             sel = ps["select"]
@@ -529,7 +569,10 @@ def codegen(document, evaluate=True, check_schema=True):
                 args = [f"np.hypot({', '.join(distances)})", repr(sel["radius"]), atol]
                 out.append(_call(ps["name"], "np.isclose", args))
             elif "points" in sel:
-                coordinates = (f"[{', '.join(map(repr, p))}]" for p in sel["points"])
+                # the points of a 2D model in the xy-plane (#175)
+                coordinates = (
+                    f"[{', '.join(map(repr, p[:dim]))}]" for p in sel["points"]
+                )
                 args = ["points", _List(coordinates)]
                 if "atol" in sel:
                     args.append(f"atol={sel['atol']!r}")
@@ -568,7 +611,7 @@ def codegen(document, evaluate=True, check_schema=True):
     if symmetries:
         out.append("\n# symmetry planes (fem.dof)")
         for sym in symmetries:
-            out.append(_call(sym["name"], *symmetry_call(sym)))
+            out.append(_call(sym["name"], *symmetry_call(sym, dim)))
 
     boundaries = get("boundary.add")
     out.append("\n# boundaries")
@@ -576,7 +619,7 @@ def codegen(document, evaluate=True, check_schema=True):
         out.append("boundaries = {")
         for bc in boundaries:
             args = ["field[0]", f"mask={bc['pointset']}"]
-            skip = tuple(0 if a in bc["constrained"] else 1 for a in AXES)
+            skip = tuple(0 if a in bc["constrained"] else 1 for a in axes)
             if any(skip):
                 args.append(f"skip={skip!r}")
             if bc.get("value", 0) != 0:
@@ -596,7 +639,7 @@ def codegen(document, evaluate=True, check_schema=True):
         """Items of a ramp: a boundary, the moving boundaries of a load case, a point
         load (its force, scaled by the values) or a pressure (scaled by the values)."""
         if name in loads:
-            force = f"[{', '.join(map(repr, loads[name]['force']))}]"
+            force = f"[{', '.join(map(repr, loads[name]['force'][:dim]))}]"
             return [f"{name}: np.outer({values}, {force})"]
         if name in pressures:
             return [f"{name}: {pressures[name]['pressure']!r} * {values}"]
@@ -638,7 +681,7 @@ def codegen(document, evaluate=True, check_schema=True):
     if loads:
         out.append("\n# point loads: the force at every point, scaled by the ramps")
         for load in loads.values():
-            force = f"[{', '.join(map(repr, load['force']))}]"
+            force = f"[{', '.join(map(repr, load['force'][:dim]))}]"
             args = ["field", f"points={load['points']}", f"values={force}"]
             out.append(_call(load["name"], "fem.PointLoad", args))
 
@@ -784,9 +827,11 @@ def object_lines(script, document):
 
     # the comment of the units of the model settings (not in the syntax tree)
     settings = [c["name"] for c in commands if c["command"] == "model.settings"]
+    # and of the type of a 2D model (#175)
+    comments = ("# units: ", "# axisymmetric: ", "# plane strain in ")
     for number, line in enumerate(script.splitlines(), start=1):
-        if settings and line.startswith("# units: "):
-            lines[settings[0]] = [[number, number]]
+        if settings and line.startswith(comments):
+            lines.setdefault(settings[0], []).append([number, number])
 
     for statement in ast.parse(script).body:
         if isinstance(statement, (ast.Assign, ast.AugAssign, ast.AnnAssign)):

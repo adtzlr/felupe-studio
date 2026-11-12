@@ -22,6 +22,7 @@ import {
   scale,
   seriesLabel,
   seriesName,
+  seriesOf,
   seriesValues,
 } from "./curve";
 import { startProgress } from "./jobs";
@@ -103,6 +104,24 @@ describe("force-displacement curve", () => {
       "4,hold,0.3,1.5,0,3,0.3,0",
       "",
     ]);
+    // a 2D model has two components (#175)
+    const planar = {
+      ...result,
+      x: result.x.map((x) => x.slice(0, 2)),
+      y: result.y.map((y) => y.slice(0, 2)),
+    };
+    expect(
+      curveCsv({ ...run, results: { job_1: planar } }, "job_1").split("\n"),
+    ).toEqual([
+      "substep,step,u_x,u_y,F_x,F_y",
+      "1,load,0,0,0,0",
+      "2,load,0.1,0.5,1,0.1",
+      "3,load,0.2,1,,0.2",
+      "4,hold,0.3,1.5,3,0.3",
+      "",
+    ]);
+    expect(seriesOf(planar)).toEqual(["ux", "uy", "Fx", "Fy", "substep"]);
+    expect(seriesOf(result)).toHaveLength(7);
   });
 
   it("shows the moment over the rotation of a rotation point (#98)", () => {

@@ -315,6 +315,107 @@ CHANGES = {
             {"command": "loadcase.add", "name": "shear", "type": "shear"},
         ),
     ),
+    # 2D models (#175): no z components, 2D cells, not yet all objects
+    "2d model": lambda d: (
+        d["commands"].insert(
+            0,
+            {
+                "command": "model.settings",
+                "name": "settings",
+                "analysis": "plane-strain",
+            },
+        ),
+        d["commands"].__setitem__(10, {**d["commands"][10], "constrained": ["x", "y"]}),
+    ),
+    "2d model with z components": lambda d: (
+        d["commands"].insert(
+            0,
+            {
+                "command": "model.settings",
+                "name": "settings",
+                "analysis": "axisymmetric",
+            },
+        ),
+        d["commands"].__setitem__(10, {**d["commands"][10], "constrained": ["x", "z"]}),
+        d["commands"].insert(
+            11,
+            {
+                "command": "pointset.add",
+                "name": "ring",
+                "select": {"radius": 2, "axis": "x"},
+            },
+        ),
+        d["commands"].insert(
+            12,
+            {
+                "command": "pointset.add",
+                "name": "far",
+                "select": {"points": [[1, 2, 3]]},
+            },
+        ),
+        d["commands"].insert(
+            13,
+            {
+                "command": "pointset.add",
+                "name": "top",
+                "select": {"bound": "max", "axis": "z"},
+            },
+        ),
+        d["commands"].insert(
+            14,
+            {"command": "symmetry.add", "name": "half", "axes": ["y", "z"]},
+        ),
+        d["commands"].insert(
+            15,
+            {"command": "loadcase.add", "name": "test", "type": "shear", "normal": "z"},
+        ),
+        d["commands"].insert(
+            16,
+            {
+                "command": "load.add",
+                "name": "pull",
+                "points": "far",
+                "force": [1, 0, 1],
+            },
+        ),
+    ),
+    "2d model without control points yet": lambda d: (
+        d["commands"].insert(
+            0,
+            {
+                "command": "model.settings",
+                "name": "settings",
+                "analysis": "plane-strain",
+            },
+        ),
+        d["commands"].insert(
+            10, {"command": "point.add", "name": "pin", "coordinates": [4, 0, 0]}
+        ),
+        d["commands"].insert(
+            12,
+            {
+                "command": "mpc.add",
+                "name": "glue",
+                "points": "right",
+                "center": "pin",
+                "constrained": ["x", "y"],
+            },
+        ),
+    ),
+    "2d cells": lambda d: (
+        d["commands"].insert(
+            0,
+            {
+                "command": "model.settings",
+                "name": "settings",
+                "analysis": "plane-strain",
+            },
+        ),
+        d["commands"].__setitem__(1, {**d["commands"][1], "cell_type": "hexahedron"}),
+    ),
+    "2d cells in a 3d model": lambda d: d["commands"].__setitem__(
+        0, {**d["commands"][0], "cell_type": "quad"}
+    ),
     "parameter out of its range": lambda d: d["commands"].insert(
         0,
         {"command": "parameter.add", "name": "radius", "value": 120, "max": 100},

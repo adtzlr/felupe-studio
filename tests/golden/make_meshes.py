@@ -88,6 +88,15 @@ def main():
     # a cube of 2 x 2 x 2 cells, pulled by a pressure on its end face (#105)
     write_vtu(HERE / "block_pressure" / "block.vtu", fem.Cube(n=3))
 
+    # 2D models (#175): the cross section of the bar (3 x 1, 12 x 4 quads) in plane
+    # strain, and a solid cylinder of radius 1 and length 3 (x is the axis, y the
+    # radius), in the plane z = 0 of the files
+    plate = fem.Rectangle(b=(3, 1), n=(13, 5))
+    for case in ("plate_plane_strain", "cylinder_axisymmetric"):
+        meshio.Mesh(
+            np.pad(plate.points, ((0, 0), (0, 1))), [("quad", plate.cells)]
+        ).write(HERE / case / "plate.vtu", binary=False)
+
     # a cube of 2 x 2 x 2 cells for the uniaxial tension of the material models
     for case in MATERIAL_CASES:
         write_vtu(HERE / case / "cube.vtu", fem.Cube(n=3))

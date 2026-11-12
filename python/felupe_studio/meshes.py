@@ -127,12 +127,14 @@ def _summary(mesh, result):
         result["error"] = f"The file needs solid cells ({supported}); found {found}."
         return result, {}
 
-    solids = {t: volume_cells(mesh, cell_type=t) for t in types if t in REGIONS}
+    solids = {
+        t: volume_cells(mesh, cell_type=t, dim=None) for t in types if t in REGIONS
+    }
     unsupported = [t for t in types if t not in REGIONS]
     result.update(
         solids=[],
         unsupported=[
-            {"type": t, "cells": len(volume_cells(mesh, cell_type=t).cells)}
+            {"type": t, "cells": len(volume_cells(mesh, cell_type=t, dim=None).cells)}
             for t in unsupported
         ],
         ignored=sorted({b.type for b in mesh.cells} - set(types)),
@@ -148,6 +150,8 @@ def _summary(mesh, result):
     for cell_type, solid in solids.items():
         blocks = [i for i, b in enumerate(mesh.cells) if b.type == cell_type]
         points = np.asarray(solid.points)[np.unique(solid.cells)]
+        # the bounds of 2D cells in the plane z = 0 (#175)
+        points = np.pad(points, ((0, 0), (0, 3 - points.shape[1])))
         tags[cell_type] = _tag_arrays(mesh, blocks)
         result["solids"].append(
             {

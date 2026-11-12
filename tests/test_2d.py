@@ -1,0 +1,149 @@
+"""2D models: plane strain and axisymmetric (#175)."""
+
+import copy
+import json
+from pathlib import Path
+
+import felupe as fem
+import meshio
+import numpy as np
+import pytest
+
+from felupe_studio import results
+from felupe_studio.codegen import codegen
+from felupe_studio.commands import analysis_problems, errors
+from felupe_studio.runner import run
+
+GOLDEN = Path(__file__).parent / "golden"
+
+
+def document(case="plate_plane_strain"):
+    text = (GOLDEN / case / "commands.json").read_text(encoding="utf-8")
+    return json.loads(text)
+
+
+def with_mesh(tmp_path, monkeypatch, mesh, analysis, formulation="u"):
+    """The plate of the golden case with another mesh, analysis and formulation."""
+    meshio.Mesh(
+        np.pad(mesh.points, ((0, 0), (0, 1))), [(mesh.cell_type, mesh.cells)]
+    ).write(tmp_path / "plate.vtu")
+    monkeypatch.chdir(tmp_path)
+    doc = copy.deepcopy(document())
+    for cmd in doc["commands"]:
+        if cmd["command"] == "model.settings":
+            cmd["analysis"] = analysis
+        if cmd["command"] == "section.add":
+            cmd["formulation"] = formulation
+            if formulation == "u-p-J":
+                cmd["bulk"] = 5.0
+        if cmd["command"] == "step.add":
+            cmd["ramp"]["num"] = 2
+            cmd["ramp"]["items"][0]["end"] = 0.2
+    return doc
+
+
+def test_script_of_a_2d_model():
+    script = codegen(document())
+    assert (
+        "# plane strain in the xy-plane: the forces are per unit thickness in z"
+        in script
+    )
+    assert "fem.FieldContainer([fem.FieldPlaneStrain(region_body, dim=2)])" in script
+    axisymmetric = codegen(document("cylinder_axisymmetric"))
+    assert "fem.FieldAxisymmetric(region_body, dim=2)" in axisymmetric
+    assert "# axisymmetric: x is the axis of rotation, y the radius" in axisymmetric
+
+
+@pytest.mark.parametrize("analysis", ["plane-strain", "axisymmetric"])
+@pytest.mark.parametrize(
+    "cells, formulation",
+    [
+        ("quad", "u"),
+        ("quad", "u-p-J"),
+        ("triangle", "u"),
+        ("triangle", "u-p-J"),
+        ("quad8", "u"),
+        ("quad9", "u-p-J"),
+        ("triangle6", "u"),
+    ],
+)
+def test_runs_2d_cells(tmp_path, monkeypatch, analysis, cells, formulation):
+    mesh = fem.Rectangle(b=(3, 1), n=(4, 3))
+    if cells.startswith("triangle"):
+        mesh = mesh.triangulate()
+    if cells in ("quad8", "triangle6"):
+        mesh = fem.mesh.convert(mesh, order=2)
+    if cells == "quad9":
+        mesh = fem.mesh.convert(mesh, order=2, calc_midfaces=True)
+    assert mesh.cell_type == cells
+    doc = with_mesh(tmp_path, monkeypatch, mesh, analysis, formulation)
+    if formulation == "u-p-J":
+        script = codegen(doc)
+        flag = "planestrain" if analysis == "plane-strain" else "axisymmetric"
+        assert f"fem.FieldsMixed(region_body, n=3, {flag}=True)" in script
+    result = run(doc)["job_1"]
+    assert result["substeps"] == 3
+    assert result["y"][-1][0] > 0
+    # the results in the plane z = 0, with the out-of-plane stress
+    meta, surfaces = results.scene("job_1", 3, "displacement_z")
+    positions = np.frombuffer(surfaces[0]["positions"], "<f4").reshape(-1, 3)
+    displacement = np.frombuffer(surfaces[0]["displacement"], "<f4").reshape(-1, 3)
+    assert np.all(positions[:, 2] == 0) and np.all(displacement[:, 2] == 0)
+    assert positions[:, :2].max(axis=0) == pytest.approx([3, 1])
+    meta, _ = results.scene("job_1", 3, "stress_min")
+    assert json.loads(meta)["range"] is not None
+    for file_format in ("vtu", "xdmf"):
+        assert results.export("job_1", file_format, 3)
+
+
+def test_problems_of_2d_models():
+    def problems(cmd, analysis="axisymmetric"):
+        return analysis_problems({"name": "a", **cmd}, analysis)
+
+    assert problems({"command": "boundary.add", "constrained": ["x", "y"]}) == []
+    assert problems({"command": "boundary.add", "constrained": ["z"]}) == [
+        "boundary 'a' constrains z, which a 2D model does not have."
+    ]
+    assert problems({"command": "load.add", "force": [0, 1, 2]})
+    assert problems({"command": "load.add", "force": [0, 1, 0]}) == []
+    assert problems({"command": "symmetry.add", "axes": ["x", "z"]})
+    assert problems({"command": "loadcase.add", "type": "shear", "normal": "z"})
+    assert problems({"command": "loadcase.add", "type": "uniaxial"}) == []
+    assert problems({"command": "pointset.add", "select": {"axis": "z", "value": 0}})
+    assert problems(
+        {"command": "pointset.add", "select": {"bound": "max", "axis": "z"}}
+    )
+    assert problems({"command": "pointset.add", "select": {"radius": 1, "axis": "x"}})
+    assert (
+        problems({"command": "pointset.add", "select": {"radius": 1, "axis": "z"}})
+        == []
+    )
+    assert problems({"command": "pointset.add", "select": {"points": [[0, 1, 2]]}})
+    assert (
+        problems({"command": "pointset.add", "select": {"points": [[0, 1, 0]]}}) == []
+    )
+    for kind in ("faceset.add", "pressure.add", "mpc.add", "point.add"):
+        assert problems({"command": kind})[0].endswith(
+            "are not available in 2D models yet: remove 'a' or make the model 3D."
+        )
+    assert problems({"command": "mesh.import", "cell_type": "tetra"}) == [
+        "mesh 'a' takes tetra cells, but a 2D model has 2D cells."
+    ]
+    assert problems({"command": "mesh.import", "cell_type": "quad"}, "3d") == [
+        "mesh 'a' takes quad cells, which are 2D cells: set the analysis of the "
+        "settings to plane strain or axisymmetric."
+    ]
+    # the errors of a command list, with its index
+    doc = document()
+    doc["commands"].append(
+        {
+            "command": "boundary.add",
+            "name": "fixed",
+            "pointset": "x",
+            "constrained": ["z"],
+        }
+    )
+    assert any(
+        e.endswith("boundary 'fixed' constrains z, which a 2D model does not have.")
+        for e in errors(doc)
+    )

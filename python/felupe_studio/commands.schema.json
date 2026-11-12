@@ -190,7 +190,18 @@
         },
         "cell_type": {
           "description": "Type of the solid cells to import, if the file has more than one (one mesh per cell type).",
-          "enum": ["tetra", "tetra10", "hexahedron", "hexahedron20", "hexahedron27"]
+          "enum": [
+            "tetra",
+            "tetra10",
+            "hexahedron",
+            "hexahedron20",
+            "hexahedron27",
+            "triangle",
+            "triangle6",
+            "quad",
+            "quad8",
+            "quad9"
+          ]
         },
         "scale": {
           "description": "Factor of the coordinates of the points, e.g. 1000 for a mesh in m of a model in mm. The points are multiplied after reading, before the cell sets; point sets and points are in the scaled coordinates.",
@@ -237,7 +248,18 @@
         },
         "cell_type": {
           "description": "Type of the solid cells to take, if the mesh has more than one.",
-          "enum": ["tetra", "tetra10", "hexahedron", "hexahedron20", "hexahedron27"]
+          "enum": [
+            "tetra",
+            "tetra10",
+            "hexahedron",
+            "hexahedron20",
+            "hexahedron27",
+            "triangle",
+            "triangle6",
+            "quad",
+            "quad8",
+            "quad9"
+          ]
         }
       }
     },
@@ -252,6 +274,10 @@
         },
         "name": {
           "$ref": "#/$defs/Name"
+        },
+        "analysis": {
+          "description": "The type of the model: 3D (the default) or 2D, as plane strain (fem.FieldPlaneStrain, the forces per unit thickness) or axisymmetric (fem.FieldAxisymmetric: x is the axis of rotation, y the radius, the forces are the totals over the circumference). A 2D model has 2D cells (triangles and quads) and the components x and y.",
+          "enum": ["3d", "plane-strain", "axisymmetric"]
         },
         "units": {
           "description": "The units of lengths and forces, which give the units of the stresses (e.g. mm and N give MPa). Without units, the numbers have none.",

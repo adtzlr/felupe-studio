@@ -141,6 +141,82 @@ def schema_errors(document):
     return messages
 
 
+# the cell types of the solid cells of 3D models; 2D models have 2D cells (#175)
+CELLS_3D = ("tetra", "tetra10", "hexahedron", "hexahedron20", "hexahedron27")
+
+# the objects that 2D models do not have yet (#175)
+NOT_IN_2D = {
+    "faceset.add": "Face sets",
+    "pressure.add": "Pressures",
+    "mpc.add": "Multi-point constraints",
+    "point.add": "Control points",
+}
+
+
+def analysis_problems(cmd, analysis):
+    """Return the problems of a command in a model of a type of analysis (#175): a
+    2D model (plane strain or axisymmetric) has 2D cells and no z components, and
+    not yet all objects of a 3D model.
+
+    Examples
+    --------
+    >>> analysis_problems(
+    ...     {"command": "boundary.add", "name": "fixed", "constrained": ["x", "z"]},
+    ...     "axisymmetric",
+    ... )
+    ["boundary 'fixed' constrains z, which a 2D model does not have."]
+    """
+    kind, name = cmd["command"], cmd["name"]
+    cell_type = cmd.get("cell_type") if kind in ("mesh.import", "mesh.script") else None
+    if analysis == "3d":
+        if cell_type and cell_type not in CELLS_3D:
+            return [
+                f"mesh '{name}' takes {cell_type} cells, which are 2D cells: set the "
+                "analysis of the settings to plane strain or axisymmetric."
+            ]
+        return []
+    if cell_type in CELLS_3D:
+        return [f"mesh '{name}' takes {cell_type} cells, but a 2D model has 2D cells."]
+    if kind in NOT_IN_2D:
+        return [
+            f"{NOT_IN_2D[kind]} are not available in 2D models yet: remove "
+            f"'{name}' or make the model 3D."
+        ]
+    if kind == "boundary.add" and "z" in cmd["constrained"]:
+        return [f"boundary '{name}' constrains z, which a 2D model does not have."]
+    if kind == "load.add" and cmd["force"][2] != 0:
+        return [
+            f"point load '{name}' has a force in z, which a 2D model does not have."
+        ]
+    if kind == "symmetry.add" and "z" in cmd["axes"]:
+        return [
+            f"symmetry '{name}' has a plane normal to z, which a 2D model does not "
+            "have."
+        ]
+    if kind == "loadcase.add":
+        keys = [k for k in ("axis", "second", "normal") if cmd.get(k) == "z"]
+        if keys:
+            return [
+                f"load case '{name}' has the axis z in '{keys[0]}', which a 2D model "
+                "does not have."
+            ]
+    if kind == "pointset.add":
+        select = cmd["select"]
+        if ("value" in select or "bound" in select) and select["axis"] == "z":
+            return [f"point set '{name}' selects by z, which a 2D model does not have."]
+        if "radius" in select and select["axis"] != "z":
+            return [
+                f"point set '{name}' selects by a radius about {select['axis']}: in a "
+                "2D model, a radius is about z (a circle in the xy-plane)."
+            ]
+        if "points" in select and any(p[2] != 0 for p in select["points"]):
+            return [
+                f"point set '{name}' has points with a z coordinate: the points of a "
+                "2D model are in the plane z = 0."
+            ]
+    return []
+
+
 def _reference_errors(commands):
     # the registries read the schema of this module
     from .loadcases import problems as loadcase_problems
@@ -150,9 +226,13 @@ def _reference_errors(commands):
     keywords, reserved_names, reserved_prefixes = reserved()
     messages = []
     defined = {}  # name -> (index, command)
+    # the type of the analysis of the settings (#175)
+    settings = [c for c in commands if c["command"] == "model.settings"]
+    analysis = settings[0].get("analysis", "3d") if settings else "3d"
 
     for i, cmd in enumerate(commands):
         name = cmd["name"]
+        messages.extend(f"commands/{i}: {p}" for p in analysis_problems(cmd, analysis))
 
         # references must point to objects of the right kind, created before
         for field, (ref_kinds, is_list) in REFERENCES.get(cmd["command"], {}).items():

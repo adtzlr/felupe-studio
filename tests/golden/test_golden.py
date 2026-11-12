@@ -168,6 +168,55 @@ def test_symmetry_quarter_of_the_bar(tmp_path, monkeypatch):
     )
 
 
+def test_plane_strain_like_the_bar_with_fixed_z(tmp_path, monkeypatch):
+    # the cross section of the clamped bar of bar_loadcase in plane strain (#175)
+    # has the force of the bar (thickness 1) with all displacements in z fixed
+    document = load("bar_loadcase")
+    commands = document["commands"]
+    commands.insert(
+        commands.index(next(c for c in commands if c["command"] == "loadcase.add")),
+        {
+            "command": "pointset.add",
+            "name": "all_points",
+            "select": {"ids": list(range(325))},
+        },
+    )
+    commands.insert(
+        commands.index(next(c for c in commands if c["command"] == "step.add")),
+        {
+            "command": "boundary.add",
+            "name": "plane",
+            "pointset": "all_points",
+            "constrained": ["z"],
+        },
+    )
+    for cmd in commands:
+        if cmd["command"] == "job.add":
+            cmd["tol"] = 1.49e-8
+    bar = evaluate("bar_loadcase", tmp_path, monkeypatch, document)["jobs"]["job_1"]
+    plate = json.loads(
+        (HERE / "plate_plane_strain" / "results.json").read_text(encoding="utf-8")
+    )["jobs"]["job_1"]
+    np.testing.assert_allclose(plate["displacement"], bar["displacement"])
+    np.testing.assert_allclose(plate["force"], bar["force"], rtol=1e-6, atol=1e-12)
+
+
+def test_axisymmetric_cylinder_like_the_analytical_solution(tmp_path, monkeypatch):
+    # the solid cylinder (radius 1, length 3) in uniaxial tension (#175): at a small
+    # strain, the total force over the circumference is E * strain * pi * R^2 with
+    # E = mu (3 lmbda + 2 mu) / (lmbda + mu) of NeoHookeCompressible
+    document = load("cylinder_axisymmetric")
+    for cmd in document["commands"]:
+        if cmd["command"] == "step.add":
+            cmd["ramp"] = {"num": 1, "items": [{"target": "tension", "end": 3e-4}]}
+    result = evaluate("cylinder_axisymmetric", tmp_path, monkeypatch, document)
+    curve = result["jobs"]["job_1"]
+    mu, lmbda = 1.0, 2.0
+    modulus = mu * (3 * lmbda + 2 * mu) / (lmbda + mu)
+    expected = modulus * 3e-4 / 3 * np.pi * 1**2
+    np.testing.assert_allclose(curve["force"][-1], expected, rtol=2e-4)
+
+
 def test_iterative_solver_close_to_the_direct_one():
     # the bar of bar_single_body, solved with minres and rtol = tol / 100 (#203):
     # the curve of the direct solver within its tolerance (0.01). The golden case has

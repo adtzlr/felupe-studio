@@ -5,6 +5,7 @@
 // scripts that make meshes (#182) are kept and written the same way; the meshes
 // they make with the parameters of the model are kept by their file, item and
 // parameter values.
+import { analysisOf, CELLS_2D, is2d } from "./analysis";
 import type { Command, MeshImport, MeshScript } from "./commands";
 import { solidOf } from "./meshinfo";
 import type { MeshInfo, MeshSurface } from "../worker/protocol";
@@ -395,8 +396,18 @@ export function fileNotes(
       const source = script
         ? `The mesh of '${command.file}'${command.item ? ` ['${command.item}']` : ""}`
         : `The file '${command.file}'`;
+      // the cells of the type of the analysis (#175)
+      const analysis = analysisOf(commands);
+      const planar =
+        !("problem" in choice) && CELLS_2D.includes(choice.solid.cell_type);
       if ("problem" in choice) {
         notes.set(command.name, [choice.problem]);
+      } else if (planar !== is2d(analysis)) {
+        notes.set(command.name, [
+          planar
+            ? `${source} has ${choice.solid.cell_type} cells, which are 2D cells: set the analysis of the settings to plane strain or axisymmetric.`
+            : `${source} has ${choice.solid.cell_type} cells, but a 2D model has 2D cells (triangles or quads).`,
+        ]);
       } else if (
         command.tag &&
         !choice.solid.tags.some((t) => t.name === command.tag)

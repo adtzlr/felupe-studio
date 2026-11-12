@@ -282,6 +282,23 @@ describe("Viewer", () => {
     expect(handle.setView).toHaveBeenLastCalledWith(null);
   });
 
+  it("resets the camera onto the xy-plane with Iso for a 2D model (#175)", () => {
+    const { handle, create } = fake();
+    const viewer = new Viewer(document.createElement("div"), create);
+    // the triangle of the surface is in the xy-plane
+    viewer.setMeshes([{ name: "plate", surface, color: "#3987e5" }]);
+    viewer.setView("iso");
+    expect(handle.update.mock.lastCall![0].view).toBe("xy");
+    expect(handle.setView).toHaveBeenLastCalledWith("xy");
+    const solid = {
+      ...surface,
+      positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 1]),
+    };
+    viewer.setMeshes([{ name: "bar", surface: solid, color: "#3987e5" }]);
+    viewer.setView("iso");
+    expect(handle.setView).toHaveBeenLastCalledWith("default");
+  });
+
   it("works without WebGL2", () => {
     const { create } = fake(false);
     const viewer = new Viewer(document.createElement("div"), create);
