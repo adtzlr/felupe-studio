@@ -419,7 +419,7 @@ A job evaluating steps one after another (fem.Job). With a curve, the force-disp
 | `name` | name | yes | Name of the object. |
 | `steps` | names of steps (at least 1, unique) | yes | Steps evaluated one after another. |
 | `curve` | name of a boundary, load case or point load |  | The boundary, load case or point load of the force-displacement curve. |
-| `tol` | number > 0 |  | Tolerance of the Newton-Raphson method: the norm of the residual forces relative to the reaction forces (default: the square root of the machine epsilon, 1.49e-8). |
+| `tol` | number > 0 |  | Tolerance of the Newton-Raphson method: the norm of the residual forces relative to the reaction forces (default 0.01, like commercial codes). |
 | `maxiter` | integer ≥ 1 |  | The maximum number of Newton iterations of a substep (default 16). |
 | `cutback` | object |  | Retry a substep that does not converge with smaller increments (fem.CutbackPlugin); without a value, a parameter has the default of FElupe. |
 | `cutback.factor` | number > 0, < 1 |  | The factor by which the increment is reduced after a failed attempt (default 0.5). |

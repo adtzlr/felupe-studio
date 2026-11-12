@@ -4,6 +4,10 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ## [Unreleased]
 
+### Changed
+
+- The default tolerance of the Newton-Raphson method is 0.01 (FElupe's default is 1.49e-8), like the force criterion of commercial codes: the norm of the residual forces relative to the norm of the reaction forces. The generated script always passes it (`job.evaluate(x0=field, tol=0.01)`), the form shows it as the placeholder. In the golden cases a job takes about half the time, and the forces deviate by less than 1 % of the largest force. Projects without a tolerance are not migrated: their results change slightly; set *Tolerance* to e.g. 1e-6 for curves that are fitted to test data. The golden cases compared with converged references set `tol: 1.49e-8` (#176).
+
 ### Fixed
 
 - The contour settings: the selects stay inside the popover (they took the width of their longest option), the popover is wide enough for *Cool–warm (centered at 0)* and stays inside the window (#177).

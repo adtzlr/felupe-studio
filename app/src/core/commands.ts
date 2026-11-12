@@ -803,7 +803,7 @@ export interface JobAdd {
    */
   curve?: string;
   /**
-   * Tolerance of the Newton-Raphson method: the norm of the residual forces relative to the reaction forces (default: the square root of the machine epsilon, 1.49e-8).
+   * Tolerance of the Newton-Raphson method: the norm of the residual forces relative to the reaction forces (default 0.01, like commercial codes).
    */
   tol?: number;
   /**

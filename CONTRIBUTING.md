@@ -26,7 +26,7 @@ cd .. && ruff check . && ruff format --check . && pytest
 pytest tests/golden --update-golden
 ```
 
-A new case is a new folder with a `commands.json` and its mesh files; run the command above once to create `script.py` and `results.json`.
+A new case is a new folder with a `commands.json` and its mesh files; run the command above once to create `script.py` and `results.json`. A case that is compared with a converged reference (an analytical solution or `fem.ViewMaterialIncompressible`) sets FElupe's tight tolerance `"tol": 1.49e-8` at its job; the others use the default of the app, 0.01.
 
 ## License
 

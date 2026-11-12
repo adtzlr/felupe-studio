@@ -144,4 +144,4 @@ job_1 = fem.CharacteristicCurve(
     plugins=[fem.CutbackPlugin(factor=0.25, max_cutbacks=1, growth=1.5)],
 )
 
-job_1.evaluate(x0=field, maxiter=20)
+job_1.evaluate(x0=field, tol=0.01, maxiter=20)
