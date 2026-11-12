@@ -70,15 +70,27 @@ SAMPLES = [
             "ramps with their own values",
         ],
     },
+    {
+        "id": "sandwich-spring",
+        "title": "Sandwich spring with parameters",
+        "description": "Rubber discs between steel sheets, sheared by the top sheet. "
+        "A Python script makes the mesh from the radius, the number and the height "
+        "of the layers, the thickness of the sheets and the fineness.",
+        "topics": ["parameters", "mesh script", "point sets at bounds", "shear"],
+    },
 ]
 
 
 def write(folder, commands, meshes):
-    """Write the project file and the mesh files (name: meshio.Mesh) of a sample."""
+    """Write the project file and the mesh files (name: meshio.Mesh, or the text of a
+    script that makes meshes, #182) of a sample."""
     folder = HERE / folder
     folder.mkdir(parents=True, exist_ok=True)
     next(s for s in SAMPLES if s["id"] == folder.name)["files"] = sorted(meshes)
     for name, mesh in meshes.items():
+        if isinstance(mesh, str):
+            (folder / name).write_text(mesh, encoding="utf-8")
+            continue
         kwargs = {"file_format": "gmsh22"} if name.endswith(".msh") else {}
         mesh.write(folder / name, binary=False, **kwargs)
     document = {"schema_version": SCHEMA_VERSION, "commands": commands}
@@ -376,6 +388,181 @@ def glued_plate():
     write("glued-plate", commands, {"block.vtu": cells})
 
 
+# the script of the mesh of the sandwich spring (#184), run with the parameters
+SANDWICH_SPRING = '''"""A rubber-metal sandwich spring: rubber discs, steel sheets.
+
+FElupe Studio runs this script with the parameters of the model as variables:
+radius, layers, height, sheet and cells. It makes a dict of two meshes on the same
+points, the rubber and the metal, from the bottom: a sheet, then a rubber layer and
+a sheet per layer.
+"""
+
+import felupe as fem
+import numpy as np
+
+# the parameters of the model, or these values if the script runs alone
+radius = globals().get("radius", 50)
+layers = globals().get("layers", 3)
+height = globals().get("height", 8)
+sheet = globals().get("sheet", 2)
+cells = globals().get("cells", 4)
+
+disc = fem.Circle(radius=radius, n=cells)
+
+# the thickness and the number of cells through it of every layer, from the bottom
+thickness = [sheet] + [height, sheet] * layers
+divisions = [1] + [2, 1] * layers
+bottom = np.concatenate([[0], np.cumsum(thickness)[:-1]])
+parts = [
+    disc.expand(n=n + 1, z=t).translate(z, axis=2)
+    for t, n, z in zip(thickness, divisions, bottom, strict=True)
+]
+
+# all layers on the same points, merged at the faces between them
+stack = fem.MeshContainer(parts, merge=True, decimals=8)
+mesh = {
+    "rubber": fem.MeshContainer(stack.meshes[1::2]).stack(),
+    "metal": fem.MeshContainer(stack.meshes[0::2]).stack(),
+}
+'''
+
+
+def sandwich_spring():
+    """Rubber discs between steel sheets (#184), made by a script with parameters
+    (#180, #182): the base sheet fixed, the top sheet sheared by 12 mm. The bottom
+    and the top are point sets at the bounds of the meshes (#181), so they follow
+    the number and the height of the layers."""
+
+    def parameter(name, value, description, **options):
+        return {
+            "command": "parameter.add",
+            "name": name,
+            "value": value,
+            **options,
+            "description": description,
+        }
+
+    commands = [
+        {
+            "command": "model.settings",
+            "name": "settings",
+            "units": {"length": "mm", "force": "N"},
+        },
+        parameter(
+            "radius",
+            50,
+            "Radius of the discs",
+            quantity="length",
+            min=20,
+            max=100,
+            step=5,
+        ),
+        parameter("layers", 3, "Number of rubber layers", integer=True, min=1, max=6),
+        parameter(
+            "height",
+            8,
+            "Height of a rubber layer",
+            quantity="length",
+            min=2,
+            max=20,
+            step=1,
+        ),
+        parameter(
+            "sheet",
+            2,
+            "Thickness of a steel sheet",
+            quantity="length",
+            min=1,
+            max=5,
+            step=0.5,
+        ),
+        parameter(
+            "cells",
+            4,
+            "Fineness of the discs (n of fem.Circle)",
+            integer=True,
+            min=2,
+            max=8,
+        ),
+        {
+            "command": "mesh.script",
+            "name": "rubber_mesh",
+            "file": "sandwich_spring.py",
+            "item": "rubber",
+        },
+        {
+            "command": "mesh.script",
+            "name": "metal_mesh",
+            "file": "sandwich_spring.py",
+            "item": "metal",
+        },
+        {"command": "cellset.from_file", "name": "rubber_cells", "mesh": "rubber_mesh"},
+        {"command": "cellset.from_file", "name": "metal_cells", "mesh": "metal_mesh"},
+        {
+            "command": "material.add",
+            "name": "rubber",
+            "model": "NeoHooke",
+            "parameters": {"mu": 0.5},
+        },
+        {
+            "command": "material.add",
+            "name": "steel",
+            "model": "LinearElasticLargeStrain",
+            "parameters": {"E": 210000, "nu": 0.3},
+        },
+        {
+            "command": "section.add",
+            "name": "rubber_layers",
+            "cellset": "rubber_cells",
+            "material": "rubber",
+            "formulation": "u-p-J",
+            "bulk": 1000,
+        },
+        {
+            "command": "section.add",
+            "name": "steel_sheets",
+            "cellset": "metal_cells",
+            "material": "steel",
+            "formulation": "u",
+        },
+        {
+            "command": "pointset.add",
+            "name": "base",
+            "select": {"bound": "min", "axis": "z"},
+        },
+        {
+            "command": "pointset.add",
+            "name": "top",
+            "select": {"bound": "max", "axis": "z"},
+        },
+        {
+            "command": "boundary.add",
+            "name": "fixed",
+            "pointset": "base",
+            "constrained": ["x", "y", "z"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "shear",
+            "pointset": "top",
+            "constrained": ["x"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "guide",
+            "pointset": "top",
+            "constrained": ["y", "z"],
+        },
+        {
+            "command": "step.add",
+            "name": "shearing",
+            "ramp": {"num": 8, "items": [{"target": "shear", "end": 12}]},
+        },
+        {"command": "job.add", "name": "job", "steps": ["shearing"], "curve": "shear"},
+    ]
+    write("sandwich-spring", commands, {"sandwich_spring.py": SANDWICH_SPRING})
+
+
 def two_materials():
     """A bar with a stiff and a soft half, from the cell tag "material"."""
     mesh = fem.Cube(b=(30, 10, 10), n=(13, 5, 5))
@@ -585,6 +772,7 @@ def main():
     material_test()
     hex_tet()
     glued_plate()
+    sandwich_spring()
     INDEX.write_text(json.dumps(SAMPLES, indent=2) + "\n", encoding="utf-8")
 
 

@@ -15,8 +15,11 @@ describe("samples", () => {
         "utf8",
       );
       const document = parse(text);
+      // the files of imported meshes and of scripts that make meshes (#182)
       const files = document.commands
-        .filter((c) => c.command === "mesh.import")
+        .filter(
+          (c) => c.command === "mesh.import" || c.command === "mesh.script",
+        )
         .map((c) => (c as { file: string }).file);
       expect([...new Set(files)].sort()).toEqual(sample.files);
       for (const file of sample.files) {

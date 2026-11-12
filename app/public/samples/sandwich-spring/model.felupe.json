@@ -1,0 +1,179 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "model.settings",
+      "name": "settings",
+      "units": {
+        "length": "mm",
+        "force": "N"
+      }
+    },
+    {
+      "command": "parameter.add",
+      "name": "radius",
+      "value": 50,
+      "quantity": "length",
+      "min": 20,
+      "max": 100,
+      "step": 5,
+      "description": "Radius of the discs"
+    },
+    {
+      "command": "parameter.add",
+      "name": "layers",
+      "value": 3,
+      "min": 1,
+      "max": 6,
+      "integer": true,
+      "description": "Number of rubber layers"
+    },
+    {
+      "command": "parameter.add",
+      "name": "height",
+      "value": 8,
+      "quantity": "length",
+      "min": 2,
+      "max": 20,
+      "step": 1,
+      "description": "Height of a rubber layer"
+    },
+    {
+      "command": "parameter.add",
+      "name": "sheet",
+      "value": 2,
+      "quantity": "length",
+      "min": 1,
+      "max": 5,
+      "step": 0.5,
+      "description": "Thickness of a steel sheet"
+    },
+    {
+      "command": "parameter.add",
+      "name": "cells",
+      "value": 4,
+      "min": 2,
+      "max": 8,
+      "integer": true,
+      "description": "Fineness of the discs (n of fem.Circle)"
+    },
+    {
+      "command": "mesh.script",
+      "name": "rubber_mesh",
+      "file": "sandwich_spring.py",
+      "item": "rubber"
+    },
+    {
+      "command": "mesh.script",
+      "name": "metal_mesh",
+      "file": "sandwich_spring.py",
+      "item": "metal"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "rubber_cells",
+      "mesh": "rubber_mesh"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "metal_cells",
+      "mesh": "metal_mesh"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 0.5
+      }
+    },
+    {
+      "command": "material.add",
+      "name": "steel",
+      "model": "LinearElasticLargeStrain",
+      "parameters": {
+        "E": 210000,
+        "nu": 0.3
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "rubber_layers",
+      "cellset": "rubber_cells",
+      "material": "rubber",
+      "formulation": "u-p-J",
+      "bulk": 1000
+    },
+    {
+      "command": "section.add",
+      "name": "steel_sheets",
+      "cellset": "metal_cells",
+      "material": "steel",
+      "formulation": "u"
+    },
+    {
+      "command": "pointset.add",
+      "name": "base",
+      "select": {
+        "bound": "min",
+        "axis": "z"
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "top",
+      "select": {
+        "bound": "max",
+        "axis": "z"
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "base",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "shear",
+      "pointset": "top",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "guide",
+      "pointset": "top",
+      "constrained": [
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "step.add",
+      "name": "shearing",
+      "ramp": {
+        "num": 8,
+        "items": [
+          {
+            "target": "shear",
+            "end": 12
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job",
+      "steps": [
+        "shearing"
+      ],
+      "curve": "shear"
+    }
+  ]
+}

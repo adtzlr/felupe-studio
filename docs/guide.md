@@ -46,8 +46,11 @@ An empty model shows a welcome panel with *Import mesh*, *Open project* and the 
 | Hexahedrons and tetrahedrons | a Gmsh file with two types of cells |
 | Rubber mount in shear | three sections, the Mooney-Rivlin model, the shear load case |
 | Rubber block with a rigid plate | control points, a multi-point constraint with a rotation point, a step with several ramps |
+| Sandwich spring with parameters | parameters, a mesh made by a Python script, point sets at the bounds of the meshes |
 
 Open a sample, press **Solve** and look at the results; then change a value in the properties and solve again.
+
+The **sandwich spring** is a parametric sample: rubber discs between steel sheets, the base sheet fixed and the top sheet sheared by 12 mm. Its mesh comes from the script `sandwich_spring.py`, which gets the parameters *radius*, *layers*, *height*, *sheet* and *cells* and makes a dict of a rubber and a metal mesh on the same points. Opening it asks for the values first: with 5 layers instead of 3 the spring is softer by about 3/5, and the point sets `base` (`z == min`) and `top` (`z == max`) follow the height of the stack without a change.
 
 ## Building a model
 
@@ -68,9 +71,16 @@ A **Parameter** (*Mesh* tab, next to *Model settings*) is a named number of the 
 ```python
 import felupe as fem
 
+# the parameters of the model, or these values if the script runs alone
+radius = globals().get("radius", 50)
+layers = globals().get("layers", 3)
+height = globals().get("height", 8)
+
 disc = fem.Circle(radius=radius, n=6)
 mesh = {"rubber": disc.expand(n=layers + 1, z=height)}
 ```
+
+The lines with `globals().get()` are optional: they give the script values of its own, so it also runs alone (`python disc.py`) and linters know the names.
 
 The cells of a model come from **cell sets**: **Cell set of a mesh** takes all cells, **Cell set from tag** the cells with a value of an integer cell data array (the *Cell tag* of the import, e.g. `material` or `gmsh:physical`). The meshes are merged at their common points; **Merge points** also merges points that agree to a number of decimals, e.g. of meshes from different programs.
 
