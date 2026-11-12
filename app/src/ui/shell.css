@@ -330,9 +330,45 @@ button {
 
 .project-name {
   padding: var(--space-4) var(--space-12);
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
   background: var(--color-surface);
   color: var(--color-text-secondary);
+  font: inherit;
+  cursor: text;
+}
+
+.project-name:hover {
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+/* the field to rename the project (#205), also in narrow windows */
+.project-rename {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.project-rename input {
+  width: min(14em, 22vw);
+  min-height: var(--control-height-xs);
+  padding: 0 var(--space-8);
+}
+
+.project-rename small {
+  position: absolute;
+  top: calc(100% + var(--space-4));
+  /* below the field, towards the middle of narrow windows */
+  right: 0;
+  z-index: var(--z-menu);
+  width: max-content;
+  max-width: 24em;
+  padding: var(--space-4) var(--space-8);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
 }
 
 /* error banner */

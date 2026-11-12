@@ -233,6 +233,59 @@ describe("App shell", () => {
     expect(screen.queryByLabelText("modified")).toBeNull();
   });
 
+  it("renames the project without saving it (#205)", async () => {
+    const store = new ModelStore(fixture as CommandList);
+    const download = vi.fn();
+    render(<App store={store} download={download} />);
+    const banner = screen.getByRole("banner");
+    const rename = () =>
+      fireEvent.click(
+        within(banner).getByRole("button", { name: /\.felupe\.json/ }),
+      );
+    const field = () =>
+      within(banner).getByLabelText("Project name") as HTMLInputElement;
+    // Escape keeps the name
+    rename();
+    expect(field().value).toBe("untitled");
+    expect(banner.textContent).toContain(".felupe.json");
+    fireEvent.input(field(), { target: { value: "spring" } });
+    fireEvent.keyDown(field(), { key: "Escape" });
+    expect(banner.textContent).toContain("untitled.felupe.json");
+    expect(screen.queryByLabelText("modified")).toBeNull();
+    // an invalid name is not taken, Enter does nothing
+    rename();
+    fireEvent.input(field(), { target: { value: " .hidden" } });
+    expect(within(banner).getByRole("alert").textContent).toBe(
+      "A name does not start with a dot.",
+    );
+    fireEvent.submit(field());
+    expect(field()).toBeTruthy();
+    fireEvent.blur(field());
+    expect(banner.textContent).toContain("untitled.felupe.json");
+    // Enter renames: not saved until saved under the new name
+    rename();
+    fireEvent.input(field(), { target: { value: " spring " } });
+    fireEvent.submit(field());
+    expect(banner.textContent).toContain("spring.felupe.json");
+    expect(screen.getByLabelText("modified")).toBeTruthy();
+    expect(download).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Save project" }));
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+    expect(download.mock.calls[0][0]).toBe("spring.felupe.json");
+    expect(screen.queryByLabelText("modified")).toBeNull();
+    // the file menu renames too; back to the saved name is saved again
+    fireEvent.click(screen.getByRole("button", { name: "File" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /Rename project/ }));
+    await waitFor(() => expect(field()).toBeTruthy());
+    fireEvent.input(field(), { target: { value: "bar" } });
+    fireEvent.blur(field());
+    expect(screen.getByLabelText("modified")).toBeTruthy();
+    rename();
+    fireEvent.input(field(), { target: { value: "spring" } });
+    fireEvent.submit(field());
+    expect(screen.queryByLabelText("modified")).toBeNull();
+  });
+
   it("shows the state of the Python runtime", async () => {
     let resolve!: (ready: Ready) => void;
     render(
@@ -460,6 +513,7 @@ describe("menus of the header", () => {
       "Samples…",
       "Save project",
       "Save project as…",
+      "Rename project…",
       "Python script",
       "Results of the job (XDMF)",
       "Results of the substep (VTU)",
@@ -477,7 +531,7 @@ describe("menus of the header", () => {
     fireEvent.keyDown(items[0], { key: "ArrowDown" });
     expect(document.activeElement).toBe(items[1]);
     // a blocked item says why in its tooltip
-    expect(items[5].getAttribute("aria-disabled")).toBe("true");
+    expect(items[6].getAttribute("aria-disabled")).toBe("true");
     expect(items[5].title).toBeTruthy();
     fireEvent.keyDown(items[1], { key: "Escape" });
     expect(screen.queryByRole("menu")).toBeNull();
@@ -1983,6 +2037,19 @@ describe("session in the browser", () => {
         // a new project with a mesh file is an archive (#150)
         expect(kept?.fileName).toBe("untitled.felupe.zip");
       },
+      { timeout: 3000 },
+    );
+    // a renamed project is kept with its name (#205)
+    const banner = screen.getByRole("banner");
+    fireEvent.click(
+      within(banner).getByRole("button", { name: /untitled\.felupe\.zip/ }),
+    );
+    const name = within(banner).getByLabelText("Project name");
+    fireEvent.input(name, { target: { value: "specimen" } });
+    fireEvent.submit(name);
+    await waitFor(
+      async () =>
+        expect((await storage.load())?.fileName).toBe("specimen.felupe.zip"),
       { timeout: 3000 },
     );
 

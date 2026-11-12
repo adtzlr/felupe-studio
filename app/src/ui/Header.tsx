@@ -1,4 +1,6 @@
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { APP_NAME, formatVersion, LINKS } from "../app";
+import { projectNameProblem, stemOf, suffixOf } from "../core/files";
 import { ariaKeys, hint, withHint } from "../core/shortcuts";
 import type { ModelStore } from "../core/store";
 import { Icon } from "./icons";
@@ -16,6 +18,8 @@ interface Props {
   onSamples: () => void;
   onSave: () => void;
   onSaveAs: () => void;
+  /** Rename the project: the new file name with the suffix of its format (#205). */
+  onRename: (fileName: string) => void;
   onShortcuts: () => void;
   onAbout: () => void;
   /** The browser is open as a drawer (narrow windows, #131), and its toggle. */
@@ -31,6 +35,124 @@ interface Props {
   };
 }
 
+/**
+ * The field to rename the project (#205): Enter or leaving the field renames,
+ * Escape cancels; the suffix (the format) stays. An invalid name is not taken.
+ */
+function RenameField({
+  fileName,
+  onDone,
+  onRename,
+}: {
+  fileName: string;
+  onDone: () => void;
+  onRename: (fileName: string) => void;
+}) {
+  const [stem, setStem] = useState(stemOf(fileName));
+  const input = useRef<HTMLInputElement>(null);
+  // finished once: by Enter or Escape, not again by the blur of the removed field
+  const done = useRef(false);
+  const suffix = suffixOf(fileName);
+  const problem = projectNameProblem(stem);
+  useLayoutEffect(() => {
+    input.current?.focus();
+    input.current?.select();
+  }, []);
+  const finish = (rename: boolean) => {
+    if (done.current) return;
+    done.current = true;
+    const name = stem.trim();
+    if (rename && !problem && `${name}${suffix}` !== fileName) {
+      onRename(`${name}${suffix}`);
+    }
+    onDone();
+  };
+  return (
+    <form
+      class="project-rename"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!problem) finish(true);
+      }}
+    >
+      <input
+        ref={input}
+        type="text"
+        aria-label="Project name"
+        value={stem}
+        autocomplete="off"
+        spellcheck={false}
+        aria-invalid={problem ? true : undefined}
+        aria-describedby={problem ? "project-name-problem" : undefined}
+        onInput={(event) => setStem(event.currentTarget.value)}
+        onKeyDown={(event) => {
+          if (event.key !== "Escape") return;
+          event.preventDefault();
+          event.stopPropagation();
+          finish(false);
+        }}
+        // leaving the field renames, an invalid name keeps the old one
+        onBlur={() => finish(true)}
+      />
+      <span class="muted">{suffix}</span>
+      {problem && (
+        <small id="project-name-problem" class="field-error" role="alert">
+          {problem}
+        </small>
+      )}
+    </form>
+  );
+}
+
+/** The name of the project, a button that turns into a field to rename it. */
+function ProjectName({
+  fileName,
+  modified,
+  editing,
+  onEditing,
+  onRename,
+}: {
+  fileName: string;
+  modified: boolean;
+  editing: boolean;
+  onEditing: (editing: boolean) => void;
+  onRename: (fileName: string) => void;
+}) {
+  const button = useRef<HTMLButtonElement>(null);
+  const restore = useRef(false);
+  // back to the name after renaming, unless the focus went elsewhere
+  useEffect(() => {
+    if (editing || !restore.current) return;
+    restore.current = false;
+    const active = document.activeElement;
+    if (!active || active === document.body) button.current?.focus();
+  }, [editing]);
+  if (editing) {
+    return (
+      <RenameField
+        fileName={fileName}
+        onRename={onRename}
+        onDone={() => {
+          restore.current = true;
+          onEditing(false);
+        }}
+      />
+    );
+  }
+  return (
+    <button
+      ref={button}
+      type="button"
+      class="project-name"
+      title="Rename the project"
+      onClick={() => onEditing(true)}
+    >
+      {fileName}
+      {modified && <span aria-label="modified"> •</span>}
+    </button>
+  );
+}
+
 export function Header({
   store,
   fileName,
@@ -40,6 +162,7 @@ export function Header({
   onSamples,
   onSave,
   onSaveAs,
+  onRename,
   onShortcuts,
   onAbout,
   browserOpen,
@@ -47,6 +170,7 @@ export function Header({
   exports,
   solve,
 }: Props) {
+  const [renaming, setRenaming] = useState(false);
   return (
     <header class="header">
       <div class="header-group">
@@ -102,6 +226,13 @@ export function Header({
                       aria: ariaKeys("save-as"),
                     },
                     onSelect: onSaveAs,
+                  },
+                  {
+                    id: "rename",
+                    label: "Rename project…",
+                    hint: "The name of the next save and of the exports, without saving",
+                    // after the menu has closed and given back the focus
+                    onSelect: () => setTimeout(() => setRenaming(true)),
                   },
                 ],
               },
@@ -197,10 +328,13 @@ export function Header({
           <Icon name="redo" />
         </button>
       </div>
-      <div class="project-name">
-        {fileName}
-        {modified && <span aria-label="modified"> •</span>}
-      </div>
+      <ProjectName
+        fileName={fileName}
+        modified={modified}
+        editing={renaming}
+        onEditing={setRenaming}
+        onRename={onRename}
+      />
       <div class="header-group">
         {solve.running ? (
           <button type="button" class="button" onClick={solve.onCancel}>

@@ -6,6 +6,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Added
 
+- Rename the project: a click on its name in the header (or *File ▸ Rename project…*) turns it into a field; Enter renames, Escape cancels, the format stays. The next save, the exports and the session take the new name; the project is not saved until it is saved under it (#205).
 - A selectable linear solver of a job: *SuperLU (FElupe)* (the default), *spsolve (SciPy)* or an iterative method of SciPy (minres, cg, gmres, bicgstab) with a relative tolerance of the job's tolerance / 100 by default, or a given one, and an optional maximum of iterations. An iterative method that does not converge fails the job with a message. The script writes `solver=...` to `job.evaluate()`, with the helpers only when used; the browser and the job panel show the solver. A golden case with minres (#203).
 - A more flexible curve: *x* and *y* in the curve card choose the quantity of each axis among the components of the displacement and of the force of the curve boundary (of a rotation point the rotation and the moment) and the substep, e.g. uy over ux or Fz over the substep. *Axes* sets per axis a linear or log scale, negated values and a fixed range, kept in the browser. The title, the labels, the table and the values in the results panel follow the axes (#197).
 - Symmetry planes: *Symmetry* (`symmetry.add`) in *Loads & BCs* makes symmetry planes normal to x, y or z at their coordinates (default 0) with `fem.dof.symmetry`, boundaries of all steps, for a half, a quarter or an eighth of a model without a load case. The form shows the coordinates of the chosen planes; the browser lists it with the boundaries (`x = 0, z = 0`); the viewport draws its planes and warns about a plane without nodes. A plane that a load case or another symmetry already has is noted, not an error. A golden case: a quarter of a clamped bar has a quarter of the force of the full bar (#186).
@@ -25,6 +26,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Fixed
 
+- *Save project as…* refuses a name of an archive whose script would have the name of a mesh script of the project, e.g. `bushing` with the script for the sample *Rubber-metal bushing*, instead of failing with two files `bushing.py` (#205).
 - *Iso* (key 1) resets the camera to the default view, in which the viewer opens (like the plots of FElupe, onto the xy-plane for a planar model), instead of the isometric view.
 - The labels of a dialog that creates an object point to its own fields: with an object selected, the properties and the dialog had fields of the same ids, so a click on a label of the dialog focused the field of the properties (#181).
 - The contour settings: the selects stay inside the popover (they took the width of their longest option), the popover is wide enough for *Cool–warm (centered at 0)* and stays inside the window (#177).
