@@ -189,3 +189,52 @@ def test_unassigned_and_multiple_cells():
 def test_report_is_json(tmp_path):
     report = check(load("bar_two_materials"), GOLDEN / "bar_two_materials")
     assert json.loads(json.dumps(report)) == report
+
+
+def test_meshes_of_scripts(tmp_path):
+    # the meshes made by a script with the parameters of the model (#182)
+    (tmp_path / "blocks.py").write_text(
+        "import felupe as fem\n\n"
+        "left = fem.Cube(b=(length, 1, 1), n=(cells + 1, 2, 2))\n"
+        'mesh = {"left": left, "right": left.translate(length, axis=0)}\n',
+        encoding="utf-8",
+    )
+    material = {
+        "command": "material.add",
+        "name": "umat",
+        "model": "NeoHookeCompressible",
+        "parameters": {"mu": 1.0, "lmbda": 2.0},
+    }
+    document = {
+        "schema_version": 3,
+        "commands": [
+            {"command": "parameter.add", "name": "length", "value": 1.5},
+            {"command": "parameter.add", "name": "cells", "value": 3, "integer": True},
+            *(
+                {
+                    "command": "mesh.script",
+                    "name": f"{side}_mesh",
+                    "file": "blocks.py",
+                    "item": side,
+                }
+                for side in ("left", "right")
+            ),
+            {"command": "cellset.from_file", "name": "left", "mesh": "left_mesh"},
+            {"command": "cellset.from_file", "name": "right", "mesh": "right_mesh"},
+            material,
+            *(
+                {
+                    "command": "section.add",
+                    "name": f"body_{side}",
+                    "cellset": side,
+                    "material": "umat",
+                    "formulation": "u",
+                }
+                for side in ("left", "right")
+            ),
+        ],
+    }
+    report = check(document, tmp_path)
+    assert report["ok"], report["messages"]
+    assert report["cells"]["total"] == 6
+    assert report["interfaces"][0]["shared"] == 4

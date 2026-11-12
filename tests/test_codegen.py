@@ -1343,3 +1343,87 @@ def test_point_sets_at_bounds_and_on_cylinders(tmp_path, monkeypatch):
             [ruff, "format", "--isolated", "--check", str(path)],
         ):
             assert subprocess.run(check, capture_output=True).returncode == 0
+
+
+def test_mesh_script(tmp_path, monkeypatch):
+    # meshes made by a script with the parameters of the model (#182)
+    (tmp_path / "blocks.py").write_text(
+        "import felupe as fem\n\n"
+        "left = fem.Cube(b=(length, 1, 1), n=(cells + 1, 2, 2))\n"
+        'mesh = {"left": left, "right": left.translate(length, axis=0)}\n',
+        encoding="utf-8",
+    )
+    document = {
+        "schema_version": 3,
+        "commands": [
+            {"command": "parameter.add", "name": "length", "value": 1.5},
+            {"command": "parameter.add", "name": "cells", "value": 3, "integer": True},
+            {"command": "parameter.add", "name": "unused", "value": 0},
+            {
+                "command": "mesh.script",
+                "name": "left_mesh",
+                "file": "blocks.py",
+                "item": "left",
+                "parameters": ["length", "cells"],
+            },
+            {
+                "command": "mesh.script",
+                "name": "right_mesh",
+                "file": "blocks.py",
+                "item": "right",
+                "parameters": ["length", "cells"],
+            },
+            {"command": "cellset.from_file", "name": "left", "mesh": "left_mesh"},
+            {"command": "cellset.from_file", "name": "right", "mesh": "right_mesh"},
+            material(),
+            section("body_left", "left"),
+            section("body_right", "right"),
+            {
+                "command": "loadcase.add",
+                "name": "pull",
+                "type": "uniaxial",
+                "clamped": True,
+                "symmetry": False,
+            },
+            {
+                "command": "step.add",
+                "name": "step_1",
+                "ramp": {"num": 3, "items": [{"target": "pull", "end": 0.3}]},
+            },
+            {
+                "command": "job.add",
+                "name": "job_1",
+                "steps": ["step_1"],
+                "curve": "pull",
+            },
+        ],
+    }
+    script = codegen(document)
+    assert (
+        "left_mesh = run_mesh_script(\n"
+        '    "blocks.py", {"length": length, "cells": cells}, item="left"\n'
+        ")\n"
+    ) in script
+    assert "def script_mesh(" in script and "def run_mesh_script(" in script
+    namespace = run(document, tmp_path, monkeypatch)
+    # 3 cells per block, merged at x = 1.5
+    assert len(namespace["left_mesh"].cells) == 3
+    assert len(namespace["field"].mesh_container.points) == 4 * 7
+    assert force(namespace)[-1] > 0
+    # all parameters without a list
+    del document["commands"][3]["parameters"]
+    assert '{"length": length, "cells": cells, "unused": unused}' in codegen(document)
+
+    ruff = shutil.which("ruff")
+    if ruff:
+        path = tmp_path / "script.py"
+        path.write_text(script, encoding="utf-8")
+        for check in (
+            [ruff, "check", "--isolated", "--select", "E,F,W,I", str(path)],
+            [ruff, "format", "--isolated", "--check", str(path)],
+        ):
+            assert subprocess.run(check, capture_output=True).returncode == 0
+
+
+def test_helpers_of_mesh_scripts_only_with_them(two_sections):
+    assert "def run_mesh_script(" not in codegen(two_sections)

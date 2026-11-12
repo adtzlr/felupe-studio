@@ -10,12 +10,13 @@ the outer surfaces for the viewer (:mod:`felupe_studio.scene`), from the same re
 """
 
 import json
+import traceback
 from pathlib import Path
 
 import meshio
 import numpy as np
 
-from ._helpers import REGIONS, solid_types, volume_cells
+from ._helpers import REGIONS, script_mesh, solid_types, volume_cells
 from .scene import surface
 
 # a cell data array with more distinct values is not offered as a tag
@@ -108,7 +109,11 @@ def _read(filename):
         reason = "" if isinstance(error, SystemExit) else f": {error}"
         result["error"] = f"meshio could not read the file{reason}".rstrip(".") + "."
         return result, {}
+    return _summary(mesh, result)
 
+
+def _summary(mesh, result):
+    """:func:`_read` of a meshio mesh, with ``result`` as the start of the summary."""
     result["points"] = len(mesh.points)
     result["blocks"] = [{"type": b.type, "cells": len(b.data)} for b in mesh.cells]
     if not mesh.cells:
@@ -162,3 +167,30 @@ def load(filename):
     info, solids = _read(filename)
     surfaces = {t: surface(solid, tags) for t, (solid, tags) in solids.items()}
     return json.dumps(info), surfaces
+
+
+def make(filename, parameters, item=None):
+    """:func:`load` of the mesh made by a script (#182): the script runs with the
+    parameters as variables (like ``run_mesh_script()`` of the generated script), and
+    its mesh (or the item of a dict of meshes) is summarized like a mesh file. An
+    error of the script is the ``error`` of the summary, with its ``traceback``."""
+    path = Path(filename)
+    result = {"file": path.name}
+    try:
+        mesh = script_mesh(path, parameters, item)
+    except (Exception, SystemExit) as error:
+        result["error"] = f"{type(error).__name__}: {error}"
+        # the frames of the script, not those of FElupe Studio
+        trace = traceback.TracebackException.from_exception(error)
+        frames = [f for f in trace.stack if Path(f.filename).name == path.name]
+        trace.stack = traceback.StackSummary.from_list(frames)
+        result["traceback"] = "".join(trace.format())
+        return json.dumps(result), {}
+    info, solids = _summary(mesh, result)
+    surfaces = {t: surface(solid, tags) for t, (solid, tags) in solids.items()}
+    return json.dumps(info), surfaces
+
+
+def make_json(filename, parameters, item=None):
+    """:func:`make` with the parameters as JSON text, for the worker."""
+    return make(filename, json.loads(parameters), item)

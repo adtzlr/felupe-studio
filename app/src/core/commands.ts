@@ -9,6 +9,7 @@ export type Command =
   | ModelSettings
   | ParameterAdd
   | MeshImport
+  | MeshScript
   | MeshMerge
   | CellSetFromTag
   | CellSetFromFile
@@ -189,6 +190,37 @@ export interface MeshImport {
    * Factor of the coordinates of the points, e.g. 1000 for a mesh in m of a model in mm. The points are multiplied after reading, before the cell sets; point sets and points are in the scaled coordinates.
    */
   scale?: number;
+}
+/**
+ * A mesh made by a Python script next to the project, e.g. with the mesh tools of FElupe. The script runs with the parameters of the model as variables and makes a variable mesh: a fem.Mesh, a fem.MeshContainer, a meshio.Mesh or a dict of names and meshes (one mesh object per item).
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MeshScript".
+ */
+export interface MeshScript {
+  command: "mesh.script";
+  name: Name;
+  /**
+   * File name of the script, e.g. bushing.py.
+   */
+  file: string;
+  /**
+   * The parameters of the model that the script gets as variables (default: all).
+   */
+  parameters?: Name[];
+  /**
+   * The item of a dict of meshes, e.g. rubber.
+   */
+  item?: string;
+  /**
+   * Name of an integer cell data array of a meshio.Mesh used to split the mesh into cell sets.
+   */
+  tag?: string;
+  /**
+   * Type of the solid cells to take, if the mesh has more than one.
+   */
+  cell_type?:
+    "tetra" | "tetra10" | "hexahedron" | "hexahedron20" | "hexahedron27";
 }
 /**
  * Merge points of the sections whose coordinates agree to the given number of decimals (fem.field.merge(..., decimals)). Without this command, only identical points are merged. Merged points take the rounded coordinates.

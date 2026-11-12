@@ -179,3 +179,46 @@ def test_volume_cells_by_cell_type():
     tetra = volume_cells(mesh, cell_type="tetra")
     assert (tetra.cell_type, tetra.cells.shape) == ("tetra", (576, 4))
     assert tetra.points is mesh.points
+
+
+BLOCKS = """import felupe as fem
+
+left = fem.Cube(b=(length, 1, 1), n=(cells + 1, 2, 2))
+right = left.translate(length, axis=0)
+mesh = {"left": left, "right": fem.MeshContainer([right, right.translate(1, axis=1)])}
+"""
+
+
+def test_meshes_of_scripts(tmp_path, monkeypatch):
+    # the mesh made by a script with parameters, like a mesh file (#182)
+    from felupe_studio.meshes import make, make_json
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "blocks.py").write_text(BLOCKS, encoding="utf-8")
+    text, surfaces = make("blocks.py", {"length": 2.0, "cells": 4}, "left")
+    info = json.loads(text)
+    assert info["solids"][0]["cells"] == 4
+    assert info["solids"][0]["bounds"] == [[0, 0, 0], [2, 1, 1]]
+    assert list(surfaces) == ["hexahedron"]
+    # a fem.MeshContainer, and the parameters as JSON text of the worker
+    text, _ = make_json("blocks.py", json.dumps({"length": 1, "cells": 1}), "right")
+    assert json.loads(text)["solids"][0]["cells"] == 2
+
+    # errors with the traceback of the script, not of FElupe Studio
+    info = json.loads(make("blocks.py", {"length": 2.0}, "left")[0])
+    assert info["error"] == "NameError: name 'cells' is not defined"
+    assert 'File "' in info["traceback"] and "blocks.py" in info["traceback"]
+    assert "felupe_studio" not in info["traceback"]
+    info = json.loads(make("blocks.py", {"length": 2.0, "cells": 1}, "middle")[0])
+    assert "is a dict of ['left', 'right']" in info["error"]
+    info = json.loads(make("blocks.py", {"length": 2.0, "cells": 1})[0])
+    assert "take one of them, not None" in info["error"]
+    (tmp_path / "none.py").write_text("x = 1\n", encoding="utf-8")
+    assert "makes no variable 'mesh'" in json.loads(make("none.py", {})[0])["error"]
+    (tmp_path / "text.py").write_text("mesh = 'a mesh'\n", encoding="utf-8")
+    assert "is a str, not a fem.Mesh" in json.loads(make("text.py", {})[0])["error"]
+    (tmp_path / "plain.py").write_text(
+        "import felupe as fem\nmesh = fem.Cube(n=2)\n", encoding="utf-8"
+    )
+    assert "is not a dict" in json.loads(make("plain.py", {}, "left")[0])["error"]
+    assert json.loads(make("plain.py", {})[0])["solids"][0]["cells"] == 1

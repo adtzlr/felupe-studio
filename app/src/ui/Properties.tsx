@@ -59,8 +59,13 @@ export function Properties({ store, files, notes, selected, onSelect }: Props) {
         <strong>{control ? "Control point" : KIND_LABELS[kind]}</strong>
         <code class="muted">{command.command}</code>
       </div>
-      {command.command === "mesh.import" && (
-        <MeshFileStatus command={command} files={files} />
+      {(command.command === "mesh.import" ||
+        command.command === "mesh.script") && (
+        <MeshFileStatus
+          command={command}
+          commands={store.commands}
+          files={files}
+        />
       )}
       <CommandForm
         // a new form whenever the command changes, e.g. by undo

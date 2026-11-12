@@ -11,13 +11,14 @@ A project file is a JSON document `{"schema_version": 3, "commands": [...]}`. Ev
 
 Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
 
-A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `DIMENSIONS`, `REGIONS`, `SimpleNamespace`, `boundaries`, `boundary_faces`, `control_points`, `fem`, `field`, `meshio`, `mixed_region`, `np`, `points`, `points_at`, `single_point`, `vertex_region`, `volume_cells`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
+A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `DIMENSIONS`, `REGIONS`, `SimpleNamespace`, `boundaries`, `boundary_faces`, `control_points`, `fem`, `field`, `meshio`, `mixed_region`, `np`, `points`, `points_at`, `run_mesh_script`, `script_mesh`, `single_point`, `vertex_region`, `volume_cells`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
 
 ## Commands
 
 - [`model.settings`](#modelsettings): The settings of the model, at most once.
 - [`parameter.add`](#parameteradd): A parameter of the model: a number, e.g. a dimension or the number of cells of a mesh made by a script.
 - [`mesh.import`](#meshimport): Import a mesh file (read with meshio).
+- [`mesh.script`](#meshscript): A mesh made by a Python script next to the project, e.g. with the mesh tools of FElupe.
 - [`mesh.merge`](#meshmerge): Merge points of the sections whose coordinates agree to the given number of decimals (fem.field.merge(..., decimals)).
 - [`cellset.from_tag`](#cellsetfrom_tag): Cell set of all cells of a mesh with the given tag value.
 - [`cellset.from_file`](#cellsetfrom_file): Cell set of all cells of a mesh.
@@ -71,6 +72,19 @@ Import a mesh file (read with meshio).
 | `tag` | string |  | Name of an integer cell data array used to split the mesh into cell sets, e.g. material or gmsh:physical. |
 | `cell_type` | `tetra`, `tetra10`, `hexahedron`, `hexahedron20` or `hexahedron27` |  | Type of the solid cells to import, if the file has more than one (one mesh per cell type). |
 | `scale` | number > 0 |  | Factor of the coordinates of the points, e.g. 1000 for a mesh in m of a model in mm. The points are multiplied after reading, before the cell sets; point sets and points are in the scaled coordinates. Default `1`. |
+
+### `mesh.script`
+
+A mesh made by a Python script next to the project, e.g. with the mesh tools of FElupe. The script runs with the parameters of the model as variables and makes a variable mesh: a fem.Mesh, a fem.MeshContainer, a meshio.Mesh or a dict of names and meshes (one mesh object per item).
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | name | yes | Name of the object. |
+| `file` | string | yes | File name of the script, e.g. bushing.py. |
+| `parameters` | names of parameters (unique) |  | The parameters of the model that the script gets as variables (default: all). |
+| `item` | string |  | The item of a dict of meshes, e.g. rubber. |
+| `tag` | string |  | Name of an integer cell data array of a meshio.Mesh used to split the mesh into cell sets. |
+| `cell_type` | `tetra`, `tetra10`, `hexahedron`, `hexahedron20` or `hexahedron27` |  | Type of the solid cells to take, if the mesh has more than one. |
 
 ### `mesh.merge`
 

@@ -9,10 +9,14 @@ import type {
   CellSetFromTag,
   Command,
   FaceSetAdd,
-  MeshImport,
 } from "../core/commands";
 import { toName } from "../core/importmesh";
-import type { MeshFiles } from "../core/meshfiles";
+import {
+  isMesh,
+  type MeshCommand,
+  type MeshFiles,
+  meshStatus,
+} from "../core/meshfiles";
 import { solidOf } from "../core/meshinfo";
 import type { MeshSurface } from "../worker/protocol";
 import { cellMask } from "./layers";
@@ -158,11 +162,10 @@ export function sectionFaces(
         (c.command === "cellset.from_tag" || c.command === "cellset.from_file"),
     );
     const mesh = commands.find(
-      (c): c is MeshImport =>
-        c.name === set?.mesh && c.command === "mesh.import",
+      (c): c is MeshCommand => c.name === set?.mesh && isMesh(c),
     );
     if (!set || !mesh) continue;
-    const status = files.get(mesh.file)?.status;
+    const status = meshStatus(mesh, commands, files);
     if (status?.state !== "ready") continue;
     const choice = solidOf(status.info, mesh.cell_type);
     const raw =
@@ -170,7 +173,8 @@ export function sectionFaces(
     if (!raw) continue;
     const mask = cellMask(set, mesh, raw);
     if (!mask) continue;
-    const key = `${sec.name}/${set.command}/${set.command === "cellset.from_tag" ? set.value : ""}/${mesh.tag ?? ""}/${mesh.scale ?? 1}`;
+    const scale = mesh.command === "mesh.import" ? mesh.scale : undefined;
+    const key = `${sec.name}/${set.command}/${set.command === "cellset.from_tag" ? set.value : ""}/${mesh.tag ?? ""}/${scale ?? 1}`;
     let cached = CACHE.get(raw);
     if (!cached) CACHE.set(raw, (cached = new Map()));
     let faces = cached.get(key);
@@ -179,9 +183,9 @@ export function sectionFaces(
         sec.name,
         mesh.name,
         raw,
-        scaled(raw, mesh.scale),
+        scaled(raw, scale),
         mask,
-        mesh.scale ?? 1,
+        scale ?? 1,
       );
       cached.set(key, faces);
     }

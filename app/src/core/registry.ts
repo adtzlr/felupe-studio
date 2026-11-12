@@ -148,6 +148,39 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       },
     },
   },
+  // a mesh made by a Python script with the parameters of the model (#182)
+  "mesh.script": {
+    label: "Mesh script",
+    tab: "mesh",
+    prefix: "mesh",
+    fields: {
+      file: {
+        label: "Script",
+        hint: "A Python file opened with the project that makes a variable mesh",
+        placeholder: "e.g. bushing.py",
+      },
+      parameters: {
+        label: "Parameters",
+        hint: "The parameters the script gets as variables",
+        placeholder: "all",
+      },
+      item: {
+        label: "Item",
+        hint: "Of a dict of meshes, e.g. rubber",
+        placeholder: "none (one mesh)",
+      },
+      tag: {
+        label: "Cell tag",
+        hint: "Integer cell data of a meshio mesh for cell sets",
+        placeholder: "none",
+      },
+      cell_type: {
+        label: "Cell type",
+        hint: "Type of the solid cells, if the mesh has more than one",
+        placeholder: "the only one",
+      },
+    },
+  },
   "mesh.merge": {
     label: "Merge points",
     tab: "mesh",

@@ -255,6 +255,23 @@ export class PyodideClient {
     return { info, surfaces };
   }
 
+  /** Run a script with parameters and inspect its mesh, or an item (#182). */
+  async makeMesh(
+    file: string,
+    parameters: Record<string, number>,
+    item?: string,
+  ): Promise<{ info: MeshInfo; surfaces: Record<string, MeshSurface> }> {
+    const message = await this.request(
+      { type: "make-mesh", file, parameters, ...(item ? { item } : {}) },
+      "mesh-info",
+    );
+    const { info, surfaces } = message as Extract<
+      FromWorker,
+      { type: "mesh-info" }
+    >;
+    return { info, surfaces };
+  }
+
   terminate(): void {
     this.worker.terminate();
   }

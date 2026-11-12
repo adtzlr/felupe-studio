@@ -18,6 +18,7 @@ describe("ribbonGroups", () => {
   it("has the commands of every tab", () => {
     expect(labels("mesh")).toEqual([
       ["Import mesh"],
+      ["Mesh script"],
       ["Merge points"],
       ["Cell set from tag"],
       ["Cell set of a mesh"],

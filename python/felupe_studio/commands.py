@@ -17,6 +17,8 @@ SINGLE = ("model.settings", "mesh.merge")
 
 KINDS = {
     "mesh.import": "mesh",
+    # a mesh made by a script (#182)
+    "mesh.script": "mesh",
     "model.settings": "settings",
     "parameter.add": "parameter",
     "mesh.merge": "merge",
@@ -45,6 +47,7 @@ RAMPED = ("boundary", "load", "pressure")
 
 # references of a command: field name -> (kind, is a list)
 REFERENCES = {
+    "mesh.script": {"parameters": ("parameter", True)},
     "cellset.from_tag": {"mesh": ("mesh", False)},
     "cellset.from_file": {"mesh": ("mesh", False)},
     "section.add": {"cellset": ("cellset", False), "material": ("material", False)},
@@ -185,7 +188,7 @@ def _reference_errors(commands):
         # cell sets from tags need a mesh imported with a tag
         if cmd["command"] == "cellset.from_tag" and cmd["mesh"] in defined:
             mesh = defined[cmd["mesh"]][1]
-            if mesh["command"] == "mesh.import" and "tag" not in mesh:
+            if mesh["command"] in ("mesh.import", "mesh.script") and "tag" not in mesh:
                 messages.append(
                     f"commands/{i}: cell set '{name}' uses tag values, but mesh "
                     f"'{mesh['name']}' was imported without a tag."

@@ -1,5 +1,6 @@
 // Web Worker that runs Pyodide and FElupe (ADR 0005).
 import type { PyodideInterface } from "pyodide";
+import type { PyProxy } from "pyodide/ffi";
 import { safeName } from "./files";
 import {
   type RawResultSurface,
@@ -105,9 +106,29 @@ function writeFile(id: number, name: string, data: ArrayBuffer) {
 
 /** Inspect a mesh file and triangulate its outer surfaces (one read of the file). */
 function inspectMesh(id: number, name: string) {
+  inspected(id, (meshes) => meshes.load(safeName(name)));
+}
+
+/**
+ * Run a script of the project with parameters and inspect its mesh like a mesh
+ * file (#182); errors of the script are part of the info, with their traceback.
+ */
+function makeMesh(
+  id: number,
+  file: string,
+  parameters: Record<string, number>,
+  item?: string,
+) {
+  inspected(id, (meshes) =>
+    meshes.make_json(safeName(file), JSON.stringify(parameters), item ?? null),
+  );
+}
+
+/** Post the info and the surfaces of a mesh that Python inspected. */
+function inspected(id: number, inspect: (meshes: PyProxy) => PyProxy) {
   const meshes = python().pyimport("felupe_studio.meshes");
   try {
-    const result = meshes.load(safeName(name));
+    const result = inspect(meshes);
     const [text, raw] = result.toJs({
       dict_converter: Object.fromEntries,
     }) as [string, Record<string, RawSurface>];
@@ -246,6 +267,13 @@ ctx.onmessage = async (event: MessageEvent<ToWorker>) => {
         return writeFile(message.id, message.name, message.data);
       case "inspect-mesh":
         return inspectMesh(message.id, message.name);
+      case "make-mesh":
+        return makeMesh(
+          message.id,
+          message.file,
+          message.parameters,
+          message.item,
+        );
       case "run":
         return await run(message.id, message.document);
       case "script":

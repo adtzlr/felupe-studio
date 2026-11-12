@@ -12,11 +12,18 @@ void registerServiceWorker();
 // start loading Python and FElupe right away (#40)
 const client = new PyodideClient();
 const store = new ModelStore();
-// mesh files are written into the project directory of Python and read with meshio
-const files = new MeshFiles(async (name, data) => {
-  await client.writeFile(name, data);
-  return client.inspectMesh(name);
-});
+// mesh files are written into the project directory of Python and read with meshio;
+// scripts are written there and make meshes with the parameters of the model (#182)
+const files = new MeshFiles(
+  async (name, data) => {
+    await client.writeFile(name, data);
+    return client.inspectMesh(name);
+  },
+  {
+    write: (name, data) => client.writeFile(name, data),
+    make: (file, parameters, item) => client.makeMesh(file, parameters, item),
+  },
+);
 
 render(
   <App

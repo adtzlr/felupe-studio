@@ -730,7 +730,7 @@ describe("Viewport", () => {
     render(view);
     await act(async () => {});
     expect(screen.getByRole("note", { name: "Tip" }).textContent).toContain(
-      "Click a face for a point set or a face set of its plane",
+      "Click a face to pick its surface for a point set or a face set",
     );
     const canvas = viewer.handle.root.querySelector("canvas")!;
     await act(async () => {

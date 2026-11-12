@@ -1,21 +1,30 @@
-// State of the file of a mesh in the properties panel, with a button to choose it.
+// State of the file of a mesh in the properties panel, with a button to choose it:
+// a mesh file, or a script that makes a mesh with the parameters of the model and
+// its error with the traceback of the script (#182).
 import { useRef } from "preact/hooks";
-import type { MeshImport } from "../core/commands";
-import type { MeshFiles } from "../core/meshfiles";
+import type { Command } from "../core/commands";
+import {
+  type MeshCommand,
+  type MeshFiles,
+  meshStatus,
+} from "../core/meshfiles";
 import { useMeshFiles } from "./hooks";
 import { Icon } from "./icons";
 
 export function MeshFileStatus({
   command,
+  commands,
   files,
 }: {
-  command: MeshImport;
+  command: MeshCommand;
+  commands: readonly Command[];
   files: MeshFiles;
 }) {
   useMeshFiles(files);
   const input = useRef<HTMLInputElement>(null);
   const file = files.get(command.file);
-  const status = file?.status;
+  const script = command.command === "mesh.script";
+  const status = meshStatus(command, commands, files);
   const info = status?.state === "ready" ? status.info : undefined;
 
   return (
@@ -23,7 +32,11 @@ export function MeshFileStatus({
       <div class="file-line">
         <strong>{command.file}</strong>
         {!file && <span class="warning">not loaded</span>}
-        {status?.state === "reading" && <span class="muted">reading …</span>}
+        {status?.state === "reading" && (
+          <span class="muted">
+            {script ? "making the mesh …" : "reading …"}
+          </span>
+        )}
         {info && (
           <span class="muted">
             {(info.solids ?? [])
@@ -36,6 +49,12 @@ export function MeshFileStatus({
           <span class="field-error">{status.message}</span>
         )}
       </div>
+      {status?.state === "error" && status.traceback && (
+        <details class="traceback">
+          <summary>Traceback of the script</summary>
+          <pre>{status.traceback}</pre>
+        </details>
+      )}
       <button
         type="button"
         class="button"
@@ -48,6 +67,7 @@ export function MeshFileStatus({
         ref={input}
         type="file"
         hidden
+        accept={script ? ".py" : undefined}
         data-testid="mesh-file"
         onChange={async (event) => {
           const chosen = event.currentTarget.files?.[0];

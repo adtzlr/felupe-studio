@@ -39,8 +39,11 @@ MARKER = "# --- embedded in generated scripts ---\n"
 FACES = "\n\n# --- embedded in generated scripts with face sets ---\n"
 HELPERS = files("felupe_studio").joinpath("_helpers.py").read_text(encoding="utf-8")
 HELPERS = HELPERS[HELPERS.index(MARKER) + len(MARKER) :]
-# the helpers of face sets (#142), only in scripts with face sets
+# the helpers of face sets (#142), only in scripts with face sets, and of meshes made
+# by scripts (#182), only in scripts with them
+SCRIPTS = "\n\n# --- embedded in generated scripts with meshes of scripts ---\n"
 HELPERS, FACE_HELPERS = HELPERS.split(FACES)
+FACE_HELPERS, SCRIPT_HELPERS = FACE_HELPERS.split(SCRIPTS)
 
 AXES = ("x", "y", "z")
 
@@ -66,6 +69,20 @@ def unit(quantity, units):
     return units[quantity]
 
 
+def parameter_value(parameter):
+    """Return the value of a parameter of the model: an int for an integer parameter,
+    else a float.
+
+    Examples
+    --------
+    >>> parameter_value({"name": "layers", "value": 3.0, "integer": True})
+    3
+    """
+    if parameter.get("integer"):
+        return int(parameter["value"])
+    return float(parameter["value"])
+
+
 def parameter_line(parameter, units=None):
     """Return the line of a parameter of the model in the script: a float, or an int
     for an integer parameter, with its unit as a comment (#180).
@@ -78,11 +95,7 @@ def parameter_line(parameter, units=None):
     >>> parameter_line({"name": "layers", "value": 3.0, "integer": True})
     'layers = 3'
     """
-    if parameter.get("integer"):
-        value = int(parameter["value"])
-    else:
-        value = float(parameter["value"])
-    line = f"{parameter['name']} = {value!r}"
+    line = f"{parameter['name']} = {parameter_value(parameter)!r}"
     suffix = unit(parameter.get("quantity"), units)
     return f"{line}  # {suffix}" if suffix else line
 
@@ -170,6 +183,26 @@ def _wrap(head, args, level=0, end=""):
     if len(args) == 1 and isinstance(args[0], _List):
         return f"{pad}{head}(\n{pad}    {args[0].exploded(level + 1)}\n{pad}){end}"
     return f"{pad}{head}(\n{_explode(args, level + 1)}{pad}){end}"
+
+
+def script_args(mesh, parameters=None):
+    """Return the arguments of ``run_mesh_script()`` of a ``mesh.script`` command
+    (#182): the file, a dict of its parameters (the listed ones, or all parameters
+    of the model) and the item, tag and cell type if they are given.
+
+    Examples
+    --------
+    >>> [str(a) for a in script_args(
+    ...     {"name": "rubber", "file": "spring.py", "item": "rubber"}, ["radius"]
+    ... )]
+    ['"spring.py"', '{"radius": radius}', 'item="rubber"']
+    """
+    names = mesh.get("parameters", parameters or [])
+    args = [_str(mesh["file"]), _Dict(f"{_str(n)}: {n}" for n in names)]
+    for key in ("item", "tag", "cell_type"):
+        if key in mesh:
+            args.append(f"{key}={_str(mesh[key])}")
+    return args
 
 
 def _offset(expression, value):
@@ -290,12 +323,20 @@ def codegen(document, evaluate=True, check_schema=True):
     out.append(HELPERS)
     if facesets:
         out.append(f"\n{FACE_HELPERS}")
+    if get("mesh.script"):
+        out.append(f"\n{SCRIPT_HELPERS}")
 
     # 1. meshes and cell sets
-    meshes = get("mesh.import")
+    meshes = [c for c in commands if c["command"] in ("mesh.import", "mesh.script")]
     if meshes:
         out.append("\n# meshes")
         for mesh in meshes:
+            if mesh["command"] == "mesh.script":
+                # a mesh made by a script with the parameters of the model (#182)
+                names = [p["name"] for p in parameters]
+                args = script_args(mesh, names)
+                out.append(_call(mesh["name"], "run_mesh_script", args))
+                continue
             args = [f"meshio.read({_str(mesh['file'])})"]
             for key in ("tag", "cell_type"):
                 if key in mesh:

@@ -300,6 +300,28 @@ CHANGES = {
             "step": 0.5,
         },
     ),
+    # meshes made by scripts with parameters (#182)
+    "mesh script": lambda d: d["commands"][0:0].__iadd__(
+        [
+            {"command": "parameter.add", "name": "radius", "value": 50},
+            {
+                "command": "mesh.script",
+                "name": "made",
+                "file": "spring.py",
+                "parameters": ["radius"],
+                "item": "rubber",
+            },
+        ]
+    ),
+    "mesh script with a parameter that is none": lambda d: d["commands"].insert(
+        0,
+        {
+            "command": "mesh.script",
+            "name": "made",
+            "file": "spring.py",
+            "parameters": ["radius", "umat_soft"],
+        },
+    ),
     "parameter with a name of the script": lambda d: d["commands"].insert(
         0, {"command": "parameter.add", "name": "field", "value": 1}
     ),
