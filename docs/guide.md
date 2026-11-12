@@ -73,11 +73,13 @@ The **Materials** tab has the material models, grouped in menus: *Neo-Hooke* (in
 
 A **point set** selects points of the merged meshes:
 
-- **by a plane:** click a face of the model. If the face is normal to x, y or z, *Create point set* creates the point set of its plane, e.g. `z == 0`.
+- **by a plane:** click a face of the model. If the face is normal to x, y or z, *Create point set* creates the point set of its plane, e.g. `z == 0`. A plane at the smallest or largest coordinate of the meshes is stored as that bound, e.g. `z == max`, so that it stays the top of the model when the mesh changes.
+- **at a bound:** the points at the smallest or largest coordinate of the meshes of the sections along an axis (*At a bound*), e.g. the top plate of a spring whose height changes. Control points do not count.
+- **on a cylinder:** the points at a distance (*Radius*) from an axis parallel to x, y or z through a *Center* (default the origin), e.g. the inner sleeve of a bushing.
 - **by nodes:** turn on *Nodes* in the toolbar, click a node and Shift+click more nodes, then *Create point set*. The point set stores the coordinates of the nodes, not their numbers; *Copy* copies the coordinates.
 - **by ids:** the ids of the points of the merged meshes, e.g. from a script.
 
-A selected point set is highlighted in the viewport.
+A selected point set is highlighted in the viewport; if a plane, a bound or a cylinder selects no node of the meshes, the viewport says so (e.g. a wrong radius).
 
 A **face set** (Mesh tab) selects faces of the boundary of a section, e.g. for a pressure: click a face and *Create face set* takes the faces of its section on its plane, or Shift+click faces and *Create face set* takes these faces (stored by their centers). The face sets are drawn as light faces, the selected one highlighted. FElupe has no faces of tetrahedrons yet: a face set needs a section of hexahedrons.
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Command, PointSetAdd } from "../core/commands";
 import {
+  boundOf,
   centerOf,
   controlName,
   exactNode,
@@ -10,6 +11,7 @@ import {
   planeName,
   planeSelect,
   selectedPoints,
+  selectsNothing,
   tolerance,
 } from "./pointsets";
 
@@ -22,6 +24,72 @@ describe("point sets", () => {
     const points = selectedPoints({ axis: "x", value: 1 }, [left, right]);
     expect([...points]).toEqual([1, 0, 0, 1, 1, 0]);
     expect(selectedPoints({ ids: [0, 1] }, [left])).toHaveLength(0);
+  });
+
+  it("select the nodes at a bound of the meshes (#181)", () => {
+    const select = (bound: "min" | "max", axis: "x" | "y") => [
+      ...selectedPoints({ bound, axis }, [left, right]),
+    ];
+    expect(select("max", "x")).toEqual([2, 0, 0, 2, 1, 0]);
+    expect(select("min", "x")).toEqual([0, 0, 0, 0, 1, 0]);
+    expect(select("max", "y")).toEqual([0, 1, 0, 1, 1, 0, 2, 1, 0]);
+    // without meshes nothing
+    expect(selectedPoints({ bound: "max", axis: "x" }, [])).toHaveLength(0);
+  });
+
+  it("select the nodes on a cylinder (#181)", () => {
+    // a ring of 8 nodes of radius 2 about x through (5, 1, -1), and its center
+    const ring = Float64Array.from(
+      [...Array(8).keys(), "center"].flatMap((i) =>
+        i === "center"
+          ? [5, 1, -1]
+          : [
+              5,
+              1 + 2 * Math.cos((Math.PI * Number(i)) / 4),
+              -1 + 2 * Math.sin((Math.PI * Number(i)) / 4),
+            ],
+      ),
+    );
+    const on = (select: Parameters<typeof selectedPoints>[0]) =>
+      selectedPoints(select, [ring]).length / 3;
+    expect(on({ radius: 2, axis: "x", center: [0, 1, -1] })).toBe(8);
+    expect(on({ radius: 2, axis: "x", center: [5, 1, -1] })).toBe(8);
+    // the axis through the origin, and another axis
+    expect(on({ radius: 2, axis: "x" })).toBe(0);
+    expect(on({ radius: 2, axis: "z", center: [5, 1, -1] })).toBe(2);
+    // with np.isclose: the relative tolerance 1e-5 of the radius
+    expect(on({ radius: 2.00001, axis: "x", center: [5, 1, -1] })).toBe(8);
+    expect(on({ radius: 2.001, axis: "x", center: [5, 1, -1] })).toBe(0);
+  });
+
+  it("warn about a selection without nodes (#181)", () => {
+    const nodes = [left, right];
+    expect(selectsNothing({ axis: "x", value: 3 }, nodes)).toBe(true);
+    expect(selectsNothing({ axis: "x", value: 2 }, nodes)).toBe(false);
+    expect(selectsNothing({ radius: 7, axis: "z" }, nodes)).toBe(true);
+    expect(selectsNothing({ radius: 1, axis: "z" }, nodes)).toBe(false);
+    expect(selectsNothing({ bound: "max", axis: "z" }, nodes)).toBe(false);
+    // points by nodes and ids have their own warnings, and no meshes no warning
+    expect(selectsNothing({ points: [[9, 9, 9]] }, nodes)).toBe(false);
+    expect(selectsNothing({ ids: [99] }, nodes)).toBe(false);
+    expect(selectsNothing({ axis: "x", value: 3 }, [])).toBe(false);
+  });
+
+  it("store a picked plane at a bound as the bound (#181)", () => {
+    const nodes = [left, right];
+    expect(boundOf({ axis: "x", value: 2 }, nodes)).toEqual({
+      bound: "max",
+      axis: "x",
+    });
+    expect(boundOf({ axis: "x", value: 0, atol: 1e-6 }, nodes)).toEqual({
+      bound: "min",
+      axis: "x",
+      atol: 1e-6,
+    });
+    expect(boundOf({ axis: "x", value: 1 }, nodes)).toEqual({
+      axis: "x",
+      value: 1,
+    });
   });
 
   it("select the nodes at coordinates and find the ones without a node", () => {

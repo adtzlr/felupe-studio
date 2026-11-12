@@ -441,6 +441,24 @@ describe("units of the model (#132)", () => {
 });
 
 describe("a form for a new object", () => {
+  it("has its own field ids beside the properties (#181)", () => {
+    // the labels of the dialog point to its fields, not to the properties of the
+    // selected object, which have the same keys
+    const store = new ModelStore(fixture as CommandList);
+    render(<App store={store} />);
+    const tree = screen.getByRole("tree", { name: "Model" });
+    fireEvent.click(within(tree).getByRole("treeitem", { name: "left" }));
+    fireEvent.click(screen.getByRole("button", { name: "Point set" }));
+    const dialog = screen.getByRole("dialog");
+    const name = within(dialog).getByLabelText("Name") as HTMLInputElement;
+    expect(name.id).toBe("new-field-name");
+    expect(name.value).toBe("points_1");
+    const properties = screen.getByRole("region", { name: "Properties" });
+    expect(
+      (within(properties).getByLabelText("Name") as HTMLInputElement).value,
+    ).toBe("left");
+  });
+
   it("shows errors of untouched fields only after submitting", () => {
     const context = { commands: (fixture as CommandList).commands };
     const onSubmit = vi.fn();

@@ -208,11 +208,16 @@ function conditions(node: Node, value: Draft) {
 /** Id of a variant of a oneOf of objects: its first required property. */
 const variantId = (node: Node) => node.required?.[0] ?? "";
 
-/** Variant of a oneOf of objects for a value: all its required properties exist. */
+/**
+ * Variant of a oneOf of objects for a value: all its required properties exist, or
+ * else the one whose id is set (a variant just chosen, e.g. `{ bound: "max" }` of a
+ * point set at a bound, whose other properties are not filled yet).
+ */
 function variantOf(node: Node, value: Draft): Node {
   const options = node.oneOf!.map(resolve);
   return (
     options.find((o) => (o.required ?? []).every((key) => key in value)) ??
+    options.find((o) => variantId(o) in value) ??
     options[0]
   );
 }
@@ -415,6 +420,9 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
       } else if (property.oneOf) {
         // variants of an object: the first required property marks the variant
         const variants = property.oneOf.map(resolve);
+        // with the defaults of its other required properties, which a draft that
+        // had them in another variant would not fill again (e.g. the axis of a
+        // point set at a bound after one by a plane, #181)
         const seeds = Object.fromEntries(
           variants.map((v) => {
             const id = variantId(v);
@@ -422,7 +430,13 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
             const seed =
               info(type, `${key}.${id}`)?.default ??
               (first.type === "array" ? [] : "");
-            return [id, { [id]: seed }];
+            const others = (v.required ?? []).slice(1).flatMap((name) => {
+              const fallback = info(type, `${key}.${name}`)?.default;
+              return fallback === undefined
+                ? []
+                : [[name, structuredClone(fallback)]];
+            });
+            return [id, { [id]: seed, ...Object.fromEntries(others) }];
           }),
         );
         const options = variants.map((v) => option(type, key, variantId(v)));

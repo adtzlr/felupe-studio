@@ -6,6 +6,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Added
 
+- Point sets at a bound of the meshes and on a cylinder: *At a bound* (`select: {bound: "max", axis: "z"}`) selects the points at the smallest or largest coordinate of the meshes of the sections, without the control points, so that the top of a model stays selected when its mesh changes; *On a cylinder* (`select: {radius, axis, center}`) the points at a distance from an axis parallel to x, y or z, e.g. a sleeve of a bushing. A picked plane at a bound of the meshes creates a point set at the bound (`z == max`). The viewport marks their points and warns about a plane, bound or cylinder without points (#181).
 - Parameters of the model: `parameter.add` is a named number with an optional quantity (length, force or stress, with the unit of the model settings), a range, a step, *Integer* and a description. The *Mesh* tab has a *Parameter* button next to *Model settings*; the browser lists the parameters below the settings with their value and range; a value outside of its range and fractions of an integer parameter are issues. The script defines them as variables at its top (`radius = 50.0  # mm`). The first step of parametric projects (#154): meshes made by scripts use them next (#180).
 
 ### Changed
@@ -14,6 +15,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Fixed
 
+- The labels of a dialog that creates an object point to its own fields: with an object selected, the properties and the dialog had fields of the same ids, so a click on a label of the dialog focused the field of the properties (#181).
 - The contour settings: the selects stay inside the popover (they took the width of their longest option), the popover is wide enough for *Cool–warm (centered at 0)* and stays inside the window (#177).
 
 ## [0.3.0] - 2026-11-12

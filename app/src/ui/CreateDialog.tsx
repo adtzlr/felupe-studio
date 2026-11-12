@@ -26,6 +26,7 @@ export function CreateDialog({ item, store, onClose, onCreated }: Props) {
         initial={draft}
         context={context}
         submitLabel="Create"
+        idPrefix="new-"
         onCancel={onClose}
         onSubmit={(command) => {
           store.apply({ type: "add", command });

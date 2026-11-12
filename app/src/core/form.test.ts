@@ -560,6 +560,42 @@ describe("editing a draft", () => {
       context,
     );
     expect(axis.select).toEqual({ axis: "x", value: 0 });
+
+    // at a bound and on a cylinder (#181): the variant with the other required
+    // properties filled
+    const bound = setValue(
+      "pointset.add",
+      axis,
+      ["select"],
+      spec.input.seeds.bound,
+      context,
+    );
+    expect(bound.select).toEqual({ bound: "max", axis: "x" });
+    expect(summary("pointset.add", bound)).toEqual([
+      "name:name*",
+      "select:variant*",
+      "select.bound:choice*",
+      "select.axis:choice*",
+      "select.atol:number",
+    ]);
+    expect(schemaAccepts(bound)).toBe(true);
+    const cylinder = setValue(
+      "pointset.add",
+      bound,
+      ["select"],
+      spec.input.seeds.radius,
+      context,
+    );
+    expect(cylinder.select).toEqual({ radius: 1, axis: "x" });
+    expect(summary("pointset.add", cylinder)).toEqual([
+      "name:name*",
+      "select:variant*",
+      "select.radius:number*",
+      "select.axis:choice*",
+      "select.center:numbers",
+      "select.atol:number",
+    ]);
+    expect(schemaAccepts(cylinder)).toBe(true);
   });
 
   it("switches the ramp of a step on and off", () => {

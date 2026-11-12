@@ -53,6 +53,13 @@ export type MaterialAdd =
  */
 export type Axis = "x" | "y" | "z";
 /**
+ * A point on the axis of the cylinder (default: the origin).
+ *
+ * @minItems 3
+ * @maxItems 3
+ */
+export type Coordinates = [number, number, number];
+/**
  * The coordinates x, y and z of a point.
  *
  * @minItems 3
@@ -61,14 +68,14 @@ export type Axis = "x" | "y" | "z";
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "Coordinates".
  */
-export type Coordinates = [number, number, number];
+export type Coordinates1 = [number, number, number];
 /**
  * The coordinates x, y and z of a point.
  *
  * @minItems 3
  * @maxItems 3
  */
-export type Coordinates1 = [number, number, number];
+export type Coordinates2 = [number, number, number];
 /**
  * A load case of FElupe (fem.dof) on the merged field: the boundaries of a standard test. It is referenced like a boundary: a step ramps its moving end faces, a job records the reaction force of its (first) moving end face.
  *
@@ -83,7 +90,7 @@ export type LoadcaseAdd =
  * @minItems 3
  * @maxItems 3
  */
-export type Coordinates2 = [number, number, number];
+export type Coordinates3 = [number, number, number];
 
 /**
  * A list of FElupe Studio commands. Objects are created by commands and referenced by their names.
@@ -491,7 +498,7 @@ export interface SectionAdd {
   volumetric?: "volume-ratio" | "stretch" | "log";
 }
 /**
- * Points of the merged mesh selected by a plane, by the coordinates of points or by point ids.
+ * Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, by the coordinates of points or by point ids.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "PointSetAdd".
@@ -510,9 +517,35 @@ export interface PointSetAdd {
       }
     | {
         /**
+         * The smallest (min) or the largest (max) coordinate.
+         */
+        bound: "min" | "max";
+        axis: Axis;
+        /**
+         * Absolute tolerance (default 1e-8).
+         */
+        atol?: number;
+      }
+    | {
+        /**
+         * The radius of the cylinder.
+         */
+        radius: number;
+        /**
+         * The direction of the axis of the cylinder.
+         */
+        axis: "x" | "y" | "z";
+        center?: Coordinates;
+        /**
+         * Absolute tolerance (default 1e-8).
+         */
+        atol?: number;
+      }
+    | {
+        /**
          * @minItems 1
          */
-        points: [Coordinates, ...Coordinates[]];
+        points: [Coordinates1, ...Coordinates1[]];
         /**
          * Absolute tolerance (default 1e-8).
          */
@@ -534,7 +567,7 @@ export interface PointSetAdd {
 export interface PointAdd {
   command: "point.add";
   name: Name;
-  coordinates: Coordinates1;
+  coordinates: Coordinates2;
 }
 /**
  * Faces of the boundary of a section, e.g. for a pressure: on a plane, or the faces with the given centers (picked in the viewport). The script makes a boundary region of the faces and a field of it, linked to the merged field. Faces of tetrahedrons have no boundary region in FElupe 12.
@@ -562,7 +595,7 @@ export interface FaceSetAdd {
         /**
          * @minItems 1
          */
-        centers: [Coordinates, ...Coordinates[]];
+        centers: [Coordinates1, ...Coordinates1[]];
         /**
          * Absolute tolerance of the centers (default 1e-6 of the size of the section).
          */
@@ -739,7 +772,7 @@ export interface LoadAdd {
    * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
    */
   points: string;
-  force: Coordinates2;
+  force: Coordinates3;
 }
 /**
  * A pressure on the faces of a face set (fem.SolidBodyPressure), an item of the steps: a force per deformed area, normal to the faces. A positive pressure pushes onto the faces, a negative one pulls. A ramp of a step scales the pressure.

@@ -40,12 +40,14 @@ import {
   centerOf,
   controlName,
   exactNode,
+  boundOf,
   missingPoints,
   nodesName,
   outlined,
   planeName,
   planeSelect,
   selectedPoints,
+  selectsNothing,
 } from "../viewer/pointsets";
 import {
   boundaryLines,
@@ -328,6 +330,18 @@ export function Viewport({
     const set = commands.find((c) => c.name === selected);
     return set && isPointSet(set) ? missingPoints(set.select, nodes) : [];
   }, [commands, selected, nodes]);
+
+  // the selected point set by a plane, at a bound or on a cylinder without points of
+  // the drawn meshes, e.g. a wrong radius (#181)
+  const selectsNone = useMemo(() => {
+    const set = commands.find((c) => c.name === selected);
+    return !!set && isPointSet(set) && selectsNothing(set.select, nodes);
+  }, [commands, selected, nodes]);
+  // the picked plane at a bound of the meshes, stored as the bound (#181)
+  const pickedBound = useMemo(
+    () => (picked?.select ? boundOf(picked.select, nodes) : undefined),
+    [picked, nodes],
+  );
 
   // the selected point set and its points, for a control point at its center (#96)
   const selectedSet = useMemo(() => {
@@ -664,7 +678,10 @@ export function Viewport({
                   Plane{" "}
                   <strong>
                     {picked.select.axis} = {formatNumber(picked.select.value)}
-                  </strong>{" "}
+                  </strong>
+                  {pickedBound && "bound" in pickedBound && (
+                    <span class="muted"> ({pickedBound.bound})</span>
+                  )}{" "}
                   <span class="muted">
                     · {(preview?.length ?? 0) / 3} points
                     {picked.select.atol !== undefined &&
@@ -679,7 +696,7 @@ export function Viewport({
                       const select = picked.select!;
                       onCreatePointSet({
                         name: planeName(select, nodes, commands),
-                        select,
+                        select: boundOf(select, nodes),
                       });
                       setPicked(undefined);
                     }}
@@ -854,6 +871,11 @@ export function Viewport({
               .map((p) => `(${p.map(formatNumber).join(", ")})`)
               .join(", ")}
             {missing.length > 3 && ` and ${missing.length - 3} more`}
+          </p>
+        )}
+        {shown && content.reading.length === 0 && selectsNone && (
+          <p class="viewport-status warning" role="status">
+            {selected}: no node of the meshes is selected
           </p>
         )}
         {shown && content.reading.length === 0 && missingFaces.length > 0 && (

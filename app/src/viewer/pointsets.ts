@@ -1,7 +1,7 @@
-// Point sets in the viewport: the points a point set selects by a coordinate or by
-// the coordinates of nodes (a preview on the nodes of the drawn meshes, like
-// `np.isclose` in the generated script), and the point set of a picked face normal
-// to x, y or z.
+// Point sets in the viewport: the points a point set selects by a coordinate, at a
+// bound of the meshes, on a cylinder or by the coordinates of nodes (a preview on the
+// nodes of the drawn meshes, like `np.isclose` in the generated script), and the
+// point set of a picked face normal to x, y or z.
 import type { Command, PointSetAdd } from "../core/commands";
 import { toName } from "../core/importmesh";
 import type { Vec3 } from "./picking";
@@ -13,6 +13,13 @@ export type Axis = (typeof AXES)[number];
 export interface CoordinateSelect {
   axis: Axis;
   value: number;
+  atol?: number;
+}
+
+/** The points at the smallest or largest coordinate of the meshes (#181). */
+export interface BoundSelect {
+  bound: "min" | "max";
+  axis: Axis;
   atol?: number;
 }
 
@@ -60,11 +67,8 @@ export function selectedPoints(
   nodes: readonly Float64Array[],
 ): Float64Array {
   if ("ids" in select) return new Float64Array();
-  const atol = select.atol ?? ATOL;
-  const selects = (array: Float64Array, p: number) =>
-    "axis" in select
-      ? isClose(array[p + AXES.indexOf(select.axis)], select.value, atol)
-      : select.points.some((point) => atPoint(array, p, point, atol));
+  const selects = selector(select, nodes);
+  if (!selects) return new Float64Array();
   const seen = new Set<string>();
   const result: number[] = [];
   for (const array of nodes) {
@@ -77,6 +81,76 @@ export function selectedPoints(
     }
   }
   return Float64Array.from(result);
+}
+
+/** Whether the node at index `p` of an array is selected, like the script. */
+type Selector = (array: Float64Array, p: number) => boolean;
+
+function selector(
+  select: Exclude<PointSetAdd["select"], { ids: number[] }>,
+  nodes: readonly Float64Array[],
+): Selector | undefined {
+  const atol = select.atol ?? ATOL;
+  if ("points" in select)
+    return (array, p) =>
+      select.points.some((point) => atPoint(array, p, point, atol));
+  const k = AXES.indexOf(select.axis);
+  if ("value" in select)
+    return (array, p) => isClose(array[p + k], select.value, atol);
+  if ("bound" in select) {
+    // the bounds of the drawn meshes, which are those of the sections (#181)
+    const [min, max] = range(nodes, k);
+    if (!Number.isFinite(min)) return undefined;
+    const value = select.bound === "min" ? min : max;
+    return (array, p) => isClose(array[p + k], value, atol);
+  }
+  // on a cylinder: the distance to its axis in the plane normal to it (#181)
+  const [i, j] = [0, 1, 2].filter((n) => n !== k);
+  const center = select.center ?? [0, 0, 0];
+  return (array, p) =>
+    isClose(
+      Math.hypot(array[p + i] - center[i], array[p + j] - center[j]),
+      select.radius,
+      atol,
+    );
+}
+
+/**
+ * A point set that selects nothing of the drawn meshes, by a plane, at a bound or on
+ * a cylinder: probably a wrong coordinate or radius (points by nodes have their own
+ * warning, see `missingPoints`).
+ */
+export const selectsNothing = (
+  select: PointSetAdd["select"],
+  nodes: readonly Float64Array[],
+) =>
+  nodes.length > 0 &&
+  !("ids" in select) &&
+  !("points" in select) &&
+  selectedPoints(select, nodes).length === 0;
+
+/**
+ * The selection of a picked plane at the bound of the meshes, e.g. `z == max`
+ * instead of `z == 25`, so that it follows a mesh whose size changes (#181); other
+ * planes as they are.
+ */
+export function boundOf(
+  select: CoordinateSelect,
+  nodes: readonly Float64Array[],
+): CoordinateSelect | BoundSelect {
+  const [min, max] = range(nodes, AXES.indexOf(select.axis));
+  const atol = select.atol ?? ATOL;
+  const bound = isClose(min, select.value, atol)
+    ? "min"
+    : isClose(max, select.value, atol)
+      ? "max"
+      : undefined;
+  if (!bound) return select;
+  return {
+    bound,
+    axis: select.axis,
+    ...(select.atol !== undefined ? { atol: select.atol } : {}),
+  };
 }
 
 /**

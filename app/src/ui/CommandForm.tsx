@@ -46,6 +46,11 @@ interface Props {
    * field while it is unchanged (#137).
    */
   issues?: Readonly<Record<string, string>>;
+  /**
+   * A prefix of the ids of the fields, so that the labels of a form in a dialog
+   * point to its own fields while the properties show another form (#181).
+   */
+  idPrefix?: string;
 }
 
 /** Text of a number or id field while it is edited, with how to parse it. */
@@ -97,10 +102,20 @@ function currentVariant(spec: FieldSpec, value: unknown): string {
   if (spec.input.type !== "variant") return "";
   if (typeof value === "string") return value;
   const keys = value && typeof value === "object" ? Object.keys(value) : [];
-  return (
-    spec.input.options.find((o) => keys.includes(o.value)) ??
-    spec.input.options[0]
-  ).value;
+  const { options, seeds } = spec.input;
+  // the option whose seed (its required properties) the value has, e.g. a point
+  // set at a bound `{ bound, axis }`, not by a coordinate `{ axis, value }` (#181)
+  const complete = options.find((o) => {
+    const seed = seeds[o.value];
+    return (
+      keys.includes(o.value) &&
+      (seed === null ||
+        typeof seed !== "object" ||
+        Object.keys(seed).every((k) => keys.includes(k)))
+    );
+  });
+  return (complete ?? options.find((o) => keys.includes(o.value)) ?? options[0])
+    .value;
 }
 
 /** The tooltip of a label: the key of a symbol (e.g. C10 of C₁₀), or the schema. */
@@ -144,7 +159,9 @@ export function CommandForm({
   onCancel,
   children,
   issues = {},
+  idPrefix = "",
 }: Props) {
+  const idOf = (key: string) => idPrefix + fieldId(key);
   const [start] = useState(
     () => toCommand(type, initial, context) as unknown as Draft,
   );
@@ -217,7 +234,7 @@ export function CommandForm({
     setSubmitted(true);
     const invalid = specs.find((spec) => errors[spec.key]);
     if (invalid) {
-      document.getElementById(fieldId(invalid.key))?.focus();
+      document.getElementById(idOf(invalid.key))?.focus();
       return;
     }
     onSubmit(toCommand(type, draft, context));
@@ -225,7 +242,7 @@ export function CommandForm({
 
   const control = (spec: FieldSpec) => {
     const { input, key } = spec;
-    const id = fieldId(key);
+    const id = idOf(key);
     const value = getValue(draft, spec.path);
     const error = errorOf(key);
     const issue = issueOf(spec);
@@ -483,7 +500,7 @@ export function CommandForm({
       aria-label={`${start.name ?? "New object"}`}
     >
       {specs.map((spec) => {
-        const id = fieldId(spec.key);
+        const id = idOf(spec.key);
         const error = errorOf(spec.key);
         if (spec.input.type === "boolean") {
           const value = getValue(draft, spec.path);
@@ -613,7 +630,7 @@ export function CommandForm({
                         message && (
                           <small
                             key={`${cell.key}-error`}
-                            id={`${fieldId(cell.key)}-error`}
+                            id={`${idOf(cell.key)}-error`}
                             class="field-error rows-error"
                           >
                             {cell.label} {i + 1}: {message}

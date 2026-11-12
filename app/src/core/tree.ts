@@ -89,8 +89,17 @@ function detail(cmd: Command, commands: readonly Command[]): string {
         .filter(Boolean)
         .join(" · ");
     case "pointset.add":
-      if ("axis" in cmd.select)
+      if ("value" in cmd.select)
         return `${cmd.select.axis} == ${valueWithUnit(String(cmd.select.value), length)}`;
+      if ("bound" in cmd.select)
+        return `${cmd.select.axis} == ${cmd.select.bound}`;
+      if ("radius" in cmd.select) {
+        const { radius, axis, center } = cmd.select;
+        const through = center?.some((c) => c !== 0)
+          ? ` through ${valueWithUnit(`(${center.join(", ")})`, length)}`
+          : "";
+        return `r = ${valueWithUnit(String(radius), length)} about ${axis}${through}`;
+      }
       if ("points" in cmd.select) {
         const [first, ...rest] = cmd.select.points;
         return rest.length

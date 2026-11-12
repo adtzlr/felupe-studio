@@ -23,7 +23,7 @@ A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserve
 - [`cellset.from_file`](#cellsetfrom_file): Cell set of all cells of a mesh.
 - [`material.add`](#materialadd): Add a material to the material library.
 - [`section.add`](#sectionadd): Assign a material and a formulation to a cell set.
-- [`pointset.add`](#pointsetadd): Points of the merged mesh selected by a plane, by the coordinates of points or by point ids.
+- [`pointset.add`](#pointsetadd): Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, by the coordinates of points or by point ids.
 - [`point.add`](#pointadd): A control point that is not a node of the meshes, e.g. the center point of a multi-point constraint.
 - [`faceset.add`](#facesetadd): Faces of the boundary of a section, e.g. for a pressure: on a plane, or the faces with the given centers (picked in the viewport).
 - [`boundary.add`](#boundaryadd): Prescribe displacement components of a point set (fem.Boundary).
@@ -232,7 +232,7 @@ Assign a material and a formulation to a cell set. Each section becomes a solid 
 
 ### `pointset.add`
 
-Points of the merged mesh selected by a plane, by the coordinates of points or by point ids.
+Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, by the coordinates of points or by point ids.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -249,6 +249,27 @@ Points with the given coordinate, e.g. x == 0.
 | --- | --- | --- | --- |
 | `select.axis` | axis: `x`, `y` or `z` | yes |  |
 | `select.value` | number | yes |  |
+| `select.atol` | number > 0 |  | Absolute tolerance (default 1e-8). |
+
+#### At a bound
+
+Points at the smallest or largest coordinate of the meshes of the sections, e.g. z == max (without the control points). They follow a mesh whose size changes.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `select.bound` | `min` or `max` | yes | The smallest (min) or the largest (max) coordinate. |
+| `select.axis` | axis: `x`, `y` or `z` | yes |  |
+| `select.atol` | number > 0 |  | Absolute tolerance (default 1e-8). |
+
+#### On a cylinder
+
+Points on a cylinder: at the distance radius from the line through the center parallel to the axis, e.g. a sleeve of a bushing.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `select.radius` | number > 0 | yes | The radius of the cylinder. |
+| `select.axis` | axis: `x`, `y` or `z` | yes | The direction of the axis of the cylinder. |
+| `select.center` | three numbers `[x, y, z]` |  | A point on the axis of the cylinder (default: the origin). |
 | `select.atol` | number > 0 |  | Absolute tolerance (default 1e-8). |
 
 #### By coordinates

@@ -107,6 +107,22 @@ describe("deriveTree", () => {
       "specimen.vtu · tag material · × 1000",
     );
     expect(find(tree, "left")!.detail).toBe("x == 0 mm");
+    // point sets at a bound and on a cylinder (#181)
+    const sets = [
+      { bound: "max", axis: "z" },
+      { radius: 25, axis: "x" },
+      { radius: 25, axis: "x", center: [0, 5, -3] },
+    ].map((select, i) => ({
+      command: "pointset.add",
+      name: `set_${i}`,
+      select,
+    })) as Command[];
+    const withSets = deriveTree([settings, ...commands, ...sets]);
+    expect(sets.map((s) => find(withSets, s.name)!.detail)).toEqual([
+      "z == max",
+      "r = 25 mm about x",
+      "r = 25 mm about x through (0, 5, -3) mm",
+    ]);
     expect(find(tree, "step_1")!.detail).toBe("move: 0 → 0.5 mm (5)");
     expect(find(tree, "fixed")!.detail).toBe("left · x, y, z");
     const load = {
