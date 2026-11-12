@@ -170,7 +170,9 @@ def test_symmetry_quarter_of_the_bar(tmp_path, monkeypatch):
 
 def test_iterative_solver_close_to_the_direct_one():
     # the bar of bar_single_body, solved with minres and rtol = tol / 100 (#203):
-    # the curve of the direct solver within the tolerance of the job
+    # the curve of the direct solver within its tolerance (0.01). The golden case has
+    # FElupe's tight tolerance 1.49e-8, so rtol = 1.49e-10 and its results do not
+    # depend on the round-off of the machine, as they would with a loose rtol
     def force(case):
         text = (HERE / case / "results.json").read_text(encoding="utf-8")
         return np.array(json.loads(text)["jobs"]["job_1"]["force"])

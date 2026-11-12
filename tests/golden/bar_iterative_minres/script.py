@@ -165,4 +165,4 @@ step_1 = fem.Step(
 # jobs
 job_1 = fem.CharacteristicCurve(steps=[step_1], boundary=boundaries["move"])
 
-job_1.evaluate(x0=field, tol=0.01, solver=iterative_solver("minres", rtol=0.0001))
+job_1.evaluate(x0=field, tol=1.49e-08, solver=iterative_solver("minres", rtol=1.49e-10))

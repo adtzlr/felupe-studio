@@ -85,7 +85,8 @@
       "solver": {
         "type": "iterative",
         "method": "minres"
-      }
+      },
+      "tol": 1.49e-08
     }
   ]
 }
