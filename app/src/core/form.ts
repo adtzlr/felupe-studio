@@ -128,6 +128,11 @@ interface Node {
   "x-group"?: string;
   /** Lists of values that need the same number of values, e.g. of Ogden. */
   "x-same-length"?: string[];
+  /**
+   * The coordinate of the axis of its name, shown only if the list of axes of this
+   * property has it, e.g. `x` of a symmetry with `x` in `axes` (#186).
+   */
+  "x-if-axis"?: string;
   not?: Node;
   if?: Node;
   then?: Node;
@@ -201,6 +206,13 @@ function conditions(node: Node, value: Draft) {
       for (const n of [not, ...(not?.anyOf ?? [])])
         for (const key of n?.required ?? []) hidden.add(key);
     }
+  }
+  // coordinates of axes that are not chosen (#186)
+  for (const [name, property] of Object.entries(node.properties ?? {})) {
+    const list = property["x-if-axis"];
+    if (list === undefined) continue;
+    const axes = value[list];
+    if (!Array.isArray(axes) || !axes.includes(name)) hidden.add(name);
   }
   return { required, hidden };
 }

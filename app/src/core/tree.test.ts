@@ -181,6 +181,36 @@ describe("deriveTree", () => {
     ]);
   });
 
+  it("lists the symmetry planes with the boundaries (#186)", () => {
+    const symmetries = [
+      { command: "symmetry.add", name: "half", axes: ["z", "x"] },
+      {
+        command: "symmetry.add",
+        name: "quarter",
+        axes: ["y", "z"],
+        y: 12.5,
+        z: 0,
+      },
+    ] as Command[];
+    const settings = {
+      command: "model.settings",
+      name: "settings",
+      units: { length: "mm" },
+    } as Command;
+    const tree = deriveTree([...commands, ...symmetries, settings]);
+    expect(find(tree, "group:boundary")!.children.map((c) => c.label)).toEqual([
+      "fixed",
+      "move",
+      "half",
+      "quarter",
+    ]);
+    expect(find(tree, "half")).toMatchObject({
+      kind: "symmetry",
+      detail: "x = 0, z = 0",
+    });
+    expect(find(tree, "quarter")!.detail).toBe("y = 12.5 mm, z = 0");
+  });
+
   it("shows the merge group only with a merge command", () => {
     const merge: Command = {
       command: "mesh.merge",

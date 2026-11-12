@@ -5,6 +5,7 @@ import type { Command } from "./commands";
 import type { Issue, Kind } from "./validate";
 import { KINDS } from "./validate";
 import { describeLoadcase } from "./loadcases";
+import { describeSymmetry } from "./symmetry";
 import {
   boundaryQuantity,
   rampedQuantity,
@@ -145,6 +146,8 @@ function detail(cmd: Command, commands: readonly Command[]): string {
     }
     case "loadcase.add":
       return describeLoadcase(cmd);
+    case "symmetry.add":
+      return describeSymmetry(cmd, length);
     case "step.add":
       return cmd.ramp
         ? cmd.ramp.items
@@ -239,7 +242,10 @@ export function deriveTree(
         ? "point"
         : child.kind === "cellset"
           ? "mesh"
-          : (child.kind as Kind);
+          : // symmetry planes are boundaries of all steps (#186)
+            child.kind === "symmetry"
+            ? "boundary"
+            : (child.kind as Kind);
     groupOf(group)!.children.push(child);
   }
 

@@ -31,6 +31,7 @@ describe("ribbonGroups", () => {
     expect(labels("loads")).toEqual([
       ["Boundary"],
       ["Uniaxial", "Biaxial", "Planar", "Shear"],
+      ["Symmetry"],
       ["Control point"],
       ["Multi-point constraint"],
       ["Point load"],

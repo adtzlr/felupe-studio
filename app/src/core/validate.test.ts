@@ -2,13 +2,17 @@ import { describe, expect, it } from "vitest";
 import cases from "../../../tests/data/validation_cases.json";
 import type { Command } from "./commands";
 import { NAME_MAX_LENGTH, RESERVED_KEYWORDS, SCHEMA_VERSION } from "./schema";
+import { symmetryNotes } from "./symmetry";
 import { nameProblem, order, references, validate } from "./validate";
 
 describe("validate", () => {
   // the same cases and messages as the Python validation
   it.each(cases.map((c) => [c.name, c] as const))("%s", (_, c) => {
-    const issues = validate(c.document.commands as Command[]);
+    const commands = c.document.commands as Command[];
+    const issues = validate(commands);
     expect(issues.map((i) => i.message)).toEqual(c.errors);
+    // the notes that are no errors, e.g. a repeated symmetry plane (#186)
+    expect(symmetryNotes(commands).map((i) => i.message)).toEqual(c.notes);
   });
 
   it("returns index and name of the command", () => {

@@ -1,4 +1,4 @@
-"""Load cases of FElupe (``fem.dof``) on the merged field.
+"""Load cases and symmetry planes of FElupe (``fem.dof``) on the merged field.
 
 A ``loadcase.add`` command creates the boundaries of a standard test with
 ``fem.dof.uniaxial``, ``fem.dof.biaxial`` (also for planar tension, where the second
@@ -75,6 +75,44 @@ def moving(loadcase):
     if not loadcase.get("symmetry", True):
         keys += [(f"move-left-{a}", -1) for a in axes]
     return keys
+
+
+def symmetry_call(symmetry):
+    """Return the function and the arguments of a ``symmetry.add`` command (#186): the
+    planes normal to its axes at their coordinates (default 0), on the displacement
+    field of the merged field.
+
+    Examples
+    --------
+    >>> symmetry_call({"axes": ["z", "x"], "z": 5})
+    ('fem.dof.symmetry', ['field[0]', 'axes=(True, False, True)', 'x=0.0', 'z=5.0'])
+    """
+    axes = tuple(a in symmetry["axes"] for a in AXES)
+    args = ["field[0]", f"axes={axes!r}"]
+    args += [
+        f"{a}={float(symmetry.get(a, 0))!r}" for a in AXES if a in symmetry["axes"]
+    ]
+    return "fem.dof.symmetry", args
+
+
+def symmetry_planes(loadcase):
+    """Return the normals of the symmetry planes of a load case, at the zero
+    coordinates: x, y and z of a uniaxial, biaxial or planar load case, the third
+    axis of a shear load case (none without symmetry).
+
+    Examples
+    --------
+    >>> symmetry_planes({"type": "shear", "axis": "x", "normal": "y"})
+    ['z']
+    >>> symmetry_planes({"type": "uniaxial", "symmetry": False})
+    []
+    """
+    if not loadcase.get("symmetry", True):
+        return []
+    if loadcase["type"] == "shear":
+        used = {_axis(loadcase, "axis"), _axis(loadcase, "normal")}
+        return [a for i, a in enumerate(AXES) if i not in used]
+    return list(AXES)
 
 
 def problems(loadcase):

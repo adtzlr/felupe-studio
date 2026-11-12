@@ -205,8 +205,9 @@ describe("complete", () => {
     expect(labels("de")).toEqual(["delete", "model.settings"]); // contained
     expect(labels("tag")).toEqual(["cellset.from_tag"]); // contained
     expect(labels("undo")).toEqual([]); // complete already
-    expect(labels("")).toHaveLength(24);
+    expect(labels("")).toHaveLength(25);
     expect(labels("param")).toEqual(["parameter.add"]);
+    expect(labels("sym")).toEqual(["symmetry.add"]);
   });
 
   it("completes names after delete and select", () => {

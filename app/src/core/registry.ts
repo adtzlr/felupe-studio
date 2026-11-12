@@ -115,6 +115,7 @@ export const KIND_LABELS: Record<Kind, string> = {
   pointset: "Point set",
   faceset: "Face set",
   boundary: "Boundary",
+  symmetry: "Symmetry",
   constraint: "Constraint",
   load: "Load",
   pressure: "Pressure",
@@ -386,6 +387,24 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       axis: AXES,
       second: AXES,
       normal: AXES,
+    },
+  },
+  "symmetry.add": {
+    label: "Symmetry",
+    tab: "loads",
+    prefix: "symmetry",
+    fields: {
+      axes: {
+        label: "Planes normal to",
+        hint: "The normal displacement is zero on a plane, the others are free",
+        default: ["x"],
+      },
+      x: { label: "x of the plane", placeholder: "0" },
+      y: { label: "y of the plane", placeholder: "0" },
+      z: { label: "z of the plane", placeholder: "0" },
+    },
+    options: {
+      axes: AXES,
     },
   },
   "model.settings": {

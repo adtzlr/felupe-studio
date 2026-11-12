@@ -33,6 +33,7 @@ import {
   MeshFiles,
   meshFileNames,
 } from "../core/meshfiles";
+import { symmetryNotes } from "../core/symmetry";
 import { duplicateBlocker } from "../core/duplicate";
 import { REGISTRY } from "../core/registry";
 import type { RibbonItem } from "../core/ribbon";
@@ -149,10 +150,14 @@ export function App({
   useEffect(() => {
     if (!parametersShown?.opening) makeMeshes(store.commands, files);
   }, [store.commands, files, files.revision, parametersShown]);
-  // notes about the mesh files, and about face sets on cells without faces (#142)
+  // notes about the mesh files, and about face sets on cells without faces (#142),
+  // and about repeated symmetry planes, which do not block Solve (#186)
   const meshNotes = fileNotes(store.commands, files);
   const faceNotes = faceSetNotes(store.commands, files);
   const notes = new Map([...meshNotes, ...faceNotes]);
+  for (const note of symmetryNotes(store.commands)) {
+    notes.set(note.name, [...(notes.get(note.name) ?? []), note.message]);
+  }
   const [workspace, setWorkspace] = useState<Workspace>("model");
   const player = usePlayer({
     enabled: workspace === "results" && run.state !== "running" && substeps > 1,

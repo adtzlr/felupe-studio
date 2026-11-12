@@ -1,4 +1,5 @@
-"""Write validation_cases.json: command lists and their expected error messages.
+"""Write validation_cases.json: command lists and their expected error messages, and
+the notes that are no errors (#186).
 
 The cases are shared by the Python validation (felupe_studio.commands) and the
 TypeScript validation (app/src/core/validate.ts), so both report the same messages.
@@ -9,7 +10,7 @@ import copy
 import json
 from pathlib import Path
 
-from felupe_studio.commands import errors
+from felupe_studio.commands import errors, notes
 
 HERE = Path(__file__).parent
 
@@ -270,6 +271,50 @@ CHANGES = {
             },
         ),
     ),
+    # symmetry planes (#186): neither ramped nor a curve; notes about repeated planes
+    "symmetry planes": lambda d: d["commands"].insert(
+        11, {"command": "symmetry.add", "name": "half", "axes": ["y", "z"], "y": 0.5}
+    ),
+    "symmetry ramped": lambda d: (
+        d["commands"].insert(
+            11, {"command": "symmetry.add", "name": "half", "axes": ["y"]}
+        ),
+        find(d, "step_1")["ramp"]["items"].append({"target": "half", "end": 0}),
+    ),
+    "symmetry as a curve": lambda d: (
+        d["commands"].insert(
+            11, {"command": "symmetry.add", "name": "half", "axes": ["y"]}
+        ),
+        find(d, "job_1").update(curve="half"),
+    ),
+    "symmetry planes of a load case": lambda d: (
+        d["commands"].insert(
+            11, {"command": "symmetry.add", "name": "half", "axes": ["x", "z"]}
+        ),
+        d["commands"].insert(
+            12, {"command": "loadcase.add", "name": "test", "type": "uniaxial"}
+        ),
+    ),
+    "symmetry planes twice": lambda d: (
+        d["commands"].insert(
+            11,
+            {"command": "symmetry.add", "name": "half", "axes": ["y"], "y": 0.5},
+        ),
+        d["commands"].insert(
+            12,
+            {
+                "command": "symmetry.add",
+                "name": "quarter",
+                "axes": ["y", "z"],
+                "y": 0.5,
+                "z": 12.5,
+            },
+        ),
+        d["commands"].insert(
+            13,
+            {"command": "loadcase.add", "name": "shear", "type": "shear"},
+        ),
+    ),
     "parameter out of its range": lambda d: d["commands"].insert(
         0,
         {"command": "parameter.add", "name": "radius", "value": 120, "max": 100},
@@ -338,7 +383,14 @@ def cases():
     for name, change in CHANGES.items():
         document = copy.deepcopy(base)
         change(document)
-        result.append({"name": name, "document": document, "errors": errors(document)})
+        result.append(
+            {
+                "name": name,
+                "document": document,
+                "errors": errors(document),
+                "notes": notes(document["commands"]),
+            }
+        )
     return result
 
 

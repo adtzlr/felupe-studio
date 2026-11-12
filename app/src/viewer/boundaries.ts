@@ -5,13 +5,14 @@
 // test compares them with FElupe (`boundaries.fixture.json`).
 import type { Command } from "../core/commands";
 import { type Loadcase, LOADCASE_DEFAULTS } from "../core/loadcases";
+import { type Symmetry, symmetryPlanes } from "../core/symmetry";
 import { MARKER_COLOR } from "./palette";
 import { AXES, selectedPoints } from "./pointsets";
 import { arrowSegments, type Lines } from "./scene";
 
 /** A boundary of the script: the points of the nodes and its components. */
 export interface BoundarySymbol {
-  /** The command: a boundary or a load case. */
+  /** The command: a boundary, a load case or a symmetry (#186). */
   owner: string;
   /** The name of the boundary in the script, e.g. `move` or `shear/bottom`. */
   name: string;
@@ -242,6 +243,18 @@ export function boundarySymbols(
         value:
           ramped.get(c.name) ?? (c as unknown as { value?: number }).value ?? 0,
       });
+    } else if (c.command === "symmetry.add") {
+      // fem.dof.symmetry: the normal component on every plane (#186)
+      for (const { axis, value } of symmetryPlanes(c)) {
+        const k = AXES.indexOf(axis);
+        symbols.push({
+          owner: c.name,
+          name: `${c.name}/sym${axis}`,
+          points: plane(nodes, k, value),
+          components: [k],
+          value: 0,
+        });
+      }
     } else if (c.command === "loadcase.add") {
       for (const part of loadcaseParts(c, nodes)) {
         const name = `${c.name}/${part.key}`;
@@ -256,6 +269,17 @@ export function boundarySymbols(
     }
   }
   return symbols.filter((s) => s.points.length > 0);
+}
+
+/** The planes of a symmetry without a node of the drawn meshes, e.g. `y = 5` (#186). */
+export function emptyPlanes(
+  symmetry: Symmetry,
+  nodes: readonly Float64Array[],
+): string[] {
+  if (!nodes.length) return [];
+  return symmetryPlanes(symmetry)
+    .filter((p) => plane(nodes, AXES.indexOf(p.axis), p.value).length === 0)
+    .map((p) => `${p.axis} = ${p.value}`);
 }
 
 /** The size of the model: the length of the diagonal of its bounds. */

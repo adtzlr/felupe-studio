@@ -62,6 +62,7 @@ import {
 import {
   boundaryLines,
   boundarySymbols,
+  emptyPlanes,
   modelSize,
 } from "../viewer/boundaries";
 import { CONTROL_COLOR, EXCLUDED_COLOR, FACE_COLOR } from "../viewer/palette";
@@ -463,6 +464,13 @@ export function Viewport({
   const selectsNone = useMemo(() => {
     const set = commands.find((c) => c.name === selected);
     return !!set && isPointSet(set) && selectsNothing(set.select, nodes);
+  }, [commands, selected, nodes]);
+  // the planes of the selected symmetry without nodes, e.g. a wrong coordinate (#186)
+  const emptySymmetry = useMemo(() => {
+    const symmetry = commands.find((c) => c.name === selected);
+    return symmetry?.command === "symmetry.add"
+      ? emptyPlanes(symmetry, nodes)
+      : [];
   }, [commands, selected, nodes]);
   // the picked plane at a bound of the meshes, stored as the bound (#181)
   const pickedBound = useMemo(
@@ -1144,6 +1152,13 @@ export function Viewport({
         {shown && content.reading.length === 0 && selectsNone && (
           <p class="viewport-status warning" role="status">
             {selected}: no node of the meshes is selected
+          </p>
+        )}
+        {shown && content.reading.length === 0 && emptySymmetry.length > 0 && (
+          <p class="viewport-status warning" role="status">
+            {`${selected}: no node of the meshes on the ${
+              emptySymmetry.length > 1 ? "planes" : "plane"
+            } ${emptySymmetry.join(", ")}`}
           </p>
         )}
         {shown && content.reading.length === 0 && missingFaces.length > 0 && (

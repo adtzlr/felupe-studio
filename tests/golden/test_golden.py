@@ -151,6 +151,23 @@ def test_cell_types_close_to_hexahedra():
     )
 
 
+def test_symmetry_quarter_of_the_bar(tmp_path, monkeypatch):
+    # a quarter of the clamped bar of bar_loadcase with symmetry planes at y = 0.5
+    # and z = 0.5 has a quarter of its force (#186), both converged
+    document = load("bar_loadcase")
+    for cmd in document["commands"]:
+        if cmd["command"] == "job.add":
+            cmd["tol"] = 1.49e-8
+    full = evaluate("bar_loadcase", tmp_path, monkeypatch, document)["jobs"]["job_1"]
+    quarter = json.loads(
+        (HERE / "bar_symmetry_quarter" / "results.json").read_text(encoding="utf-8")
+    )["jobs"]["job_1"]
+    np.testing.assert_allclose(quarter["displacement"], full["displacement"])
+    np.testing.assert_allclose(
+        4 * np.array(quarter["force"]), full["force"], rtol=1e-6, atol=1e-12
+    )
+
+
 @pytest.mark.parametrize("case", MATERIALS)
 def test_material_matches_felupe(case):
     # the stretch is 1 + u and the force is the nominal stress of the cube; the
