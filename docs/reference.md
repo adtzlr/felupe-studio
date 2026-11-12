@@ -11,7 +11,7 @@ A project file is a JSON document `{"schema_version": 3, "commands": [...]}`. Ev
 
 Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
 
-A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `DIMENSIONS`, `REGIONS`, `SimpleNamespace`, `boundaries`, `boundary_faces`, `control_points`, `fem`, `field`, `meshio`, `mixed_region`, `np`, `points`, `points_at`, `run_mesh_script`, `script_mesh`, `single_point`, `vertex_region`, `volume_cells`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
+A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `DIMENSIONS`, `REGIONS`, `SimpleNamespace`, `boundaries`, `boundary_faces`, `control_points`, `fem`, `field`, `iterative_solver`, `meshio`, `mixed_region`, `np`, `points`, `points_at`, `run_mesh_script`, `script_mesh`, `single_point`, `spsolve`, `vertex_region`, `volume_cells`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
 
 ## Commands
 
@@ -485,6 +485,11 @@ A job evaluating steps one after another (fem.Job). With a curve, the force-disp
 | `curve` | name of a boundary, load case or point load |  | The boundary, load case or point load of the force-displacement curve. |
 | `tol` | number > 0 |  | Tolerance of the Newton-Raphson method: the norm of the residual forces relative to the reaction forces (default 0.01, like commercial codes). |
 | `maxiter` | integer ≥ 1 |  | The maximum number of Newton iterations of a substep (default 16). |
+| `solver` | object |  | The linear solver of the Newton iterations (Job.evaluate(solver=...)); without it, SuperLU of FElupe. |
+| `solver.type` | `superlu`, `spsolve` or `iterative` | yes | SuperLU of FElupe (fem.solve.SuperLUSolver, the default), spsolve of SciPy (the default of FElupe before v12) or an iterative method of SciPy. |
+| `solver.method` | `minres`, `cg`, `gmres` or `bicgstab` | if `type` is `iterative` | The iterative method of scipy.sparse.linalg: minres (symmetric, also indefinite), cg (symmetric positive definite), gmres or bicgstab. |
+| `solver.rtol` | number > 0, < 1 |  | Relative tolerance of the iterative method, relative to the norm of the residual forces (default: the tolerance of the job / 100). |
+| `solver.maxiter` | integer ≥ 1 |  | The maximum number of iterations of the iterative method (default of SciPy). |
 | `cutback` | object |  | Retry a substep that does not converge with smaller increments (fem.CutbackPlugin); without a value, a parameter has the default of FElupe. |
 | `cutback.factor` | number > 0, < 1 |  | The factor by which the increment is reduced after a failed attempt (default 0.5). |
 | `cutback.max_cutbacks` | integer ≥ 1 |  | The maximum number of successive cutbacks of the increment (default 10): the smallest increment of a substep is factor ** max_cutbacks. |

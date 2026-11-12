@@ -194,3 +194,36 @@ def run_mesh_script(file, parameters, item=None, tag=None, cell_type=None):
     """Return the solid cells of the mesh of a script, like ``volume_cells()``."""
     mesh = script_mesh(file, parameters, item)
     return volume_cells(mesh, tag=tag, cell_type=cell_type)
+
+
+# --- embedded in generated scripts with linear solvers ---
+def spsolve(A, b):
+    """Solve a linear system with ``scipy.sparse.linalg.spsolve``, the linear solver
+    of FElupe before v12."""
+    from scipy.sparse import linalg
+
+    return linalg.spsolve(A, b)
+
+
+def iterative_solver(method, rtol, maxiter=None):
+    """Return a linear solver ``solver(A, b)`` with an iterative method of
+    ``scipy.sparse.linalg`` (``minres``, ``cg``, ``gmres`` or ``bicgstab``) and a
+    relative tolerance of the norm of the residual. It raises if the method does not
+    converge, so that the Newton iteration fails instead of continuing with a poor
+    solution."""
+    from scipy.sparse import linalg
+
+    solve = getattr(linalg, method)
+
+    def solver(A, b):
+        x, info = solve(A, b, rtol=rtol, maxiter=maxiter)
+        if info != 0:
+            within = f" within maxiter={maxiter}" if maxiter else ""
+            raise RuntimeError(
+                f"The linear solver {method} did not converge to rtol={rtol}"
+                f"{within} (info={info}). Allow more iterations (maxiter) or take a "
+                "direct solver (SuperLU or spsolve)."
+            )
+        return x
+
+    return solver

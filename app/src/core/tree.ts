@@ -5,6 +5,7 @@ import type { Command } from "./commands";
 import type { Issue, Kind } from "./validate";
 import { KINDS } from "./validate";
 import { describeLoadcase } from "./loadcases";
+import { describeSolver } from "./solvers";
 import { describeSymmetry } from "./symmetry";
 import {
   boundaryQuantity,
@@ -162,6 +163,7 @@ function detail(cmd: Command, commands: readonly Command[]): string {
         cmd.steps.join(", "),
         cmd.curve && `curve ${cmd.curve}`,
         cmd.cutback && "cutback",
+        describeSolver(cmd),
         cmd.tol !== undefined && `tol ${cmd.tol}`,
         cmd.maxiter !== undefined && `maxiter ${cmd.maxiter}`,
       ]

@@ -35,6 +35,8 @@ def main():
     tag = material_tag(mesh)
 
     write_vtu(HERE / "bar_single_body" / "bar.vtu", mesh)
+    # the same bar, solved with an iterative linear solver (#203)
+    write_vtu(HERE / "bar_iterative_minres" / "bar.vtu", mesh)
     write_vtu(HERE / "bar_mooney_rivlin" / "bar.vtu", mesh)
     write_vtu(HERE / "bar_loadcase" / "bar.vtu", mesh)
     write_vtu(HERE / "bar_volumetric_log" / "bar.vtu", mesh)

@@ -20,7 +20,7 @@ import time
 import felupe as fem
 
 from . import results as results_
-from .codegen import codegen, evaluate_options, object_lines
+from .codegen import codegen, evaluate_options, object_lines, solver_source
 from .materials import models
 
 # the namespace of the last run, e.g. its field for results
@@ -166,6 +166,10 @@ def run(document, report=lambda event: None):
         job.dispatcher.add_plugin(results_.Recorder(name, namespace["field"]))
         started = time.perf_counter()
         options = evaluate_options(commands[name])
+        # the linear solver of the script (#203): the same source, in its namespace
+        solver = solver_source(commands[name])
+        if solver is not None:
+            options["solver"] = eval(solver, namespace)  # noqa: S307
         job.evaluate(x0=namespace["field"], verbose=False, **options)
         result = {
             "substeps": sum(substeps[name]),

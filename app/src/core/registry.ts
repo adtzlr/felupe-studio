@@ -572,6 +572,26 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         hint: "Newton iterations of a substep",
         placeholder: "16",
       },
+      solver: {
+        label: "Linear solver",
+        hint: "Of the Newton iterations; without it, SuperLU of FElupe",
+      },
+      "solver.type": { label: "Type", default: "superlu" },
+      "solver.method": {
+        label: "Method",
+        hint: "cg needs a positive definite matrix, minres a symmetric one",
+        default: "minres",
+      },
+      "solver.rtol": {
+        label: "Rel. tolerance",
+        hint: "Of the iterative method, relative to the residual forces",
+        placeholder: "tolerance / 100",
+      },
+      "solver.maxiter": {
+        label: "Max. iterations",
+        hint: "Of the iterative method",
+        placeholder: "SciPy",
+      },
       cutback: {
         label: "Cutback",
         hint: "Retries a substep that does not converge with smaller increments",
@@ -590,6 +610,19 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         label: "Growth",
         hint: "Increases the increment after a converged one; 1 keeps it",
         placeholder: "2",
+      },
+    },
+    options: {
+      "solver.type": {
+        superlu: "SuperLU (FElupe)",
+        spsolve: "spsolve (SciPy)",
+        iterative: "Iterative (SciPy)",
+      },
+      "solver.method": {
+        minres: "minres (symmetric)",
+        cg: "cg (positive definite)",
+        gmres: "gmres",
+        bicgstab: "bicgstab",
       },
     },
   },

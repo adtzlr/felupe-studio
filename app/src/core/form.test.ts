@@ -140,6 +140,7 @@ describe("fieldSpecs", () => {
       "curve:reference",
       "tol:number",
       "maxiter:number",
+      "solver:toggle",
       "cutback:toggle",
     ]);
     // the settings of a cutback (#133)
@@ -151,6 +152,44 @@ describe("fieldSpecs", () => {
       "cutback.max_cutbacks:number",
       "cutback.growth:number",
     ]);
+  });
+
+  it("shows the options of an iterative linear solver only for it (#203)", () => {
+    const context = { commands: (fixture as CommandList).commands };
+    const job = find("job_1");
+    const on = setValue("job.add", job, ["solver"], {}, context);
+    expect(on.solver).toEqual({ type: "superlu" });
+    const keys = (draft: Draft) =>
+      fieldSpecs("job.add", draft)
+        .map((spec) => spec.key)
+        .filter((key) => key.startsWith("solver"));
+    expect(keys(on)).toEqual(["solver", "solver.type"]);
+    const iterative = setValue(
+      "job.add",
+      on,
+      ["solver", "type"],
+      "iterative",
+      context,
+    );
+    expect(iterative.solver).toEqual({ type: "iterative", method: "minres" });
+    expect(keys(iterative)).toEqual([
+      "solver",
+      "solver.type",
+      "solver.method",
+      "solver.rtol",
+      "solver.maxiter",
+    ]);
+    // a direct solver loses the options of the iterative one
+    const direct = setValue(
+      "job.add",
+      { ...iterative, solver: { ...(iterative.solver as Draft), rtol: 1e-6 } },
+      ["solver", "type"],
+      "spsolve",
+      context,
+    );
+    expect(direct.solver).toEqual({ type: "spsolve" });
+    expect(schemaAccepts(direct)).toBe(true);
+    expect(schemaAccepts(iterative)).toBe(true);
   });
 
   it("requires the bulk modulus only for the mixed formulation", () => {
