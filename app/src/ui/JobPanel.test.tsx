@@ -14,7 +14,7 @@ const commands = (fixture as CommandList).commands;
 /** The lines of the panel of a running job. */
 function lines(
   progress: Partial<JobProgress>,
-  job: { cutback?: object; maxiter?: number } = {},
+  job: { cutback?: object; maxiter?: number; solver?: object } = {},
 ) {
   const run = {
     state: "running" as const,
@@ -59,6 +59,16 @@ describe("the panel of a running job", () => {
     expect(
       lines({ ...substep, iteration: 2, fnorm: null }, { maxiter: 30 }),
     ).toEqual(["Step 1 of 1 · substep 3 of 4", "Newton iteration 2 of 30"]);
+    // the linear solver of the job, if it is not the default (#203)
+    expect(
+      lines(
+        { ...substep, iteration: 1, fnorm: 0.5 },
+        { solver: { type: "iterative", method: "cg" } },
+      ),
+    ).toEqual([
+      "Step 1 of 1 · substep 3 of 4",
+      "Newton iteration 1 of 16 · residuals 5.00e-1 · cg, rtol 1e-4",
+    ]);
   });
 
   it("has a line for the retries of a cutback from the start", () => {

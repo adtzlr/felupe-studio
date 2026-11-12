@@ -10,6 +10,7 @@ import type { Command } from "../core/commands";
 import { curvePoint, formatValue as format } from "../core/results";
 import type { ModelStore } from "../core/store";
 import { curveQuantities } from "../core/curve";
+import { describeSolver } from "../core/solvers";
 import { valueWithUnit } from "../core/units";
 
 interface Props {
@@ -28,6 +29,12 @@ const usesCutback = (commands: readonly Command[]) =>
 
 /** The default maximum number of Newton iterations of a substep in FElupe. */
 const MAXITER = 16;
+
+/** The linear solver of a job, if it is not the default (#203). */
+const solverOf = (commands: readonly Command[], job: string | undefined) => {
+  const cmd = commands.find((c) => c.command === "job.add" && c.name === job);
+  return cmd?.command === "job.add" ? describeSolver(cmd) : undefined;
+};
 
 /** The maximum number of Newton iterations of a job (#133). */
 const maxiterOf = (commands: readonly Command[], job: string | undefined) => {
@@ -50,11 +57,14 @@ function Running({
   progress,
   cutback,
   maxiter,
+  solver,
 }: {
   progress: JobProgress;
   cutback: boolean;
   /** The maximum number of Newton iterations of the running job. */
   maxiter: number;
+  /** The linear solver of the running job, if it is not the default (#203). */
+  solver?: string;
 }) {
   const percent = Math.round(fraction(progress) * 100);
   const { job, jobs, failed } = progress;
@@ -67,7 +77,8 @@ function Running({
       ? `Newton iteration ${progress.iteration} of ${maxiter}` +
         (progress.fnorm !== null
           ? ` · residuals ${progress.fnorm.toExponential(2)}`
-          : "")
+          : "") +
+        (solver ? ` · ${solver}` : "")
       : "";
   const n = failed.length;
   const retries = n
@@ -168,6 +179,7 @@ export function JobPanel({ run, store, onDismiss, onShowResults }: Props) {
           progress={run.progress}
           cutback={usesCutback(run.commands)}
           maxiter={maxiterOf(run.commands, run.progress.job)}
+          solver={solverOf(run.commands, run.progress.job)}
         />
       )}
       {run.state === "finished" && (

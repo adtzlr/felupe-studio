@@ -42,8 +42,11 @@ HELPERS = HELPERS[HELPERS.index(MARKER) + len(MARKER) :]
 # the helpers of face sets (#142), only in scripts with face sets, and of meshes made
 # by scripts (#182), only in scripts with them
 SCRIPTS = "\n\n# --- embedded in generated scripts with meshes of scripts ---\n"
+# the linear solvers of jobs other than SuperLU (#203), only in scripts with them
+SOLVERS = "\n\n# --- embedded in generated scripts with linear solvers ---\n"
 HELPERS, FACE_HELPERS = HELPERS.split(FACES)
 FACE_HELPERS, SCRIPT_HELPERS = FACE_HELPERS.split(SCRIPTS)
+SCRIPT_HELPERS, SOLVER_HELPERS = SCRIPT_HELPERS.split(SOLVERS)
 
 AXES = ("x", "y", "z")
 
@@ -250,6 +253,62 @@ def evaluate_options(job):
     return options
 
 
+def solver_rtol(job):
+    """Return the relative tolerance of the iterative linear solver of a ``job.add``
+    command (#203): its ``rtol`` if given, else two orders of magnitude finer than
+    the tolerance of the job, since an inexact linear solve makes the Newton
+    iteration converge linearly with a rate of about ``rtol``.
+
+    Examples
+    --------
+    >>> solver_rtol({"solver": {"type": "iterative", "method": "minres"}})
+    0.0001
+    >>> solver_rtol({"tol": 1.49e-8, "solver": {"type": "iterative"}})
+    1.49e-10
+    >>> solver_rtol({"solver": {"type": "iterative", "rtol": 1e-6}})
+    1e-06
+    """
+    solver = job.get("solver", {})
+    if "rtol" in solver:
+        return float(solver["rtol"])
+    return float(f"{float(job.get('tol', TOL)) / 100:.6g}")
+
+
+def solver_source(job):
+    """Return the source of the linear solver of a ``job.add`` command for
+    ``Job.evaluate(solver=...)`` (#203), or None for the default of FElupe.
+
+    Examples
+    --------
+    >>> solver_source({"solver": {"type": "superlu"}})
+    'fem.solve.SuperLUSolver()'
+    >>> solver_source({"solver": {"type": "spsolve"}})
+    'spsolve'
+    >>> solver_source({"solver": {"type": "iterative", "method": "cg", "maxiter": 500}})
+    'iterative_solver("cg", rtol=0.0001, maxiter=500)'
+    >>> solver_source({}) is None
+    True
+    """
+    solver = job.get("solver")
+    if solver is None:
+        return None
+    if solver["type"] == "superlu":
+        return "fem.solve.SuperLUSolver()"
+    if solver["type"] == "spsolve":
+        return "spsolve"
+    args = [_str(solver.get("method", "minres")), f"rtol={solver_rtol(job)!r}"]
+    if "maxiter" in solver:
+        args.append(f"maxiter={int(solver['maxiter'])}")
+    return f"iterative_solver({', '.join(args)})"
+
+
+def uses_solver_helpers(jobs):
+    """Whether a linear solver of the jobs needs the helpers of the solvers."""
+    return any(
+        job.get("solver", {}).get("type") in ("spsolve", "iterative") for job in jobs
+    )
+
+
 # the parameters of fem.CutbackPlugin of the settings of a cutback (#133)
 CUTBACK = {"factor": float, "max_cutbacks": int, "growth": float}
 
@@ -325,6 +384,8 @@ def codegen(document, evaluate=True, check_schema=True):
         out.append(f"\n{FACE_HELPERS}")
     if get("mesh.script"):
         out.append(f"\n{SCRIPT_HELPERS}")
+    if uses_solver_helpers(get("job.add")):
+        out.append(f"\n{SOLVER_HELPERS}")
 
     # 1. meshes and cell sets
     meshes = [c for c in commands if c["command"] in ("mesh.import", "mesh.script")]
@@ -657,6 +718,9 @@ def codegen(document, evaluate=True, check_schema=True):
             for job in jobs:
                 args = ["x0=field"]
                 args += [f"{k}={v!r}" for k, v in evaluate_options(job).items()]
+                solver = solver_source(job)
+                if solver is not None:
+                    args.append(f"solver={solver}")
                 out.append(_wrap(f"{job['name']}.evaluate", args))
 
     return dedent("\n".join(out)).strip() + "\n"

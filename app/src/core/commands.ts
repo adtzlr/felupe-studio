@@ -944,6 +944,27 @@ export interface JobAdd {
    */
   maxiter?: number;
   /**
+   * The linear solver of the Newton iterations (Job.evaluate(solver=...)); without it, SuperLU of FElupe.
+   */
+  solver?: {
+    /**
+     * SuperLU of FElupe (fem.solve.SuperLUSolver, the default), spsolve of SciPy (the default of FElupe before v12) or an iterative method of SciPy.
+     */
+    type: "superlu" | "spsolve" | "iterative";
+    /**
+     * The iterative method of scipy.sparse.linalg: minres (symmetric, also indefinite), cg (symmetric positive definite), gmres or bicgstab.
+     */
+    method?: "minres" | "cg" | "gmres" | "bicgstab";
+    /**
+     * Relative tolerance of the iterative method, relative to the norm of the residual forces (default: the tolerance of the job / 100).
+     */
+    rtol?: number;
+    /**
+     * The maximum number of iterations of the iterative method (default of SciPy).
+     */
+    maxiter?: number;
+  };
+  /**
    * Retry a substep that does not converge with smaller increments (fem.CutbackPlugin); without a value, a parameter has the default of FElupe.
    */
   cutback?: {

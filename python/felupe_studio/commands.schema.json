@@ -73,6 +73,7 @@
           "control_points",
           "fem",
           "field",
+          "iterative_solver",
           "meshio",
           "mixed_region",
           "np",
@@ -81,6 +82,7 @@
           "run_mesh_script",
           "script_mesh",
           "single_point",
+          "spsolve",
           "vertex_region",
           "volume_cells"
         ],
@@ -1590,6 +1592,58 @@
           "description": "The maximum number of Newton iterations of a substep (default 16).",
           "type": "integer",
           "minimum": 1
+        },
+        "solver": {
+          "description": "The linear solver of the Newton iterations (Job.evaluate(solver=...)); without it, SuperLU of FElupe.",
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": {
+            "type": {
+              "description": "SuperLU of FElupe (fem.solve.SuperLUSolver, the default), spsolve of SciPy (the default of FElupe before v12) or an iterative method of SciPy.",
+              "enum": ["superlu", "spsolve", "iterative"]
+            },
+            "method": {
+              "description": "The iterative method of scipy.sparse.linalg: minres (symmetric, also indefinite), cg (symmetric positive definite), gmres or bicgstab.",
+              "enum": ["minres", "cg", "gmres", "bicgstab"]
+            },
+            "rtol": {
+              "description": "Relative tolerance of the iterative method, relative to the norm of the residual forces (default: the tolerance of the job / 100).",
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "exclusiveMaximum": 1
+            },
+            "maxiter": {
+              "description": "The maximum number of iterations of the iterative method (default of SciPy).",
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "if": {
+            "properties": {
+              "type": {
+                "const": "iterative"
+              }
+            }
+          },
+          "then": {
+            "required": ["method"]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["method"]
+                },
+                {
+                  "required": ["rtol"]
+                },
+                {
+                  "required": ["maxiter"]
+                }
+              ]
+            }
+          }
         },
         "cutback": {
           "description": "Retry a substep that does not converge with smaller increments (fem.CutbackPlugin); without a value, a parameter has the default of FElupe.",
