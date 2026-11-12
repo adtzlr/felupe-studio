@@ -730,7 +730,7 @@ describe("Viewport", () => {
     render(view);
     await act(async () => {});
     expect(screen.getByRole("note", { name: "Tip" }).textContent).toContain(
-      "Click a face to pick its surface for a point set or a face set",
+      "Click faces to pick their surfaces for a point set or a face set",
     );
     const canvas = viewer.handle.root.querySelector("canvas")!;
     await act(async () => {
@@ -966,5 +966,144 @@ describe("Viewport", () => {
     expect(
       screen.getByText(/top: no face with the center \(3, 0.5, 0\)/),
     ).toBeTruthy();
+  });
+
+  it("combines picked surfaces, deselects and excludes them (#195)", async () => {
+    const { files } = meshFiles();
+    await files.add("hex.vtu", new Uint8Array());
+    const store = new ModelStore();
+    for (const command of [
+      mesh("block", "hex.vtu"),
+      { command: "cellset.from_file", name: "all", mesh: "block" },
+      { command: "material.add", name: "rubber", model: "NeoHooke" },
+      {
+        command: "section.add",
+        name: "body",
+        cellset: "all",
+        material: "rubber",
+        formulation: "u",
+      },
+    ] as Command[]) {
+      store.apply({ type: "add", command });
+    }
+    const viewer = fakeViewer();
+    const createPoints = vi.fn();
+    const createFaces = vi.fn();
+    render(
+      <Viewport
+        store={store}
+        files={files}
+        hidden={new Set()}
+        onCreatePointSet={createPoints}
+        onCreateFaceSet={createFaces}
+        createViewer={viewer.create}
+      />,
+    );
+    await act(async () => {});
+    const canvas = viewer.handle.root.querySelector("canvas")!;
+    const pointer = (type: string, x: number, y: number, shiftKey = false) =>
+      canvas.dispatchEvent(
+        new PointerEvent(type, {
+          bubbles: true,
+          button: 2,
+          clientX: x,
+          clientY: y,
+          shiftKey,
+        }),
+      );
+    const click = async (x: number, y: number, shiftKey = false) =>
+      act(async () => {
+        canvas.dispatchEvent(
+          new MouseEvent("click", {
+            bubbles: true,
+            clientX: x,
+            clientY: y,
+            shiftKey,
+          }),
+        );
+      });
+    const right = async (x: number, y: number, shiftKey = false, to = x) =>
+      act(async () => {
+        pointer("pointerdown", x, y, shiftKey);
+        pointer("pointerup", to, y, shiftKey);
+      });
+    const panel = () => screen.queryByRole("status", { name: "Picked faces" });
+    const colors = () =>
+      viewer.handle.update.mock
+        .lastCall![0].objects.filter(
+          (o) =>
+            o.type === "surface" && o.opacity !== undefined && o.opacity < 1,
+        )
+        .map((o) => o.color);
+
+    // a left click picks the plane of both faces, a right click deselects it
+    await click(50, 50);
+    expect(panel()!.textContent).toContain(
+      "Plane z = 0 (min) · 2 faces of body",
+    );
+    // a drag with the right button pans and does not pick
+    await right(94, 50, false, 60);
+    expect(panel()).not.toBeNull();
+    await right(94, 50);
+    expect(panel()).toBeNull();
+    // a second right click excludes it: no points to create
+    await right(94, 50);
+    expect(panel()!.textContent).toContain(
+      "0 patches · 1 excluded · 0 faces · 0 points",
+    );
+    expect(colors()).toEqual(["#8b0000"]);
+    const button = (name: string) =>
+      within(panel()!).getByRole("button", { name }) as HTMLButtonElement;
+    expect(button("Create point set").disabled).toBe(true);
+    expect(button("Create face set").disabled).toBe(true);
+    // a left click selects it again
+    await click(50, 50);
+    expect(panel()!.textContent).toContain(
+      "Plane z = 0 (min) · 2 faces of body",
+    );
+    expect(colors()).toEqual([HIGHLIGHT]);
+    // Escape clears the picked faces
+    await act(async () => {
+      fireEvent.keyDown(window, { key: "Escape" });
+    });
+    expect(panel()).toBeNull();
+
+    // single faces with Shift: one selected, the other excluded, which removes the
+    // points of the edge between them
+    await click(50, 50, true);
+    await right(94, 50, true);
+    expect(panel()!.textContent).toContain(
+      "Part of the plane z = 0 · 1 patch · 1 excluded · 1 face of body · 2 points",
+    );
+    expect(colors()).toEqual([HIGHLIGHT, "#8b0000"]);
+    fireEvent.click(button("Create point set"));
+    expect(createPoints).toHaveBeenLastCalledWith({
+      name: "surface",
+      select: {
+        points: [
+          [0, 0, 0],
+          [0, 1, 0],
+        ],
+      },
+    });
+    expect(panel()).toBeNull();
+
+    // *Exclude* for touch screens: taps act as right clicks, the panel stays
+    await click(50, 50);
+    fireEvent.click(button("Exclude"));
+    expect(button("Exclude").getAttribute("aria-pressed")).toBe("true");
+    await click(50, 50);
+    expect(panel()!.textContent).toContain("No faces picked · 0 faces");
+    await click(50, 50);
+    expect(panel()!.textContent).toContain("1 excluded");
+    expect(button("Exclude").getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(button("Exclude"));
+    await click(50, 50);
+    expect(panel()!.textContent).toContain(
+      "Plane z = 0 (min) · 2 faces of body",
+    );
+    // the background keeps the picked faces
+    await click(99, 99);
+    expect(panel()).not.toBeNull();
   });
 });

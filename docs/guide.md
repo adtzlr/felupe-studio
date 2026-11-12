@@ -96,6 +96,7 @@ The **Materials** tab has the material models, grouped in menus: *Neo-Hooke* (in
 A **point set** selects points of the merged meshes:
 
 - **by a picked surface:** click a face of the model. The viewport picks its *connected surface*: the faces of its section that are reached over shared edges, as long as the normals of two neighbouring faces differ by at most the *Angle* of the panel (30° by default; 60° for a coarse cylinder, 180° for the whole boundary; kept in the browser). *Create point set* stores the simplest selection of the surface: a plane normal to x, y or z, e.g. `z == 0` (at the smallest or largest coordinate of the meshes as that bound, e.g. `z == max`, so that it stays the top of the model when the mesh changes), a cylinder about an axis parallel to x, y or z, e.g. the inner sleeve of a bushing, or else its nodes. A plane or cylinder that would select more nodes than the surface has (a part of a plane) stores the nodes. A face of a mesh without a section picks its plane, if it is normal to x, y or z.
+- **by combined surfaces:** further clicks add the surfaces of other faces, also of other sections, like `Mesh.select_surface_points()` of FElupe. A **right click** deselects a surface, a second right click **excludes** it (dark red): its points are removed from the selection, e.g. the points of an edge that a picked surface shares with a neighbour you do not want. Excluded surfaces win over picked ones; a click picks an excluded surface again. Shift+click adds or removes single faces (Shift+right-click excludes one). On a touch screen, *Exclude* in the panel makes taps act as right clicks. A click beside the model keeps the picked surfaces; Escape or × clears them. The panel counts them, e.g. *3 patches · 1 excluded · 54 faces of body · 66 points*. With excluded points, the point set usually stores the nodes.
 - **at a bound:** the points at the smallest or largest coordinate of the meshes of the sections along an axis (*At a bound*), e.g. the top plate of a spring whose height changes. Control points do not count.
 - **on a cylinder:** the points at a distance (*Radius*) from an axis parallel to x, y or z through a *Center* (default the origin), e.g. the inner sleeve of a bushing.
 - **by nodes:** turn on *Nodes* in the toolbar, click a node and Shift+click more nodes, then *Create point set*. The point set stores the coordinates of the nodes, not their numbers; *Copy* copies the coordinates.
@@ -103,7 +104,7 @@ A **point set** selects points of the merged meshes:
 
 A selected point set is highlighted in the viewport; if a plane, a bound or a cylinder selects no node of the meshes, the viewport says so (e.g. a wrong radius).
 
-A **face set** (Mesh tab) selects faces of the boundary of a section, e.g. for a pressure: click a face and *Create face set* takes its connected surface, stored as the plane if it is all faces of the section on a plane normal to x, y or z, else by the centers of its faces; Shift+click adds or removes single faces. The face sets are drawn as light faces, the selected one highlighted. FElupe has no faces of tetrahedrons yet: a face set needs a section of hexahedrons.
+A **face set** (Mesh tab) selects faces of the boundary of a section, e.g. for a pressure: click a face and *Create face set* takes its connected surface, stored as the plane if it is all faces of the section on a plane normal to x, y or z, else by the centers of its faces; further clicks add surfaces, a right click deselects or excludes them and Shift+click adds or removes single faces, as for point sets. A face set has faces of one section: with surfaces of several sections, *Create face set* is disabled. The face sets are drawn as light faces, the selected one highlighted. FElupe has no faces of tetrahedrons yet: a face set needs a section of hexahedrons.
 
 ### 4. Boundaries and load cases
 
@@ -174,7 +175,8 @@ The **Export** menu has
 | Ctrl+Z, Ctrl+Shift+Z | Undo, redo |
 | Delete, F2, Esc | Delete or rename the selected object, clear the selection |
 | Ctrl+D, H | Duplicate the selected object, show or hide it |
-| Shift+click | Pick more nodes (with *Nodes* shown), or faces for a face set |
+| Shift+click | Pick more nodes (with *Nodes* shown), or single faces |
+| Right-click | Deselect a picked surface or node; a second right click excludes the surface |
 | F, 1–4, N | Fit, the views Iso, XY, XZ, YZ, show the nodes |
 | ←, →, Home, End | The previous, next, first or last substep of the results |
 | Space | Play or pause the substeps of the results |

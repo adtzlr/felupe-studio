@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Face, SectionFaces } from "./facesets";
+import type { SectionFaces } from "./facesets";
 import { selectedPoints } from "./pointsets";
 import {
   connectedFaces,
@@ -7,139 +7,9 @@ import {
   FEATURE_ANGLE,
   neighbours,
   nodesSelect,
+  surfaceNodes,
 } from "./surfaces";
-
-type P = [number, number, number];
-
-/** A quadrilateral face of four corners with an outward normal. */
-function quad(corners: P[], normal: P): Face {
-  const center = [0, 1, 2].map(
-    (k) => corners.reduce((s, c) => s + c[k], 0) / 4,
-  ) as P;
-  const length = Math.hypot(...normal);
-  return {
-    triangles: [],
-    nodes: Float64Array.from(corners.flat()),
-    center,
-    normal: normal.map((n) => n / length) as P,
-  };
-}
-
-const section = (faces: Face[]) =>
-  ({
-    section: "body",
-    mesh: "mesh",
-    faces,
-    ofTriangle: new Int32Array(),
-    size: 1,
-  }) as unknown as SectionFaces;
-
-/** The faces of a box (0, 0, 0)–(2, 1, 1) with two cells along x. */
-function box(): SectionFaces {
-  const faces: Face[] = [];
-  for (const [x0, x1] of [
-    [0, 1],
-    [1, 2],
-  ]) {
-    faces.push(
-      quad(
-        [
-          [x0, 0, 0],
-          [x1, 0, 0],
-          [x1, 1, 0],
-          [x0, 1, 0],
-        ],
-        [0, 0, -1],
-      ),
-      quad(
-        [
-          [x0, 0, 1],
-          [x1, 0, 1],
-          [x1, 1, 1],
-          [x0, 1, 1],
-        ],
-        [0, 0, 1],
-      ),
-      quad(
-        [
-          [x0, 0, 0],
-          [x1, 0, 0],
-          [x1, 0, 1],
-          [x0, 0, 1],
-        ],
-        [0, -1, 0],
-      ),
-      quad(
-        [
-          [x0, 1, 0],
-          [x1, 1, 0],
-          [x1, 1, 1],
-          [x0, 1, 1],
-        ],
-        [0, 1, 0],
-      ),
-    );
-  }
-  for (const x of [0, 2]) {
-    faces.push(
-      quad(
-        [
-          [x, 0, 0],
-          [x, 1, 0],
-          [x, 1, 1],
-          [x, 0, 1],
-        ],
-        [x === 0 ? -1 : 1, 0, 0],
-      ),
-    );
-  }
-  return section(faces);
-}
-
-/**
- * The faces of a tube along x (inner radius 25, outer radius 30, from x = -10 to
- * 10 in two cells) about the axis through (0, 5, -3), with `n` segments around.
- */
-function tube(n: number): { of: SectionFaces; inner: number[] } {
-  const faces: Face[] = [];
-  const inner: number[] = [];
-  const at = (x: number, r: number, i: number): P => {
-    const phi = (2 * Math.PI * i) / n;
-    return [x, 5 + r * Math.cos(phi), -3 + r * Math.sin(phi)];
-  };
-  const radial = (i: number): P => {
-    const phi = (2 * Math.PI * (i + 0.5)) / n;
-    return [0, Math.cos(phi), Math.sin(phi)];
-  };
-  for (let i = 0; i < n; i++) {
-    for (const [x0, x1] of [
-      [-10, 0],
-      [0, 10],
-    ]) {
-      const out = radial(i);
-      inner.push(faces.length);
-      faces.push(
-        quad(
-          [at(x0, 25, i), at(x1, 25, i), at(x1, 25, i + 1), at(x0, 25, i + 1)],
-          out.map((v) => -v) as P,
-        ),
-        quad(
-          [at(x0, 30, i), at(x1, 30, i), at(x1, 30, i + 1), at(x0, 30, i + 1)],
-          out,
-        ),
-      );
-    }
-    for (const x of [-10, 10]) {
-      faces.push(
-        quad(
-          [at(x, 25, i), at(x, 30, i), at(x, 30, i + 1), at(x, 25, i + 1)],
-          [Math.sign(x), 0, 0],
-        ),
-      );
-    }
-  }
-  return { of: section(faces), inner };
-}
+import { box, tube } from "./surfaces.fixture";
 
 describe("connected surfaces (#189)", () => {
   it("have neighbours that share an edge, not a corner", () => {
@@ -160,14 +30,14 @@ describe("connected surfaces (#189)", () => {
   it("describe a plane normal to an axis", () => {
     const of = box();
     const nodes = [Float64Array.from(of.faces.flatMap((f) => [...f.nodes]))];
-    const surface = describeSurface(of, [1, 5], nodes);
+    const surface = describeSurface([{ of, faces: [1, 5] }], nodes);
     expect(surface.kind).toBe("plane");
     if (surface.kind !== "plane") return;
     expect(surface.plane).toEqual({ axis: "z", value: 1 });
     expect(surface.nodes).toHaveLength(3 * 6);
     expect(surface).toMatchObject({ exactPoints: true, exactFaces: true });
     // a part of the plane: the plane would select more nodes and faces
-    expect(describeSurface(of, [1], nodes)).toMatchObject({
+    expect(describeSurface([{ of, faces: [1] }], nodes)).toMatchObject({
       kind: "plane",
       exactPoints: false,
       exactFaces: false,
@@ -180,7 +50,7 @@ describe("connected surfaces (#189)", () => {
     const faces = connectedFaces(of, inner[0], FEATURE_ANGLE);
     expect(faces).toEqual(inner);
     expect(connectedFaces(of, inner[0], 10)).toEqual(inner.slice(0, 2));
-    const surface = describeSurface(of, faces, []);
+    const surface = describeSurface([{ of, faces: faces }], []);
     expect(surface).toMatchObject({
       kind: "cylinder",
       cylinder: { radius: 25, axis: "x", center: [0, 5, -3] },
@@ -191,7 +61,9 @@ describe("connected surfaces (#189)", () => {
     const points = selectedPoints(surface.cylinder, [surface.nodes]);
     expect(points).toHaveLength(surface.nodes.length);
     // a strip along x is still a part of a cylinder (curved, 20°)
-    expect(describeSurface(of, inner.slice(0, 4), []).kind).toBe("cylinder");
+    expect(describeSurface([{ of, faces: inner.slice(0, 4) }], []).kind).toBe(
+      "cylinder",
+    );
   });
 
   it("need a larger angle for a coarse cylinder", () => {
@@ -201,7 +73,7 @@ describe("connected surfaces (#189)", () => {
     );
     const faces = connectedFaces(of, inner[0], 60);
     expect(faces).toEqual(inner);
-    expect(describeSurface(of, faces, [])).toMatchObject({
+    expect(describeSurface([{ of, faces: faces }], [])).toMatchObject({
       kind: "cylinder",
       cylinder: { radius: 25, axis: "x" },
     });
@@ -211,13 +83,57 @@ describe("connected surfaces (#189)", () => {
     const { of, inner } = tube(18);
     const all = connectedFaces(of, inner[0], 180);
     expect(all).toHaveLength(of.faces.length);
-    const surface = describeSurface(of, all, []);
+    const surface = describeSurface([{ of, faces: all }], []);
     expect(surface.kind).toBe("surface");
     // a flat strip of one segment is a plane, but not normal to an axis
-    expect(describeSurface(of, inner.slice(0, 2), []).kind).toBe("surface");
+    expect(describeSurface([{ of, faces: inner.slice(0, 2) }], []).kind).toBe(
+      "surface",
+    );
     const select = nodesSelect(surface.nodes);
     expect("points" in select && select.points).toHaveLength(
       surface.nodes.length / 3,
     );
+  });
+
+  it("combine sections and remove the nodes of excluded faces (#195)", () => {
+    const of = box();
+    const nodes = [Float64Array.from(of.faces.flatMap((f) => [...f.nodes]))];
+    const [top, front] = [
+      [1, 5],
+      [2, 6],
+    ];
+    // top and front: the nodes of the edge between them once
+    expect(surfaceNodes([{ of, faces: [...top, ...front] }])).toHaveLength(
+      3 * 9,
+    );
+    expect(
+      describeSurface([{ of, faces: [...top, ...front] }], nodes),
+    ).toMatchObject({ kind: "surface", exactPoints: true });
+    // the front excluded: the top without the nodes of the edge, still its faces
+    const surface = describeSurface([{ of, faces: top }], nodes, [
+      { of, faces: front },
+    ]);
+    expect(surface).toMatchObject({
+      kind: "plane",
+      plane: { axis: "z", value: 1 },
+      exactPoints: false,
+      exactFaces: true,
+    });
+    expect([...surface.nodes]).toEqual([1, 1, 1, 0, 1, 1, 2, 1, 1]);
+    // everything excluded: no nodes
+    expect(
+      describeSurface([{ of, faces: top }], nodes, [{ of, faces: top }]),
+    ).toMatchObject({ kind: "surface", nodes: new Float64Array() });
+    // faces of two sections are no plane of a face set
+    const other = { ...of, section: "other" } as SectionFaces;
+    expect(
+      describeSurface(
+        [
+          { of, faces: [1] },
+          { of: other, faces: [5] },
+        ],
+        nodes,
+      ),
+    ).toMatchObject({ kind: "plane", exactPoints: true, exactFaces: false });
   });
 });

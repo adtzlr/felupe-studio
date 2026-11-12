@@ -169,6 +169,39 @@ describe("Viewer", () => {
     expect(picks.mock.lastCall![0]).toBeUndefined();
   });
 
+  it("picks on a right click, not after a drag, which pans (#195)", () => {
+    const { handle, create } = fake();
+    const viewer = new Viewer(document.createElement("div"), create);
+    viewer.setMeshes([{ name: "bar", surface, color: "#3987e5" }]);
+    const picks = vi.fn();
+    viewer.onPick(picks);
+    const canvas = handle.root.querySelector("canvas")!;
+    const right = (from: number[], to: number[], button = 2) => {
+      for (const [type, [x, y]] of [
+        ["pointerdown", from],
+        ["pointerup", to],
+      ] as const) {
+        canvas.dispatchEvent(
+          new PointerEvent(type, {
+            bubbles: true,
+            button,
+            clientX: x,
+            clientY: y,
+            shiftKey: true,
+          }),
+        );
+      }
+    };
+    right([60, 70], [61, 70]);
+    expect(picks).toHaveBeenCalledTimes(1);
+    expect(picks.mock.lastCall![0]).toMatchObject({ mesh: "bar" });
+    expect(picks.mock.lastCall![1]).toEqual({ shift: true, right: true });
+    // a drag pans; the left button picks on its click event only
+    right([60, 70], [90, 70]);
+    right([60, 70], [60, 70], 0);
+    expect(picks).toHaveBeenCalledTimes(1);
+  });
+
   it("picks a node near a click if the nodes are shown (#93)", () => {
     const { handle, create } = fake();
     const viewer = new Viewer(document.createElement("div"), create);

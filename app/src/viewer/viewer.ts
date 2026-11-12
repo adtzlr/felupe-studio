@@ -93,6 +93,8 @@ export interface Click {
   /** The name of a target (a control point, #95) within a few pixels. */
   target?: string;
   shift: boolean;
+  /** A right click (without a drag), to deselect or exclude surfaces (#195). */
+  right?: boolean;
 }
 
 /** A point that a click picks by its name, e.g. a control point (#95). */
@@ -219,6 +221,14 @@ export class Viewer {
       true,
     );
     root.addEventListener("click", (event) => this.click(event));
+    // a right click without a drag (which pans) deselects or excludes (#195)
+    root.addEventListener(
+      "pointerup",
+      (event) => {
+        if (event.button === 2) this.click(event, true);
+      },
+      true,
+    );
   }
 
   /** False if the browser has no WebGL2 (the viewer shows a message instead). */
@@ -497,7 +507,7 @@ export class Viewer {
     this.handle.dispose();
   }
 
-  private click(event: MouseEvent) {
+  private click(event: MouseEvent, right = false) {
     const down = this.down;
     this.down = undefined;
     if (
@@ -517,6 +527,7 @@ export class Viewer {
       : this.nodeAt(x, y, rect.width, rect.height);
     const click: Click = {
       shift: event.shiftKey,
+      ...(right ? { right: true } : {}),
       ...(node ? { node } : {}),
       ...(target ? { target } : {}),
     };

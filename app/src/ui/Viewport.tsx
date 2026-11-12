@@ -36,13 +36,14 @@ import {
 } from "../viewer/facesets";
 import { axisOf, type Vec3 } from "../viewer/picking";
 import {
-  connectedFaces,
   describeSurface,
   FEATURE_ANGLE,
   FEATURE_ANGLES,
   nodesSelect,
+  type SectionPick,
   type Surface,
 } from "../viewer/surfaces";
+import { combine, type Patch, patchCounts, pickPatch } from "../viewer/patches";
 import { toName } from "../core/importmesh";
 import {
   type CoordinateSelect,
@@ -63,7 +64,7 @@ import {
   boundarySymbols,
   modelSize,
 } from "../viewer/boundaries";
-import { CONTROL_COLOR, FACE_COLOR } from "../viewer/palette";
+import { CONTROL_COLOR, EXCLUDED_COLOR, FACE_COLOR } from "../viewer/palette";
 import type { Highlight, Markers } from "../viewer/scene";
 import {
   type CreateViewer,
@@ -119,18 +120,6 @@ interface Picked {
   select?: CoordinateSelect;
   /** The section of the picked face, if it is a face of its boundary (#142). */
   section?: string;
-}
-
-/**
- * Picked faces of one section: the connected surface of a clicked face up to the
- * feature angle (#189), and faces added or removed with Shift (#142).
- */
-interface PickedFaces {
-  section: string;
-  /** Indices of the faces of the section. */
-  faces: number[];
-  /** The clicked face of a connected surface, to follow the feature angle. */
-  seed?: number;
 }
 
 const isFaceSet = (c: Command): c is FaceSetAdd => c.command === "faceset.add";
@@ -209,6 +198,31 @@ function shapeTitle(surface: Surface): string {
   return "Surface";
 }
 
+/**
+ * The counts of picked patches and faces (#195), e.g. "3 patches · 1 excluded · 54
+ * faces of body"; the patches are counted if there are several or excluded ones.
+ */
+function pickedSummary(
+  patches: readonly Patch[],
+  faces: ReadonlyMap<string, readonly number[]>,
+): string {
+  const { selected, excluded } = patchCounts(patches);
+  const parts: string[] = [];
+  if (selected > 1 || excluded) {
+    parts.push(`${selected} ${selected === 1 ? "patch" : "patches"}`);
+  }
+  if (excluded) parts.push(`${excluded} excluded`);
+  const count = [...faces.values()].reduce((n, f) => n + f.length, 0);
+  const of =
+    faces.size === 1
+      ? ` of ${[...faces.keys()][0]}`
+      : faces.size > 1
+        ? ` of ${faces.size} sections`
+        : "";
+  parts.push(`${count} ${count === 1 ? "face" : "faces"}${of}`);
+  return parts.join(" · ");
+}
+
 /** The tip about picking is shown until the first pick or until it is dismissed. */
 const TIP = "felupe-studio.tip.pick";
 
@@ -257,8 +271,15 @@ export function Viewport({
   const [picked, setPicked] = useState<Picked | undefined>();
   // the picked nodes, with their exact coordinates (#93)
   const [pickedNodes, setPickedNodes] = useState<Node3[]>([]);
-  // the faces picked with Shift (#142)
-  const [pickedFaces, setPickedFaces] = useState<PickedFaces>();
+  const pickedNodesRef = useRef(pickedNodes);
+  pickedNodesRef.current = pickedNodes;
+  // the picked surfaces: patches of connected faces, selected or excluded (#195)
+  const [patches, setPatches] = useState<Patch[]>([]);
+  const picking = patches.length > 0;
+  // taps deselect and exclude like right clicks, for touch screens (#195)
+  const [excluding, setExcluding] = useState(false);
+  const excludingRef = useRef(excluding);
+  excludingRef.current = excluding;
   // the feature angle of a clicked surface (#189)
   const [angle, setAngle] = useState(storedAngle);
   const angleRef = useRef(angle);
@@ -287,6 +308,11 @@ export function Viewport({
   );
   const sectionsRef = useRef(sections);
   sectionsRef.current = sections;
+  // the faces of the picked patches: selected, and excluded (#195)
+  const combined = useMemo(
+    () => combine(patches, sections, angle),
+    [patches, sections, angle],
+  );
   const faces = useMemo((): Highlight[] => {
     // the drawn triangles of faces (not of hidden cells)
     const highlight = (
@@ -314,7 +340,15 @@ export function Viewport({
         : [];
     };
     const sets = commands.filter(isFaceSet).filter((c) => !hidden.has(c.name));
-    const picks = pickedFaces && sections.get(pickedFaces.section);
+    const picks = (
+      map: Map<string, number[]>,
+      color: string,
+      opacity: number,
+    ) =>
+      [...map].flatMap(([section, indices]) => {
+        const of = sections.get(section);
+        return of ? highlight(of, indices, color, opacity) : [];
+      });
     return [
       ...sets.flatMap((c) => {
         const of = sections.get(c.section);
@@ -327,9 +361,10 @@ export function Viewport({
           chosen ? 0.6 : 0.35,
         );
       }),
-      ...(picks ? highlight(picks, pickedFaces.faces, HIGHLIGHT, 0.6) : []),
+      ...picks(combined.faces, HIGHLIGHT, 0.6),
+      ...picks(combined.excluded, EXCLUDED_COLOR, 0.75),
     ];
-  }, [commands, hidden, selected, sections, content, pickedFaces]);
+  }, [commands, hidden, selected, sections, content, combined]);
   // the centers of the selected face set without a face (the script raises an error)
   const missingFaces = useMemo(() => {
     const set = commands.find((c) => c.name === selected);
@@ -349,11 +384,16 @@ export function Viewport({
     [picked, nodes],
   );
   // the picked faces as a plane, a cylinder or a surface of nodes, and the points
-  // of the point set it would create (#189)
+  // of the point set it would create (#189), without the excluded points (#195)
   const surface = useMemo(() => {
-    const of = pickedFaces && sections.get(pickedFaces.section);
-    return of ? describeSurface(of, pickedFaces.faces, nodes) : undefined;
-  }, [pickedFaces, sections, nodes]);
+    if (!picking && !excluding) return undefined;
+    const of = (map: Map<string, number[]>): SectionPick[] =>
+      [...map].flatMap(([section, faces]) => {
+        const at = sections.get(section);
+        return at ? [{ of: at, faces }] : [];
+      });
+    return describeSurface(of(combined.faces), nodes, of(combined.excluded));
+  }, [picking, excluding, combined, sections, nodes]);
   const surfacePoints = useMemo(() => {
     if (!surface) return undefined;
     if (surface.kind === "plane" && surface.exactPoints)
@@ -522,66 +562,61 @@ export function Viewport({
       viewer.current = new Viewer(host.current, createViewer);
       viewer.current.onPick((pick, click) => {
         setCopied(false);
+        // a right click, or a tap with *Exclude* (#195)
+        const right = !!click.right || excludingRef.current;
         if (click.target) {
+          if (right) return;
           // a control point: select it (#95)
           setPicked(undefined);
           setPickedNodes([]);
-          setPickedFaces(undefined);
+          setPatches([]);
           onSelectRef.current?.(click.target);
           return;
         }
         if (click.node) {
-          // a node: Shift adds or removes it, else it replaces the picked ones
           const node = exactNode(click.node, nodesRef.current);
-          setPicked(undefined);
-          setPickedFaces(undefined);
-          setPickedNodes((nodes) => {
-            if (!click.shift) return [node];
-            const others = nodes.filter((n) => !sameNode(n, node));
-            return others.length < nodes.length ? others : [...nodes, node];
-          });
-          hideTip();
-          return;
+          if (!right) {
+            // a node: Shift adds or removes it, else it replaces the picked ones
+            setPicked(undefined);
+            setPatches([]);
+            setPickedNodes((nodes) => {
+              if (!click.shift) return [node];
+              const others = nodes.filter((n) => !sameNode(n, node));
+              return others.length < nodes.length ? others : [...nodes, node];
+            });
+            hideTip();
+            return;
+          }
+          // a right click deselects a picked node, else it is one on the face
+          if (pickedNodesRef.current.some((n) => sameNode(n, node))) {
+            setPickedNodes((nodes) => nodes.filter((n) => !sameNode(n, node)));
+            return;
+          }
         }
-        if (click.shift) {
-          // Shift+click adds or removes a face of the boundary of a section (#142)
-          const at =
-            pick && faceAt(sectionsRef.current, pick.mesh, pick.triangle);
-          if (!at) return;
-          setPicked(undefined);
-          setPickedNodes([]);
-          setPickedFaces((current) => {
-            if (current?.section !== at.section) {
-              return { section: at.section, faces: [at.face] };
-            }
-            // faces added or removed: no longer the surface of a seed, which the
-            // feature angle would change
-            const others = current.faces.filter((f) => f !== at.face);
-            const faces =
-              others.length < current.faces.length
-                ? others
-                : [...current.faces, at.face];
-            return faces.length ? { section: at.section, faces } : undefined;
-          });
-          hideTip();
-          return;
-        }
-        setPickedNodes([]);
-        // a face of a section: its connected surface up to the feature angle (#189)
+        // a face of a section: a left click adds its connected surface up to the
+        // feature angle (#189), a right click deselects or excludes it, Shift single
+        // faces (#195)
         const at =
           pick && faceAt(sectionsRef.current, pick.mesh, pick.triangle);
-        const of = at && sectionsRef.current.get(at.section);
-        if (at && of) {
+        if (at) {
           setPicked(undefined);
-          setPickedFaces({
-            section: at.section,
-            faces: connectedFaces(of, at.face, angleRef.current),
-            seed: at.face,
-          });
+          setPickedNodes([]);
+          setPatches((current) =>
+            pickPatch(
+              current,
+              at,
+              { shift: click.shift, right },
+              sectionsRef.current,
+              angleRef.current,
+            ),
+          );
           hideTip();
           return;
         }
-        setPickedFaces(undefined);
+        if (right || click.shift) return;
+        setPickedNodes([]);
+        // the background keeps the picked surfaces (#195)
+        if (pick) setPatches([]);
         setPicked(pick && planeOf(pick));
         if (pick) hideTip();
       });
@@ -608,31 +643,31 @@ export function Viewport({
     createViewer,
   ]);
 
-  // a changed feature angle follows the clicked face, and is kept (#189)
+  // a changed feature angle follows the clicked faces of the patches, and is kept
+  // (#189, #195)
   const chooseAngle = (value: number) => {
     setAngle(value);
     storeAngle(value);
-    setPickedFaces((current) => {
-      const of = current && sections.get(current.section);
-      if (!current || current.seed === undefined || !of) return current;
-      return { ...current, faces: connectedFaces(of, current.seed, value) };
-    });
+  };
+  const clearPatches = () => {
+    setPatches([]);
+    setExcluding(false);
   };
 
   // Escape clears a picked face or picked nodes, before the app clears the selection
   // (a listener of the capture phase)
   useEffect(() => {
-    if (!picked && !pickedNodes.length && !pickedFaces) return;
+    if (!picked && !pickedNodes.length && !picking && !excluding) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented) return;
       event.preventDefault();
       setPicked(undefined);
       setPickedNodes([]);
-      setPickedFaces(undefined);
+      clearPatches();
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [picked, pickedNodes, pickedFaces]);
+  }, [picked, pickedNodes, picking, excluding]);
 
   // hidden nodes cannot stay picked
   useEffect(() => {
@@ -738,7 +773,8 @@ export function Viewport({
           selectedSet &&
           !picked &&
           !pickedNodes.length &&
-          !pickedFaces &&
+          !picking &&
+          !excluding &&
           onCreateControlPoint && (
             <div
               class="pick-panel"
@@ -766,13 +802,14 @@ export function Viewport({
           tip &&
           !picked &&
           !pickedNodes.length &&
-          !pickedFaces &&
+          !picking &&
+          !excluding &&
           !(selectedSet && onCreateControlPoint) && (
             <div class="pick-panel tip" role="note" aria-label="Tip">
               <span class="muted">
                 {nodesShown
                   ? "Click a node to pick it, Shift+click for more."
-                  : "Click a face to pick its surface for a point set or a face set, Shift+click single faces."}
+                  : "Click faces to pick their surfaces for a point set or a face set, right-click to deselect, twice to exclude, Shift+click single faces."}
               </span>
               <button
                 type="button"
@@ -872,10 +909,13 @@ export function Viewport({
             </button>
           </div>
         )}
-        {shown && pickedFaces && surface && (
+        {/* the panel stays with *Exclude* pressed, for the next tap (#195) */}
+        {shown && surface && (
           <div class="pick-panel" role="status" aria-label="Picked faces">
             <span>
-              <strong>{surfaceTitle(surface)}</strong>
+              <strong>
+                {picking ? surfaceTitle(surface) : "No faces picked"}
+              </strong>
               {surface.kind === "plane" &&
                 surface.exactPoints &&
                 (() => {
@@ -885,10 +925,9 @@ export function Viewport({
                   ) : null;
                 })()}{" "}
               <span class="muted">
-                · {pickedFaces.faces.length}{" "}
-                {pickedFaces.faces.length === 1 ? "face" : "faces"} of{" "}
-                {pickedFaces.section} · {(surfacePoints?.length ?? 0) / 3}{" "}
-                points · Shift+click adds or removes faces
+                · {pickedSummary(patches, combined.faces)} ·{" "}
+                {(surfacePoints?.length ?? 0) / 3} points · right-click
+                deselects, twice excludes
               </span>
             </span>
             <label
@@ -910,10 +949,25 @@ export function Viewport({
                 ))}
               </select>
             </label>
+            <button
+              type="button"
+              class="button"
+              aria-pressed={excluding}
+              title="Clicks deselect and exclude surfaces, like right clicks (for touch screens)"
+              onClick={() => setExcluding((on) => !on)}
+            >
+              Exclude
+            </button>
             {onCreatePointSet && (
               <button
                 type="button"
                 class="button primary"
+                disabled={!surfacePoints?.length}
+                title={
+                  surfacePoints?.length
+                    ? undefined
+                    : "The picked faces have no points that are not excluded"
+                }
                 onClick={() => {
                   const taken = new Set(commands.map((c) => c.name));
                   onCreatePointSet(
@@ -936,7 +990,7 @@ export function Viewport({
                             select: nodesSelect(surface.nodes),
                           },
                   );
-                  setPickedFaces(undefined);
+                  clearPatches();
                 }}
               >
                 Create point set
@@ -946,15 +1000,25 @@ export function Viewport({
               <button
                 type="button"
                 class="button"
+                disabled={combined.faces.size !== 1}
+                title={
+                  combined.faces.size > 1
+                    ? `A face set has faces of one section; the picked faces belong to ${combined.faces.size} sections`
+                    : combined.faces.size === 0
+                      ? "No faces are picked"
+                      : undefined
+                }
                 onClick={() => {
-                  const of = sections.get(pickedFaces.section);
-                  if (!of) return;
+                  const [entry] = combined.faces;
+                  const of = entry && sections.get(entry[0]);
+                  if (!entry || !of) return;
+                  const [section, picks] = entry;
                   const taken = new Set(commands.map((c) => c.name));
                   const select =
                     surface.kind === "plane" && surface.exactFaces
                       ? surface.plane
                       : {
-                          centers: pickedFaces.faces.map((f) =>
+                          centers: picks.map((f) =>
                             of.faces[f].center.map((x) => +x.toPrecision(12)),
                           ) as [Node3, ...Node3[]],
                         };
@@ -967,10 +1031,10 @@ export function Viewport({
                             "faces",
                           )
                         : faceSetName(select, of, commands),
-                    section: pickedFaces.section,
+                    section,
                     select,
                   });
-                  setPickedFaces(undefined);
+                  clearPatches();
                 }}
               >
                 Create face set
@@ -989,7 +1053,7 @@ export function Viewport({
                         ? planeName(surface.plane, nodes, commands)
                         : undefined,
                     );
-                    setPickedFaces(undefined);
+                    clearPatches();
                   }}
                 >
                   Control point at center
@@ -999,7 +1063,7 @@ export function Viewport({
               type="button"
               class="icon-button"
               aria-label="Clear the picked faces"
-              onClick={() => setPickedFaces(undefined)}
+              onClick={clearPatches}
             >
               ×
             </button>
