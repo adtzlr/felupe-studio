@@ -9,6 +9,13 @@ a sheet per layer.
 import felupe as fem
 import numpy as np
 
+# the parameters of the model, or these values if the script runs alone
+radius = globals().get("radius", 50)
+layers = globals().get("layers", 3)
+height = globals().get("height", 8)
+sheet = globals().get("sheet", 2)
+cells = globals().get("cells", 4)
+
 disc = fem.Circle(radius=radius, n=cells)
 
 # the thickness and the number of cells through it of every layer, from the bottom

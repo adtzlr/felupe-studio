@@ -71,9 +71,16 @@ A **Parameter** (*Mesh* tab, next to *Model settings*) is a named number of the 
 ```python
 import felupe as fem
 
+# the parameters of the model, or these values if the script runs alone
+radius = globals().get("radius", 50)
+layers = globals().get("layers", 3)
+height = globals().get("height", 8)
+
 disc = fem.Circle(radius=radius, n=6)
 mesh = {"rubber": disc.expand(n=layers + 1, z=height)}
 ```
+
+The lines with `globals().get()` are optional: they give the script values of its own, so it also runs alone (`python disc.py`) and linters know the names.
 
 The cells of a model come from **cell sets**: **Cell set of a mesh** takes all cells, **Cell set from tag** the cells with a value of an integer cell data array (the *Cell tag* of the import, e.g. `material` or `gmsh:physical`). The meshes are merged at their common points; **Merge points** also merges points that agree to a number of decimals, e.g. of meshes from different programs.
 
