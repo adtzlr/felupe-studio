@@ -12,6 +12,7 @@ export const VISIBLE_KINDS = new Set([
   "cellset",
   "section",
   "pointset",
+  "faceset",
   "boundary",
   "constraint",
   "load",

@@ -63,6 +63,7 @@ describe("ribbon commands", () => {
       "Cell set from tag",
       "Cell set of a mesh",
       "Point set",
+      "Face set",
       "Model settings",
     ]);
     tab("Materials");

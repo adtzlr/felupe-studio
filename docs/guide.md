@@ -73,6 +73,8 @@ A **point set** selects points of the merged meshes:
 
 A selected point set is highlighted in the viewport.
 
+A **face set** (Mesh tab) selects faces of the boundary of a section, e.g. for a pressure: click a face and *Create face set* takes the faces of its section on its plane, or Shift+click faces and *Create face set* takes these faces (stored by their centers). The face sets are drawn as light faces, the selected one highlighted. FElupe has no faces of tetrahedrons yet: a face set needs a section of hexahedrons.
+
 ### 4. Boundaries and load cases
 
 A **Boundary** prescribes displacement components of a point set: *Constrained* are the components, *Value* is the displacement (default 0). Components that are not constrained are free. To fix some components and move others, use two boundaries, e.g. `hold` with y and z and `move` with x.

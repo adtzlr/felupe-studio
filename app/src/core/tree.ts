@@ -38,6 +38,7 @@ const GROUPS: { kind: Kind | "point"; label: string }[] = [
   { kind: "merge", label: "Merge" },
   { kind: "pointset", label: "Point Sets" },
   { kind: "point", label: "Points" },
+  { kind: "faceset", label: "Face Sets" },
   { kind: "material", label: "Materials" },
   { kind: "section", label: "Sections" },
   { kind: "boundary", label: "Boundaries" },
@@ -94,6 +95,12 @@ function detail(cmd: Command, commands: readonly Command[]): string {
       return `${cmd.select.ids.length} points`;
     case "point.add":
       return `control ${valueWithUnit(`(${cmd.coordinates.join(", ")})`, length)}`;
+    case "faceset.add":
+      return `${cmd.section} · ${
+        "axis" in cmd.select
+          ? `${cmd.select.axis} == ${valueWithUnit(String(cmd.select.value), length)}`
+          : `${cmd.select.centers.length} ${cmd.select.centers.length === 1 ? "face" : "faces"}`
+      }`;
     case "load.add":
       return `${cmd.points} · ${valueWithUnit(`(${cmd.force.join(", ")})`, unitOf("force", units))}`;
     case "mpc.add":
@@ -213,12 +220,13 @@ export function deriveTree(
     groupOf(group)!.children.push(child);
   }
 
-  // the groups of the settings, the merge setting and the control points only if
-  // they are used
+  // the groups of the settings, the merge setting, the control points and the face
+  // sets only if they are used
   const optional = new Set([
     "group:settings",
     "group:merge",
     "group:point",
+    "group:faceset",
     "group:constraint",
     "group:load",
   ]);

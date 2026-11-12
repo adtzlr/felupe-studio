@@ -64,6 +64,15 @@ function initialConstraint(
   };
 }
 
+/** A new face set takes the last section. */
+function initialFaceSet(
+  draft: Record<string, unknown>,
+  commands: readonly Command[],
+): Record<string, unknown> {
+  const sections = commands.filter((c) => c.command === "section.add");
+  return sections.length ? { ...draft, section: sections.at(-1)!.name } : draft;
+}
+
 /** The first cell set without a section, and u-p-J for incompressible materials. */
 function initialSection(
   draft: Record<string, unknown>,
@@ -94,6 +103,7 @@ export const KIND_LABELS: Record<Kind, string> = {
   material: "Material",
   section: "Section",
   pointset: "Point set",
+  faceset: "Face set",
   boundary: "Boundary",
   constraint: "Constraint",
   load: "Load",
@@ -228,6 +238,34 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       },
       "select.axis": AXES,
     },
+  },
+  "faceset.add": {
+    label: "Face set",
+    tab: "mesh",
+    prefix: "faces",
+    fields: {
+      section: {
+        label: "Section",
+        hint: "Faces of the boundary of this section",
+      },
+      select: { label: "Select" },
+      "select.axis": { label: "Axis", default: "x" },
+      "select.value": { label: "Coordinate", default: 0 },
+      "select.atol": { label: "Tolerance", placeholder: "default" },
+      "select.centers": {
+        label: "Centers",
+        hint: "The centers of the faces, one per line: x, y, z",
+        default: [],
+      },
+    },
+    options: {
+      select: {
+        axis: "By coordinate",
+        centers: "By centers",
+      },
+      "select.axis": AXES,
+    },
+    initial: initialFaceSet,
   },
   "boundary.add": {
     label: "Boundary",

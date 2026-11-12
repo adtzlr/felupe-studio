@@ -216,6 +216,24 @@ CHANGES = {
             {"command": "model.settings", "name": "settings_2"},
         ],
     ),
+    "face set of a cell set": lambda d: d["commands"].insert(
+        9,
+        {
+            "command": "faceset.add",
+            "name": "end",
+            "section": "hard",
+            "select": {"axis": "x", "value": 3},
+        },
+    ),
+    "face set of a later section": lambda d: d["commands"].insert(
+        5,
+        {
+            "command": "faceset.add",
+            "name": "end",
+            "section": "section_soft",
+            "select": {"centers": [[3, 0.5, 0.5]]},
+        },
+    ),
     "several errors": lambda d: (
         find(d, "hard").update(mesh="nomesh"),
         find(d, "job_1").update(name="hard"),

@@ -25,7 +25,12 @@ import {
 } from "../core/shortcuts";
 import { type Sample, sampleFiles } from "../core/samples";
 import type { Session, SessionStorage } from "../core/session";
-import { fileNotes, MeshFiles, meshFileNames } from "../core/meshfiles";
+import {
+  faceSetNotes,
+  fileNotes,
+  MeshFiles,
+  meshFileNames,
+} from "../core/meshfiles";
 import { duplicateBlocker } from "../core/duplicate";
 import { REGISTRY } from "../core/registry";
 import type { RibbonItem } from "../core/ribbon";
@@ -130,7 +135,10 @@ export function App({
   const [shown, setShown] = useState<{ view: ResultView; ok: boolean }>();
   const substeps =
     finished && resultView ? substepsOf(finished, resultView.job) : 0;
-  const notes = fileNotes(store.commands, files);
+  // notes about the mesh files, and about face sets on cells without faces (#142)
+  const meshNotes = fileNotes(store.commands, files);
+  const faceNotes = faceSetNotes(store.commands, files);
+  const notes = new Map([...meshNotes, ...faceNotes]);
   const [workspace, setWorkspace] = useState<Workspace>("model");
   const player = usePlayer({
     enabled: workspace === "results" && run.state !== "running" && substeps > 1,
@@ -555,8 +563,9 @@ export function App({
 
   const blocker = solveBlocker({
     commands: store.commands,
-    issues: store.issues.length,
-    notes: notes.size,
+    // a face set on cells without faces is an issue of the model (#142)
+    issues: store.issues.length + faceNotes.size,
+    notes: meshNotes.size,
     runtime: runtime.state,
   });
 
@@ -890,6 +899,14 @@ export function App({
                 id: "pointset.add",
                 type: "pointset.add",
                 label: REGISTRY["pointset.add"].label,
+                preset,
+              })
+            }
+            onCreateFaceSet={(preset) =>
+              setCreating({
+                id: "faceset.add",
+                type: "faceset.add",
+                label: REGISTRY["faceset.add"].label,
                 preset,
               })
             }

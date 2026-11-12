@@ -1,6 +1,12 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import type { Command, MpcAdd, PointAdd, PointSetAdd } from "../core/commands";
+import type {
+  Command,
+  FaceSetAdd,
+  MpcAdd,
+  PointAdd,
+  PointSetAdd,
+} from "../core/commands";
 import {
   constraintLines,
   constraintShapes,
@@ -16,8 +22,17 @@ import {
   COLOR_BY,
   type ColorBy,
   defaultColorBy,
+  scaledSurface,
   viewportContent,
 } from "../viewer/layers";
+import {
+  faceSetName,
+  faceTriangles,
+  missingCenters,
+  type SectionFaces,
+  sectionFaces,
+  selectedFaces,
+} from "../viewer/facesets";
 import { axisOf, type Vec3 } from "../viewer/picking";
 import {
   type CoordinateSelect,
@@ -36,8 +51,8 @@ import {
   boundarySymbols,
   modelSize,
 } from "../viewer/boundaries";
-import { CONTROL_COLOR } from "../viewer/palette";
-import type { Markers } from "../viewer/scene";
+import { CONTROL_COLOR, FACE_COLOR } from "../viewer/palette";
+import type { Highlight, Markers } from "../viewer/scene";
 import {
   type CreateViewer,
   HIGHLIGHT,
@@ -58,6 +73,12 @@ interface Props {
   onCreatePointSet?: (preset: {
     name: string;
     select: PointSetAdd["select"];
+  }) => void;
+  /** Create a face set of a plane or of picked faces (opens the dialog, #142). */
+  onCreateFaceSet?: (preset: {
+    name: string;
+    section: string;
+    select: FaceSetAdd["select"];
   }) => void;
   /** Creates the viewer; the default is the vendored FElupe viewer. */
   createViewer?: CreateViewer;
@@ -84,6 +105,31 @@ interface Picked {
   point: Vec3;
   normal: Vec3;
   select?: CoordinateSelect;
+  /** The section of the picked face, if it is a face of its boundary (#142). */
+  section?: string;
+}
+
+/** Faces picked with Shift, of one section (#142). */
+interface PickedFaces {
+  section: string;
+  /** Indices of the faces of the section. */
+  faces: number[];
+}
+
+const isFaceSet = (c: Command): c is FaceSetAdd => c.command === "faceset.add";
+
+/** The face of the boundary of a section at a picked triangle, if any. */
+function faceAt(
+  sections: ReadonlyMap<string, SectionFaces>,
+  mesh: string,
+  triangle: number,
+): { section: string; face: number } | undefined {
+  for (const of of sections.values()) {
+    if (of.mesh !== mesh) continue;
+    const face = of.ofTriangle[triangle] ?? -1;
+    if (face >= 0) return { section: of.section, face };
+  }
+  return undefined;
 }
 
 /** Color of the markers of point sets, the selected one is highlighted. */
@@ -126,6 +172,7 @@ export function Viewport({
   hidden,
   selected,
   onCreatePointSet,
+  onCreateFaceSet,
   createViewer,
   active = true,
   capture,
@@ -148,6 +195,8 @@ export function Viewport({
   const [picked, setPicked] = useState<Picked | undefined>();
   // the picked nodes, with their exact coordinates (#93)
   const [pickedNodes, setPickedNodes] = useState<Node3[]>([]);
+  // the faces picked with Shift (#142)
+  const [pickedFaces, setPickedFaces] = useState<PickedFaces>();
   const [copied, setCopied] = useState(false);
   const [tip, setTip] = useState(() => !tipSeen());
   const hideTip = () => {
@@ -164,6 +213,64 @@ export function Viewport({
     // the files change in place, their revision tells when
     [commands, files, revision, hidden, colorBy],
   );
+
+  // the faces of the boundaries of the sections, for face sets (#142)
+  const sections = useMemo(
+    () => sectionFaces(commands, files, scaledSurface),
+    [commands, files, revision],
+  );
+  const sectionsRef = useRef(sections);
+  sectionsRef.current = sections;
+  const faces = useMemo((): Highlight[] => {
+    // the drawn triangles of faces (not of hidden cells)
+    const highlight = (
+      of: SectionFaces,
+      indices: readonly number[],
+      color: string,
+      opacity: number,
+    ): Highlight[] => {
+      const layer = content.meshes.find((m) => m.name === of.mesh);
+      if (!layer || !indices.length) return [];
+      const shown = indices.filter((i) =>
+        of.faces[i].triangles.every(
+          (t) => !layer.hidden?.[of.surface.owners[t]],
+        ),
+      );
+      return shown.length
+        ? [
+            {
+              positions: of.surface.positions,
+              triangles: faceTriangles(of, shown),
+              color,
+              opacity,
+            },
+          ]
+        : [];
+    };
+    const sets = commands.filter(isFaceSet).filter((c) => !hidden.has(c.name));
+    const picks = pickedFaces && sections.get(pickedFaces.section);
+    return [
+      ...sets.flatMap((c) => {
+        const of = sections.get(c.section);
+        if (!of) return [];
+        const chosen = c.name === selected;
+        return highlight(
+          of,
+          selectedFaces(c.select, of),
+          chosen ? HIGHLIGHT : FACE_COLOR,
+          chosen ? 0.6 : 0.35,
+        );
+      }),
+      ...(picks ? highlight(picks, pickedFaces.faces, HIGHLIGHT, 0.6) : []),
+    ];
+  }, [commands, hidden, selected, sections, content, pickedFaces]);
+  // the centers of the selected face set without a face (the script raises an error)
+  const missingFaces = useMemo(() => {
+    const set = commands.find((c) => c.name === selected);
+    if (!set || !isFaceSet(set)) return [];
+    const of = sections.get(set.section);
+    return of ? missingCenters(set.select, of) : [];
+  }, [commands, selected, sections]);
 
   // the nodes of the drawn meshes, for previews of point sets
   const nodes = useMemo(
@@ -288,12 +395,14 @@ export function Viewport({
   nodesRef.current = nodes;
   const planeOf = (pick: Pick): Picked => {
     const axis = axisOf(pick.normal);
+    const face = faceAt(sectionsRef.current, pick.mesh, pick.triangle);
     return {
       point: pick.point,
       normal: pick.normal,
       ...(axis === undefined
         ? {}
         : { select: planeSelect(axis, pick.point, nodesRef.current) }),
+      ...(face ? { section: face.section } : {}),
     };
   };
 
@@ -308,6 +417,7 @@ export function Viewport({
           // a control point: select it (#95)
           setPicked(undefined);
           setPickedNodes([]);
+          setPickedFaces(undefined);
           onSelectRef.current?.(click.target);
           return;
         }
@@ -315,6 +425,7 @@ export function Viewport({
           // a node: Shift adds or removes it, else it replaces the picked ones
           const node = exactNode(click.node, nodesRef.current);
           setPicked(undefined);
+          setPickedFaces(undefined);
           setPickedNodes((nodes) => {
             if (!click.shift) return [node];
             const others = nodes.filter((n) => !sameNode(n, node));
@@ -323,8 +434,29 @@ export function Viewport({
           hideTip();
           return;
         }
-        if (click.shift) return;
+        if (click.shift) {
+          // Shift+click adds or removes a face of the boundary of a section (#142)
+          const at =
+            pick && faceAt(sectionsRef.current, pick.mesh, pick.triangle);
+          if (!at) return;
+          setPicked(undefined);
+          setPickedNodes([]);
+          setPickedFaces((current) => {
+            if (current?.section !== at.section) {
+              return { section: at.section, faces: [at.face] };
+            }
+            const others = current.faces.filter((f) => f !== at.face);
+            const faces =
+              others.length < current.faces.length
+                ? others
+                : [...current.faces, at.face];
+            return faces.length ? { section: at.section, faces } : undefined;
+          });
+          hideTip();
+          return;
+        }
         setPickedNodes([]);
+        setPickedFaces(undefined);
         setPicked(pick && planeOf(pick));
         if (pick) hideTip();
       });
@@ -335,30 +467,49 @@ export function Viewport({
     viewer.current.setMarkers(markers);
     viewer.current.setLines(lines);
     viewer.current.setPlane(picked);
+    viewer.current.setFaces(faces);
     viewer.current.setNodes(nodesShown);
     viewer.current.setTargets(
       controls.map((c) => ({ name: c.name, position: c.coordinates })),
     );
-  }, [content, markers, lines, picked, nodesShown, controls, createViewer]);
+  }, [
+    content,
+    markers,
+    lines,
+    picked,
+    faces,
+    nodesShown,
+    controls,
+    createViewer,
+  ]);
 
   // Escape clears a picked face or picked nodes, before the app clears the selection
   // (a listener of the capture phase)
   useEffect(() => {
-    if (!picked && !pickedNodes.length) return;
+    if (!picked && !pickedNodes.length && !pickedFaces) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented) return;
       event.preventDefault();
       setPicked(undefined);
       setPickedNodes([]);
+      setPickedFaces(undefined);
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [picked, pickedNodes]);
+  }, [picked, pickedNodes, pickedFaces]);
 
   // hidden nodes cannot stay picked
   useEffect(() => {
     if (!nodesShown) setPickedNodes([]);
   }, [nodesShown]);
+
+  // the faces of the section of a picked face on its plane, for a face set (#142)
+  const planeFaces = useMemo(() => {
+    if (!picked?.select || !picked.section) return undefined;
+    const of = sections.get(picked.section);
+    const count = of ? selectedFaces(picked.select, of).length : 0;
+    return count ? { section: picked.section, count } : undefined;
+  }, [picked, sections]);
 
   // the selected point set by nodes can take the picked nodes
   const target = commands.find(
@@ -451,6 +602,7 @@ export function Viewport({
           selectedSet &&
           !picked &&
           !pickedNodes.length &&
+          !pickedFaces &&
           onCreateControlPoint && (
             <div
               class="pick-panel"
@@ -478,12 +630,13 @@ export function Viewport({
           tip &&
           !picked &&
           !pickedNodes.length &&
+          !pickedFaces &&
           !(selectedSet && onCreateControlPoint) && (
             <div class="pick-panel tip" role="note" aria-label="Tip">
               <span class="muted">
                 {nodesShown
                   ? "Click a node to pick it, Shift+click for more."
-                  : "Click a face to create a point set of its plane."}
+                  : "Click a face for a point set or a face set of its plane, Shift+click faces to pick them."}
               </span>
               <button
                 type="button"
@@ -526,6 +679,28 @@ export function Viewport({
                     Create point set
                   </button>
                 )}
+                {onCreateFaceSet && planeFaces && (
+                  <button
+                    type="button"
+                    class="button"
+                    title={`The ${planeFaces.count} faces of ${planeFaces.section} on the plane`}
+                    onClick={() => {
+                      const select = picked.select!;
+                      onCreateFaceSet({
+                        name: faceSetName(
+                          select,
+                          sections.get(planeFaces.section),
+                          commands,
+                        ),
+                        section: planeFaces.section,
+                        select,
+                      });
+                      setPicked(undefined);
+                    }}
+                  >
+                    Create face set
+                  </button>
+                )}
                 {onCreateControlPoint && preview && preview.length > 0 && (
                   <button
                     type="button"
@@ -544,8 +719,8 @@ export function Viewport({
               </>
             ) : (
               <span class="muted">
-                This face is not normal to x, y or z. Point sets select planes
-                normal to an axis.
+                This face is not normal to x, y or z. Point sets and face sets
+                select planes normal to an axis; Shift+click picks faces.
               </span>
             )}
             <button
@@ -553,6 +728,49 @@ export function Viewport({
               class="icon-button"
               aria-label="Clear the picked face"
               onClick={() => setPicked(undefined)}
+            >
+              ×
+            </button>
+          </div>
+        )}
+        {shown && pickedFaces && (
+          <div class="pick-panel" role="status" aria-label="Picked faces">
+            <span>
+              <strong>
+                {pickedFaces.faces.length}{" "}
+                {pickedFaces.faces.length === 1 ? "face" : "faces"}
+              </strong>{" "}
+              of {pickedFaces.section}{" "}
+              <span class="muted">· Shift+click for more</span>
+            </span>
+            {onCreateFaceSet && (
+              <button
+                type="button"
+                class="button primary"
+                onClick={() => {
+                  const of = sections.get(pickedFaces.section);
+                  if (!of) return;
+                  const select = {
+                    centers: pickedFaces.faces.map((f) =>
+                      of.faces[f].center.map((x) => +x.toPrecision(12)),
+                    ) as [Node3, ...Node3[]],
+                  };
+                  onCreateFaceSet({
+                    name: faceSetName(select, of, commands),
+                    section: pickedFaces.section,
+                    select,
+                  });
+                  setPickedFaces(undefined);
+                }}
+              >
+                Create face set
+              </button>
+            )}
+            <button
+              type="button"
+              class="icon-button"
+              aria-label="Clear the picked faces"
+              onClick={() => setPickedFaces(undefined)}
             >
               ×
             </button>
@@ -628,6 +846,16 @@ export function Viewport({
               .map((p) => `(${p.map(formatNumber).join(", ")})`)
               .join(", ")}
             {missing.length > 3 && ` and ${missing.length - 3} more`}
+          </p>
+        )}
+        {shown && content.reading.length === 0 && missingFaces.length > 0 && (
+          <p class="viewport-status warning" role="status">
+            {selected}: no face with the center{" "}
+            {missingFaces
+              .slice(0, 3)
+              .map((p) => `(${p.map(formatNumber).join(", ")})`)
+              .join(", ")}
+            {missingFaces.length > 3 && ` and ${missingFaces.length - 3} more`}
           </p>
         )}
         {shown && content.reading.length === 0 && overlaps.length > 0 && (

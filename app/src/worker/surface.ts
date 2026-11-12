@@ -7,6 +7,7 @@ export interface RawSurface {
   positions: Uint8Array;
   triangles: Uint8Array;
   faces?: Uint8Array | null;
+  curved?: Uint8Array | null;
   edges: Uint8Array;
   owners: Uint8Array;
   tags?: Record<string, Uint8Array>;
@@ -45,6 +46,7 @@ export function toSurface(raw: RawSurface): MeshSurface {
     cells: raw.cells,
   };
   if (raw.faces) surface.faces = view(Uint32Array, raw.faces);
+  if (raw.curved) surface.curvedFaces = view(Uint32Array, raw.curved);
   if (raw.nodes) surface.nodes = view(Float64Array, raw.nodes);
   if (raw.isnode) surface.isNode = raw.isnode;
   if (raw.tags) {
@@ -74,6 +76,7 @@ export function transferables(
       surface.positions,
       surface.triangles,
       surface.faces,
+      surface.curvedFaces,
       surface.edges,
       surface.owners,
       surface.nodes,

@@ -61,6 +61,29 @@ function meshFiles() {
         surfaces: { tetra: { ...surface, positions } },
       };
     }
+    if (name === "hex.vtu") {
+      // two faces of two hexahedrons in the plane z = 0 (#142)
+      const positions = new Float32Array([
+        0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 2, 0, 0, 2, 1, 0,
+      ]);
+      return {
+        info: {
+          file: name,
+          solids: [{ ...solid, cell_type: "hexahedron", cells: 2 }],
+        },
+        surfaces: {
+          hexahedron: {
+            positions,
+            triangles: new Uint32Array([0, 1, 2, 0, 2, 3, 1, 4, 5, 1, 5, 2]),
+            faces: new Uint32Array([0, 0, 1, 1]),
+            edges: new Uint32Array(),
+            owners: new Uint32Array([0, 0, 1, 1]),
+            nodes: Float64Array.from(positions),
+            cells: 2,
+          },
+        },
+      };
+    }
     if (name === "hybrid.vtu") {
       return {
         info: {
@@ -706,7 +729,7 @@ describe("Viewport", () => {
     render(view);
     await act(async () => {});
     expect(screen.getByRole("note", { name: "Tip" }).textContent).toContain(
-      "Click a face to create a point set",
+      "Click a face for a point set or a face set of its plane",
     );
     const canvas = viewer.handle.root.querySelector("canvas")!;
     await act(async () => {
@@ -807,5 +830,121 @@ describe("Viewport", () => {
     await act(async () => {});
     expect(viewer.calls).toHaveBeenCalled();
     expect(screen.queryByRole("toolbar")).toBeNull();
+  });
+
+  it("creates face sets of a plane or of picked faces (#142)", async () => {
+    const { files } = meshFiles();
+    await files.add("hex.vtu", new Uint8Array());
+    const store = new ModelStore();
+    for (const command of [
+      mesh("block", "hex.vtu"),
+      { command: "cellset.from_file", name: "all", mesh: "block" },
+      { command: "material.add", name: "rubber", model: "NeoHooke" },
+      {
+        command: "section.add",
+        name: "body",
+        cellset: "all",
+        material: "rubber",
+        formulation: "u",
+      },
+    ] as Command[]) {
+      store.apply({ type: "add", command });
+    }
+    const viewer = fakeViewer();
+    const create = vi.fn();
+    const view = (selected?: string) => (
+      <Viewport
+        store={store}
+        files={files}
+        hidden={new Set()}
+        selected={selected}
+        onCreateFaceSet={create}
+        createViewer={viewer.create}
+      />
+    );
+    const { rerender } = render(view());
+    await act(async () => {});
+    const canvas = viewer.handle.root.querySelector("canvas")!;
+    const click = async (x: number, y: number, shiftKey = false) =>
+      act(async () => {
+        canvas.dispatchEvent(
+          new MouseEvent("click", {
+            bubbles: true,
+            clientX: x,
+            clientY: y,
+            shiftKey,
+          }),
+        );
+      });
+
+    // a face: the faces of its section on its plane
+    await click(50, 50);
+    expect(screen.getByRole("status", { name: "Picked face" })).toBeTruthy();
+    const button = screen.getByRole("button", { name: "Create face set" });
+    expect(button.title).toBe("The 2 faces of body on the plane");
+    fireEvent.click(button);
+    expect(create).toHaveBeenLastCalledWith({
+      name: "faces_z_min",
+      section: "body",
+      select: { axis: "z", value: 0 },
+    });
+
+    // faces picked with Shift, highlighted
+    await click(50, 50, true);
+    const panel = () => screen.getByRole("status", { name: "Picked faces" });
+    expect(panel().textContent).toContain("1 face of body");
+    await click(94, 50, true);
+    expect(panel().textContent).toContain("2 faces of body");
+    const surfaces = () =>
+      viewer.handle.update.mock.lastCall![0].objects.filter(
+        (o) => o.type === "surface" && o.color === HIGHLIGHT,
+      );
+    expect(surfaces()).toHaveLength(1);
+    await click(94, 50, true);
+    expect(panel().textContent).toContain("1 face of body");
+    await click(94, 50, true);
+    fireEvent.click(
+      within(panel()).getByRole("button", { name: "Create face set" }),
+    );
+    expect(create).toHaveBeenLastCalledWith({
+      name: "faces",
+      section: "body",
+      select: {
+        centers: [
+          [0.5, 0.5, 0],
+          [1.5, 0.5, 0],
+        ],
+      },
+    });
+    expect(screen.queryByRole("status", { name: "Picked faces" })).toBeNull();
+
+    // a face set is drawn, the selected one highlighted; a center without a face
+    store.apply({
+      type: "add",
+      command: {
+        command: "faceset.add",
+        name: "top",
+        section: "body",
+        select: {
+          centers: [
+            [0.5, 0.5, 0],
+            [3, 0.5, 0],
+          ],
+        },
+      } as Command,
+    });
+    rerender(view());
+    await act(async () => {});
+    const faceObjects = () =>
+      viewer.handle.update.mock.lastCall![0].objects.filter(
+        (o) => o.type === "surface" && o.opacity !== undefined && o.opacity < 1,
+      );
+    expect(faceObjects().map((o) => o.color)).toEqual(["#f2f4f8"]);
+    rerender(view("top"));
+    await act(async () => {});
+    expect(faceObjects().map((o) => o.color)).toEqual([HIGHLIGHT]);
+    expect(
+      screen.getByText(/top: no face with the center \(3, 0.5, 0\)/),
+    ).toBeTruthy();
   });
 });

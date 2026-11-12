@@ -77,6 +77,14 @@ def test_outward_and_closed(mesh):
     assert decoded["edges"].max() < len(positions)
     # flat faces of linear cells, curved (subdivided) faces of quadratic cells
     assert (result["faces"] is None) == (mesh.cell_type in ("tetra10", "hexahedron20"))
+    # the faces of the triangles of curved faces, for face sets (#142): the
+    # triangles of a face belong to one cell
+    assert (result["curved"] is None) == (result["faces"] is not None)
+    if result["curved"] is not None:
+        curved = np.frombuffer(result["curved"], dtype="<u4")
+        assert len(curved) == len(triangles)
+        for face in np.unique(curved):
+            assert len(np.unique(decoded["owners"][curved == face])) == 1
     # the points of the surface that are points of the mesh: all of them, except the
     # points inside the subdivided faces of quadratic hexahedrons
     isnode = np.frombuffer(result["isnode"], dtype="u1").astype(bool)

@@ -29,6 +29,9 @@ export const NODE_COLOR = "#000000";
 /** Color of the arrows of point loads (#100). */
 export const FORCE_COLOR = "#ff6fb5";
 
+/** Color of the faces of face sets (#142); the selected one is highlighted. */
+export const FACE_COLOR = "#f2f4f8";
+
 /** Color of the markers of control points (#95). */
 export const CONTROL_COLOR = "#5ce1e6";
 
