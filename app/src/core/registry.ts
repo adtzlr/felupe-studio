@@ -229,6 +229,21 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       select: { label: "Select" },
       "select.axis": { label: "Axis", default: "x" },
       "select.value": { label: "Coordinate", default: 0 },
+      "select.bound": {
+        label: "Bound",
+        hint: "Of the meshes of the sections, also after they change",
+        default: "max",
+      },
+      "select.radius": {
+        label: "Radius",
+        hint: "The distance of the points from the axis",
+        default: 1,
+      },
+      "select.center": {
+        label: "Center",
+        hint: "A point on the axis of the cylinder",
+        placeholder: "0, 0, 0",
+      },
       "select.atol": { label: "Tolerance", placeholder: "1e-8" },
       "select.points": {
         label: "Nodes",
@@ -244,10 +259,13 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     options: {
       select: {
         axis: "By coordinate",
+        bound: "At a bound",
+        radius: "On a cylinder",
         points: "By nodes",
         ids: "By point ids",
       },
       "select.axis": AXES,
+      "select.bound": { min: "Minimum", max: "Maximum" },
     },
   },
   "faceset.add": {

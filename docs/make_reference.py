@@ -30,6 +30,8 @@ KIND_NAMES = {
 # headings of the variants of the selection of a point set
 SELECT = {
     "axis": "By a plane",
+    "bound": "At a bound",
+    "radius": "On a cylinder",
     "points": "By coordinates",
     "ids": "By ids",
     "centers": "By centers",

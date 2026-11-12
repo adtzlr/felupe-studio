@@ -172,6 +172,20 @@ def _wrap(head, args, level=0, end=""):
     return f"{pad}{head}(\n{_explode(args, level + 1)}{pad}){end}"
 
 
+def _offset(expression, value):
+    """An expression minus a value, e.g. ``points[:, 1] - 2.0`` (without a zero).
+
+    Examples
+    --------
+    >>> _offset("x", 0), _offset("x", 2.0), _offset("x", -1.5)
+    ('x', 'x - 2.0', 'x + 1.5')
+    """
+    if value == 0:
+        return expression
+    sign = "-" if value > 0 else "+"
+    return f"{expression} {sign} {abs(value)!r}"
+
+
 def _call(target, func, args):
     """Assignment of a call, wrapped like ruff format would wrap it."""
     return _wrap(f"{target} = {func}", args)
@@ -380,19 +394,37 @@ def codegen(document, evaluate=True, check_schema=True):
     if pointsets:
         out.append("\n# point sets of the merged mesh")
         out.append("points = field.mesh_container.points")
+        if any("bound" in ps.get("select", {}) for ps in pointsets):
+            # the bounds of the cells of the sections, not of the control points (#181)
+            cells = [f"region_{sec['name']}.mesh.cells" for sec in sections]
+            if len(cells) == 1:
+                out.append(_call("solid_points", "np.unique", cells))
+            else:
+                args = [_List(cells), "axis=None"]
+                out.append(_call("solid_points", "np.concatenate", args))
+                out.append("solid_points = np.unique(solid_points)")
         for ps in pointsets:
             if ps["command"] == "point.add":
                 point = f"[{', '.join(map(repr, ps['coordinates']))}]"
                 out.append(_call(ps["name"], "points_at", ["points", point]))
                 continue
             sel = ps["select"]
-            if "axis" in sel:
+            atol = f"atol={sel.get('atol', 1e-8)!r}"
+            if "value" in sel:
                 axis = AXES.index(sel["axis"])
-                args = [
-                    f"points[:, {axis}]",
-                    repr(sel["value"]),
-                    f"atol={sel.get('atol', 1e-8)!r}",
-                ]
+                args = [f"points[:, {axis}]", repr(sel["value"]), atol]
+                out.append(_call(ps["name"], "np.isclose", args))
+            elif "bound" in sel:
+                axis = AXES.index(sel["axis"])
+                bound = f"points[solid_points, {axis}].{sel['bound']}()"
+                args = [f"points[:, {axis}]", bound, atol]
+                out.append(_call(ps["name"], "np.isclose", args))
+            elif "radius" in sel:
+                # the distance to the axis in the plane normal to it
+                center = sel.get("center", [0, 0, 0])
+                others = [k for k in range(3) if k != AXES.index(sel["axis"])]
+                distances = [_offset(f"points[:, {k}]", center[k]) for k in others]
+                args = [f"np.hypot({', '.join(distances)})", repr(sel["radius"]), atol]
                 out.append(_call(ps["name"], "np.isclose", args))
             elif "points" in sel:
                 coordinates = (f"[{', '.join(map(repr, p))}]" for p in sel["points"])

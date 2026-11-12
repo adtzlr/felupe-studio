@@ -1245,3 +1245,101 @@ def test_pressure(tmp_path, monkeypatch):
     document["commands"][-1]["curve"] = "pull"
     with pytest.raises(ValidationError, match="is a pressure, not a boundary or load"):
         codegen(document)
+
+
+def test_point_sets_at_bounds_and_on_cylinders(tmp_path, monkeypatch):
+    # point sets at a bound of the meshes and on a cylinder (#181): a tube along x
+    # (inner radius 25, outer radius 30) moved by (0, 5, -3), and a control point
+    # outside of it that is not at the bounds
+    tube = fem.Rectangle(a=(-10, 25), b=(10, 30), n=(3, 3)).revolve(n=13, phi=360)
+    tube = fem.MeshContainer([tube], merge=True).stack()
+    tube.update(points=tube.points + [0, 5, -3])
+    meshio.Mesh(tube.points, [("hexahedron", tube.cells)]).write(tmp_path / "tube.vtu")
+    selects = {
+        "x_max": {"bound": "max", "axis": "x"},
+        "z_min": {"bound": "min", "axis": "z"},
+        "inner": {"radius": 25, "axis": "x", "center": [0, 5, -3]},
+        "outer": {"radius": 30.0, "axis": "x", "center": [0, 5, -3], "atol": 1e-6},
+        "origin": {"radius": 25, "axis": "x"},
+    }
+    document = {
+        "schema_version": 3,
+        "commands": [
+            {"command": "mesh.import", "name": "pipe", "file": "tube.vtu"},
+            {"command": "cellset.from_file", "name": "all_cells", "mesh": "pipe"},
+            material(),
+            section("body", "all_cells"),
+            *(
+                {"command": "pointset.add", "name": name, "select": select}
+                for name, select in selects.items()
+            ),
+            {"command": "point.add", "name": "pin", "coordinates": [40.0, 5.0, -60.0]},
+            {
+                "command": "boundary.add",
+                "name": "pinned",
+                "pointset": "pin",
+                "constrained": ["x", "y", "z"],
+            },
+        ],
+    }
+    script = codegen(document, evaluate=False)
+    assert "solid_points = np.unique(region_body.mesh.cells)\n" in script
+    assert (
+        "x_max = np.isclose(points[:, 0], points[solid_points, 0].max(), atol=1e-08)"
+        in script
+    )
+    assert (
+        "inner = np.isclose(np.hypot(points[:, 1] - 5, points[:, 2] + 3), 25, "
+        "atol=1e-08)" in script
+    )
+    assert "origin = np.isclose(np.hypot(points[:, 1], points[:, 2]), 25" in script
+    namespace = run(document, tmp_path, monkeypatch, evaluate=False)
+
+    points = namespace["points"]
+    x, y, z = tube.points.T
+    radius = np.hypot(y - 5, z + 3)
+    count = {
+        "x_max": np.isclose(x, 10).sum(),
+        "z_min": np.isclose(z, -33).sum(),
+        "inner": np.isclose(radius, 25).sum(),
+        "outer": np.isclose(radius, 30).sum(),
+        "origin": 0,  # the axis of the tube is not at the origin
+    }
+    for name, expected in count.items():
+        assert namespace[name].sum() == expected > 0 or name == "origin"
+    # the control point is not a bound of the meshes, and on no cylinder
+    pin = namespace["pin"]
+    assert not any(namespace[name][pin].any() for name in selects)
+    assert points[namespace["z_min"], 2] == pytest.approx(-33)
+
+    # two sections: the bounds of both
+    document["commands"][1:4] = [
+        {"command": "cellset.from_tag", "name": "left", "mesh": "pipe", "value": 1},
+        {"command": "cellset.from_tag", "name": "right", "mesh": "pipe", "value": 2},
+        material(),
+        section("left_body", "left"),
+        section("right_body", "right"),
+    ]
+    document["commands"][0]["tag"] = "half"
+    half = np.where(tube.points[tube.cells].mean(axis=1)[:, 0] < 0, 1, 2)
+    meshio.Mesh(
+        tube.points, [("hexahedron", tube.cells)], cell_data={"half": [half]}
+    ).write(tmp_path / "tube.vtu")
+    script = codegen(document, evaluate=False)
+    assert (
+        "solid_points = np.concatenate(\n"
+        "    [region_left_body.mesh.cells, region_right_body.mesh.cells], axis=None\n"
+        ")\nsolid_points = np.unique(solid_points)\n"
+    ) in script
+    namespace = run(document, tmp_path, monkeypatch, evaluate=False)
+    for name in ("x_max", "z_min", "inner"):
+        assert namespace[name].sum() == count[name]
+    ruff = shutil.which("ruff")
+    if ruff:
+        path = tmp_path / "script.py"
+        path.write_text(script, encoding="utf-8")
+        for check in (
+            [ruff, "check", "--isolated", "--select", "E,F,W,I", str(path)],
+            [ruff, "format", "--isolated", "--check", str(path)],
+        ):
+            assert subprocess.run(check, capture_output=True).returncode == 0

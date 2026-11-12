@@ -359,11 +359,12 @@ describe("Viewport", () => {
       );
     });
     const panel = screen.getByRole("status", { name: "Picked face" });
-    expect(panel.textContent).toContain("Plane z = 0 · 3 points");
+    // the plane is the bound of the (flat) mesh: stored as the bound (#181)
+    expect(panel.textContent).toContain("Plane z = 0 (min) · 3 points");
     fireEvent.click(screen.getByRole("button", { name: "Create point set" }));
     expect(create).toHaveBeenCalledWith({
       name: "z_min",
-      select: { axis: "z", value: 0 },
+      select: { bound: "min", axis: "z" },
     });
     expect(screen.queryByRole("status", { name: "Picked face" })).toBeNull();
   });

@@ -891,7 +891,7 @@
       }
     },
     "PointSetAdd": {
-      "description": "Points of the merged mesh selected by a plane, by the coordinates of points or by point ids.",
+      "description": "Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, by the coordinates of points or by point ids.",
       "type": "object",
       "required": ["command", "name", "select"],
       "additionalProperties": false,
@@ -916,6 +916,56 @@
                 "value": {
                   "x-quantity": "length",
                   "type": "number"
+                },
+                "atol": {
+                  "x-quantity": "length",
+                  "description": "Absolute tolerance (default 1e-8).",
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              }
+            },
+            {
+              "description": "Points at the smallest or largest coordinate of the meshes of the sections, e.g. z == max (without the control points). They follow a mesh whose size changes.",
+              "type": "object",
+              "required": ["bound", "axis"],
+              "additionalProperties": false,
+              "properties": {
+                "bound": {
+                  "description": "The smallest (min) or the largest (max) coordinate.",
+                  "enum": ["min", "max"]
+                },
+                "axis": {
+                  "$ref": "#/$defs/Axis"
+                },
+                "atol": {
+                  "x-quantity": "length",
+                  "description": "Absolute tolerance (default 1e-8).",
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                }
+              }
+            },
+            {
+              "description": "Points on a cylinder: at the distance radius from the line through the center parallel to the axis, e.g. a sleeve of a bushing.",
+              "type": "object",
+              "required": ["radius", "axis"],
+              "additionalProperties": false,
+              "properties": {
+                "radius": {
+                  "x-quantity": "length",
+                  "description": "The radius of the cylinder.",
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "axis": {
+                  "description": "The direction of the axis of the cylinder.",
+                  "$ref": "#/$defs/Axis"
+                },
+                "center": {
+                  "x-quantity": "length",
+                  "description": "A point on the axis of the cylinder (default: the origin).",
+                  "$ref": "#/$defs/Coordinates"
                 },
                 "atol": {
                   "x-quantity": "length",
