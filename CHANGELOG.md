@@ -4,6 +4,10 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-13
+
+Parameters, 2D models and contact: a project gets model parameters with units, asked for when it is opened, and its meshes can be made by Python scripts with them (the parametric sandwich spring and the bushing of FElupe's example ex05). Models are 3D, plane strain or axisymmetric (ADR 0010). Rigid planes and cylinders touch the points of a model by contacts with friction (ADR 0011; the spring with end stops of FElupe's example ex06). Symmetry planes are objects of their own, a running job shows its results live, the curve has free axes, a job chooses its linear solver, and the default tolerance of the Newton-Raphson method is 0.01. The schema version stays 3: projects of v0.3 open unchanged, and new commands are additive (`parameter.add`, `mesh.script`, `symmetry.add`, `rigid.add`, `contact.add`, `analysis` of `model.settings`). Projects of schema versions 1 and 2 are migrated when they are opened.
+
 ### Added
 
 - Documentation of v0.4: the README and the user guide describe parameters and mesh scripts, 2D models, symmetry planes, rigid surfaces and contacts and the limits of version 0.4; new screenshots of the parameters of the sandwich spring, the plate with a hole in plane strain and the spring with end stops (`docs/make_screenshots.py`); the release checklist has smoke tests of them (#235).
@@ -147,6 +151,7 @@ The first release: a model of hyperelastic solids, from mesh files to results, i
 - `felupe_studio.codegen()`: the command list as a readable FElupe script, checked by golden tests against reference curves.
 - JSON schema of the command list (schema version 1) as the single source of the app and of the package.
 
+[0.4.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.4.0
 [0.3.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.3.0
 [0.2.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.2.0
 [0.1.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.1.0
