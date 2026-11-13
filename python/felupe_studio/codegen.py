@@ -45,7 +45,10 @@ SURFACES = "\n\n# --- embedded in generated scripts with surface point sets ---\
 SCRIPTS = "\n\n# --- embedded in generated scripts with meshes of scripts ---\n"
 # the linear solvers of jobs other than SuperLU (#203), only in scripts with them
 SOLVERS = "\n\n# --- embedded in generated scripts with linear solvers ---\n"
+# the helpers of the u-p-J formulation (the MINI element, #226), only in scripts with it
+MIXED = "\n\n# --- embedded in generated scripts with u-p-J sections ---\n"
 HELPERS, FACE_HELPERS = HELPERS.split(FACES)
+HELPERS, MIXED_HELPERS = HELPERS.split(MIXED)
 FACE_HELPERS, SURFACE_HELPERS = FACE_HELPERS.split(SURFACES)
 SURFACE_HELPERS, SCRIPT_HELPERS = SURFACE_HELPERS.split(SCRIPTS)
 SCRIPT_HELPERS, SOLVER_HELPERS = SCRIPT_HELPERS.split(SOLVERS)
@@ -421,6 +424,8 @@ def codegen(document, evaluate=True, check_schema=True):
         lines = [parameter_line(p, units) for p in parameters]
         out.append("\n".join(["# parameters", *lines]) + "\n")
     out.append(HELPERS)
+    if any(sec["formulation"] == "u-p-J" for sec in get("section.add")):
+        out.append(f"\n{MIXED_HELPERS}")
     if facesets:
         out.append(f"\n{FACE_HELPERS}")
     if any("surface" in ps.get("select", {}) for ps in get("pointset.add")):
@@ -492,8 +497,9 @@ def codegen(document, evaluate=True, check_schema=True):
                     _call(f"field_{sec['name']}", "fem.FieldContainer", [fields])
                 )
             else:
-                args = [region, "n=3", *([mixed_flag] if mixed_flag else [])]
-                out.append(_call(f"field_{sec['name']}", "fem.FieldsMixed", args))
+                # the displacements only of linear hexahedrons and quads (#226)
+                args = [region, *([mixed_flag] if mixed_flag else [])]
+                out.append(_call(f"field_{sec['name']}", "mixed_field", args))
 
         controls = [c for c in commands if c["command"] in vertices]
         if controls:
@@ -532,21 +538,20 @@ def codegen(document, evaluate=True, check_schema=True):
         # 4. solid bodies, after the merge
         out.append("\n# solid bodies")
         for sec in sections:
-            umat = sec["material"]
+            umat, field = sec["material"], f"field_{sec['name']}"
             if sec["formulation"] == "u-p-J":
-                args = [umat, f"bulk={sec['bulk']!r}"]
+                # fem.SolidBodyNearlyIncompressible of linear hexahedrons and quads,
+                # else fem.NearlyIncompressible on the mixed fields (#226)
+                args = [umat, field, f"bulk={sec['bulk']!r}"]
                 # the volumetric part of the strain energy, if not the default (#134)
                 volumetric = sec.get("volumetric", "volume-ratio")
                 if volumetric != "volume-ratio":
                     args.append(f"volumetric={_str(volumetric)}")
-                umat = _Call("fem.NearlyIncompressible", args)
-            out.append(
-                _call(
-                    f"solid_{sec['name']}",
-                    "fem.SolidBody",
-                    [umat, f"field_{sec['name']}"],
+                out.append(_call(f"solid_{sec['name']}", "nearly_incompressible", args))
+            else:
+                out.append(
+                    _call(f"solid_{sec['name']}", "fem.SolidBody", [umat, field])
                 )
-            )
 
     # 5. point sets, load cases (``fem.dof``) and boundaries on the merged field
     if pointsets:

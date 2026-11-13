@@ -1424,7 +1424,14 @@ def material_test():
             "name": "stretch",
             "ramp": {"num": 10, "items": [{"target": "tension", "end": 1}]},
         },
-        {"command": "job.add", "name": "job", "steps": ["stretch"], "curve": "tension"},
+        # a tight tolerance for the comparison with the analytical curve
+        {
+            "command": "job.add",
+            "name": "job",
+            "steps": ["stretch"],
+            "curve": "tension",
+            "tol": 1e-6,
+        },
     ]
     write("material-test", commands, {"cube.vtu": cells})
 

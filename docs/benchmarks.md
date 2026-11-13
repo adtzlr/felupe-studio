@@ -113,3 +113,42 @@ Not measured again; the phone is the limiting device.
   - start loading Pyodide in the background as soon as the app opens, while the user builds the model,
   - cache Pyodide, the packages and the wheel with a service worker.
 - **Open:** whether these were cold or warm loads was not recorded; a second run per device shows how much the browser cache already helps.
+
+## u-p-J of linear hexahedrons and quads (#226)
+
+Since #226, the `u-p-J` sections of linear hexahedrons and quads use `fem.SolidBodyNearlyIncompressible` on the displacements only. It condenses the constant pressure and volume ratio of every cell (Q1/P0), instead of `fem.FieldsMixed` with these as unknowns of the global system. The discretization is the same: converged curves agree within 1e-9 for all golden cases and samples.
+
+Container with 2 cores (x86_64), CPython 3.13, FElupe 12.0.0, SuperLU (the default solver). Best of two runs, times in seconds.
+
+**A cube in uniaxial tension** (clamped, `fem.NeoHooke(mu=1)`, K = 5000, five increments to a stretch of 2):
+
+| Tolerance |  n | Cells | DOF mixed | Mixed fields | Condensed | Speedup |
+| --------: | -: | ----: | --------: | -----------: | --------: | ------: |
+|      0.01 |  5 |    64 |       503 |        0.072 |     0.072 |    0.99 |
+|      0.01 |  9 |   512 |      3211 |        0.561 |     0.566 |    0.99 |
+|      0.01 | 13 |  1728 |     10047 |        3.689 |     5.066 |    0.73 |
+|     1e-10 |  5 |    64 |       503 |        0.136 |     0.098 |    1.39 |
+|     1e-10 |  9 |   512 |      3211 |        0.893 |     0.902 |    0.99 |
+|     1e-10 | 13 |  1728 |     10047 |        6.775 |     7.304 |    0.93 |
+
+Per Newton iteration, the assembly of the condensed system is about 20 % faster and has about 20 % fewer non-zeros. The solve takes about as long (n = 13: 0.25 s, 5603 vs. 9059 active DOF). At a tolerance of 0.01, the cube with n = 13 needs one more iteration per substep with the condensed solid body.
+
+**The samples** (their own tolerance, mostly the default 0.01). The error is the largest deviation of the curve from the converged one (tolerance 1e-9), relative to its largest value:
+
+| Sample                       | Cells | Mixed fields | Condensed | Speedup | Newton iterations (mixed / condensed) | Error (mixed / condensed) |
+| ---------------------------- | ----: | -----------: | --------: | ------: | ------------------------------------: | ------------------------: |
+| two-materials                |   192 |         0.33 |      0.36 |    0.90 |                               21 / 30 |         5.1e-05 / 2.4e-04 |
+| shear-mount                  |   384 |         0.68 |      0.92 |    0.74 |                               19 / 26 |         1.7e-04 / 3.5e-07 |
+| glued-plate                  |   256 |         0.42 |      0.52 |    0.81 |                               12 / 17 |         6.3e-02 / 4.0e-07 |
+| sandwich-spring              |  1080 |         2.19 |      2.12 |    1.03 |                               17 / 17 |         2.3e-08 / 2.3e-08 |
+| bushing                      |   990 |         3.19 |      1.99 |    1.60 |                               19 / 19 |         2.2e-05 / 2.2e-05 |
+| sandwich-spring-axisymmetric |   160 |         0.16 |      0.18 |    0.90 |                               17 / 25 |         3.2e-05 / 1.5e-09 |
+| plate-with-hole              |   128 |         0.11 |      0.08 |    1.38 |                               17 / 18 |         1.3e-06 / 1.3e-04 |
+| material-test (tol 1e-6)     |    27 |         0.17 |      0.11 |    1.57 |                               31 / 32 |         1.5e-10 / 9.8e-08 |
+
+**Conclusion:**
+- In CPython the condensed solid body is not faster in general.
+  - It is faster where it needs as many Newton iterations as the mixed fields (bushing 1.6×, plate with a hole 1.4×).
+  - It is slower where it needs more (shear mount, glued plate).
+- It stops later at the same tolerance, but then it is often closer to the converged curve. The glued plate at the default tolerance is the extreme case: its moment deviates by 6 % with the mixed fields and by 4e-7 condensed.
+- The smaller system needs less memory, which matters in the browser. The times in Pyodide are still to be measured.

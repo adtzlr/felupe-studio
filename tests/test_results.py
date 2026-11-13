@@ -105,6 +105,26 @@ def test_substeps_restore_the_fields(two_materials):
     assert results.substeps("job_1") == 6
 
 
+def test_stresses_of_nearly_incompressible_substeps(two_materials):
+    # the u-p-J section of hexahedrons is a fem.SolidBodyNearlyIncompressible (#226):
+    # its pressure and volume ratio are a state of the solid body, but the stresses
+    # of a substep do not depend on the substep shown before. The pressure is in the
+    # principal stresses, not in the von Mises stress.
+    assert isinstance(
+        two_materials["solid_soft_body"], fem.SolidBodyNearlyIncompressible
+    )
+    assert len(two_materials["field_soft_body"].fields) == 1
+
+    def stress(substep, before):
+        results.scene("job_1", before, "displacement")
+        surfaces = results.scene("job_1", substep, "stress_max")[1]
+        surface = next(s for s in surfaces if s["name"] == "soft_body")
+        return arrays(surface)["values"]
+
+    np.testing.assert_allclose(stress(3, before=6), stress(3, before=3), rtol=1e-6)
+    np.testing.assert_allclose(stress(6, before=1), stress(6, before=6), rtol=1e-6)
+
+
 @pytest.mark.parametrize("quantity", ["displacement_x", "stress_mises", "strain_min"])
 def test_ranges_of_all_substeps(two_materials, quantity):
     # the ranges of the scenes of every substep, for a range over the job (#139)

@@ -131,7 +131,11 @@ def test_two_sections_matches_reference(two_sections, tmp_path, monkeypatch):
     write(tmp_path / "specimen.vtu", mesh, tag)
     namespace = run(tight(two_sections), tmp_path, monkeypatch)
     assert np.isclose(force(namespace)[-1], 0.66322, rtol=1e-5)
-    assert len(namespace["field"].fields) == 3  # u, and p, J of the soft section
+    # u only: p and J of the soft section of hexahedrons are condensed (#226)
+    assert len(namespace["field"].fields) == 1
+    assert isinstance(
+        namespace["solid_section_soft"], fem.SolidBodyNearlyIncompressible
+    )
 
 
 def single_body(tmp_path, monkeypatch):
@@ -198,22 +202,25 @@ def test_volumetric_matches_felupe(volumetric, tmp_path, monkeypatch):
     document = volumetric_bar(volumetric)
     script = codegen(document)
     if volumetric == "volume-ratio":
-        assert "fem.NearlyIncompressible(rubber, bulk=10)" in script
+        assert "nearly_incompressible(rubber, field_body, bulk=10)" in script
         assert codegen(volumetric_bar(None)) == script
     else:
         assert f'bulk=10, volumetric="{volumetric}")' in script
     curve = force(run(document, tmp_path, monkeypatch))
 
-    field = fem.FieldsMixed(fem.RegionHexahedron(mesh), n=3)
+    # hexahedrons: the condensed pressure and volume ratio (#226)
+    field = fem.FieldContainer([fem.Field(fem.RegionHexahedron(mesh), dim=3)])
     x = mesh.points[:, 0]
     boundaries = {
         "fixed": fem.Boundary(field[0], mask=np.isclose(x, 0)),
         "move": fem.Boundary(field[0], mask=np.isclose(x, 3), skip=(0, 1, 1)),
     }
+    solid = fem.SolidBodyNearlyIncompressible(
+        fem.NeoHooke(mu=1.0), field, bulk=10, volumetric=volumetric
+    )
     umat = fem.NearlyIncompressible(
         fem.NeoHooke(mu=1.0), bulk=10, volumetric=volumetric
     )
-    solid = fem.SolidBody(umat, field)
     move = fem.math.linsteps([0, 0.5], num=5)
     step = fem.Step([solid], ramp={boundaries["move"]: move}, boundaries=boundaries)
     job = fem.CharacteristicCurve(steps=[step], boundary=boundaries["move"])
@@ -546,7 +553,7 @@ def test_longest_names_are_wrapped(two_sections, tmp_path, monkeypatch):
             cmd["volumetric"] = "stretch"
             cmd["bulk"] = 5000.0
     nested = codegen(ramped)
-    assert "    fem.NearlyIncompressible(\n" in nested
+    assert "solid_" in nested and "nearly_incompressible(\n" in nested
     assert max(len(line) for line in nested.splitlines()) <= 88
 
     ruff = shutil.which("ruff")
@@ -1085,7 +1092,7 @@ def test_object_lines_of_the_glued_plate():
     section = code("soft_block")
     assert section[0][0].startswith("region_soft_block = ")
     assert section[0][1].startswith("field_soft_block = ")
-    assert section[1][0].startswith("solid_soft_block = fem.SolidBody(")
+    assert section[1][0].startswith("solid_soft_block = nearly_incompressible(")
     # an entry of the boundaries, the vertices of the control points
     assert code("shift") == [
         ['    "shift": fem.Boundary(field[0], mask=plate, skip=(0, 1, 1)),']
@@ -1475,3 +1482,48 @@ def test_mesh_script(tmp_path, monkeypatch):
 
 def test_helpers_of_mesh_scripts_only_with_them(two_sections):
     assert "def run_mesh_script(" not in codegen(two_sections)
+
+
+@pytest.mark.parametrize(
+    "mesh, flags, condensed",
+    [
+        (fem.Cube(n=3), {}, True),
+        (fem.Rectangle(n=3), {"planestrain": True}, True),
+        (fem.Rectangle(n=3), {"axisymmetric": True}, True),
+        (fem.Cube(n=3).triangulate(), {}, False),
+        (fem.mesh.convert(fem.Rectangle(n=3), order=2), {"planestrain": True}, False),
+    ],
+    ids=["hexahedron", "quad-planestrain", "quad-axisymmetric", "tetra", "quad8"],
+)
+def test_u_p_j_of_linear_hexahedrons_and_quads(mesh, flags, condensed):
+    # u-p-J of linear hexahedrons and quads: fem.SolidBodyNearlyIncompressible on
+    # the displacements only, the same as the mixed fields (#226)
+    from felupe_studio._helpers import (
+        REGIONS,
+        mixed_field,
+        mixed_region,
+        nearly_incompressible,
+    )
+
+    umat = fem.NeoHooke(mu=1)
+
+    def force(field, solid):
+        boundaries = fem.dof.uniaxial(field, clamped=True, sym=False)
+        ramp = {boundaries["move"]: fem.math.linsteps([0, 0.3], num=3)}
+        step = fem.Step(items=[solid], ramp=ramp, boundaries=boundaries)
+        job = fem.CharacteristicCurve(steps=[step], boundary=boundaries["move"])
+        job.evaluate(tol=1e-10)
+        return np.array(job.y)[:, 0]
+
+    region = mixed_region(mesh)
+    field = mixed_field(region, **flags)
+    solid = nearly_incompressible(umat, field, bulk=50.0, volumetric="log")
+    assert isinstance(solid, fem.SolidBodyNearlyIncompressible) == condensed
+    assert len(field.fields) == (1 if condensed else 3)
+
+    region = mixed_region(mesh) if not condensed else REGIONS[mesh.cell_type](mesh)
+    mixed = fem.FieldsMixed(region, n=3, **flags)
+    reference = fem.SolidBody(
+        fem.NearlyIncompressible(umat, bulk=50.0, volumetric="log"), mixed
+    )
+    np.testing.assert_allclose(force(field, solid), force(mixed, reference), rtol=1e-8)
