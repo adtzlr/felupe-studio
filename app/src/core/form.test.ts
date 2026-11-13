@@ -339,6 +339,27 @@ describe("fieldSpecs", () => {
   });
 });
 
+describe("new boundaries and constraints of 2D models (#175)", () => {
+  it("constrain x and y", () => {
+    const planar = [
+      { command: "model.settings", name: "settings", analysis: "axisymmetric" },
+      ...commands,
+    ] as Command[];
+    expect(
+      initialDraft("boundary.add", { commands: planar }).constrained,
+    ).toEqual(["x", "y"]);
+    expect(initialDraft("mpc.add", { commands: planar }).constrained).toEqual([
+      "x",
+      "y",
+    ]);
+    expect(initialDraft("boundary.add", { commands }).constrained).toEqual([
+      "x",
+      "y",
+      "z",
+    ]);
+  });
+});
+
 describe("new sections", () => {
   // the model up to its materials: two cell sets, two materials
   const model = commands.slice(0, 5);

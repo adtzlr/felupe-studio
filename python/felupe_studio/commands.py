@@ -144,17 +144,11 @@ def schema_errors(document):
 # the cell types of the solid cells of 3D models; 2D models have 2D cells (#175)
 CELLS_3D = ("tetra", "tetra10", "hexahedron", "hexahedron20", "hexahedron27")
 
-# the objects that 2D models do not have yet (#175)
-NOT_IN_2D = {
-    "mpc.add": "Multi-point constraints",
-    "point.add": "Control points",
-}
 
-
-def analysis_problems(cmd, analysis):
+def analysis_problems(cmd, analysis, rotations=()):
     """Return the problems of a command in a model of a type of analysis (#175): a
-    2D model (plane strain or axisymmetric) has 2D cells and no z components, and
-    not yet all objects of a 3D model.
+    2D model (plane strain or axisymmetric) has 2D cells and no z components, except
+    the rotation about z of the ``rotations`` (the rotation points of constraints).
 
     Examples
     --------
@@ -175,17 +169,40 @@ def analysis_problems(cmd, analysis):
         return []
     if cell_type in CELLS_3D:
         return [f"mesh '{name}' takes {cell_type} cells, but a 2D model has 2D cells."]
-    if kind in NOT_IN_2D:
-        return [
-            f"{NOT_IN_2D[kind]} are not available in 2D models yet: remove "
-            f"'{name}' or make the model 3D."
-        ]
-    if kind == "boundary.add" and "z" in cmd["constrained"]:
+    if kind == "boundary.add" and cmd.get("pointset") in rotations:
+        others = [a for a in cmd["constrained"] if a != "z"]
+        if others:
+            return [
+                f"boundary '{name}' constrains {others[0]} of the rotation point "
+                f"'{cmd['pointset']}': the rotation point of a 2D model has the "
+                "rotation about z only."
+            ]
+    elif kind == "boundary.add" and "z" in cmd["constrained"]:
         return [f"boundary '{name}' constrains z, which a 2D model does not have."]
-    if kind == "load.add" and cmd["force"][2] != 0:
+    if kind == "load.add" and cmd.get("points") in rotations:
+        if cmd["force"][0] != 0 or cmd["force"][1] != 0:
+            return [
+                f"point load '{name}' at the rotation point '{cmd['points']}' has a "
+                "component in x or y: the rotation point of a 2D model has the "
+                "moment about z only."
+            ]
+    elif kind == "load.add" and cmd["force"][2] != 0:
         return [
             f"point load '{name}' has a force in z, which a 2D model does not have."
         ]
+    if kind == "point.add" and cmd["coordinates"][2] != 0:
+        return [
+            f"control point '{name}' has a z coordinate: the points of a 2D model are "
+            "in the plane z = 0."
+        ]
+    if kind == "mpc.add":
+        if "z" in cmd["constrained"]:
+            return [f"constraint '{name}' connects z, which a 2D model does not have."]
+        if "rotation" in cmd and analysis == "axisymmetric":
+            return [
+                f"constraint '{name}' has a rotation point: a rotation about z is no "
+                "motion of an axisymmetric model."
+            ]
     if kind == "symmetry.add" and "z" in cmd["axes"]:
         return [
             f"symmetry '{name}' has a plane normal to z, which a 2D model does not "
@@ -236,10 +253,14 @@ def _reference_errors(commands):
     # the type of the analysis of the settings (#175)
     settings = [c for c in commands if c["command"] == "model.settings"]
     analysis = settings[0].get("analysis", "3d") if settings else "3d"
+    axes = AXES if analysis == "3d" else AXES[:2]
+    rotations = {c.get("rotation") for c in commands if c["command"] == "mpc.add"}
+    rotations.discard(None)
 
     for i, cmd in enumerate(commands):
         name = cmd["name"]
-        messages.extend(f"commands/{i}: {p}" for p in analysis_problems(cmd, analysis))
+        problems = analysis_problems(cmd, analysis, rotations)
+        messages.extend(f"commands/{i}: {p}" for p in problems)
 
         # references must point to objects of the right kind, created before
         for field, (ref_kinds, is_list) in REFERENCES.get(cmd["command"], {}).items():
@@ -318,11 +339,13 @@ def _reference_errors(commands):
         if (
             cmd["command"] == "mpc.add"
             and "rotation" in cmd
-            and set(cmd["constrained"]) != {"x", "y", "z"}
+            and set(cmd["constrained"]) != set(axes)
         ):
+            # x and y of a 2D model (#175)
+            components = "x and y" if len(axes) == 2 else "x, y and z"
             messages.append(
                 f"commands/{i}: constraint '{name}' with a rotation point connects "
-                "all components x, y and z."
+                f"all components {components}."
             )
 
         if cmd["command"] == "material.add":
@@ -369,7 +392,7 @@ def _reference_errors(commands):
                     fixed.update(other["constrained"])
                 if other.get("rotation") == cmd["name"]:
                     fixed.update(AXES)
-        missing = [a for a in AXES if a not in fixed]
+        missing = [a for a in axes if a not in fixed]
         if missing:
             components = (
                 ", ".join(missing[:-1]) + " and " + missing[-1]

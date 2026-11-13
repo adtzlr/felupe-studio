@@ -2,7 +2,7 @@
 // (felupe_studio.commands); both are tested with tests/data/validation_cases.json,
 // so the messages are identical.
 import type { Command } from "./commands";
-import { analysisOf, analysisProblems } from "./analysis";
+import { analysisOf, analysisProblems, is2d } from "./analysis";
 import { loadcaseFieldErrors, loadcaseProblems } from "./loadcases";
 import { materialProblems, needsBulk } from "./materials";
 import { parameterProblems } from "./parameters";
@@ -207,6 +207,12 @@ export function validate(commands: readonly Command[]): Issue[] {
   const defined = new Map<string, [number, Command]>();
   // the type of the analysis of the settings (#175)
   const analysis = analysisOf(commands);
+  const axes = is2d(analysis) ? AXES.slice(0, 2) : AXES;
+  const rotations = new Set(
+    commands.flatMap((c) =>
+      c.command === "mpc.add" && c.rotation !== undefined ? [c.rotation] : [],
+    ),
+  );
   const kindOf = (name: string) => {
     const entry = defined.get(name);
     return entry ? KINDS[entry[1].command] : undefined;
@@ -221,7 +227,7 @@ export function validate(commands: readonly Command[]): Issue[] {
         message: `commands/${i}: ${message}`,
         ...(field ? { field } : {}),
       });
-    for (const problem of analysisProblems(cmd, analysis))
+    for (const problem of analysisProblems(cmd, analysis, rotations))
       add(problem.message, problem.field);
 
     // references must point to objects of the right kind, created before
@@ -313,14 +319,17 @@ export function validate(commands: readonly Command[]): Issue[] {
       }
     }
 
-    // a rotation point needs all components of the center point
+    // a rotation point needs all components of the center point (x and y of a 2D
+    // model, #175)
     if (
       cmd.command === "mpc.add" &&
       cmd.rotation !== undefined &&
-      new Set(cmd.constrained).size < 3
+      (new Set(cmd.constrained).size !== axes.length ||
+        axes.some((a) => !cmd.constrained.includes(a)))
     ) {
+      const components = axes.length === 2 ? "x and y" : "x, y and z";
       add(
-        `constraint '${name}' with a rotation point connects all components x, y and z.`,
+        `constraint '${name}' with a rotation point connects all components ${components}.`,
         "constrained",
       );
     }
@@ -369,7 +378,7 @@ export function validate(commands: readonly Command[]): Issue[] {
         if (c.rotation === cmd.name) AXES.forEach((a) => fixed.add(a));
       }
     }
-    const missing = AXES.filter((a) => !fixed.has(a));
+    const missing = axes.filter((a) => !fixed.has(a));
     if (missing.length) {
       const components =
         missing.length > 1

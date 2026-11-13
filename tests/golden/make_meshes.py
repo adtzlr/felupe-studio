@@ -92,7 +92,11 @@ def main():
     # strain, and a solid cylinder of radius 1 and length 3 (x is the axis, y the
     # radius), in the plane z = 0 of the files
     plate = fem.Rectangle(b=(3, 1), n=(13, 5))
-    for case in ("plate_plane_strain", "cylinder_axisymmetric"):
+    for case in (
+        "plate_plane_strain",
+        "cylinder_axisymmetric",
+        "plate_rotation_plane_strain",
+    ):
         meshio.Mesh(
             np.pad(plate.points, ((0, 0), (0, 1))), [("quad", plate.cells)]
         ).write(HERE / case / "plate.vtu", binary=False)

@@ -201,6 +201,57 @@ def test_plane_strain_like_the_bar_with_fixed_z(tmp_path, monkeypatch):
     np.testing.assert_allclose(plate["force"], bar["force"], rtol=1e-6, atol=1e-12)
 
 
+def test_rotation_in_plane_strain_like_the_bar_with_fixed_z(tmp_path, monkeypatch):
+    # the plate of the cross section turned by a rigid end about z (#175): its moment
+    # is the moment of the bar (thickness 1) with all displacements in z fixed, its
+    # end turned by a rotation point about z and not tilted
+    document = load("plate_rotation_plane_strain")
+    commands = [c for c in document["commands"] if c["command"] != "model.settings"]
+    for cmd in commands:
+        if cmd["command"] == "mesh.import":
+            cmd["file"] = "bar.vtu"
+        if cmd["command"] == "point.add":
+            cmd["coordinates"][2] = 0.5
+        if cmd["name"] == "hold":
+            cmd["constrained"] = ["x", "y", "z"]
+        if cmd["command"] == "mpc.add":
+            cmd["constrained"] = ["x", "y", "z"]
+    at = commands.index(next(c for c in commands if c["name"] == "fixed"))
+    commands[at:at] = [
+        {
+            "command": "pointset.add",
+            "name": "all_points",
+            "select": {"ids": list(range(325))},
+        },
+        {
+            "command": "boundary.add",
+            "name": "plane",
+            "pointset": "all_points",
+            "constrained": ["z"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "tilt",
+            "pointset": "pivot",
+            "constrained": ["x", "y"],
+        },
+    ]
+    shutil.copy(HERE / "bar_loadcase" / "bar.vtu", tmp_path)
+    script = tmp_path / "script.py"
+    script.write_text(codegen({**document, "commands": commands}), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    job = runpy.run_path(str(script))["job_1"]
+    plate = json.loads(
+        (HERE / "plate_rotation_plane_strain" / "results.json").read_text(
+            encoding="utf-8"
+        )
+    )["jobs"]["job_1"]
+    # the rotation and the moment about z
+    np.testing.assert_allclose(plate["displacement"], np.array(job.x)[:, 2])
+    np.testing.assert_allclose(plate["force"], np.array(job.y)[:, 2], rtol=1e-5)
+    assert plate["force"][-1] > 0
+
+
 def test_axisymmetric_cylinder_like_the_analytical_solution(tmp_path, monkeypatch):
     # the solid cylinder (radius 1, length 3) in uniaxial tension (#175): at a small
     # strain, the total force over the circumference is E * strain * pi * R^2 with

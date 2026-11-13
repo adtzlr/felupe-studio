@@ -269,10 +269,25 @@ export function boundarySymbols(
       }
     }
   }
-  // a 2D model has no displacements in z (#175)
+  // a 2D model has no displacements in z (#175), except the rotation about z of a
+  // rotation point
   const dim = is2d(analysisOf(commands)) ? 2 : 3;
+  const rotations = new Set(
+    commands.flatMap((c) =>
+      c.command === "mpc.add" && c.rotation !== undefined ? [c.rotation] : [],
+    ),
+  );
+  const pointsets = new Map(
+    commands.flatMap((c) =>
+      c.command === "boundary.add" ? [[c.name, c.pointset] as const] : [],
+    ),
+  );
   return symbols
-    .map((s) => ({ ...s, components: s.components.filter((k) => k < dim) }))
+    .map((s) => {
+      const rotation = rotations.has(pointsets.get(s.owner) ?? "");
+      const kept = s.components.filter((k) => k < dim || rotation);
+      return { ...s, components: kept };
+    })
     .filter((s) => s.points.length > 0 && s.components.length > 0);
 }
 

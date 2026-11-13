@@ -1,0 +1,130 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "model.settings",
+      "name": "settings",
+      "analysis": "plane-strain"
+    },
+    {
+      "command": "mesh.import",
+      "name": "plate",
+      "file": "plate.vtu"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "all_cells",
+      "mesh": "plate"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHookeCompressible",
+      "parameters": {
+        "mu": 1.0,
+        "lmbda": 2.0
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "body",
+      "cellset": "all_cells",
+      "material": "rubber",
+      "formulation": "u"
+    },
+    {
+      "command": "pointset.add",
+      "name": "left",
+      "select": {
+        "axis": "x",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "right",
+      "select": {
+        "axis": "x",
+        "value": 3
+      }
+    },
+    {
+      "command": "point.add",
+      "name": "center",
+      "coordinates": [
+        3.5,
+        0.5,
+        0
+      ]
+    },
+    {
+      "command": "point.add",
+      "name": "pivot",
+      "coordinates": [
+        3.5,
+        0.6,
+        0
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "left",
+      "constrained": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "hold",
+      "pointset": "center",
+      "constrained": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "turn",
+      "pointset": "pivot",
+      "constrained": [
+        "z"
+      ]
+    },
+    {
+      "command": "mpc.add",
+      "name": "plate_end",
+      "points": "right",
+      "center": "center",
+      "constrained": [
+        "x",
+        "y"
+      ],
+      "rotation": "pivot",
+      "multiplier": 100000.0
+    },
+    {
+      "command": "step.add",
+      "name": "step_1",
+      "ramp": {
+        "num": 5,
+        "items": [
+          {
+            "target": "turn",
+            "end": 0.1
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "step_1"
+      ],
+      "curve": "turn",
+      "tol": 1.49e-08
+    }
+  ]
+}

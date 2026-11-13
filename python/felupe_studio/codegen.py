@@ -493,13 +493,14 @@ def codegen(document, evaluate=True, check_schema=True):
             out.append(
                 "\n# control points: a mesh of vertices, not nodes of the sections"
             )
+            # in the xy-plane of a 2D model (#175)
             coordinates = (
-                f"[{', '.join(map(repr, p['coordinates']))}]" for p in controls
+                f"[{', '.join(map(repr, p['coordinates'][:dim]))}]" for p in controls
             )
             out.append(
                 _call("region_control_points", "vertex_region", [_List(coordinates)])
             )
-            fields = "[fem.Field(region_control_points, dim=3)]"
+            fields = f"[{field_class}(region_control_points, dim={dim})]"
             out.append(_call("field_control_points", "fem.FieldContainer", [fields]))
 
         fields = _List(
@@ -619,13 +620,27 @@ def codegen(document, evaluate=True, check_schema=True):
         for sym in symmetries:
             out.append(_call(sym["name"], *symmetry_call(sym, dim)))
 
+    # the rotation points of the constraints: in a 2D model (#175), the rotation about
+    # z is the first component of a rotation point (FElupe locks the second one)
+    rotations = {c["rotation"] for c in get("mpc.add") if "rotation" in c}
+
+    def components(vector, name):
+        """The components of a vector of a point (a force, or of a rotation point in
+        a 2D model a moment about z)."""
+        if dim == 2 and name in rotations:
+            return [vector[2], 0]
+        return vector[:dim]
+
     boundaries = get("boundary.add")
     out.append("\n# boundaries")
     if boundaries or loadcases or symmetries:
         out.append("boundaries = {")
         for bc in boundaries:
             args = ["field[0]", f"mask={bc['pointset']}"]
-            skip = tuple(0 if a in bc["constrained"] else 1 for a in axes)
+            constrained = bc["constrained"]
+            if dim == 2 and bc["pointset"] in rotations:
+                constrained = ["x"] if "z" in constrained else []
+            skip = tuple(0 if a in constrained else 1 for a in axes)
             if any(skip):
                 args.append(f"skip={skip!r}")
             if bc.get("value", 0) != 0:
@@ -645,7 +660,10 @@ def codegen(document, evaluate=True, check_schema=True):
         """Items of a ramp: a boundary, the moving boundaries of a load case, a point
         load (its force, scaled by the values) or a pressure (scaled by the values)."""
         if name in loads:
-            force = f"[{', '.join(map(repr, loads[name]['force'][:dim]))}]"
+            load = loads[name]
+            force = (
+                f"[{', '.join(map(repr, components(load['force'], load['points'])))}]"
+            )
             return [f"{name}: np.outer({values}, {force})"]
         if name in pressures:
             return [f"{name}: {pressures[name]['pressure']!r} * {values}"]
@@ -668,13 +686,18 @@ def codegen(document, evaluate=True, check_schema=True):
     constraints = get("mpc.add")
     if constraints:
         out.append("\n# multi-point constraints")
+        if dim == 2 and rotations:
+            out.append(
+                "# a rotation point of a 2D model: its first component is the rotation "
+                "about z"
+            )
         for mpc in constraints:
             args = [
                 "field",
                 f"points=np.flatnonzero({mpc['points']})",
                 f"centerpoint=single_point({mpc['center']}, {_str(mpc['center'])})",
             ]
-            skip = tuple(a not in mpc["constrained"] for a in AXES)
+            skip = tuple(a not in mpc["constrained"] for a in axes)
             if any(skip):
                 args.append(f"skip={skip!r}")
             if "multiplier" in mpc:
@@ -687,7 +710,8 @@ def codegen(document, evaluate=True, check_schema=True):
     if loads:
         out.append("\n# point loads: the force at every point, scaled by the ramps")
         for load in loads.values():
-            force = f"[{', '.join(map(repr, load['force'][:dim]))}]"
+            force = components(load["force"], load["points"])
+            force = f"[{', '.join(map(repr, force))}]"
             args = ["field", f"points={load['points']}", f"values={force}"]
             out.append(_call(load["name"], "fem.PointLoad", args))
 

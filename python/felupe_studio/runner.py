@@ -20,7 +20,13 @@ import time
 import felupe as fem
 
 from . import results as results_
-from .codegen import codegen, evaluate_options, object_lines, solver_source
+from .codegen import (
+    analysis_of,
+    codegen,
+    evaluate_options,
+    object_lines,
+    solver_source,
+)
 from .materials import models
 
 # the namespace of the last run, e.g. its field for results
@@ -137,6 +143,9 @@ class Live(fem.Plugin):
         The largest share of the time of the job spent on scenes (default 0.1).
     clock : callable, optional
         The time in seconds (default :func:`time.perf_counter`).
+    rotation : bool, optional
+        The curve is of a rotation point of a 2D model (default False), see
+        :func:`curve_row`.
     """
 
     def __init__(
@@ -149,11 +158,13 @@ class Live(fem.Plugin):
         interval=1.0,
         budget=0.1,
         clock=time.perf_counter,
+        rotation=False,
     ):
         self.report = report
         self.job = job
         self.substeps = substeps
         self.curve = curve
+        self.rotation = rotation
         self.quantity = quantity
         self.interval = interval
         self.budget = budget
@@ -179,8 +190,8 @@ class Live(fem.Plugin):
             "substep": results_.substeps(self.job),
         }
         if self.curve is not None and self.curve.x:
-            event["x"] = [_number(v) for v in self.curve.x[-1]]
-            event["y"] = [_number(v) for v in self.curve.y[-1]]
+            event["x"] = curve_row(self.curve.x[-1], self.rotation)
+            event["y"] = curve_row(self.curve.y[-1], self.rotation)
         now = self.clock()
         if self.due(now, state):
             event["scene"] = results_.current_scene(
@@ -190,6 +201,46 @@ class Live(fem.Plugin):
             self.spent += self.last - now
         if "x" in event or "scene" in event:
             self.report(event)
+
+
+def curve_row(values, rotation=False):
+    """Return the values of a curve at a substep as floats for JSON. Of a rotation
+    point of a 2D model (#175), whose first component is the rotation (or the moment)
+    about z, the three components with the rotation about z."""
+    if rotation:
+        return [0.0, 0.0, _number(values[0])]
+    return [_number(v) for v in values]
+
+
+def rotation_curves(commands):
+    """Return the names of the jobs whose curve is of a rotation point of a 2D model
+    (#175): a boundary or a point load of the rotation point of a constraint.
+
+    Examples
+    --------
+    >>> rotation_curves([
+    ...     {"command": "model.settings", "name": "s", "analysis": "plane-strain"},
+    ...     {"command": "mpc.add", "name": "c", "rotation": "r"},
+    ...     {"command": "boundary.add", "name": "turn", "pointset": "r"},
+    ...     {"command": "job.add", "name": "job_1", "curve": "turn"},
+    ... ])
+    {'job_1'}
+    """
+    if analysis_of(commands) == "3d":
+        return set()
+    rotations = {
+        c["rotation"] for c in commands if c["command"] == "mpc.add" and "rotation" in c
+    }
+    points = {
+        c["name"]: c.get("pointset", c.get("points"))
+        for c in commands
+        if c["command"] in ("boundary.add", "load.add")
+    }
+    return {
+        c["name"]
+        for c in commands
+        if c["command"] == "job.add" and points.get(c.get("curve")) in rotations
+    }
 
 
 def _number(value):
@@ -252,6 +303,7 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
     substeps = {
         name: [step.nsubsteps for step in namespace[name].steps] for name in jobs
     }
+    rotations = rotation_curves(document["commands"])
     report({"event": "start", "jobs": jobs, "substeps": substeps})
     results = {}
     for name in jobs:
@@ -259,8 +311,17 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
         job.dispatcher.add_plugin(Progress(report, name, substeps[name]))
         job.dispatcher.add_plugin(results_.Recorder(name, namespace["field"]))
         curve = job if isinstance(job, fem.CharacteristicCurve) else None
+        rotation = name in rotations
         job.dispatcher.add_plugin(
-            Live(report, name, substeps[name], curve, clock=clock, **(live or {}))
+            Live(
+                report,
+                name,
+                substeps[name],
+                curve,
+                clock=clock,
+                rotation=rotation,
+                **(live or {}),
+            )
         )
         started = time.perf_counter()
         options = evaluate_options(commands[name])
@@ -274,8 +335,8 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
             "time": time.perf_counter() - started,
         }
         if isinstance(job, fem.CharacteristicCurve):
-            result["x"] = [[_number(v) for v in x] for x in job.x]
-            result["y"] = [[_number(v) for v in y] for y in job.y]
+            result["x"] = [curve_row(x, rotation) for x in job.x]
+            result["y"] = [curve_row(y, rotation) for y in job.y]
         results[name] = result
         report({"event": "finished", "job": name, "time": result["time"]})
     return results

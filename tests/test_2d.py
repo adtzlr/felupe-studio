@@ -12,7 +12,7 @@ import pytest
 from felupe_studio import results
 from felupe_studio.codegen import codegen
 from felupe_studio.commands import analysis_problems, errors
-from felupe_studio.runner import run
+from felupe_studio.runner import LAST, run
 
 GOLDEN = Path(__file__).parent / "golden"
 
@@ -190,9 +190,55 @@ def test_edges_of_triangles(tmp_path, monkeypatch):
         run(doc)
 
 
+def test_rotation_point_of_a_2d_model(tmp_path, monkeypatch):
+    # a rigid end turned about z by a rotation point (#175): the curve and the results
+    # of the control points have the rotation and the moment about z
+    doc = document("plate_rotation_plane_strain")
+    for name in ("plate.vtu",):
+        (tmp_path / name).write_bytes(
+            (GOLDEN / "plate_rotation_plane_strain" / name).read_bytes()
+        )
+    monkeypatch.chdir(tmp_path)
+    for cmd in doc["commands"]:
+        if cmd["command"] == "step.add":
+            cmd["ramp"]["num"] = 2
+    result = run(doc)["job_1"]
+    assert [x[:2] for x in result["x"]] == [[0, 0]] * 3
+    assert result["x"][-1][2] == pytest.approx(0.1)
+    assert result["y"][-1][2] > 0
+    csv = results.export("job_1", "csv").decode().splitlines()
+    assert csv[0].startswith("substep,center.u_x,center.u_y,center.u_z,center.F_x")
+    assert "pivot.phi_z [rad]" in csv[0]
+    last = dict(zip(csv[0].split(","), map(float, csv[-1].split(",")), strict=True))
+    assert last["pivot.phi_z [rad]"] == pytest.approx(0.1)
+    assert (
+        last["pivot.phi_x [rad]"]
+        == last["pivot.phi_y [rad]"]
+        == last["center.u_z"]
+        == 0
+    )
+    assert last["pivot.M_z"] == pytest.approx(result["y"][-1][2], rel=1e-6)
+    # the control points of the scenes, in the plane z = 0
+    meta = json.loads(results.scene("job_1", 3, "displacement")[0])
+    pivot = next(p for p in meta["points"] if p["name"] == "pivot")
+    assert pivot["position"] == [3.5, 0.6, 0] and pivot["rotation"]
+    assert pivot["displacement"][2] == pytest.approx(0.1)
+    # the end turns rigidly about the center
+    field = LAST["field"]
+    points = field.mesh_container.points
+    end = np.isclose(points[:, 0], 3)
+    angle = 0.1
+    rotation = np.array(
+        [[np.cos(angle), -np.sin(angle)], [np.sin(angle), np.cos(angle)]]
+    )
+    arms = points[end] - [3.5, 0.5]
+    expected = arms @ rotation.T - arms
+    np.testing.assert_allclose(field[0].values[end], expected, atol=1e-4)
+
+
 def test_problems_of_2d_models():
-    def problems(cmd, analysis="axisymmetric"):
-        return analysis_problems({"name": "a", **cmd}, analysis)
+    def problems(cmd, analysis="axisymmetric", rotations=()):
+        return analysis_problems({"name": "a", **cmd}, analysis, rotations)
 
     assert problems({"command": "boundary.add", "constrained": ["x", "y"]}) == []
     assert problems({"command": "boundary.add", "constrained": ["z"]}) == [
@@ -216,10 +262,30 @@ def test_problems_of_2d_models():
     assert (
         problems({"command": "pointset.add", "select": {"points": [[0, 1, 0]]}}) == []
     )
-    for kind in ("mpc.add", "point.add"):
-        assert problems({"command": kind})[0].endswith(
-            "are not available in 2D models yet: remove 'a' or make the model 3D."
-        )
+    # control points and constraints in the xy-plane, rotations about z
+    assert problems({"command": "point.add", "coordinates": [1, 2, 3]})
+    assert problems({"command": "point.add", "coordinates": [1, 2, 0]}) == []
+    mpc = {"command": "mpc.add", "constrained": ["x", "y"], "rotation": "r"}
+    assert problems(mpc, "plane-strain") == []
+    assert problems(mpc) == [
+        "constraint 'a' has a rotation point: a rotation about z is no motion of an "
+        "axisymmetric model."
+    ]
+    assert problems({"command": "mpc.add", "constrained": ["x", "z"]}) == [
+        "constraint 'a' connects z, which a 2D model does not have."
+    ]
+    turn = {"command": "boundary.add", "pointset": "r", "constrained": ["z"]}
+    assert problems(turn, "plane-strain", {"r"}) == []
+    assert problems(turn, "plane-strain") == [
+        "boundary 'a' constrains z, which a 2D model does not have."
+    ]
+    assert problems({**turn, "constrained": ["x", "z"]}, "plane-strain", {"r"}) == [
+        "boundary 'a' constrains x of the rotation point 'r': the rotation point of a "
+        "2D model has the rotation about z only."
+    ]
+    moment = {"command": "load.add", "points": "r", "force": [0, 0, 1]}
+    assert problems(moment, "plane-strain", {"r"}) == []
+    assert problems({**moment, "force": [1, 0, 1]}, "plane-strain", {"r"})
     # face sets of edges in the xy-plane
     assert problems({"command": "faceset.add", "select": {"axis": "z", "value": 0}})
     assert problems({"command": "faceset.add", "select": {"centers": [[3, 1, 1]]}})

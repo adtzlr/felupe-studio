@@ -98,24 +98,37 @@ def _control_values(field):
     names = _state.get("points", [])
     if not names:
         return []
-    forces = np.zeros((len(field[0].values), 3))
+    dim = field[0].dim
+    forces = np.zeros((len(field[0].values), dim))
     for constraint in _constraints():
         vector = constraint.results.force
         if vector is None:
             continue
         vector = vector.toarray().ravel() if hasattr(vector, "toarray") else vector
         first = np.split(np.asarray(vector).ravel(), field.offsets)[0]
-        forces += first.reshape(-1, 3)
+        forces += first.reshape(-1, dim)
+    rotations = _rotation_points() if dim == 2 else set()
     result = []
     for name in names:
         index = np.flatnonzero(namespace[name])[0]
+        displacement, force = field[0].values[index], forces[index]
         result.append(
             {
-                "displacement": field[0].values[index].tolist(),
-                "force": forces[index].tolist(),
+                "displacement": _in_3d(displacement, name in rotations).tolist(),
+                "force": _in_3d(force, name in rotations).tolist(),
             }
         )
     return result
+
+
+def _in_3d(vector, rotation=False):
+    """Return a vector of a point of a 2D model (#175) with three components: z is 0,
+    and of a rotation point the first component is the rotation (or the moment)
+    about z."""
+    vector = np.asarray(vector, dtype=float)
+    if len(vector) == 3:
+        return vector
+    return np.array([0, 0, vector[0]]) if rotation else np.append(vector, 0)
 
 
 def _rotation_points():
@@ -373,7 +386,7 @@ def _control_points(job, substep):
         result.append(
             {
                 "name": name,
-                "position": points[index].tolist(),
+                "position": _in_3d(points[index]).tolist(),
                 **value,
                 **({"rotation": True} if name in rotations else {}),
             }

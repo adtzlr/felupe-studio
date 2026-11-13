@@ -240,6 +240,44 @@ describe("boundary symbols", () => {
       "lc/compression_top",
       "lc/move",
     ]);
+    // the rotation about z of a rotation point
+    const turned = boundarySymbols(
+      [
+        { command: "model.settings", analysis: "plane-strain" },
+        {
+          command: "pointset.add",
+          name: "end",
+          select: { axis: "x", value: 1 },
+        },
+        { command: "point.add", name: "pin", coordinates: [2, 0.5, 0] },
+        { command: "point.add", name: "pivot", coordinates: [2, 0.6, 0] },
+        {
+          command: "boundary.add",
+          name: "turn",
+          pointset: "pivot",
+          constrained: ["z"],
+        },
+        {
+          command: "boundary.add",
+          name: "hold",
+          pointset: "pin",
+          constrained: ["x", "y", "z"],
+        },
+        {
+          command: "mpc.add",
+          name: "glue",
+          points: "end",
+          center: "pin",
+          constrained: ["x", "y"],
+          rotation: "pivot",
+        },
+      ] as Command[],
+      plate,
+    ).map((s) => [s.name, s.components]);
+    expect(turned).toEqual([
+      ["turn", [2]],
+      ["hold", [0, 1]],
+    ]);
   });
 
   it("draws strokes and directions", () => {
