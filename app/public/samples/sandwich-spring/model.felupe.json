@@ -156,10 +156,17 @@
     },
     {
       "command": "boundary.add",
-      "name": "guide",
+      "name": "guide_y",
       "pointset": "top",
       "constrained": [
-        "y",
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "guide_z",
+      "pointset": "top",
+      "constrained": [
         "z"
       ]
     },

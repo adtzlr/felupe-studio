@@ -600,11 +600,19 @@ def sandwich_spring():
             "pointset": "top",
             "constrained": ["x"],
         },
+        # the top sheet is guided in y and z, by two boundaries, so that a ramp of
+        # guide_z may compress the spring as well
         {
             "command": "boundary.add",
-            "name": "guide",
+            "name": "guide_y",
             "pointset": "top",
-            "constrained": ["y", "z"],
+            "constrained": ["y"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "guide_z",
+            "pointset": "top",
+            "constrained": ["z"],
         },
         {
             "command": "step.add",

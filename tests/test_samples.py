@@ -101,6 +101,29 @@ def test_sandwich_spring_follows_its_parameters(monkeypatch):
     assert forces[3] / forces[5] == pytest.approx(5 / 3, rel=0.02)
 
 
+def test_sandwich_spring_compressed_by_guide_z(monkeypatch):
+    """The top sheet of the sandwich spring is guided in y and z by two boundaries,
+    so a ramp of guide_z compresses the spring while it is sheared."""
+    folder = APP / "public" / "samples" / "sandwich-spring"
+    document = loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
+    for c in document["commands"]:
+        if c["command"] == "step.add":
+            c["ramp"] = {
+                "num": 2,
+                "items": [
+                    {"target": "shear", "end": 2},
+                    {"target": "guide_z", "end": -1},
+                ],
+            }
+        if c["command"] == "job.add":
+            c["curve"] = "guide_z"
+    monkeypatch.chdir(folder)
+    results = run(document)["job"]
+    assert np.array(results["x"])[-1, 2] == pytest.approx(-1)
+    # the force of the compression
+    assert np.array(results["y"])[-1, 2] < 0
+
+
 @pytest.mark.parametrize(
     "sample, script",
     [
