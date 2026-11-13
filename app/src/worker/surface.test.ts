@@ -34,7 +34,12 @@ describe("surface of Python", () => {
     expect([...surface.tags!.material]).toEqual([-3]);
     expect([...surface.nodes!]).toEqual([0.1, 0, 0]);
     expect([...surface.isNode!]).toEqual([1, 1, 0]);
+    expect(surface.isCorner).toBeUndefined();
     expect(transferables(surface)).toHaveLength(8);
+    // the corners of quadratic 2D cells (#175)
+    const corners = toSurface({ ...raw, corners: new Uint8Array([1, 0, 1]) });
+    expect([...corners.isCorner!]).toEqual([1, 0, 1]);
+    expect(transferables(corners)).toHaveLength(9);
   });
 
   it("copies unaligned bytes and leaves out missing faces", () => {

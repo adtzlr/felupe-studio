@@ -90,6 +90,12 @@ export interface MeshSurface {
    * a subdivided face of a quadratic cell (one per point of the surface).
    */
   isNode?: Uint8Array;
+  /**
+   * 1 for a point of the surface that is a corner of a cell, of quadratic 2D cells
+   * (one per point of the surface): the corners split the outline of a cell into
+   * its sides, the edges of the face sets of 2D models (#175).
+   */
+  isCorner?: Uint8Array;
   /** Number of solid cells. */
   cells: number;
 }

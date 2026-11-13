@@ -70,7 +70,9 @@ def surface(solid, tags=None):
         of the cells as bytes by name), ``nodes`` (the ``float64`` coordinates of
         the points of the cells, to preview point sets), ``isnode`` (``uint8``, 1 for
         a point of the surface that is a point of the mesh, 0 for a point inside a
-        subdivided face) and the number of ``cells``.
+        subdivided face), ``corners`` (``uint8``, 1 for a corner of a cell, for the
+        sides of quadratic 2D cells of 2D models; ``None`` for other cells) and the
+        number of ``cells``.
     """
     points = np.asarray(solid.points, dtype=float)
     points = np.pad(points, ((0, 0), (0, 3 - points.shape[1])))
@@ -81,7 +83,12 @@ def surface(solid, tags=None):
     # the curved faces of quadratic cells are subdivided like in mesh.plot()
     order = polynomial_order(fem.Mesh(points, cells[:1], solid.cell_type))
 
-    keys = ["positions", "triangles", "faces", "edges", "owners", "isnode"]
+    # the corners of quadratic 2D cells, which split the outline of a cell into its
+    # sides: the edges of the face sets of 2D models (#175)
+    corners = {"triangle6": 3, "quad8": 4, "quad9": 4}.get(solid.cell_type)
+    corner_nodes = np.unique(cells[:, :corners]) if corners else None
+
+    keys = ["positions", "triangles", "faces", "edges", "owners", "isnode", "corner"]
     parts = {key: [] for key in keys}
     npoints = nfaces = 0
     for r in np.unique(region):
@@ -94,7 +101,10 @@ def surface(solid, tags=None):
         parts["edges"].append(result.edges + npoints)
         parts["faces"].append(result.faces + nfaces)
         parts["owners"].append(ids[result.owners])
-        parts["isnode"].append(surface_nodes(result) >= 0)
+        of_mesh = surface_nodes(result)
+        parts["isnode"].append(of_mesh >= 0)
+        if corners:
+            parts["corner"].append(np.isin(of_mesh, corner_nodes))
         npoints += len(positions)
         nfaces += int(result.faces.max(initial=-1)) + 1
 
@@ -109,6 +119,7 @@ def surface(solid, tags=None):
         "edges": _bytes(stack("edges", (0, 2)), "<u4"),
         "owners": _bytes(stack("owners", 0), "<u4"),
         "isnode": _bytes(stack("isnode", 0), "u1"),
+        "corners": _bytes(stack("corner", 0), "u1") if corners else None,
         "tags": {name: _bytes(values, "<i4") for name, values in tags.items()},
         "nodes": _bytes(points[np.unique(cells)], "<f8"),
         "cells": len(cells),

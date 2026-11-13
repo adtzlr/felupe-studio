@@ -146,8 +146,6 @@ CELLS_3D = ("tetra", "tetra10", "hexahedron", "hexahedron20", "hexahedron27")
 
 # the objects that 2D models do not have yet (#175)
 NOT_IN_2D = {
-    "faceset.add": "Face sets",
-    "pressure.add": "Pressures",
     "mpc.add": "Multi-point constraints",
     "point.add": "Control points",
 }
@@ -199,6 +197,15 @@ def analysis_problems(cmd, analysis):
             return [
                 f"load case '{name}' has the axis z in '{keys[0]}', which a 2D model "
                 "does not have."
+            ]
+    if kind == "faceset.add":
+        select = cmd["select"]
+        if select.get("axis") == "z":
+            return [f"face set '{name}' selects by z, which a 2D model does not have."]
+        if any(c[2] != 0 for c in select.get("centers", [])):
+            return [
+                f"face set '{name}' has centers with a z coordinate: the edges of a "
+                "2D model are in the plane z = 0."
             ]
     if kind == "pointset.add":
         select = cmd["select"]

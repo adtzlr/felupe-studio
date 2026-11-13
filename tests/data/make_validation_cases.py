@@ -326,6 +326,20 @@ CHANGES = {
             },
         ),
         d["commands"].__setitem__(10, {**d["commands"][10], "constrained": ["x", "y"]}),
+        # a face set of edges and a pressure
+        d["commands"].insert(
+            11,
+            {
+                "command": "faceset.add",
+                "name": "end",
+                "section": "section_soft",
+                "select": {"axis": "x", "value": 3},
+            },
+        ),
+        d["commands"].insert(
+            12,
+            {"command": "pressure.add", "name": "pull", "faces": "end", "pressure": -1},
+        ),
     ),
     "2d model with z components": lambda d: (
         d["commands"].insert(
@@ -376,6 +390,24 @@ CHANGES = {
                 "name": "pull",
                 "points": "far",
                 "force": [1, 0, 1],
+            },
+        ),
+        d["commands"].insert(
+            17,
+            {
+                "command": "faceset.add",
+                "name": "bottom",
+                "section": "section_soft",
+                "select": {"axis": "z", "value": 0},
+            },
+        ),
+        d["commands"].insert(
+            18,
+            {
+                "command": "faceset.add",
+                "name": "picked",
+                "section": "section_soft",
+                "select": {"centers": [[3, 0.5, 0.5]]},
             },
         ),
     ),

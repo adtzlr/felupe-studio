@@ -583,19 +583,25 @@ def codegen(document, evaluate=True, check_schema=True):
 
     # face sets: boundary regions of the merged meshes of the sections (#142)
     if facesets:
-        out.append("\n# face sets: the faces of the sections, with a field each")
+        out.append(
+            "\n# face sets: the faces of the sections (the edges of 2D cells), with a "
+            "field each"
+            if dim == 2
+            else "\n# face sets: the faces of the sections, with a field each"
+        )
         for fs in facesets:
             mesh = f"region_{fs['section']}.mesh"
             sel = fs["select"]
             if "axis" in sel:
                 args = [mesh, f"plane=({AXES.index(sel['axis'])}, {sel['value']!r})"]
             else:
-                centers = (f"[{', '.join(map(repr, c))}]" for c in sel["centers"])
+                # the centers of the edges of 2D cells in the xy-plane (#175)
+                centers = (f"[{', '.join(map(repr, c[:dim]))}]" for c in sel["centers"])
                 args = [mesh, _List(centers, prefix="centers=")]
             if "atol" in sel:
                 args.append(f"atol={sel['atol']!r}")
             out.append(_call(f"region_{fs['name']}", "boundary_faces", args))
-            fields = f"[fem.Field(region_{fs['name']}, dim=3)]"
+            fields = f"[{field_class}(region_{fs['name']}, dim={dim})]"
             out.append(_call(f"field_{fs['name']}", "fem.FieldContainer", [fields]))
             out.append(f"field_{fs['name']}.link(field)")
 

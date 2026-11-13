@@ -63,7 +63,7 @@ FElupe has no units: the numbers of a model only need to fit together, e.g. mill
 
 ### 2D models
 
-*Analysis* of the **Model settings** makes the model 2D: **Plane strain** (a slice of a long body, the forces per unit thickness in z) or **Axisymmetric** (a body of revolution about the x-axis, y is the radius, the forces are the totals over the circumference). A 2D model has a mesh of triangles or quads in the xy-plane, e.g. of a mesh file or a mesh script with `fem.Rectangle`. Boundaries, point loads, symmetry planes and load cases then have x and y only; the viewport looks onto the xy-plane. Face sets, pressures, control points and multi-point constraints are not available in 2D models yet; the browser marks them as issues.
+*Analysis* of the **Model settings** makes the model 2D: **Plane strain** (a slice of a long body, the forces per unit thickness in z) or **Axisymmetric** (a body of revolution about the x-axis, y is the radius, the forces are the totals over the circumference). A 2D model has a mesh of triangles or quads in the xy-plane, e.g. of a mesh file or a mesh script with `fem.Rectangle`. Boundaries, point loads, symmetry planes and load cases then have x and y only; the viewport looks onto the xy-plane. The face sets of a 2D model are edges of quads: click a cell next to its edge, and *Create face set* takes the connected edges, e.g. for a pressure on the end of a cylinder. Control points and multi-point constraints are not available in 2D models yet; the browser marks them as issues.
 
 ### Parameters
 

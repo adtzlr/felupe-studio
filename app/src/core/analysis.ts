@@ -18,8 +18,6 @@ export const CELLS_2D = ["triangle", "triangle6", "quad", "quad8", "quad9"];
 
 /** The objects that 2D models do not have yet. */
 const NOT_IN_2D: Partial<Record<Command["command"], string>> = {
-  "faceset.add": "Face sets",
-  "pressure.add": "Pressures",
   "mpc.add": "Multi-point constraints",
   "point.add": "Control points",
 };
@@ -107,6 +105,20 @@ export function analysisProblems(
             key,
           )
         : [];
+    }
+    case "faceset.add": {
+      const select = cmd.select;
+      if ("axis" in select && select.axis === "z")
+        return z(
+          `face set '${name}' selects by z, which a 2D model does not have.`,
+          "select.axis",
+        );
+      if ("centers" in select && select.centers.some((c) => c[2] !== 0))
+        return z(
+          `face set '${name}' has centers with a z coordinate: the edges of a 2D model are in the plane z = 0.`,
+          "select.centers",
+        );
+      return [];
     }
     case "pointset.add": {
       const select = cmd.select;

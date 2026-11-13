@@ -96,6 +96,100 @@ def test_runs_2d_cells(tmp_path, monkeypatch, analysis, cells, formulation):
         assert results.export("job_1", file_format, 3)
 
 
+def pressure_document(analysis, select):
+    """A plate (a cylinder of radius 1) pulled by a pressure at its end x = 3."""
+    commands = [
+        {"command": "model.settings", "name": "settings", "analysis": analysis},
+        {"command": "mesh.import", "name": "plate", "file": "plate.vtu"},
+        {"command": "cellset.from_file", "name": "all_cells", "mesh": "plate"},
+        {
+            "command": "material.add",
+            "name": "rubber",
+            "model": "NeoHookeCompressible",
+            "parameters": {"mu": 1.0, "lmbda": 2.0},
+        },
+        {
+            "command": "section.add",
+            "name": "body",
+            "cellset": "all_cells",
+            "material": "rubber",
+            "formulation": "u",
+        },
+        {
+            "command": "pointset.add",
+            "name": "x_min",
+            "select": {"axis": "x", "value": 0},
+        },
+        {
+            "command": "pointset.add",
+            "name": "y_min",
+            "select": {"axis": "y", "value": 0},
+        },
+        {"command": "faceset.add", "name": "end", "section": "body", "select": select},
+        {
+            "command": "boundary.add",
+            "name": "sym_x",
+            "pointset": "x_min",
+            "constrained": ["x"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "sym_y",
+            "pointset": "y_min",
+            "constrained": ["y"],
+        },
+        {"command": "pressure.add", "name": "pull", "faces": "end", "pressure": -1e-3},
+        {
+            "command": "step.add",
+            "name": "step_1",
+            "ramp": {"num": 1, "items": [{"target": "pull", "end": 1}]},
+        },
+        {"command": "job.add", "name": "job_1", "steps": ["step_1"], "curve": "sym_x"},
+    ]
+    return {"schema_version": 3, "commands": commands}
+
+
+@pytest.mark.parametrize("analysis", ["plane-strain", "axisymmetric"])
+@pytest.mark.parametrize("cells", ["quad", "quad8", "quad9"])
+@pytest.mark.parametrize("picked", [False, True])
+def test_pressures_on_edges(tmp_path, monkeypatch, analysis, cells, picked):
+    # the face sets of 2D models are edges of quads (#175)
+    mesh = fem.Rectangle(b=(3, 1), n=(4, 5))
+    if cells != "quad":
+        mesh = fem.mesh.convert(mesh, order=2, calc_midfaces=cells == "quad9")
+    meshio.Mesh(
+        np.pad(mesh.points, ((0, 0), (0, 1))), [(mesh.cell_type, mesh.cells)]
+    ).write(tmp_path / "plate.vtu")
+    monkeypatch.chdir(tmp_path)
+    # the end by its plane, or by the centers of its edges (in the plane z = 0)
+    centers = [[3, y, 0] for y in (0.125, 0.375, 0.625, 0.875)]
+    select = {"centers": centers} if picked else {"axis": "x", "value": 3}
+    doc = pressure_document(analysis, select)
+    assert errors(doc) == []
+    script = codegen(doc)
+    field = "FieldPlaneStrain" if analysis == "plane-strain" else "FieldAxisymmetric"
+    assert f"fem.FieldContainer([fem.{field}(region_end, dim=2)])" in script
+    if picked:
+        assert "[3, 0.125]," in script
+    # the reaction force at x = 0 is the pressure times the area of the end: per unit
+    # thickness, or over the circumference of the cylinder of radius 1
+    area = 1 if analysis == "plane-strain" else np.pi
+    force = run(doc)["job_1"]["y"][-1][0]
+    assert abs(force) == pytest.approx(1e-3 * area, rel=1e-3)
+
+
+def test_edges_of_triangles(tmp_path, monkeypatch):
+    # FElupe 12 has no boundary regions of triangles
+    mesh = fem.Rectangle(b=(3, 1), n=(4, 5)).triangulate()
+    meshio.Mesh(
+        np.pad(mesh.points, ((0, 0), (0, 1))), [(mesh.cell_type, mesh.cells)]
+    ).write(tmp_path / "plate.vtu")
+    monkeypatch.chdir(tmp_path)
+    doc = pressure_document("plane-strain", {"axis": "x", "value": 3})
+    with pytest.raises(NotImplementedError, match="triangle cells have no boundary"):
+        run(doc)
+
+
 def test_problems_of_2d_models():
     def problems(cmd, analysis="axisymmetric"):
         return analysis_problems({"name": "a", **cmd}, analysis)
@@ -122,10 +216,17 @@ def test_problems_of_2d_models():
     assert (
         problems({"command": "pointset.add", "select": {"points": [[0, 1, 0]]}}) == []
     )
-    for kind in ("faceset.add", "pressure.add", "mpc.add", "point.add"):
+    for kind in ("mpc.add", "point.add"):
         assert problems({"command": kind})[0].endswith(
             "are not available in 2D models yet: remove 'a' or make the model 3D."
         )
+    # face sets of edges in the xy-plane
+    assert problems({"command": "faceset.add", "select": {"axis": "z", "value": 0}})
+    assert problems({"command": "faceset.add", "select": {"centers": [[3, 1, 1]]}})
+    assert (
+        problems({"command": "faceset.add", "select": {"centers": [[3, 1, 0]]}}) == []
+    )
+    assert problems({"command": "pressure.add", "pressure": 1.0}) == []
     assert problems({"command": "mesh.import", "cell_type": "tetra"}) == [
         "mesh 'a' takes tetra cells, but a 2D model has 2D cells."
     ]

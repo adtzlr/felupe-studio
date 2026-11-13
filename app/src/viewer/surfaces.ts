@@ -30,7 +30,7 @@ const NEIGHBOURS = new WeakMap<SectionFaces, number[][]>();
 /**
  * The neighbours of every face: the faces that share an edge with it, i.e. at least
  * two nodes (three of a quadratic face). Faces that touch at a corner only are not
- * neighbours.
+ * neighbours, except the sides of 2D cells (#175), which share a corner.
  */
 export function neighbours(of: SectionFaces): number[][] {
   const cached = NEIGHBOURS.get(of);
@@ -51,7 +51,9 @@ export function neighbours(of: SectionFaces): number[][] {
         if (j !== i) shared.set(j, (shared.get(j) ?? 0) + 1);
       }
     }
-    return [...shared].filter(([, n]) => n >= 2).map(([j]) => j);
+    // the sides of 2D cells (#175) share a corner
+    const least = of.planar ? 1 : 2;
+    return [...shared].filter(([, n]) => n >= least).map(([j]) => j);
   });
   NEIGHBOURS.set(of, result);
   return result;
