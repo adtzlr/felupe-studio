@@ -576,7 +576,7 @@ export interface SectionAdd {
   volumetric?: "volume-ratio" | "stretch" | "log";
 }
 /**
- * Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, by the coordinates of points or by point ids.
+ * Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, on the outer surface, by the coordinates of points or by point ids.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "PointSetAdd".
@@ -618,6 +618,9 @@ export interface PointSetAdd {
          * Absolute tolerance (default 1e-8).
          */
         atol?: number;
+      }
+    | {
+        surface: true;
       }
     | {
         /**

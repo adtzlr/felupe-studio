@@ -39,13 +39,15 @@ MARKER = "# --- embedded in generated scripts ---\n"
 FACES = "\n\n# --- embedded in generated scripts with face sets ---\n"
 HELPERS = files("felupe_studio").joinpath("_helpers.py").read_text(encoding="utf-8")
 HELPERS = HELPERS[HELPERS.index(MARKER) + len(MARKER) :]
-# the helpers of face sets (#142), only in scripts with face sets, and of meshes made
-# by scripts (#182), only in scripts with them
+# the helpers of face sets (#142), only in scripts with face sets, of point sets on
+# the surface (#222) and of meshes made by scripts (#182), only in scripts with them
+SURFACES = "\n\n# --- embedded in generated scripts with surface point sets ---\n"
 SCRIPTS = "\n\n# --- embedded in generated scripts with meshes of scripts ---\n"
 # the linear solvers of jobs other than SuperLU (#203), only in scripts with them
 SOLVERS = "\n\n# --- embedded in generated scripts with linear solvers ---\n"
 HELPERS, FACE_HELPERS = HELPERS.split(FACES)
-FACE_HELPERS, SCRIPT_HELPERS = FACE_HELPERS.split(SCRIPTS)
+FACE_HELPERS, SURFACE_HELPERS = FACE_HELPERS.split(SURFACES)
+SURFACE_HELPERS, SCRIPT_HELPERS = SURFACE_HELPERS.split(SCRIPTS)
 SCRIPT_HELPERS, SOLVER_HELPERS = SCRIPT_HELPERS.split(SOLVERS)
 
 AXES = ("x", "y", "z")
@@ -421,6 +423,8 @@ def codegen(document, evaluate=True, check_schema=True):
     out.append(HELPERS)
     if facesets:
         out.append(f"\n{FACE_HELPERS}")
+    if any("surface" in ps.get("select", {}) for ps in get("pointset.add")):
+        out.append(f"\n{SURFACE_HELPERS}")
     if get("mesh.script"):
         out.append(f"\n{SCRIPT_HELPERS}")
     if uses_solver_helpers(get("job.add")):
@@ -589,6 +593,10 @@ def codegen(document, evaluate=True, check_schema=True):
                 distances = [_offset(f"points[:, {k}]", center[k]) for k in others]
                 args = [f"np.hypot({', '.join(distances)})", repr(sel["radius"]), atol]
                 out.append(_call(ps["name"], "np.isclose", args))
+            elif "surface" in sel:
+                # the points of the faces of one cell (of the edges of 2D cells)
+                meshes = _List(f"region_{sec['name']}.mesh" for sec in sections)
+                out.append(_call(ps["name"], "surface_points", [meshes, "points"]))
             elif "points" in sel:
                 # the points of a 2D model in the xy-plane (#175)
                 coordinates = (

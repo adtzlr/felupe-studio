@@ -1,0 +1,194 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "model.settings",
+      "name": "settings",
+      "units": {
+        "length": "mm",
+        "force": "N"
+      }
+    },
+    {
+      "command": "mesh.import",
+      "name": "spring",
+      "file": "spring.vtu"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "all_cells",
+      "mesh": "spring"
+    },
+    {
+      "command": "material.add",
+      "name": "hyperelastic",
+      "model": "NeoHookeCompressible",
+      "parameters": {
+        "mu": 1,
+        "lmbda": 5
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "soft_spring",
+      "cellset": "all_cells",
+      "material": "hyperelastic",
+      "formulation": "u"
+    },
+    {
+      "command": "symmetry.add",
+      "name": "symmetry",
+      "axes": [
+        "y"
+      ]
+    },
+    {
+      "command": "pointset.add",
+      "name": "top",
+      "select": {
+        "axis": "z",
+        "value": 120
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "bottom",
+      "select": {
+        "axis": "z",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "outer",
+      "select": {
+        "surface": true
+      }
+    },
+    {
+      "command": "rigid.add",
+      "name": "upper_plate",
+      "coordinates": [
+        0,
+        0,
+        120.1
+      ],
+      "shape": {
+        "normal": [
+          0,
+          0,
+          -1
+        ]
+      }
+    },
+    {
+      "command": "rigid.add",
+      "name": "lower_plate",
+      "coordinates": [
+        0,
+        0,
+        0
+      ],
+      "shape": {
+        "normal": [
+          0,
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "top",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "stop",
+      "pointset": "upper_plate",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "axial",
+      "pointset": "bottom",
+      "constrained": [
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "lateral",
+      "pointset": "bottom",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "guide",
+      "pointset": "bottom",
+      "constrained": [
+        "y"
+      ]
+    },
+    {
+      "command": "contact.add",
+      "name": "upper_stop",
+      "points": "outer",
+      "surface": "upper_plate",
+      "friction": 0.5
+    },
+    {
+      "command": "contact.add",
+      "name": "lower_stop",
+      "points": "outer",
+      "surface": "lower_plate",
+      "friction": 0.5
+    },
+    {
+      "command": "step.add",
+      "name": "compression",
+      "ramp": {
+        "num": 4,
+        "items": [
+          {
+            "target": "axial",
+            "end": 40
+          }
+        ]
+      }
+    },
+    {
+      "command": "step.add",
+      "name": "shear",
+      "ramp": {
+        "num": 4,
+        "items": [
+          {
+            "target": "lateral",
+            "end": 40
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job",
+      "steps": [
+        "compression",
+        "shear"
+      ],
+      "curve": "axial"
+    }
+  ]
+}

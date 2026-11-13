@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Command, PointSetAdd } from "../core/commands";
+import type { MeshSurface } from "../worker/protocol";
 import {
   boundOf,
   centerOf,
@@ -7,6 +8,7 @@ import {
   exactNode,
   missingPoints,
   nodesName,
+  outerPoints,
   outlined,
   planeName,
   planeSelect,
@@ -35,6 +37,37 @@ describe("point sets", () => {
     expect(select("max", "y")).toEqual([0, 1, 0, 1, 1, 0, 2, 1, 0]);
     // without meshes nothing
     expect(selectedPoints({ bound: "max", axis: "x" }, [])).toHaveLength(0);
+  });
+
+  it("select the points on the outer surface (#222)", () => {
+    // a square of two triangles in the xy-plane with a point inside (0.5, 0.5),
+    // which is a point of the surface but not of the mesh (a subdivided face)
+    const square: MeshSurface = {
+      positions: Float32Array.from([
+        0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0.5, 0.5, 0, 0.5, 0, 0,
+      ]),
+      triangles: Uint32Array.from([
+        0, 5, 4, 5, 1, 4, 1, 2, 4, 2, 3, 4, 3, 0, 4,
+      ]),
+      edges: new Uint32Array(),
+      owners: new Uint32Array(5),
+      isNode: Uint8Array.from([1, 1, 1, 1, 0, 1]),
+      cells: 1,
+    };
+    // a 3D surface: all of its nodes; a 2D model: the nodes of the outline
+    expect(outerPoints([square], false)[0]).toHaveLength(15);
+    const [outline] = outerPoints([square], true);
+    expect(outline).toHaveLength(15);
+    // the inner point of a 2D cell with a bubble is not on the outline
+    const bubble = { ...square, isNode: Uint8Array.from([1, 1, 1, 1, 1, 1]) };
+    expect(outerPoints([bubble], false)[0]).toHaveLength(18);
+    expect(outerPoints([bubble], true)[0]).toHaveLength(15);
+    // the points of a point set on the surface, without duplicates
+    const twice = outerPoints([square, square], false);
+    expect(selectedPoints({ surface: true }, [left], twice)).toHaveLength(15);
+    expect(selectedPoints({ surface: true }, [left])).toHaveLength(0);
+    // no warning without points: the surfaces are not the nodes
+    expect(selectsNothing({ surface: true }, [left])).toBe(false);
   });
 
   it("select the nodes on a cylinder (#181)", () => {

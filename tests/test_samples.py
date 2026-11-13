@@ -237,6 +237,62 @@ def test_bushing_matches_ex05(monkeypatch):
     assert tilt == pytest.approx(moment[1], rel=0.01)
 
 
+def test_hyperelastic_spring_matches_ex06(monkeypatch):
+    """The hyperelastic spring with end stops (#222), compared with the example ex06
+    of FElupe on the same mesh: the forces of the lower plate (the bonded face and
+    the contact of the end stop) in z and x."""
+    import felupe as fem
+
+    folder = APP / "public" / "samples" / "hyperelastic-spring"
+    monkeypatch.chdir(folder)
+    results = run(loads((folder / "model.felupe.json").read_text(encoding="utf-8")))
+    x, y = np.array(results["job"]["x"]), np.array(results["job"]["y"])
+
+    # ex06, with as many substeps and the same tolerance
+    mesh = fem.mesh.read("spring.vtu")[0]
+    mesh.add_points([[0, 0, mesh.z.min()], [0, 0, mesh.z.max() + 0.1]])
+    region = fem.RegionHexahedron(mesh)
+    field = fem.FieldContainer([fem.Field(region, dim=3)])
+    boundaries = fem.dof.symmetry(field[0], axes=(0, 1, 0))
+    boundaries["fixed-contact"] = fem.Boundary(field[0], fz=mesh.z.max())
+    boundaries["fixed"] = fem.Boundary(field[0], fz=mesh.z.max() - 0.1)
+    boundaries["move-x"] = fem.Boundary(field[0], fz=mesh.z.min(), skip=(0, 1, 1))
+    boundaries["move-y"] = fem.Boundary(field[0], fz=mesh.z.min(), skip=(1, 0, 1))
+    boundaries["move-z"] = fem.Boundary(field[0], fz=mesh.z.min(), skip=(1, 1, 0))
+    solid = fem.SolidBody(fem.NeoHookeCompressible(mu=1, lmbda=5), field)
+    surface = np.unique(fem.RegionHexahedronBoundary(mesh).mesh_faces().cells)
+    points = np.isin(np.arange(mesh.npoints), surface)
+    stops = [
+        fem.ContactRigidPlane(
+            field,
+            points=points,
+            centerpoint=center,
+            normal=normal,
+            friction=0.5,
+            items=[solid],
+        )
+        for center, normal in [(-2, [0, 0, 1]), (-1, [0, 0, -1])]
+    ]
+    table = fem.math.linsteps([0, 1], num=4)
+    steps = [
+        fem.Step(
+            items=[solid, *stops],
+            ramp={boundaries[move]: 40 * table},
+            boundaries=boundaries,
+        )
+        for move in ["move-z", "move-x"]
+    ]
+    job = fem.CharacteristicCurve(steps=steps, boundary=boundaries["move-z"])
+    job.evaluate(tol=0.01)
+    np.testing.assert_allclose(x, np.array(job.x), atol=1e-8)
+    # the forces of up to 18 kN, 1 N for the zeros of the lateral force
+    np.testing.assert_allclose(
+        y[:, [0, 2]], np.array(job.y)[:, [0, 2]], rtol=1e-3, atol=1
+    )
+    # the end stops stiffen the spring
+    assert y[4, 2] / y[2, 2] > 2.5
+
+
 @pytest.mark.parametrize("sample", SAMPLES, ids=[s["id"] for s in SAMPLES])
 def test_thumbnail_is_up_to_date(sample):
     "The picture of a sample (#127) is made from its project by make_samples.py."

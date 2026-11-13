@@ -130,11 +130,12 @@ describe("deriveTree", () => {
       "specimen.vtu · tag material · × 1000",
     );
     expect(find(tree, "left")!.detail).toBe("x == 0 mm");
-    // point sets at a bound and on a cylinder (#181)
+    // point sets at a bound and on a cylinder (#181), on the surface (#222)
     const sets = [
       { bound: "max", axis: "z" },
       { radius: 25, axis: "x" },
       { radius: 25, axis: "x", center: [0, 5, -3] },
+      { surface: true },
     ].map((select, i) => ({
       command: "pointset.add",
       name: `set_${i}`,
@@ -145,6 +146,7 @@ describe("deriveTree", () => {
       "z == max",
       "r = 25 mm about x",
       "r = 25 mm about x through (0, 5, -3) mm",
+      "outer surface",
     ]);
     expect(find(tree, "step_1")!.detail).toBe("move: 0 → 0.5 mm (5)");
     expect(find(tree, "fixed")!.detail).toBe("left · x, y, z");

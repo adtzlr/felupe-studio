@@ -108,6 +108,20 @@ SAMPLES = [
             "rotation point",
         ],
     },
+    {
+        "id": "hyperelastic-spring",
+        "title": "Hyperelastic spring with end stops (FElupe ex06)",
+        "description": "A half of a hyperelastic spring bonded to two plates, "
+        "compressed and then sheared by the lower plate. The plates are end stops, "
+        "rigid planes in contact with the points on the outer surface with friction: "
+        "the bulging spring touches the upper one and gets stiffer.",
+        "topics": [
+            "contacts",
+            "rigid surfaces",
+            "friction",
+            "point set on the surface",
+        ],
+    },
 ]
 
 
@@ -199,6 +213,11 @@ def thumbnail(folder, width=160, height=100, margin=6):
     for corners, center, color, mesh in faces.values():
         x = mesh.points[corners]
         normal = np.cross(x[1] - x[0], x[2] - x[0])
+        if not np.linalg.norm(normal):
+            # by the diagonals of a quad with a collapsed edge (e.g. at an axis)
+            normal = np.cross(x[2] - x[0], x[-1] - x[1])
+        if not np.linalg.norm(normal):
+            continue  # a face without area
         normal /= np.linalg.norm(normal)
         if planar:
             normal = back
@@ -1175,6 +1194,132 @@ def bushing():
     write("bushing", commands, {"bushing.py": BUSHING})
 
 
+def hyperelastic_spring():
+    """A hyperelastic spring with end stops like the example ex06 of FElupe (#222):
+    a half of the spring (a symmetry plane y = 0) bonded to two steel plates, the top
+    one fixed, the bottom one moved by 40 mm in z and then by 40 mm in x. The plates
+    are end stops: rigid planes with friction, whose contacts take the points on the
+    outer surface. The bulging spring touches the upper plate.
+
+    The reference point of the lower plane is on the plane z = 0 of the point set
+    *bottom*, so the boundaries of the bottom face move the plane too, and the curve
+    is the force of the whole lower plate (bonded face and end stop), like the
+    boundary ``move-z`` of ex06. The upper plane is 0.1 mm above the top face (its
+    reference point would be the node at the center of the top face) and fixed.
+
+    The mesh ``spring.vtu`` is the mesh of ex06 (``ex06_rubber-metal-spring_mesh.vtk``)
+    with flipped cells (their volumes were negative), ``mesh.flip()`` of FElupe."""
+    folder = HERE / "hyperelastic-spring"
+    mesh = meshio.read(folder / "spring.vtu")
+    commands = [
+        {
+            "command": "model.settings",
+            "name": "settings",
+            "units": {"length": "mm", "force": "N"},
+        },
+        {"command": "mesh.import", "name": "spring", "file": "spring.vtu"},
+        {"command": "cellset.from_file", "name": "all_cells", "mesh": "spring"},
+        {
+            "command": "material.add",
+            "name": "hyperelastic",
+            "model": "NeoHookeCompressible",
+            "parameters": {"mu": 1, "lmbda": 5},
+        },
+        {
+            "command": "section.add",
+            "name": "soft_spring",
+            "cellset": "all_cells",
+            "material": "hyperelastic",
+            "formulation": "u",
+        },
+        {"command": "symmetry.add", "name": "symmetry", "axes": ["y"]},
+        {
+            "command": "pointset.add",
+            "name": "top",
+            "select": {"axis": "z", "value": 120},
+        },
+        {
+            "command": "pointset.add",
+            "name": "bottom",
+            "select": {"axis": "z", "value": 0},
+        },
+        {"command": "pointset.add", "name": "outer", "select": {"surface": True}},
+        {
+            "command": "rigid.add",
+            "name": "upper_plate",
+            "coordinates": [0, 0, 120.1],
+            "shape": {"normal": [0, 0, -1]},
+        },
+        {
+            "command": "rigid.add",
+            "name": "lower_plate",
+            "coordinates": [0, 0, 0],
+            "shape": {"normal": [0, 0, 1]},
+        },
+        {
+            "command": "boundary.add",
+            "name": "fixed",
+            "pointset": "top",
+            "constrained": ["x", "y", "z"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "stop",
+            "pointset": "upper_plate",
+            "constrained": ["x", "y", "z"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "axial",
+            "pointset": "bottom",
+            "constrained": ["z"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "lateral",
+            "pointset": "bottom",
+            "constrained": ["x"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "guide",
+            "pointset": "bottom",
+            "constrained": ["y"],
+        },
+        {
+            "command": "contact.add",
+            "name": "upper_stop",
+            "points": "outer",
+            "surface": "upper_plate",
+            "friction": 0.5,
+        },
+        {
+            "command": "contact.add",
+            "name": "lower_stop",
+            "points": "outer",
+            "surface": "lower_plate",
+            "friction": 0.5,
+        },
+        {
+            "command": "step.add",
+            "name": "compression",
+            "ramp": {"num": 4, "items": [{"target": "axial", "end": 40}]},
+        },
+        {
+            "command": "step.add",
+            "name": "shear",
+            "ramp": {"num": 4, "items": [{"target": "lateral", "end": 40}]},
+        },
+        {
+            "command": "job.add",
+            "name": "job",
+            "steps": ["compression", "shear"],
+            "curve": "axial",
+        },
+    ]
+    write("hyperelastic-spring", commands, {"spring.vtu": mesh})
+
+
 def two_materials():
     """A bar with a stiff and a soft half, from the cell tag "material"."""
     mesh = fem.Cube(b=(30, 10, 10), n=(13, 5, 5))
@@ -1388,6 +1533,7 @@ def main():
     sandwich_spring_axisymmetric()
     plate_with_hole()
     bushing()
+    hyperelastic_spring()
     INDEX.write_text(json.dumps(SAMPLES, indent=2) + "\n", encoding="utf-8")
 
 

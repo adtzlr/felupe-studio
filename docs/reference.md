@@ -24,7 +24,7 @@ A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserve
 - [`cellset.from_file`](#cellsetfrom_file): Cell set of all cells of a mesh.
 - [`material.add`](#materialadd): Add a material to the material library.
 - [`section.add`](#sectionadd): Assign a material and a formulation to a cell set.
-- [`pointset.add`](#pointsetadd): Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, by the coordinates of points or by point ids.
+- [`pointset.add`](#pointsetadd): Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, on the outer surface, by the coordinates of points or by point ids.
 - [`point.add`](#pointadd): A control point that is not a node of the meshes, e.g. the center point of a multi-point constraint.
 - [`rigid.add`](#rigidadd): A rigid surface (#219): a reference point with a plane or a cylinder.
 - [`faceset.add`](#facesetadd): Faces of the boundary of a section, e.g. for a pressure: on a plane, or the faces with the given centers (picked in the viewport).
@@ -250,7 +250,7 @@ Assign a material and a formulation to a cell set. Each section becomes a solid 
 
 ### `pointset.add`
 
-Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, by the coordinates of points or by point ids.
+Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, on the outer surface, by the coordinates of points or by point ids.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -289,6 +289,14 @@ Points on a cylinder: at the distance radius from the line through the center pa
 | `select.axis` | axis: `x`, `y` or `z` | yes | The direction of the axis of the cylinder. |
 | `select.center` | three numbers `[x, y, z]` |  | A point on the axis of the cylinder (default: the origin). |
 | `select.atol` | number > 0 |  | Absolute tolerance (default 1e-8). |
+
+#### `surface` (`surface: true`)
+
+The points on the outer surface of the meshes of the sections (without the control points), e.g. the points that may touch a rigid surface: the points of the faces which belong to one cell, of 2D models of the edges.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `select.surface` | `true` | yes |  |
 
 #### By coordinates
 

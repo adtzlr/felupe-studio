@@ -177,12 +177,21 @@ export function stepOf(
   return { name: "", step: 1, substep, substeps: substep };
 }
 
-/** The component with the largest displacement of the last substep of a curve. */
+/**
+ * The component with the largest displacement of the last substep of a curve; of
+ * equal displacements the one with the largest force, e.g. the axial force of a
+ * spring that is compressed and then sheared by as much.
+ */
 export function largestAxis(result: JobResult): number {
   const last = result.x?.at(-1) ?? [];
+  const force = result.y?.at(-1) ?? [];
+  const size = (row: readonly (number | null)[], i: number) =>
+    Math.abs(row[i] ?? 0);
   let axis = 0;
-  last.forEach((value, i) => {
-    if (Math.abs(value ?? 0) > Math.abs(last[axis] ?? 0)) axis = i;
+  last.forEach((_, i) => {
+    const [u, best] = [size(last, i), size(last, axis)];
+    const tie = Math.abs(u - best) <= 1e-9 * Math.max(u, best);
+    if (tie ? size(force, i) > size(force, axis) : u > best) axis = i;
   });
   return axis;
 }

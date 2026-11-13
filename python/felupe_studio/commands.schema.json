@@ -974,7 +974,7 @@
       }
     },
     "PointSetAdd": {
-      "description": "Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, by the coordinates of points or by point ids.",
+      "description": "Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, on the outer surface, by the coordinates of points or by point ids.",
       "type": "object",
       "required": ["command", "name", "select"],
       "additionalProperties": false,
@@ -1055,6 +1055,17 @@
                   "description": "Absolute tolerance (default 1e-8).",
                   "type": "number",
                   "exclusiveMinimum": 0
+                }
+              }
+            },
+            {
+              "description": "The points on the outer surface of the meshes of the sections (without the control points), e.g. the points that may touch a rigid surface: the points of the faces which belong to one cell, of 2D models of the edges.",
+              "type": "object",
+              "required": ["surface"],
+              "additionalProperties": false,
+              "properties": {
+                "surface": {
+                  "const": true
                 }
               }
             },

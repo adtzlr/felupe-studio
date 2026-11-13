@@ -279,10 +279,11 @@ export function contactPoints(
   commands: readonly Command[],
   nodes: readonly Float64Array[],
   sections: ReadonlyMap<string, SectionFaces>,
+  outer: readonly Float64Array[] = [],
 ): number[] {
   const set = commands.find((c) => c.name === contact.points);
   if (set?.command === "pointset.add")
-    return [...selectedPoints(set.select, nodes)];
+    return [...selectedPoints(set.select, nodes, outer)];
   if (set?.command !== "faceset.add") return [];
   const of = sections.get(set.section);
   if (!of) return [];

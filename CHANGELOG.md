@@ -6,6 +6,8 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Added
 
+- Sample *Hyperelastic spring with end stops (FElupe ex06)*: a half of the spring of the example ex06 of FElupe bonded to two plates, compressed and then sheared by the lower plate. The plates are end stops, rigid planes with contacts with friction of the points on the outer surface; the bulging spring touches the upper one. Its test compares the forces with ex06 on the same mesh (within 1e-3). ADR 0011 records the rigid surfaces and contacts; docs of the guide and the commands (closes #222, closes #187).
+- Point sets on the outer surface (*On the outer surface*, `select: {surface: true}`): the points of the faces of the meshes of the sections that belong to one cell (of a 2D model of the edges), e.g. the points of a contact. Faces between two sections are inside; the script takes them with `surface_points` (#222).
 - *Repeat* beside the speed of playing the substeps in the Results: *Loop* (after the last substep the first one, as before) or *Back and forth* (after the last substep backward to the first one and forward again; the ends are shown once). The scenes loaded ahead follow the direction of playing.
 - Contacts in 2D models: a rigid plane is a line in the xy-plane and a cylinder a circle about z (`fem.ContactRigidCylinder` without an axis). Golden cases: a plate in plane strain and a cylinder (axisymmetric) pressed at their end by a line, compared with a prescribed displacement, and a roller pressed onto a plate (#221).
 - Contacts with rigid surfaces (`contact.add`): the points of a face set or a point set touch a rigid plane or cylinder (`fem.ContactRigidPlane`, `fem.ContactRigidCylinder`) with friction, a multiplier of the penalty and an elastic slip; the penalties follow the stiffness of the sections. Contacts are items of the steps like the constraints; the curve of a boundary of the surface is the contact force. Golden cases: a block pressed by a plane without and with friction, compared with a prescribed displacement, and a roller pressed onto a block (#220).
@@ -31,11 +33,13 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Changed
 
+- The curve of a job shows by default the force over the displacement of the component with the largest displacement; of equal displacements now the one with the largest force, e.g. the axial force of a spring that is compressed and then sheared by as much (#222).
 - The word *rubber* is gone from the app: the samples, their descriptions, their objects and their scripts speak of hyperelastic materials and soft layers (*Mount in shear*, *Hyperelastic block with a rigid plate*, *Bushing with steel sleeves*; the sample `rubber-mount` is now `shear-mount`), and so do the hints, the help of the command line and the guide.
 - The default tolerance of the Newton-Raphson method is 0.01 (FElupe's default is 1.49e-8), like the force criterion of commercial codes: the norm of the residual forces relative to the norm of the reaction forces. The generated script always passes it (`job.evaluate(x0=field, tol=0.01)`), the form shows it as the placeholder. In the golden cases a job takes about half the time, and the forces deviate by less than 1 % of the largest force. Projects without a tolerance are not migrated: their results change slightly; set *Tolerance* to e.g. 1e-6 for curves that are fitted to test data. The golden cases compared with converged references set `tol: 1.49e-8` (#176).
 
 ### Fixed
 
+- The validation counts a boundary of a point set by a plane, by nodes or on a cylinder through a control point or the reference point of a rigid surface: the script constrains them with the point set, e.g. a rigid plane whose reference point is on the plane of a bonded face, which was reported without stiffness (#222).
 - A mesh script without items, e.g. of the sample *Plate with a hole*, failed in the app with *The mesh of 'plate_with_hole.py' is not a dict with an item jsnull*: the worker passed JavaScript's null, which Pyodide converts to `jsnull`, not to None.
 - *Save project as…* refuses a name of an archive whose script would have the name of a mesh script of the project, e.g. `bushing` with the script for the sample *Bushing with steel sleeves*, instead of failing with two files `bushing.py` (#205).
 - *Iso* (key 1) resets the camera to the default view, in which the viewer opens (like the plots of FElupe, onto the xy-plane for a planar model), instead of the isometric view.
