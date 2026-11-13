@@ -34,14 +34,18 @@ export interface TreeNode {
   children: TreeNode[];
 }
 
-/** The groups of the browser: by kind, the control points in a group of their own. */
-const GROUPS: { kind: Kind | "point"; label: string }[] = [
+/**
+ * The groups of the browser: by kind, the control points and the rigid surfaces
+ * (#219) in groups of their own.
+ */
+const GROUPS: { kind: Kind | "point" | "rigid"; label: string }[] = [
   { kind: "settings", label: "Settings" },
   { kind: "parameter", label: "Parameters" },
   { kind: "mesh", label: "Meshes" },
   { kind: "merge", label: "Merge" },
   { kind: "pointset", label: "Point Sets" },
   { kind: "point", label: "Points" },
+  { kind: "rigid", label: "Rigid Surfaces" },
   { kind: "faceset", label: "Face Sets" },
   { kind: "material", label: "Materials" },
   { kind: "section", label: "Sections" },
@@ -125,6 +129,22 @@ function detail(cmd: Command, commands: readonly Command[]): string {
       return `${cmd.select.ids.length} points`;
     case "point.add":
       return `control ${valueWithUnit(`(${cmd.coordinates.join(", ")})`, length)}`;
+    case "rigid.add": {
+      const shape = cmd.shape as {
+        normal?: number[];
+        radius?: number;
+        axis?: number[];
+        inside?: boolean;
+      };
+      const at = `at ${valueWithUnit(`(${cmd.coordinates.join(", ")})`, length)}`;
+      if (shape.normal) return `plane n = (${shape.normal.join(", ")}) · ${at}`;
+      return [
+        `cylinder r = ${valueWithUnit(String(shape.radius), length)}`,
+        `axis (${shape.axis!.join(", ")})`,
+        ...(shape.inside ? ["inside"] : []),
+        at,
+      ].join(" · ");
+    }
     case "faceset.add":
       return `${cmd.section} · ${
         "axis" in cmd.select
@@ -213,6 +233,7 @@ export function deriveTree(
     label: cmd.name,
     kind: KINDS[cmd.command],
     ...(cmd.command === "point.add" ? { icon: "point" } : {}),
+    ...(cmd.command === "rigid.add" ? { icon: "rigid" } : {}),
     detail: detail(cmd, commands),
     issues: messages.get(cmd.name) ?? [],
     children: [],
@@ -230,7 +251,7 @@ export function deriveTree(
     issues: [],
     children: [] as TreeNode[],
   }));
-  const groupOf = (kind: Kind | "point") =>
+  const groupOf = (kind: Kind | "point" | "rigid") =>
     groups.find((g) => g.id === `group:${kind}`);
 
   const placed = new Set<string>();
@@ -249,12 +270,14 @@ export function deriveTree(
     const group =
       cmd.command === "point.add"
         ? "point"
-        : child.kind === "cellset"
-          ? "mesh"
-          : // symmetry planes are boundaries of all steps (#186)
-            child.kind === "symmetry"
-            ? "boundary"
-            : (child.kind as Kind);
+        : cmd.command === "rigid.add"
+          ? "rigid"
+          : child.kind === "cellset"
+            ? "mesh"
+            : // symmetry planes are boundaries of all steps (#186)
+              child.kind === "symmetry"
+              ? "boundary"
+              : (child.kind as Kind);
     groupOf(group)!.children.push(child);
   }
 
@@ -265,6 +288,7 @@ export function deriveTree(
     "group:parameter",
     "group:merge",
     "group:point",
+    "group:rigid",
     "group:faceset",
     "group:pressure",
     "group:constraint",

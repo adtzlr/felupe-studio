@@ -262,6 +262,41 @@ describe("deriveTree", () => {
     expect(ids.indexOf("group:point")).toBe(ids.indexOf("group:pointset") + 1);
   });
 
+  it("lists the rigid surfaces in a group of their own (#219)", () => {
+    expect(find(deriveTree(commands), "group:rigid")).toBeUndefined();
+    const rigid: Command[] = [
+      {
+        command: "rigid.add",
+        name: "plate",
+        coordinates: [4, 0.5, 0.5],
+        shape: { normal: [-1, 0, 0] },
+      },
+      {
+        command: "rigid.add",
+        name: "tube",
+        coordinates: [0, 0, 0],
+        shape: { radius: 2, axis: [1, 0, 0], inside: true },
+      },
+    ];
+    const tree = deriveTree([...commands, ...rigid]);
+    const group = find(tree, "group:rigid")!;
+    expect(group.label).toBe("Rigid Surfaces");
+    expect(
+      group.children.map((c) => [c.label, c.kind, c.icon, c.detail]),
+    ).toEqual([
+      ["plate", "pointset", "rigid", "plane n = (-1, 0, 0) · at (4, 0.5, 0.5)"],
+      [
+        "tube",
+        "pointset",
+        "rigid",
+        "cylinder r = 2 · axis (1, 0, 0) · inside · at (0, 0, 0)",
+      ],
+    ]);
+    // after the control points
+    const ids = tree.map((g) => g.id);
+    expect(ids.indexOf("group:rigid")).toBe(ids.indexOf("group:pointset") + 1);
+  });
+
   it("lists the constraints in a group of their own", () => {
     const control: Command = {
       command: "point.add",

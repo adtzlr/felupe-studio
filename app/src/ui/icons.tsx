@@ -43,6 +43,9 @@ const PATHS = {
     "M10 12 a2 2 0 1 0 4 0 a2 2 0 1 0 -4 0 M10.6 10.6 L5 5 M13.4 10.6 L19 5 M10.6 13.4 L5 19 M13.4 13.4 L19 19 M4 4 h2 v2 h-2 z M18 4 h2 v2 h-2 z M4 18 h2 v2 h-2 z M18 18 h2 v2 h-2 z",
   point:
     "M12 7 a5 5 0 1 0 0.01 0 M12 2 V7 M12 17 V22 M2 12 H7 M17 12 H22 M11 12 a1 1 0 1 0 2 0 a1 1 0 1 0 -2 0",
+  // a rigid surface (#219): a hatched plate, pressed down
+  rigid:
+    "M3 15 H21 M5 15 L3 18 M9 15 L7 18 M13 15 L11 18 M17 15 L15 18 M21 15 L19 18 M12 3 V11 M9 8 L12 11 L15 8",
   step: "M4 20 H9 V15 H14 V10 H19 V5",
   job: "M7 4 L19 12 L7 20 Z",
   warning: "M12 4 L21 20 H3 Z M12 10 V14 M12 17 V17.5",

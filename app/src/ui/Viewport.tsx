@@ -5,6 +5,7 @@ import type {
   FaceSetAdd,
   MpcAdd,
   PointAdd,
+  RigidAdd,
   PointSetAdd,
 } from "../core/commands";
 import {
@@ -14,6 +15,7 @@ import {
 } from "../viewer/constraints";
 import { loadLines } from "../viewer/loads";
 import { pressureLines } from "../viewer/pressures";
+import { rigidShapes } from "../viewer/rigid";
 import type { MeshFiles } from "../core/meshfiles";
 import type { ModelStore } from "../core/store";
 import { useViewKeys } from "./hooks";
@@ -152,7 +154,9 @@ const POINTS = "#f2f4f8";
 const isPointSet = (c: Command): c is PointSetAdd =>
   c.command === "pointset.add";
 
-const isControl = (c: Command): c is PointAdd => c.command === "point.add";
+// the control points and the reference points of the rigid surfaces (#219)
+const isControl = (c: Command): c is PointAdd | RigidAdd =>
+  c.command === "point.add" || c.command === "rigid.add";
 
 const formatNumber = (value: number) => String(+value.toPrecision(6));
 
@@ -523,8 +527,15 @@ export function Viewport({
     () => constraintShapes(commands, nodes),
     [commands, nodes],
   );
+  // the rigid surfaces: translucent planes and cylinders (#219)
+  const rigid = useMemo(
+    () =>
+      rigidShapes(commands, nodes, { hidden, selected, highlight: HIGHLIGHT }),
+    [commands, nodes, hidden, selected],
+  );
   const lines = useMemo(
     () => [
+      ...rigid.lines,
       ...boundaryLines(symbols, {
         size,
         hidden,
@@ -547,7 +558,7 @@ export function Viewport({
         highlight: HIGHLIGHT,
       }),
     ],
-    [symbols, size, hidden, selected, shapes, commands, nodes, sections],
+    [symbols, size, hidden, selected, shapes, commands, nodes, sections, rigid],
   );
   // the points of the selected constraint that a boundary prescribes as well
   const overlaps = useMemo(() => {
@@ -651,7 +662,7 @@ export function Viewport({
     viewer.current.setMarkers(markers);
     viewer.current.setLines(lines);
     viewer.current.setPlane(picked);
-    viewer.current.setFaces(faces);
+    viewer.current.setFaces([...rigid.faces, ...faces]);
     viewer.current.setNodes(nodesShown);
     viewer.current.setTargets(
       controls.map((c) => ({ name: c.name, position: c.coordinates })),
@@ -662,6 +673,7 @@ export function Viewport({
     lines,
     picked,
     faces,
+    rigid,
     nodesShown,
     controls,
     createViewer,

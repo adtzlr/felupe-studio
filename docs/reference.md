@@ -26,6 +26,7 @@ A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserve
 - [`section.add`](#sectionadd): Assign a material and a formulation to a cell set.
 - [`pointset.add`](#pointsetadd): Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, by the coordinates of points or by point ids.
 - [`point.add`](#pointadd): A control point that is not a node of the meshes, e.g. the center point of a multi-point constraint.
+- [`rigid.add`](#rigidadd): A rigid surface (#219): a reference point with a plane or a cylinder.
 - [`faceset.add`](#facesetadd): Faces of the boundary of a section, e.g. for a pressure: on a plane, or the faces with the given centers (picked in the viewport).
 - [`boundary.add`](#boundaryadd): Prescribe displacement components of a point set (fem.Boundary).
 - [`loadcase.add`](#loadcaseadd): A load case of FElupe (fem.dof) on the merged field: the boundaries of a standard test.
@@ -313,6 +314,36 @@ A control point that is not a node of the meshes, e.g. the center point of a mul
 | --- | --- | --- | --- |
 | `name` | name | yes | Name of the object. |
 | `coordinates` | three numbers `[x, y, z]` | yes | The coordinates x, y and z of a point. |
+
+### `rigid.add`
+
+A rigid surface (#219): a reference point with a plane or a cylinder. The reference point is a vertex like the control points and a point set of one point, so boundaries move the surface; it does not rotate. Contacts connect points of the model to it.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | name | yes | Name of the object. |
+| `coordinates` | three numbers `[x, y, z]` | yes | The reference point: a point of the plane, or of the axis of the cylinder. |
+| `shape` | one of the variants below | yes |  |
+
+Variants of `shape`:
+
+#### `normal`
+
+A plane through the reference point.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `shape.normal` | three numbers `[x, y, z]` | yes | The outward normal of the plane, towards the points that touch it. |
+
+#### On a cylinder
+
+A cylinder whose axis goes through the reference point.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `shape.radius` | number > 0 | yes | The radius of the cylinder. |
+| `shape.axis` | three numbers `[x, y, z]` | yes | The direction of the axis of the cylinder. |
+| `shape.inside` | boolean |  | The points are inside the cylinder (a tube around them), else outside (a roller). |
 
 ### `faceset.add`
 

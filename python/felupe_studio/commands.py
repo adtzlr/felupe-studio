@@ -29,6 +29,8 @@ KINDS = {
     "pointset.add": "pointset",
     # a control point is a point set of one point (boundaries, constraints, curves)
     "point.add": "pointset",
+    # a rigid surface (#219): its reference point is a point set of one point too
+    "rigid.add": "pointset",
     "faceset.add": "faceset",
     "boundary.add": "boundary",
     # a load case is referenced like a boundary (ramps of steps, curves of jobs)
@@ -43,6 +45,10 @@ KINDS = {
 }
 
 AXES = ("x", "y", "z")
+
+# the commands of the vertices of the control points: control points and the
+# reference points of rigid surfaces (#219)
+VERTICES = {"point.add": "control point", "rigid.add": "rigid surface"}
 
 # kinds of objects that a step can ramp (a load case is a boundary)
 RAMPED = ("boundary", "load", "pressure")
@@ -195,6 +201,23 @@ def analysis_problems(cmd, analysis, rotations=()):
             f"control point '{name}' has a z coordinate: the points of a 2D model are "
             "in the plane z = 0."
         ]
+    if kind == "rigid.add":
+        shape = cmd["shape"]
+        if cmd["coordinates"][2] != 0:
+            return [
+                f"rigid surface '{name}' has a z coordinate: the points of a 2D model "
+                "are in the plane z = 0."
+            ]
+        if "normal" in shape and shape["normal"][2] != 0:
+            return [
+                f"rigid surface '{name}' has a normal with a z component: the planes "
+                "of a 2D model are lines in the xy-plane."
+            ]
+        if "axis" in shape and (shape["axis"][0] != 0 or shape["axis"][1] != 0):
+            return [
+                f"rigid surface '{name}' has an axis that is not z: the cylinders of a "
+                "2D model are circles in the xy-plane."
+            ]
     if kind == "mpc.add":
         if "z" in cmd["constrained"]:
             return [f"constraint '{name}' connects z, which a 2D model does not have."]
@@ -318,22 +341,34 @@ def _reference_errors(commands):
         if cmd["command"] == "loadcase.add":
             messages.extend(f"commands/{i}: {p}" for p in loadcase_problems(cmd))
 
-        # control points at the same coordinates are merged by the script
-        if cmd["command"] == "point.add":
+        # control points (and reference points of rigid surfaces, #219) at the same
+        # coordinates are merged by the script
+        if cmd["command"] in VERTICES:
             same = next(
                 (
-                    c["name"]
+                    c
                     for _, c in defined.values()
-                    if c["command"] == "point.add"
+                    if c["command"] in VERTICES
                     and c["coordinates"] == cmd["coordinates"]
                 ),
                 None,
             )
             if same is not None:
                 messages.append(
-                    f"commands/{i}: control point '{name}' is at the coordinates of "
-                    f"control point '{same}': the script merges them."
+                    f"commands/{i}: {VERTICES[cmd['command']]} '{name}' is at the "
+                    f"coordinates of {VERTICES[same['command']]} '{same['name']}': "
+                    "the script merges them."
                 )
+
+        # the normal of a plane and the axis of a cylinder of a rigid surface
+        if cmd["command"] == "rigid.add":
+            for key, label in (("normal", "a normal"), ("axis", "an axis")):
+                vector = cmd["shape"].get(key)
+                if vector is not None and not any(vector):
+                    messages.append(
+                        f"commands/{i}: rigid surface '{name}' has {label} of zero "
+                        "length."
+                    )
 
         # a rotation point needs all components of the center point
         if (
@@ -379,9 +414,10 @@ def _reference_errors(commands):
             defined[name] = (i, cmd)
 
     # a control point has no stiffness of its own: its components need a boundary
-    # or a constraint (as the center point, or all of them as the rotation point)
+    # or a constraint (as the center point, or all of them as the rotation point);
+    # the reference point of a rigid surface needs boundaries (#219)
     for i, cmd in enumerate(commands):
-        if cmd["command"] != "point.add":
+        if cmd["command"] not in VERTICES:
             continue
         fixed = set()
         for other in commands:
@@ -399,6 +435,13 @@ def _reference_errors(commands):
                 if len(missing) > 1
                 else missing[0]
             )
+            if cmd["command"] == "rigid.add":
+                messages.append(
+                    f"commands/{i}: rigid surface '{cmd['name']}' has no stiffness in "
+                    f"{components}: its reference point needs a boundary of these "
+                    "components."
+                )
+                continue
             messages.append(
                 f"commands/{i}: control point '{cmd['name']}' has no stiffness in "
                 f"{components}: it needs a boundary or a multi-point constraint of "

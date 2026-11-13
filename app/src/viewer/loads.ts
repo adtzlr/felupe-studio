@@ -6,14 +6,18 @@ import { FORCE_COLOR } from "./palette";
 import { selectedPoints } from "./pointsets";
 import { arrowSegments, type Lines } from "./scene";
 
-/** The points of a point set or of a control point (#94). */
+/**
+ * The points of a point set or of a control point (#94), or the reference point of
+ * a rigid surface (#219).
+ */
 function pointsOf(
   name: string,
   commands: readonly Command[],
   nodes: readonly Float64Array[],
 ): Float64Array {
   const c = commands.find((c) => c.name === name);
-  if (c?.command === "point.add") return Float64Array.from(c.coordinates);
+  if (c?.command === "point.add" || c?.command === "rigid.add")
+    return Float64Array.from(c.coordinates);
   if (c?.command === "pointset.add") return selectedPoints(c.select, nodes);
   return new Float64Array();
 }

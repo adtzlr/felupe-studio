@@ -54,6 +54,8 @@ export const KINDS: Record<CommandType, Kind> = {
   "pointset.add": "pointset",
   // a control point is a point set of one point (boundaries, constraints, curves)
   "point.add": "pointset",
+  // a rigid surface (#219): its reference point is a point set of one point too
+  "rigid.add": "pointset",
   "faceset.add": "faceset",
   "boundary.add": "boundary",
   // a load case is referenced like a boundary (ramps of steps, curves of jobs)
@@ -65,6 +67,16 @@ export const KINDS: Record<CommandType, Kind> = {
   "pressure.add": "pressure",
   "step.add": "step",
   "job.add": "job",
+};
+
+/**
+ * The commands of the vertices of the control points: control points and the
+ * reference points of rigid surfaces (#219).
+ */
+type Vertex = "point.add" | "rigid.add";
+const VERTICES: Record<Vertex, string> = {
+  "point.add": "control point",
+  "rigid.add": "rigid surface",
 };
 
 /** Kinds of objects that a step can ramp (a load case is a boundary). */
@@ -304,18 +316,36 @@ export function validate(commands: readonly Command[]): Issue[] {
       }
     }
 
-    // control points at the same coordinates are merged by the script
-    if (cmd.command === "point.add") {
+    // control points (and reference points of rigid surfaces, #219) at the same
+    // coordinates are merged by the script
+    if (cmd.command === "point.add" || cmd.command === "rigid.add") {
       const same = [...defined.values()].find(
         ([, c]) =>
-          c.command === "point.add" &&
+          (c.command === "point.add" || c.command === "rigid.add") &&
           c.coordinates.every((x, k) => x === cmd.coordinates[k]),
       );
       if (same) {
         add(
-          `control point '${name}' is at the coordinates of control point '${same[1].name}': the script merges them.`,
+          `${VERTICES[cmd.command]} '${name}' is at the coordinates of ${VERTICES[same[1].command as Vertex]} '${same[1].name}': the script merges them.`,
           "coordinates",
         );
+      }
+    }
+
+    // the normal of a plane and the axis of a cylinder of a rigid surface
+    if (cmd.command === "rigid.add") {
+      const shape = cmd.shape as { normal?: number[]; axis?: number[] };
+      for (const [key, label] of [
+        ["normal", "a normal"],
+        ["axis", "an axis"],
+      ] as const) {
+        const vector = shape[key];
+        if (vector && vector.every((x) => x === 0)) {
+          add(
+            `rigid surface '${name}' has ${label} of zero length.`,
+            `shape.${key}`,
+          );
+        }
       }
     }
 
@@ -368,7 +398,7 @@ export function validate(commands: readonly Command[]): Issue[] {
   // a control point has no stiffness of its own: its components need a boundary
   // or a constraint (as the center point, or all of them as the rotation point)
   commands.forEach((cmd, i) => {
-    if (cmd.command !== "point.add") return;
+    if (cmd.command !== "point.add" && cmd.command !== "rigid.add") return;
     const fixed = new Set<string>();
     for (const c of commands) {
       if (c.command === "boundary.add" && c.pointset === cmd.name)
@@ -388,9 +418,13 @@ export function validate(commands: readonly Command[]): Issue[] {
         index: i,
         name: cmd.name,
         message:
-          `commands/${i}: control point '${cmd.name}' has no stiffness in ` +
-          `${components}: it needs a boundary or a multi-point constraint of ` +
-          "these components.",
+          cmd.command === "rigid.add"
+            ? `commands/${i}: rigid surface '${cmd.name}' has no stiffness in ` +
+              `${components}: its reference point needs a boundary of these ` +
+              "components."
+            : `commands/${i}: control point '${cmd.name}' has no stiffness in ` +
+              `${components}: it needs a boundary or a multi-point constraint of ` +
+              "these components.",
       });
     }
   });

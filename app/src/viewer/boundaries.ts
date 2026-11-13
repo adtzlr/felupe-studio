@@ -46,7 +46,11 @@ function plane(nodes: readonly Float64Array[], k: number, value: number) {
   return Float64Array.from(result);
 }
 
-function bounds(nodes: readonly Float64Array[], k: number): [number, number] {
+/** The smallest and the largest coordinate k of the nodes. */
+export function bounds(
+  nodes: readonly Float64Array[],
+  k: number,
+): [number, number] {
   let min = Infinity;
   let max = -Infinity;
   for (const array of nodes) {
@@ -222,12 +226,13 @@ export function boundarySymbols(
   nodes: readonly Float64Array[],
 ): BoundarySymbol[] {
   if (!nodes.length) return [];
-  // the points of the point sets; a control point is a point set of one point (#94)
+  // the points of the point sets; a control point is a point set of one point (#94),
+  // and so is the reference point of a rigid surface (#219)
   const points = new Map<string, Float64Array>();
   for (const c of commands) {
     if (c.command === "pointset.add")
       points.set(c.name, selectedPoints(c.select, nodes));
-    else if (c.command === "point.add")
+    else if (c.command === "point.add" || c.command === "rigid.add")
       points.set(c.name, Float64Array.from(c.coordinates));
   }
   const ramped = rampedValues(commands);
