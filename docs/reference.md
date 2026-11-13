@@ -32,6 +32,7 @@ A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserve
 - [`loadcase.add`](#loadcaseadd): A load case of FElupe (fem.dof) on the merged field: the boundaries of a standard test.
 - [`symmetry.add`](#symmetryadd): Symmetry planes normal to x, y or z (fem.dof.symmetry): on a plane, the displacement component normal to it is zero and the components in the plane are free.
 - [`mpc.add`](#mpcadd): A multi-point constraint (fem.MultiPointConstraint): the points of a point set follow a center point rigidly, connected by a penalty.
+- [`contact.add`](#contactadd): A contact of points with a rigid surface (#220): fem.ContactRigidPlane or fem.ContactRigidCylinder, an item of the steps like the constraints.
 - [`load.add`](#loadadd): A point load (fem.PointLoad): a force at every point of a point set or at a control point, an item of the steps.
 - [`pressure.add`](#pressureadd): A pressure on the faces of a face set (fem.SolidBodyPressure), an item of the steps: a force per deformed area, normal to the faces.
 - [`step.add`](#stepadd): A step with all boundaries, optionally ramping items, each with its own values (fem.Step).
@@ -383,7 +384,7 @@ Prescribe displacement components of a point set (fem.Boundary).
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | name | yes | Name of the object. |
-| `pointset` | name of a point set or control point | yes |  |
+| `pointset` | name of a point set, control point or rigid surface | yes |  |
 | `constrained` | list of axis: `x`, `y` or `z` (at least 1, unique) | yes | Constrained displacement components; all others are free. |
 | `value` | number |  | Prescribed displacement of the constrained components (default 0); a rotation in rad at a rotation point. |
 
@@ -469,6 +470,19 @@ A multi-point constraint (fem.MultiPointConstraint): the points of a point set f
 | `multiplier` | number > 0 |  | The penalty of the relative displacements (default 1000). |
 | `rotation` | name of a point set or control point |  | The rotation point: a control point or a point set of one point, whose values are the rotations about the center point in rad (its coordinates are not used). |
 
+### `contact.add`
+
+A contact of points with a rigid surface (#220): fem.ContactRigidPlane or fem.ContactRigidCylinder, an item of the steps like the constraints. The penalty of the contact is a factor of the mean stiffness of the solid bodies at the points.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | name | yes | Name of the object. |
+| `points` | name of a point set, control point or face set | yes | The points that may touch the surface: a point set, or the points of a face set. |
+| `surface` | name of a rigid surface | yes | The rigid surface. |
+| `friction` | number ≥ 0 |  | The Coulomb friction coefficient (default 0, without friction). |
+| `multiplier` | number > 0 |  | The factor of the penalty of the contact, times the mean stiffness of the solid bodies at the points (default 1). |
+| `elastic_slip` | number > 0 |  | The allowable elastic slip of sticking points (default none: a constant tangential penalty), e.g. 0.5 % to 1 % of the size of a cell. |
+
 ### `load.add`
 
 A point load (fem.PointLoad): a force at every point of a point set or at a control point, an item of the steps. A ramp of a step scales the force.
@@ -476,7 +490,7 @@ A point load (fem.PointLoad): a force at every point of a point set or at a cont
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | name | yes | Name of the object. |
-| `points` | name of a point set or control point | yes | The point set or the control point of the load. |
+| `points` | name of a point set, control point or rigid surface | yes | The point set or the control point of the load. |
 | `force` | three numbers `[x, y, z]` | yes | The force fx, fy, fz at every point. |
 
 ### `pressure.add`
@@ -497,7 +511,7 @@ A step with all boundaries, optionally ramping items, each with its own values (
 | --- | --- | --- | --- |
 | `name` | name | yes | Name of the object. |
 | `sections` | names of sections (at least 1, unique) |  | Sections whose solid bodies are items of the step (default: all). |
-| `constraints` | names of multi-point constraints (at least 1, unique) |  | Multi-point constraints that are items of the step (default: all). |
+| `constraints` | names of multi-point constraints or contacts (at least 1, unique) |  | Multi-point constraints that are items of the step (default: all). |
 | `loads` | names of point loads or pressures (at least 1, unique) |  | Point loads and pressures that are items of the step (default: all). |
 | `ramp` | object |  | Ramp the values of items with fem.math.linsteps([start, end], num), with the same number of increments for all items. |
 | `ramp.num` | integer ≥ 1 | yes | Increments of the step. |

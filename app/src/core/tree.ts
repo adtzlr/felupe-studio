@@ -38,7 +38,7 @@ export interface TreeNode {
  * The groups of the browser: by kind, the control points and the rigid surfaces
  * (#219) in groups of their own.
  */
-const GROUPS: { kind: Kind | "point" | "rigid"; label: string }[] = [
+const GROUPS: { kind: Kind | "point" | "contact"; label: string }[] = [
   { kind: "settings", label: "Settings" },
   { kind: "parameter", label: "Parameters" },
   { kind: "mesh", label: "Meshes" },
@@ -51,6 +51,7 @@ const GROUPS: { kind: Kind | "point" | "rigid"; label: string }[] = [
   { kind: "section", label: "Sections" },
   { kind: "boundary", label: "Boundaries" },
   { kind: "constraint", label: "Constraints" },
+  { kind: "contact", label: "Contacts" },
   { kind: "load", label: "Loads" },
   { kind: "pressure", label: "Pressures" },
   { kind: "step", label: "Steps" },
@@ -155,6 +156,11 @@ function detail(cmd: Command, commands: readonly Command[]): string {
       return `${cmd.points} · ${valueWithUnit(`(${cmd.force.join(", ")})`, unitOf("force", units))}`;
     case "pressure.add":
       return `${cmd.faces} · ${valueWithUnit(String(cmd.pressure), unitOf("stress", units))}`;
+    case "contact.add":
+      return [
+        `${cmd.points} → ${cmd.surface}`,
+        ...(cmd.friction ? [`μ = ${cmd.friction}`] : []),
+      ].join(" · ");
     case "mpc.add":
       return [
         `${cmd.points} → ${cmd.center}`,
@@ -233,7 +239,7 @@ export function deriveTree(
     label: cmd.name,
     kind: KINDS[cmd.command],
     ...(cmd.command === "point.add" ? { icon: "point" } : {}),
-    ...(cmd.command === "rigid.add" ? { icon: "rigid" } : {}),
+    ...(cmd.command === "contact.add" ? { icon: "contact" } : {}),
     detail: detail(cmd, commands),
     issues: messages.get(cmd.name) ?? [],
     children: [],
@@ -251,7 +257,7 @@ export function deriveTree(
     issues: [],
     children: [] as TreeNode[],
   }));
-  const groupOf = (kind: Kind | "point" | "rigid") =>
+  const groupOf = (kind: Kind | "point" | "contact") =>
     groups.find((g) => g.id === `group:${kind}`);
 
   const placed = new Set<string>();
@@ -270,8 +276,8 @@ export function deriveTree(
     const group =
       cmd.command === "point.add"
         ? "point"
-        : cmd.command === "rigid.add"
-          ? "rigid"
+        : cmd.command === "contact.add"
+          ? "contact"
           : child.kind === "cellset"
             ? "mesh"
             : // symmetry planes are boundaries of all steps (#186)
@@ -289,6 +295,7 @@ export function deriveTree(
     "group:merge",
     "group:point",
     "group:rigid",
+    "group:contact",
     "group:faceset",
     "group:pressure",
     "group:constraint",

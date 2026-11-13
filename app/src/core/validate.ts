@@ -27,6 +27,7 @@ export type Kind =
   | "material"
   | "section"
   | "pointset"
+  | "rigid"
   | "faceset"
   | "boundary"
   | "symmetry"
@@ -54,8 +55,9 @@ export const KINDS: Record<CommandType, Kind> = {
   "pointset.add": "pointset",
   // a control point is a point set of one point (boundaries, constraints, curves)
   "point.add": "pointset",
-  // a rigid surface (#219): its reference point is a point set of one point too
-  "rigid.add": "pointset",
+  // a rigid surface (#219): its reference point is used like a point set of one
+  // point by boundaries and loads
+  "rigid.add": "rigid",
   "faceset.add": "faceset",
   "boundary.add": "boundary",
   // a load case is referenced like a boundary (ramps of steps, curves of jobs)
@@ -63,6 +65,8 @@ export const KINDS: Record<CommandType, Kind> = {
   // symmetry planes (#186): boundaries of all steps, neither ramped nor a curve
   "symmetry.add": "symmetry",
   "mpc.add": "constraint",
+  // a contact with a rigid surface (#220): an item of the steps like a constraint
+  "contact.add": "constraint",
   "load.add": "load",
   "pressure.add": "pressure",
   "step.add": "step",
@@ -82,6 +86,9 @@ const VERTICES: Record<Vertex, string> = {
 /** Kinds of objects that a step can ramp (a load case is a boundary). */
 export const RAMPED: readonly Kind[] = ["boundary", "load", "pressure"];
 
+/** The name of a kind in the messages (#219). */
+const kindName = (kind: Kind) => (kind === "rigid" ? "rigid surface" : kind);
+
 /** The kind or kinds of objects that a reference may point to. */
 export type RefKind = Kind | readonly Kind[];
 
@@ -98,13 +105,18 @@ export const REFERENCES: Partial<
   "cellset.from_file": { mesh: ["mesh", false] },
   "section.add": { cellset: ["cellset", false], material: ["material", false] },
   "faceset.add": { section: ["section", false] },
-  "boundary.add": { pointset: ["pointset", false] },
+  // the reference point of a rigid surface is moved by boundaries (#219)
+  "boundary.add": { pointset: [["pointset", "rigid"], false] },
   "mpc.add": {
     points: ["pointset", false],
     center: ["pointset", false],
     rotation: ["pointset", false],
   },
-  "load.add": { points: ["pointset", false] },
+  "load.add": { points: [["pointset", "rigid"], false] },
+  "contact.add": {
+    points: [["pointset", "faceset"], false],
+    surface: ["rigid", false],
+  },
   "pressure.add": { faces: ["faceset", false] },
   "step.add": {
     sections: ["section", true],
@@ -249,7 +261,7 @@ export function validate(commands: readonly Command[]): Issue[] {
       const value = (cmd as unknown as Record<string, unknown>)[field];
       if (value === undefined) continue;
       const kinds = kindsOf(refKind);
-      const text = kinds.join(" or ");
+      const text = kinds.map(kindName).join(" or ");
       for (const ref of isList ? (value as string[]) : [value as string]) {
         const other = kindOf(ref);
         if (other === undefined) {
@@ -259,7 +271,7 @@ export function validate(commands: readonly Command[]): Issue[] {
           );
         } else if (!kinds.includes(other)) {
           add(
-            `'${ref}' in '${field}' of '${name}' is a ${other}, not a ${text}.`,
+            `'${ref}' in '${field}' of '${name}' is a ${kindName(other)}, not a ${text}.`,
             field,
           );
         }
@@ -328,6 +340,17 @@ export function validate(commands: readonly Command[]): Issue[] {
         add(
           `${VERTICES[cmd.command]} '${name}' is at the coordinates of ${VERTICES[same[1].command as Vertex]} '${same[1].name}': the script merges them.`,
           "coordinates",
+        );
+      }
+    }
+
+    // the points of a contact are points of the sections (#220)
+    if (cmd.command === "contact.add") {
+      const other = defined.get(cmd.points)?.[1];
+      if (other?.command === "point.add") {
+        add(
+          `contact '${name}' takes the control point '${other.name}': a contact needs points of the sections.`,
+          "points",
         );
       }
     }

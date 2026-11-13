@@ -46,6 +46,9 @@ const PATHS = {
   // a rigid surface (#219): a hatched plate, pressed down
   rigid:
     "M3 15 H21 M5 15 L3 18 M9 15 L7 18 M13 15 L11 18 M17 15 L15 18 M21 15 L19 18 M12 3 V11 M9 8 L12 11 L15 8",
+  // a contact (#220): a ball on a hatched plate
+  contact:
+    "M12 6 a4.5 4.5 0 1 0 0.01 0 M3 15 H21 M5 15 L3 18 M9 15 L7 18 M13 15 L11 18 M17 15 L15 18 M21 15 L19 18",
   step: "M4 20 H9 V15 H14 V10 H19 V5",
   job: "M7 4 L19 12 L7 20 Z",
   warning: "M12 4 L21 20 H3 Z M12 10 V14 M12 17 V17.5",

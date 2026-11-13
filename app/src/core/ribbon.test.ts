@@ -35,6 +35,7 @@ describe("ribbonGroups", () => {
       ["Control point"],
       ["Rigid surface"],
       ["Multi-point constraint"],
+      ["Contact"],
       ["Point load"],
       ["Pressure"],
     ]);
@@ -128,9 +129,19 @@ describe("unavailable", () => {
       section: "section_soft",
       select: { axis: "x", value: 3 },
     } as Command;
+    // a contact needs a rigid surface (#220)
+    expect(unavailable("contact.add", { commands })).toBe(
+      "Create a rigid surface first.",
+    );
+    const plate = {
+      command: "rigid.add",
+      name: "plate",
+      coordinates: [4, 0.5, 0.5],
+      shape: { normal: [-1, 0, 0] },
+    } as Command;
     for (const type of Object.keys(REGISTRY) as CommandType[]) {
       expect(
-        unavailable(type, { commands: [...commands, faces] }),
+        unavailable(type, { commands: [...commands, faces, plate] }),
         type,
       ).toBeUndefined();
     }

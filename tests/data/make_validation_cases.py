@@ -583,6 +583,154 @@ CHANGES = {
             },
         ),
     ),
+    # contacts with rigid surfaces (#220)
+    "contacts": lambda d: (
+        d["commands"].insert(
+            9,
+            {
+                "command": "rigid.add",
+                "name": "plate",
+                "coordinates": [4, 0.5, 0.5],
+                "shape": {"normal": [-1, 0, 0]},
+            },
+        ),
+        d["commands"].insert(
+            10,
+            {
+                "command": "boundary.add",
+                "name": "push",
+                "pointset": "plate",
+                "constrained": ["x", "y", "z"],
+            },
+        ),
+        d["commands"].insert(
+            11,
+            {
+                "command": "faceset.add",
+                "name": "end",
+                "section": "section_soft",
+                "select": {"axis": "x", "value": 3},
+            },
+        ),
+        d["commands"].insert(
+            12,
+            {
+                "command": "contact.add",
+                "name": "touch",
+                "points": "end",
+                "surface": "plate",
+                "friction": 0.3,
+                "elastic_slip": 0.01,
+            },
+        ),
+        d["commands"].insert(
+            13,
+            {
+                "command": "contact.add",
+                "name": "edge",
+                "points": "right",
+                "surface": "plate",
+                "multiplier": 10,
+            },
+        ),
+    ),
+    "contact problems": lambda d: (
+        d["commands"].insert(
+            9, {"command": "point.add", "name": "pin", "coordinates": [5, 0.5, 0.5]}
+        ),
+        d["commands"].insert(
+            10,
+            {
+                "command": "boundary.add",
+                "name": "pin_fixed",
+                "pointset": "pin",
+                "constrained": ["x", "y", "z"],
+            },
+        ),
+        d["commands"].insert(
+            11,
+            {
+                "command": "rigid.add",
+                "name": "plate",
+                "coordinates": [4, 0.5, 0.5],
+                "shape": {"normal": [-1, 0, 0]},
+            },
+        ),
+        d["commands"].insert(
+            12,
+            {
+                "command": "boundary.add",
+                "name": "push",
+                "pointset": "plate",
+                "constrained": ["x", "y", "z"],
+            },
+        ),
+        d["commands"].insert(
+            13,
+            {
+                "command": "contact.add",
+                "name": "wrong_surface",
+                "points": "right",
+                "surface": "left",
+            },
+        ),
+        d["commands"].insert(
+            14,
+            {
+                "command": "contact.add",
+                "name": "wrong_points",
+                "points": "pin",
+                "surface": "plate",
+            },
+        ),
+        d["commands"].insert(
+            15,
+            {
+                "command": "contact.add",
+                "name": "unknown",
+                "points": "right",
+                "surface": "wall",
+            },
+        ),
+    ),
+    "2d model with a contact": lambda d: (
+        d["commands"].insert(
+            0,
+            {
+                "command": "model.settings",
+                "name": "settings",
+                "analysis": "plane-strain",
+            },
+        ),
+        d["commands"].__setitem__(10, {**d["commands"][10], "constrained": ["x", "y"]}),
+        d["commands"].insert(
+            10,
+            {
+                "command": "rigid.add",
+                "name": "plate",
+                "coordinates": [4, 0.5, 0],
+                "shape": {"normal": [-1, 0, 0]},
+            },
+        ),
+        d["commands"].insert(
+            11,
+            {
+                "command": "boundary.add",
+                "name": "push",
+                "pointset": "plate",
+                "constrained": ["x", "y"],
+            },
+        ),
+        d["commands"].insert(
+            12,
+            {
+                "command": "contact.add",
+                "name": "touch",
+                "points": "right",
+                "surface": "plate",
+            },
+        ),
+    ),
     "2d model with rigid surfaces": lambda d: (
         d["commands"].insert(
             0,

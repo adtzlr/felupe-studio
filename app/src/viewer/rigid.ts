@@ -5,8 +5,10 @@
 // cylinder (a circle about z) a disc of a roller or a ring of a tube. In the
 // results, the surfaces are moved by the displacements of their reference points.
 import { analysisOf, is2d } from "../core/analysis";
-import type { Command, RigidAdd } from "../core/commands";
+import type { Command, ContactAdd, RigidAdd } from "../core/commands";
 import { bounds } from "./boundaries";
+import { type SectionFaces, selectedFaces } from "./facesets";
+import { selectedPoints } from "./pointsets";
 import { arrowSegments, type Highlight, type Lines } from "./scene";
 
 /** Color of the rigid surfaces; the selected one is highlighted. */
@@ -266,4 +268,34 @@ export function rigidShapes(
     }
   }
   return { faces, lines };
+}
+
+/**
+ * The points of a contact (#220), three coordinates each: of its point set, or the
+ * nodes of the faces of its face set.
+ */
+export function contactPoints(
+  contact: ContactAdd,
+  commands: readonly Command[],
+  nodes: readonly Float64Array[],
+  sections: ReadonlyMap<string, SectionFaces>,
+): number[] {
+  const set = commands.find((c) => c.name === contact.points);
+  if (set?.command === "pointset.add")
+    return [...selectedPoints(set.select, nodes)];
+  if (set?.command !== "faceset.add") return [];
+  const of = sections.get(set.section);
+  if (!of) return [];
+  const seen = new Set<string>();
+  const points: number[] = [];
+  for (const i of selectedFaces(set.select, of)) {
+    const face = of.faces[i].nodes;
+    for (let p = 0; p < face.length; p += 3) {
+      const key = `${face[p]},${face[p + 1]},${face[p + 2]}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      points.push(face[p], face[p + 1], face[p + 2]);
+    }
+  }
+  return points;
 }

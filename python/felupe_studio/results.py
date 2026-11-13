@@ -83,10 +83,20 @@ class Recorder(fem.Plugin):
         _state["controls"][self.job].append(_control_values(self.field))
 
 
+# the items of the steps whose forces act on the control points: the multi-point
+# constraints and the contacts with rigid surfaces (#220)
+CONSTRAINTS = (
+    fem.MultiPointConstraint,
+    fem.ContactRigidPlane,
+    fem.ContactRigidCylinder,
+)
+
+
 def _constraints():
-    """Return the multi-point constraints of the namespace of the run."""
+    """Return the multi-point constraints and the contacts of the namespace of the
+    run."""
     namespace = _state["namespace"]
-    return [v for v in namespace.values() if isinstance(v, fem.MultiPointConstraint)]
+    return [v for v in namespace.values() if isinstance(v, CONSTRAINTS)]
 
 
 def _control_values(field):
@@ -134,7 +144,11 @@ def _in_3d(vector, rotation=False):
 def _rotation_points():
     """Return the names of the control points that are rotation points."""
     namespace = _state["namespace"]
-    indices = {c.rotationpoint for c in _constraints() if c.rotationpoint is not None}
+    indices = {
+        c.rotationpoint
+        for c in _constraints()
+        if getattr(c, "rotationpoint", None) is not None
+    }
     return {
         name
         for name in _state.get("points", [])

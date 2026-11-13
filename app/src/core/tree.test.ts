@@ -284,17 +284,41 @@ describe("deriveTree", () => {
     expect(
       group.children.map((c) => [c.label, c.kind, c.icon, c.detail]),
     ).toEqual([
-      ["plate", "pointset", "rigid", "plane n = (-1, 0, 0) · at (4, 0.5, 0.5)"],
+      ["plate", "rigid", undefined, "plane n = (-1, 0, 0) · at (4, 0.5, 0.5)"],
       [
         "tube",
-        "pointset",
         "rigid",
+        undefined,
         "cylinder r = 2 · axis (1, 0, 0) · inside · at (0, 0, 0)",
       ],
     ]);
     // after the control points
     const ids = tree.map((g) => g.id);
     expect(ids.indexOf("group:rigid")).toBe(ids.indexOf("group:pointset") + 1);
+  });
+
+  it("lists the contacts in a group of their own (#220)", () => {
+    const contact: Command[] = [
+      {
+        command: "rigid.add",
+        name: "plate",
+        coordinates: [4, 0.5, 0.5],
+        shape: { normal: [-1, 0, 0] },
+      },
+      {
+        command: "contact.add",
+        name: "touch",
+        points: "right",
+        surface: "plate",
+        friction: 0.3,
+      },
+    ];
+    const tree = deriveTree([...commands, ...contact]);
+    const group = find(tree, "group:contact")!;
+    expect(group.label).toBe("Contacts");
+    expect(
+      group.children.map((c) => [c.label, c.kind, c.icon, c.detail]),
+    ).toEqual([["touch", "constraint", "contact", "right → plate · μ = 0.3"]]);
   });
 
   it("lists the constraints in a group of their own", () => {
