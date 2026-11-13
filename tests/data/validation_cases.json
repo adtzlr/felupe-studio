@@ -5947,7 +5947,7 @@
     ]
   },
   {
-    "name": "2d model without control points yet",
+    "name": "2d model with a rotation point",
     "document": {
       "schema_version": 3,
       "commands": [
@@ -6027,7 +6027,16 @@
           "name": "pin",
           "coordinates": [
             4,
-            0,
+            0.5,
+            0
+          ]
+        },
+        {
+          "command": "point.add",
+          "name": "pivot",
+          "coordinates": [
+            4,
+            0.6,
             0
           ]
         },
@@ -6037,7 +6046,23 @@
           "pointset": "left",
           "constrained": [
             "x",
-            "y",
+            "y"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "hold",
+          "pointset": "pin",
+          "constrained": [
+            "x",
+            "y"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "turn",
+          "pointset": "pivot",
+          "constrained": [
             "z"
           ]
         },
@@ -6049,6 +6074,176 @@
           "constrained": [
             "x",
             "y"
+          ],
+          "rotation": "pivot"
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [],
+    "notes": []
+  },
+  {
+    "name": "2d model with control points out of the plane",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "model.settings",
+          "name": "settings",
+          "analysis": "axisymmetric"
+        },
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "point.add",
+          "name": "pin",
+          "coordinates": [
+            4,
+            0.5,
+            1
+          ]
+        },
+        {
+          "command": "point.add",
+          "name": "pivot",
+          "coordinates": [
+            4,
+            0.6,
+            0
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "turn",
+          "pointset": "pivot",
+          "constrained": [
+            "x",
+            "z"
+          ]
+        },
+        {
+          "command": "mpc.add",
+          "name": "glue",
+          "points": "right",
+          "center": "pin",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ],
+          "rotation": "pivot"
+        },
+        {
+          "command": "load.add",
+          "name": "twist",
+          "points": "pivot",
+          "force": [
+            1,
+            0,
+            0
           ]
         },
         {
@@ -6084,10 +6279,11 @@
       ]
     },
     "errors": [
-      "commands/10: Control points are not available in 2D models yet: remove 'pin' or make the model 3D.",
-      "commands/11: boundary 'fixed' constrains z, which a 2D model does not have.",
-      "commands/12: Multi-point constraints are not available in 2D models yet: remove 'glue' or make the model 3D.",
-      "commands/10: control point 'pin' has no stiffness in z: it needs a boundary or a multi-point constraint of these components."
+      "commands/10: control point 'pin' has a z coordinate: the points of a 2D model are in the plane z = 0.",
+      "commands/13: boundary 'turn' constrains x of the rotation point 'pivot': the rotation point of a 2D model has the rotation about z only.",
+      "commands/14: constraint 'glue' connects z, which a 2D model does not have.",
+      "commands/14: constraint 'glue' with a rotation point connects all components x and y.",
+      "commands/15: point load 'twist' at the rotation point 'pivot' has a component in x or y: the rotation point of a 2D model has the moment about z only."
     ],
     "notes": []
   },

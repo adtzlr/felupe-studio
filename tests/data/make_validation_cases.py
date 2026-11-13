@@ -411,7 +411,7 @@ CHANGES = {
             },
         ),
     ),
-    "2d model without control points yet": lambda d: (
+    "2d model with a rotation point": lambda d: (
         d["commands"].insert(
             0,
             {
@@ -420,17 +420,86 @@ CHANGES = {
                 "analysis": "plane-strain",
             },
         ),
+        d["commands"].__setitem__(10, {**d["commands"][10], "constrained": ["x", "y"]}),
         d["commands"].insert(
-            10, {"command": "point.add", "name": "pin", "coordinates": [4, 0, 0]}
+            10, {"command": "point.add", "name": "pin", "coordinates": [4, 0.5, 0]}
         ),
         d["commands"].insert(
-            12,
+            11, {"command": "point.add", "name": "pivot", "coordinates": [4, 0.6, 0]}
+        ),
+        d["commands"].insert(
+            13,
+            {
+                "command": "boundary.add",
+                "name": "hold",
+                "pointset": "pin",
+                "constrained": ["x", "y"],
+            },
+        ),
+        d["commands"].insert(
+            14,
+            {
+                "command": "boundary.add",
+                "name": "turn",
+                "pointset": "pivot",
+                "constrained": ["z"],
+            },
+        ),
+        d["commands"].insert(
+            15,
             {
                 "command": "mpc.add",
                 "name": "glue",
                 "points": "right",
                 "center": "pin",
                 "constrained": ["x", "y"],
+                "rotation": "pivot",
+            },
+        ),
+    ),
+    "2d model with control points out of the plane": lambda d: (
+        d["commands"].insert(
+            0,
+            {
+                "command": "model.settings",
+                "name": "settings",
+                "analysis": "axisymmetric",
+            },
+        ),
+        d["commands"].__setitem__(10, {**d["commands"][10], "constrained": ["x", "y"]}),
+        d["commands"].insert(
+            10, {"command": "point.add", "name": "pin", "coordinates": [4, 0.5, 1]}
+        ),
+        d["commands"].insert(
+            11, {"command": "point.add", "name": "pivot", "coordinates": [4, 0.6, 0]}
+        ),
+        d["commands"].insert(
+            13,
+            {
+                "command": "boundary.add",
+                "name": "turn",
+                "pointset": "pivot",
+                "constrained": ["x", "z"],
+            },
+        ),
+        d["commands"].insert(
+            14,
+            {
+                "command": "mpc.add",
+                "name": "glue",
+                "points": "right",
+                "center": "pin",
+                "constrained": ["x", "y", "z"],
+                "rotation": "pivot",
+            },
+        ),
+        d["commands"].insert(
+            15,
+            {
+                "command": "load.add",
+                "name": "twist",
+                "points": "pivot",
+                "force": [1, 0, 0],
             },
         ),
     ),

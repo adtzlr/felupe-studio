@@ -91,7 +91,7 @@ def single_point(mask, name):
 def vertex_region(points):
     """Return a region of vertices at the given points, e.g. of control points that
     are not nodes of the meshes of the sections."""
-    points = np.asarray(points, dtype=float).reshape(-1, 3)
+    points = np.atleast_2d(np.asarray(points, dtype=float))
     cells = np.arange(len(points)).reshape(-1, 1)
     return fem.RegionVertex(fem.Mesh(points, cells, "vertex"))
 

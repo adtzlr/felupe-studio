@@ -1,6 +1,7 @@
 // Registry of labels, hints and defaults for the commands. The structure of a form
 // (fields, types, ranges, variants) comes from the command schema, see form.ts; this
 // file only adds what the schema does not know.
+import { analysisOf, is2d } from "./analysis";
 import type { Command } from "./commands";
 import { needsBulk } from "./materials";
 import type { CommandType, Kind } from "./validate";
@@ -47,6 +48,16 @@ export interface CommandInfo {
   ) => Record<string, unknown>;
 }
 
+/** The components x and y of a 2D model (#175), instead of all three. */
+function planar(
+  draft: Record<string, unknown>,
+  commands: readonly Command[],
+): Record<string, unknown> {
+  return is2d(analysisOf(commands))
+    ? { ...draft, constrained: ["x", "y"] }
+    : draft;
+}
+
 /**
  * A new constraint connects the latest point set (of the mesh) to the latest
  * control point, if there are such objects.
@@ -58,7 +69,7 @@ function initialConstraint(
   const sets = commands.filter((c) => c.command === "pointset.add");
   const points = commands.filter((c) => c.command === "point.add");
   return {
-    ...draft,
+    ...planar(draft, commands),
     ...(sets.length ? { points: sets.at(-1)!.name } : {}),
     ...(points.length ? { center: points.at(-1)!.name } : {}),
   };
@@ -346,6 +357,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     options: {
       constrained: AXES,
     },
+    initial: planar,
   },
   "loadcase.add": {
     label: "Load case",

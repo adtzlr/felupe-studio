@@ -16,12 +16,6 @@ export const CELLS_3D = [
 /** The cell types of the cells of 2D models. */
 export const CELLS_2D = ["triangle", "triangle6", "quad", "quad8", "quad9"];
 
-/** The objects that 2D models do not have yet. */
-const NOT_IN_2D: Partial<Record<Command["command"], string>> = {
-  "mpc.add": "Multi-point constraints",
-  "point.add": "Control points",
-};
-
 /** The type of the analysis of a command list (the default is 3D). */
 export function analysisOf(commands: readonly Command[]): Analysis {
   const settings = commands.find((c) => c.command === "model.settings");
@@ -35,12 +29,13 @@ export const is2d = (analysis: Analysis) => analysis !== "3d";
 
 /**
  * The problems of a command in a model of a type of analysis, with the field of
- * the command that has them: a 2D model has 2D cells and no z components, and not
- * yet all objects of a 3D model.
+ * the command that has them: a 2D model has 2D cells and no z components, except
+ * the rotation about z of the `rotations` (the rotation points of constraints).
  */
 export function analysisProblems(
   cmd: Command,
   analysis: Analysis,
+  rotations: ReadonlySet<string> = new Set(),
 ): { message: string; field?: string }[] {
   const name = cmd.name;
   const cellType =
@@ -65,28 +60,59 @@ export function analysisProblems(
       },
     ];
   }
-  const missing = NOT_IN_2D[cmd.command];
-  if (missing) {
-    return [
-      {
-        message: `${missing} are not available in 2D models yet: remove '${name}' or make the model 3D.`,
-      },
-    ];
-  }
   const z = (message: string, field: string) => [{ message, field }];
   switch (cmd.command) {
-    case "boundary.add":
+    case "boundary.add": {
+      // the rotation about z of a rotation point
+      if (rotations.has(cmd.pointset)) {
+        const other = cmd.constrained.find((a) => a !== "z");
+        return other
+          ? z(
+              `boundary '${name}' constrains ${other} of the rotation point '${cmd.pointset}': the rotation point of a 2D model has the rotation about z only.`,
+              "constrained",
+            )
+          : [];
+      }
       return cmd.constrained.includes("z")
         ? z(
             `boundary '${name}' constrains z, which a 2D model does not have.`,
             "constrained",
           )
         : [];
+    }
     case "load.add":
+      // the moment about z at a rotation point
+      if (rotations.has(cmd.points)) {
+        return cmd.force[0] !== 0 || cmd.force[1] !== 0
+          ? z(
+              `point load '${name}' at the rotation point '${cmd.points}' has a component in x or y: the rotation point of a 2D model has the moment about z only.`,
+              "force",
+            )
+          : [];
+      }
       return cmd.force[2] !== 0
         ? z(
             `point load '${name}' has a force in z, which a 2D model does not have.`,
             "force",
+          )
+        : [];
+    case "point.add":
+      return cmd.coordinates[2] !== 0
+        ? z(
+            `control point '${name}' has a z coordinate: the points of a 2D model are in the plane z = 0.`,
+            "coordinates",
+          )
+        : [];
+    case "mpc.add":
+      if (cmd.constrained.includes("z"))
+        return z(
+          `constraint '${name}' connects z, which a 2D model does not have.`,
+          "constrained",
+        );
+      return cmd.rotation !== undefined && analysis === "axisymmetric"
+        ? z(
+            `constraint '${name}' has a rotation point: a rotation about z is no motion of an axisymmetric model.`,
+            "rotation",
           )
         : [];
     case "symmetry.add":
