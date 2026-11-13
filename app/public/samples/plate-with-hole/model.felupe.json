@@ -1,0 +1,114 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "model.settings",
+      "name": "settings",
+      "analysis": "plane-strain",
+      "units": {
+        "length": "mm",
+        "force": "N"
+      }
+    },
+    {
+      "command": "parameter.add",
+      "name": "radius",
+      "value": 10,
+      "quantity": "length",
+      "min": 2,
+      "max": 30,
+      "step": 1,
+      "description": "Radius of the hole"
+    },
+    {
+      "command": "parameter.add",
+      "name": "width",
+      "value": 40,
+      "quantity": "length",
+      "min": 35,
+      "max": 100,
+      "step": 5,
+      "description": "Half width of the plate"
+    },
+    {
+      "command": "parameter.add",
+      "name": "cells",
+      "value": 8,
+      "min": 3,
+      "max": 20,
+      "integer": true,
+      "description": "Number of cells along an edge"
+    },
+    {
+      "command": "mesh.script",
+      "name": "plate_mesh",
+      "file": "plate_with_hole.py"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "plate_cells",
+      "mesh": "plate_mesh"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 0.5
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "plate",
+      "cellset": "plate_cells",
+      "material": "rubber",
+      "formulation": "u-p-J",
+      "bulk": 1000
+    },
+    {
+      "command": "symmetry.add",
+      "name": "quarter",
+      "axes": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "command": "pointset.add",
+      "name": "end",
+      "select": {
+        "bound": "max",
+        "axis": "x"
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "pull",
+      "pointset": "end",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "step.add",
+      "name": "pulling",
+      "ramp": {
+        "num": 8,
+        "items": [
+          {
+            "target": "pull",
+            "end": 8
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job",
+      "steps": [
+        "pulling"
+      ],
+      "curve": "pull"
+    }
+  ]
+}

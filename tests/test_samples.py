@@ -101,6 +101,48 @@ def test_sandwich_spring_follows_its_parameters(monkeypatch):
     assert forces[3] / forces[5] == pytest.approx(5 / 3, rel=0.02)
 
 
+def test_axisymmetric_sandwich_spring_follows_its_parameters(monkeypatch):
+    """The axisymmetric sandwich spring (#175) with 3 and 5 rubber layers, pressed by
+    0.04 mm: the first sheet follows the stack (x == min), the stiffness of the
+    stack of bonded layers is inversely proportional to the number of layers."""
+    folder = APP / "public" / "samples" / "sandwich-spring-axisymmetric"
+    document = loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
+    monkeypatch.chdir(folder)
+    forces = {}
+    for c in document["commands"]:
+        if c["command"] == "step.add":
+            c["ramp"] = {"num": 1, "items": [{"target": "press", "end": 0.04}]}
+    for layers in (3, 5):
+        for c in document["commands"]:
+            if c["name"] == "layers":
+                c["value"] = layers
+        results = run(document)["job"]
+        forces[layers] = np.array(results["y"])[-1, 0]
+        assert np.array(results["x"])[-1, 0] == pytest.approx(0.04)
+    assert forces[3] / forces[5] == pytest.approx(5 / 3, rel=0.02)
+
+
+def test_plate_with_hole_concentrates_the_stress(monkeypatch):
+    """The plate with a hole in plane strain (#175): the largest principal stress is
+    at the top of the hole (x = 0, y = radius), more than twice the mean stress of
+    the end (the force per unit thickness over the width) in the cell there."""
+    from felupe_studio import results
+
+    folder = APP / "public" / "samples" / "plate-with-hole"
+    document = loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
+    for c in document["commands"]:
+        if c["command"] == "step.add":
+            c["ramp"] = {"num": 1, "items": [{"target": "pull", "end": 0.4}]}
+    monkeypatch.chdir(folder)
+    force = np.array(run(document)["job"]["y"])[-1, 0]
+    meta, _ = results.scene("job", 2, "stress_max")
+    # the center of the cell at the top of the hole
+    top = json.loads(meta)["extremes"]["max"]
+    assert top["position"][0] == pytest.approx(0, abs=1)
+    assert top["position"][1] == pytest.approx(10, abs=2)
+    assert top["value"] / (force / 40) > 2
+
+
 def test_bushing_matches_ex05(monkeypatch):
     """The bushing (#185) with a rigid connection of the inner sleeve, compared with
     the example ex05 of FElupe on the same mesh, which prescribes the rotated

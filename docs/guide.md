@@ -47,11 +47,15 @@ An empty model shows a welcome panel with *Import mesh*, *Open project* and the 
 | Rubber mount in shear | three sections, the Mooney-Rivlin model, the shear load case |
 | Rubber block with a rigid plate | control points, a multi-point constraint with a rotation point, a step with several ramps |
 | Sandwich spring with parameters | parameters, a mesh made by a Python script, point sets at the bounds of the meshes |
+| Axisymmetric sandwich spring | an axisymmetric model of the sandwich spring, its section made by a 2D mesh script, the force over the circumference |
+| Plate with a hole in plane strain | a plane strain model, two symmetry planes, the concentration of the stress at a hole |
 | Rubber-metal bushing (FElupe ex05) | a mesh script with the fineness of the mesh as parameters, point sets on cylinders, a rotation point for torsion and tilt |
 
 Open a sample, press **Solve** and look at the results; then change a value in the properties and solve again.
 
 The **sandwich spring** is a parametric sample: rubber discs between steel sheets, the base sheet fixed and the top sheet sheared by 12 mm. Its mesh comes from the script `sandwich_spring.py`, which gets the parameters *radius*, *layers*, *height*, *sheet* and *cells* and makes a dict of a rubber and a metal mesh on the same points. Opening it asks for the values first: with 5 layers instead of 3 the spring is softer by about 3/5, and the point sets `base` (`z == min`) and `top` (`z == max`) follow the height of the stack without a change.
+
+The **axisymmetric sandwich spring** has the same parameters, but its script `sandwich_spring_2d.py` makes the section of the discs and the sheets in the xy-plane: x is the axis, y the radius (*cells* along the radius). The first sheet (`x == min`) is pressed by 4 mm along the axis against the fixed last sheet; the axis is a symmetry plane `y = 0`. The force of the curve is the total over the circumference. The **plate with a hole** is a quarter of a square rubber plate in plane strain, made by `plate_with_hole.py` from the radius of the hole, the half width and the fineness; the symmetry planes `x = 0` and `y = 0` and a pull of the end by 8 mm load it, and the contour of the largest principal stress shows the concentration at the top of the hole. Its force is per unit thickness.
 
 The **rubber-metal bushing** is the example ex05 of FElupe: a rubber body between two steel sleeves, made by `bushing.py` with the lengths of the sleeves, their thickness, the runout of the free faces and the fineness of the mesh (cells along the axis, through the rubber and around it) as parameters. The outside of the outer sleeve (`r = 65`) is fixed; the inside of the inner sleeve (`r = 25`) is connected to a control point at the axis with a rotation point, which moves it by 8 mm in z, twists it by 30° about x and tilts it by −5° about y. The curve is the moment of the torsion over its angle. The multiplier of the connection (100000) is large compared with the steel, so the moment of the torsion agrees with ex05, which prescribes the rotated positions, within 0.1 %; a finer mesh is a change of three parameters.
 
