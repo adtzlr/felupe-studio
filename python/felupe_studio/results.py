@@ -202,6 +202,18 @@ def _restore(job, substep):
         f.values[:] = values
 
 
+def _cauchy_stress(solid, field):
+    """Return the Cauchy stress of a solid body at the current values of its field. A
+    nearly incompressible solid body (``fem.SolidBodyNearlyIncompressible``, #226)
+    keeps the pressure and the volume ratio of its cells as a state, which an
+    evaluation updates by a linearization at the previous one, e.g. of another
+    substep. The first evaluation takes over the deformation, the second one has the
+    exact volume ratio of the cells."""
+    if isinstance(solid, fem.SolidBodyNearlyIncompressible):
+        solid.evaluate.cauchy_stress(field)
+    return solid.evaluate.cauchy_stress(field)
+
+
 def _data(kind, section):
     """Return the data of a section of the current values of the fields: at the
     points (displacements) or at the cells (the means of the quadrature points)."""
@@ -212,7 +224,7 @@ def _data(kind, section):
     if kind == "strain":
         values = field.evaluate.strain(tensor=False).mean(-2).T
     else:
-        stress = namespace[f"solid_{section}"].evaluate.cauchy_stress(field)
+        stress = _cauchy_stress(namespace[f"solid_{section}"], field)
         if kind == "mises":
             return equivalent_von_mises(stress).mean(-2).reshape(-1, 1)
         values = eigvalsh(stress).mean(-2).T

@@ -54,6 +54,24 @@ def test_reserved_keywords_are_python_keywords():
     assert "field" in names and "field_" in prefixes
 
 
+def test_names_of_the_helpers_are_reserved():
+    # every name that the helpers of the generated scripts define (#226)
+    import ast
+    from importlib.resources import files
+
+    from felupe_studio.codegen import MARKER
+
+    source = files("felupe_studio").joinpath("_helpers.py").read_text(encoding="utf-8")
+    tree = ast.parse(source[source.index(MARKER) :])
+    defined = {
+        node.name if hasattr(node, "name") else node.targets[0].id
+        for node in tree.body
+        if isinstance(node, ast.FunctionDef | ast.Assign)
+    }
+    _, names, _ = commands.reserved()
+    assert defined - names == set()
+
+
 def test_valid_document(document):
     assert commands.errors(document) == []
     assert commands.validate(document) is document

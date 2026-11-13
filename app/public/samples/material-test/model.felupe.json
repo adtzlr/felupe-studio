@@ -52,7 +52,8 @@
       "steps": [
         "stretch"
       ],
-      "curve": "tension"
+      "curve": "tension",
+      "tol": 0.000001
     }
   ]
 }
