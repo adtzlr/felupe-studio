@@ -25,7 +25,7 @@
     },
     {
       "command": "material.add",
-      "name": "rubber",
+      "name": "hyperelastic",
       "model": "NeoHooke",
       "parameters": {
         "mu": 1
@@ -35,7 +35,7 @@
       "command": "section.add",
       "name": "hex_part",
       "cellset": "hexahedrons",
-      "material": "rubber",
+      "material": "hyperelastic",
       "formulation": "u-p-J",
       "bulk": 5000
     },
@@ -43,7 +43,7 @@
       "command": "section.add",
       "name": "tet_part",
       "cellset": "tetrahedrons",
-      "material": "rubber",
+      "material": "hyperelastic",
       "formulation": "u-p-J",
       "bulk": 5000
     },

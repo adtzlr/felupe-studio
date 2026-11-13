@@ -21,7 +21,7 @@
     },
     {
       "command": "material.add",
-      "name": "rubber",
+      "name": "hyperelastic",
       "model": "MooneyRivlin",
       "parameters": {
         "C10": 0.4,
@@ -30,9 +30,9 @@
     },
     {
       "command": "section.add",
-      "name": "rubber_block",
+      "name": "soft_block",
       "cellset": "all_cells",
-      "material": "rubber",
+      "material": "hyperelastic",
       "formulation": "u-p-J",
       "bulk": 2000
     },

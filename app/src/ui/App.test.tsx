@@ -1683,7 +1683,7 @@ describe("samples", () => {
       samples.map((item) => item.querySelector("h3")?.textContent),
     ).toEqual(SAMPLES.map((sample) => sample.title));
     const mount = samples.find((item) =>
-      item.textContent?.includes("Rubber mount in shear"),
+      item.textContent?.includes("Mount in shear"),
     )!;
     expect(mount.textContent).toContain("Mooney-Rivlin");
     fireEvent.click(within(mount).getByRole("button", { name: /Open/ }));
@@ -1691,13 +1691,13 @@ describe("samples", () => {
       expect(screen.queryByRole("dialog", { name: "Samples" })).toBeNull(),
     );
     const text = readFileSync(
-      resolve("public/samples/rubber-mount/model.felupe.json"),
+      resolve("public/samples/shear-mount/model.felupe.json"),
       "utf8",
     );
     expect(store.commands).toEqual(JSON.parse(text).commands);
     // a sample is an archive (#150)
     expect(screen.getByRole("banner").textContent).toContain(
-      "rubber-mount.felupe.zip",
+      "shear-mount.felupe.zip",
     );
   });
 
@@ -1717,7 +1717,7 @@ describe("samples", () => {
         client={client(Promise.resolve(readyValue), { script })}
       />,
     );
-    const sample = SAMPLES.find((s) => s.id === "rubber-mount")!;
+    const sample = SAMPLES.find((s) => s.id === "shear-mount")!;
     fileMenu("Samples…");
     const dialog = screen.getByRole("dialog", { name: "Samples" });
     const card = within(dialog)
@@ -1739,7 +1739,7 @@ describe("samples", () => {
     fireEvent.keyDown(window, { key: "s", ctrlKey: true });
     await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
     const first = await saved(0);
-    expect(first.name).toBe("rubber-mount.felupe.zip");
+    expect(first.name).toBe("shear-mount.felupe.zip");
     expect(JSON.parse(await first.archive.project!.text()).commands).toEqual(
       store.commands,
     );
@@ -1755,7 +1755,7 @@ describe("samples", () => {
     fireEvent.keyDown(window, { key: "S", ctrlKey: true, shiftKey: true });
     let saveAs = screen.getByRole("dialog", { name: "Save project as" });
     const name = within(saveAs).getByLabelText("Name") as HTMLInputElement;
-    expect(name.value).toBe("rubber-mount");
+    expect(name.value).toBe("shear-mount");
     expect(
       (within(saveAs).getByLabelText(/Project archive/) as HTMLInputElement)
         .checked,
@@ -1823,7 +1823,7 @@ describe("samples", () => {
       ).toBe(true);
     }
     const plate = cards.find((card) =>
-      card.textContent?.includes("Rubber block with a rigid plate"),
+      card.textContent?.includes("Hyperelastic block with a rigid plate"),
     )!;
     fireEvent.click(within(plate).getByRole("button", { name: "Open" }));
     await waitFor(() => expect(store.commands.length).toBeGreaterThan(0));

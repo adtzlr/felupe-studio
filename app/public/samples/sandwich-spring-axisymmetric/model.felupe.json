@@ -27,7 +27,7 @@
       "min": 1,
       "max": 6,
       "integer": true,
-      "description": "Number of rubber layers"
+      "description": "Number of soft layers"
     },
     {
       "command": "parameter.add",
@@ -37,7 +37,7 @@
       "min": 2,
       "max": 20,
       "step": 1,
-      "description": "Height of a rubber layer"
+      "description": "Height of a soft layer"
     },
     {
       "command": "parameter.add",
@@ -65,13 +65,13 @@
       "min": 1,
       "max": 12,
       "integer": true,
-      "description": "Number of cells through a rubber layer"
+      "description": "Number of cells through a soft layer"
     },
     {
       "command": "mesh.script",
-      "name": "rubber_mesh",
+      "name": "soft_mesh",
       "file": "sandwich_spring_2d.py",
-      "item": "rubber"
+      "item": "soft"
     },
     {
       "command": "mesh.script",
@@ -81,8 +81,8 @@
     },
     {
       "command": "cellset.from_file",
-      "name": "rubber_cells",
-      "mesh": "rubber_mesh"
+      "name": "soft_cells",
+      "mesh": "soft_mesh"
     },
     {
       "command": "cellset.from_file",
@@ -91,7 +91,7 @@
     },
     {
       "command": "material.add",
-      "name": "rubber",
+      "name": "hyperelastic",
       "model": "NeoHooke",
       "parameters": {
         "mu": 0.5
@@ -108,9 +108,9 @@
     },
     {
       "command": "section.add",
-      "name": "rubber_layers",
-      "cellset": "rubber_cells",
-      "material": "rubber",
+      "name": "soft_layers",
+      "cellset": "soft_cells",
+      "material": "hyperelastic",
       "formulation": "u-p-J",
       "bulk": 1000
     },

@@ -39,9 +39,9 @@
     ]
   },
   {
-    "id": "rubber-mount",
-    "title": "Rubber mount in shear",
-    "description": "A rubber layer bonded between two steel plates, sheared by the top plate by its thickness.",
+    "id": "shear-mount",
+    "title": "Mount in shear",
+    "description": "A hyperelastic layer bonded between two steel plates, sheared by the top plate by its thickness.",
     "topics": [
       "Mooney-Rivlin",
       "three sections",
@@ -53,8 +53,8 @@
   },
   {
     "id": "glued-plate",
-    "title": "Rubber block with a rigid plate",
-    "description": "A rubber block on a fixed base, its top face glued to a rigid plate that is moved sideways and tilted at the same time.",
+    "title": "Hyperelastic block with a rigid plate",
+    "description": "A hyperelastic block on a fixed base, its top face glued to a rigid plate that is moved sideways and tilted at the same time.",
     "topics": [
       "control points",
       "multi-point constraint",
@@ -68,7 +68,7 @@
   {
     "id": "sandwich-spring",
     "title": "Sandwich spring with parameters",
-    "description": "Rubber discs between steel sheets, sheared by the top sheet. A Python script makes the mesh from the radius, the number and the height of the layers, the thickness of the sheets and the fineness.",
+    "description": "Hyperelastic discs between steel sheets, sheared by the top sheet. A Python script makes the mesh from the radius, the number and the height of the layers, the thickness of the sheets and the fineness.",
     "topics": [
       "parameters",
       "mesh script",
@@ -82,7 +82,7 @@
   {
     "id": "sandwich-spring-axisymmetric",
     "title": "Axisymmetric sandwich spring",
-    "description": "The rubber discs between steel sheets as an axisymmetric model: the section in the xy-plane, x is the axis. The first sheet is pressed along the axis against the fixed last one; the force is the total over the circumference.",
+    "description": "The hyperelastic discs between steel sheets as an axisymmetric model: the section in the xy-plane, x is the axis. The first sheet is pressed along the axis against the fixed last one; the force is the total over the circumference.",
     "topics": [
       "axisymmetric",
       "2D mesh script",
@@ -96,7 +96,7 @@
   {
     "id": "plate-with-hole",
     "title": "Plate with a hole in plane strain",
-    "description": "A quarter of a rubber plate with a hole and two symmetry planes, pulled at its end; the stresses concentrate at the hole. A script makes the mesh from the radius of the hole, the width and the fineness.",
+    "description": "A quarter of a hyperelastic plate with a hole and two symmetry planes, pulled at its end; the stresses concentrate at the hole. A script makes the mesh from the radius of the hole, the width and the fineness.",
     "topics": [
       "plane strain",
       "2D mesh script",
@@ -109,8 +109,8 @@
   },
   {
     "id": "bushing",
-    "title": "Rubber-metal bushing (FElupe ex05)",
-    "description": "A rubber bushing between two steel sleeves, the inner sleeve moved radially, twisted and tilted by a rigid connection. A script makes the mesh from the lengths of the sleeves, the runout and the fineness.",
+    "title": "Bushing with steel sleeves (FElupe ex05)",
+    "description": "A hyperelastic bushing between two steel sleeves, the inner sleeve moved radially, twisted and tilted by a rigid connection. A script makes the mesh from the lengths of the sleeves, the runout and the fineness.",
     "topics": [
       "parameters",
       "mesh script",

@@ -80,7 +80,7 @@ def test_glued_plate_moves_and_tilts(monkeypatch):
 
 
 def test_sandwich_spring_follows_its_parameters(monkeypatch):
-    """The sandwich spring (#184) with 3 and 5 rubber layers: the same project with
+    """The sandwich spring (#184) with 3 and 5 soft layers: the same project with
     another value of a parameter. The top follows the height of the stack (z ==
     max), and the shear stiffness is about G A / (layers height)."""
     folder = APP / "public" / "samples" / "sandwich-spring"
@@ -108,9 +108,9 @@ def test_sandwich_spring_follows_its_parameters(monkeypatch):
         ("sandwich-spring-axisymmetric", "sandwich_spring_2d.py"),
     ],
 )
-def test_sandwich_springs_have_cells_through_the_rubber(sample, script):
+def test_sandwich_springs_have_cells_through_the_soft_layers(sample, script):
     """The parameter cells_height of the sandwich springs is the number of cells
-    through a rubber layer; a sheet keeps one cell through its thickness."""
+    through a soft layer; a sheet keeps one cell through its thickness."""
     import runpy
 
     folder = APP / "public" / "samples" / sample
@@ -122,13 +122,13 @@ def test_sandwich_springs_have_cells_through_the_rubber(sample, script):
         meshes = runpy.run_path(
             str(folder / script), init_globals={"cells_height": n, "layers": 2}
         )["mesh"]
-        counts[n] = (len(meshes["rubber"].cells), len(meshes["metal"].cells))
+        counts[n] = (len(meshes["soft"].cells), len(meshes["metal"].cells))
     assert counts[3][0] == 3 * counts[1][0]
     assert counts[3][1] == counts[1][1]
 
 
 def test_axisymmetric_sandwich_spring_follows_its_parameters(monkeypatch):
-    """The axisymmetric sandwich spring (#175) with 3 and 5 rubber layers, pressed by
+    """The axisymmetric sandwich spring (#175) with 3 and 5 soft layers, pressed by
     0.04 mm: the first sheet follows the stack (x == min), the stiffness of the
     stack of bonded layers is inversely proportional to the number of layers."""
     folder = APP / "public" / "samples" / "sandwich-spring-axisymmetric"
@@ -184,7 +184,7 @@ def test_bushing_matches_ex05(monkeypatch):
 
     # ex05, with the mesh of the script and as many substeps
     meshes = runpy.run_path("bushing.py")["mesh"]
-    regions = [fem.RegionHexahedron(meshes[m]) for m in ("rubber", "metal")]
+    regions = [fem.RegionHexahedron(meshes[m]) for m in ("soft", "metal")]
     fields = [fem.Field(r, dim=3).as_container() for r in regions]
     field = fem.FieldContainer(fields).merge()
     solids = [

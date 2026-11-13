@@ -46,7 +46,7 @@
       "min": 0,
       "max": 0.4,
       "step": 0.05,
-      "description": "Runout of the free faces of the rubber"
+      "description": "Runout of the free faces of the soft body"
     },
     {
       "command": "parameter.add",
@@ -64,7 +64,7 @@
       "min": 2,
       "max": 20,
       "integer": true,
-      "description": "Cells through the rubber"
+      "description": "Cells through the soft body"
     },
     {
       "command": "parameter.add",
@@ -77,9 +77,9 @@
     },
     {
       "command": "mesh.script",
-      "name": "rubber_mesh",
+      "name": "soft_mesh",
       "file": "bushing.py",
-      "item": "rubber"
+      "item": "soft"
     },
     {
       "command": "mesh.script",
@@ -89,8 +89,8 @@
     },
     {
       "command": "cellset.from_file",
-      "name": "rubber_cells",
-      "mesh": "rubber_mesh"
+      "name": "soft_cells",
+      "mesh": "soft_mesh"
     },
     {
       "command": "cellset.from_file",
@@ -99,7 +99,7 @@
     },
     {
       "command": "material.add",
-      "name": "rubber",
+      "name": "hyperelastic",
       "model": "NeoHooke",
       "parameters": {
         "mu": 1
@@ -116,9 +116,9 @@
     },
     {
       "command": "section.add",
-      "name": "rubber_body",
-      "cellset": "rubber_cells",
-      "material": "rubber",
+      "name": "soft_body",
+      "cellset": "soft_cells",
+      "material": "hyperelastic",
       "formulation": "u-p-J",
       "bulk": 5000
     },

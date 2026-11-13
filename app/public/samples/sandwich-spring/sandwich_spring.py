@@ -1,9 +1,9 @@
-"""A rubber-metal sandwich spring: rubber discs, steel sheets.
+"""A sandwich spring: hyperelastic discs between steel sheets.
 
 FElupe Studio runs this script with the parameters of the model as variables:
 radius, layers, height, sheet, cells and cells_height. It makes a dict of two meshes
-on the same points, the rubber and the metal, from the bottom: a sheet, then a
-rubber layer and a sheet per layer.
+on the same points, the soft and the metal one, from the bottom: a sheet, then a
+soft layer and a sheet per layer.
 """
 
 import felupe as fem
@@ -32,6 +32,6 @@ parts = [
 # all layers on the same points, merged at the faces between them
 stack = fem.MeshContainer(parts, merge=True, decimals=8)
 mesh = {
-    "rubber": fem.MeshContainer(stack.meshes[1::2]).stack(),
+    "soft": fem.MeshContainer(stack.meshes[1::2]).stack(),
     "metal": fem.MeshContainer(stack.meshes[0::2]).stack(),
 }

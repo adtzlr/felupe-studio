@@ -52,17 +52,17 @@ SAMPLES = [
         "topics": ["Gmsh", "two cell types", "MINI element"],
     },
     {
-        "id": "rubber-mount",
-        "title": "Rubber mount in shear",
-        "description": "A rubber layer bonded between two steel plates, sheared by "
-        "the top plate by its thickness.",
+        "id": "shear-mount",
+        "title": "Mount in shear",
+        "description": "A hyperelastic layer bonded between two steel plates, sheared "
+        "by the top plate by its thickness.",
         "topics": ["Mooney-Rivlin", "three sections", "shear load case"],
     },
     {
         "id": "glued-plate",
-        "title": "Rubber block with a rigid plate",
-        "description": "A rubber block on a fixed base, its top face glued to a rigid "
-        "plate that is moved sideways and tilted at the same time.",
+        "title": "Hyperelastic block with a rigid plate",
+        "description": "A hyperelastic block on a fixed base, its top face glued to a "
+        "rigid plate that is moved sideways and tilted at the same time.",
         "topics": [
             "control points",
             "multi-point constraint",
@@ -73,15 +73,15 @@ SAMPLES = [
     {
         "id": "sandwich-spring",
         "title": "Sandwich spring with parameters",
-        "description": "Rubber discs between steel sheets, sheared by the top sheet. "
-        "A Python script makes the mesh from the radius, the number and the height "
-        "of the layers, the thickness of the sheets and the fineness.",
+        "description": "Hyperelastic discs between steel sheets, sheared by the top "
+        "sheet. A Python script makes the mesh from the radius, the number and the "
+        "height of the layers, the thickness of the sheets and the fineness.",
         "topics": ["parameters", "mesh script", "point sets at bounds", "shear"],
     },
     {
         "id": "sandwich-spring-axisymmetric",
         "title": "Axisymmetric sandwich spring",
-        "description": "The rubber discs between steel sheets as an axisymmetric "
+        "description": "The hyperelastic discs between steel sheets as an axisymmetric "
         "model: the section in the xy-plane, x is the axis. The first sheet is "
         "pressed along the axis against the fixed last one; the force is the total "
         "over the circumference.",
@@ -90,17 +90,17 @@ SAMPLES = [
     {
         "id": "plate-with-hole",
         "title": "Plate with a hole in plane strain",
-        "description": "A quarter of a rubber plate with a hole and two symmetry "
+        "description": "A quarter of a hyperelastic plate with a hole and two symmetry "
         "planes, pulled at its end; the stresses concentrate at the hole. A script "
         "makes the mesh from the radius of the hole, the width and the fineness.",
         "topics": ["plane strain", "2D mesh script", "symmetry", "u-p-J"],
     },
     {
         "id": "bushing",
-        "title": "Rubber-metal bushing (FElupe ex05)",
-        "description": "A rubber bushing between two steel sleeves, the inner sleeve "
-        "moved radially, twisted and tilted by a rigid connection. A script makes the "
-        "mesh from the lengths of the sleeves, the runout and the fineness.",
+        "title": "Bushing with steel sleeves (FElupe ex05)",
+        "description": "A hyperelastic bushing between two steel sleeves, the inner "
+        "sleeve moved radially, twisted and tilted by a rigid connection. A script "
+        "makes the mesh from the lengths of the sleeves, the runout and the fineness.",
         "topics": [
             "parameters",
             "mesh script",
@@ -236,11 +236,12 @@ def loads_project(folder):
     return json.loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
 
 
-def rubber_mount():
-    """A rubber block bonded between two steel plates, sheared by the top plate."""
-    plate, rubber, side, n = 5.0, 20.0, 40.0, 8
-    layers = [(0, plate, 1, 1), (plate, plate + rubber, 4, 2)]
-    layers.append((plate + rubber, 2 * plate + rubber, 1, 3))
+def shear_mount():
+    """A hyperelastic block bonded between two steel plates, sheared by the top
+    plate."""
+    plate, soft, side, n = 5.0, 20.0, 40.0, 8
+    layers = [(0, plate, 1, 1), (plate, plate + soft, 4, 2)]
+    layers.append((plate + soft, 2 * plate + soft, 1, 3))
     meshes, tags = [], []
     for z0, z1, nz, tag in layers:
         mesh = fem.Cube(a=(0, 0, z0), b=(side, side, z1), n=(n + 1, n + 1, nz + 1))
@@ -267,7 +268,7 @@ def rubber_mount():
         },
         {
             "command": "cellset.from_tag",
-            "name": "rubber_layer",
+            "name": "soft_layer",
             "mesh": "mount",
             "value": 2,
         },
@@ -285,7 +286,7 @@ def rubber_mount():
         },
         {
             "command": "material.add",
-            "name": "rubber",
+            "name": "hyperelastic",
             "model": "MooneyRivlin",
             "parameters": {"C10": 0.4, "C01": 0.1},
         },
@@ -299,8 +300,8 @@ def rubber_mount():
         {
             "command": "section.add",
             "name": "block",
-            "cellset": "rubber_layer",
-            "material": "rubber",
+            "cellset": "soft_layer",
+            "material": "hyperelastic",
             "formulation": "u-p-J",
             "bulk": 2000,
         },
@@ -326,11 +327,11 @@ def rubber_mount():
         },
         {"command": "job.add", "name": "job", "steps": ["shearing"], "curve": "shear"},
     ]
-    write("rubber-mount", commands, {"mount.vtu": cells})
+    write("shear-mount", commands, {"mount.vtu": cells})
 
 
 def glued_plate():
-    """A rubber block whose top face follows a rigid plate (#102): a multi-point
+    """A hyperelastic block whose top face follows a rigid plate (#102): a multi-point
     constraint to a control point above the face, with a rotation point. The plate
     is moved in x by 8 mm and tilted about y by 0.1 rad in the same step."""
     mesh = fem.Cube(b=(40, 40, 20), n=(9, 9, 5))
@@ -345,15 +346,15 @@ def glued_plate():
         {"command": "cellset.from_file", "name": "all_cells", "mesh": "block"},
         {
             "command": "material.add",
-            "name": "rubber",
+            "name": "hyperelastic",
             "model": "MooneyRivlin",
             "parameters": {"C10": 0.4, "C01": 0.1},
         },
         {
             "command": "section.add",
-            "name": "rubber_block",
+            "name": "soft_block",
             "cellset": "all_cells",
-            "material": "rubber",
+            "material": "hyperelastic",
             "formulation": "u-p-J",
             "bulk": 2000,
         },
@@ -431,12 +432,12 @@ def glued_plate():
 
 
 # the script of the mesh of the sandwich spring (#184), run with the parameters
-SANDWICH_SPRING = '''"""A rubber-metal sandwich spring: rubber discs, steel sheets.
+SANDWICH_SPRING = '''"""A sandwich spring: hyperelastic discs between steel sheets.
 
 FElupe Studio runs this script with the parameters of the model as variables:
 radius, layers, height, sheet, cells and cells_height. It makes a dict of two meshes
-on the same points, the rubber and the metal, from the bottom: a sheet, then a
-rubber layer and a sheet per layer.
+on the same points, the soft and the metal one, from the bottom: a sheet, then a
+soft layer and a sheet per layer.
 """
 
 import felupe as fem
@@ -465,14 +466,14 @@ parts = [
 # all layers on the same points, merged at the faces between them
 stack = fem.MeshContainer(parts, merge=True, decimals=8)
 mesh = {
-    "rubber": fem.MeshContainer(stack.meshes[1::2]).stack(),
+    "soft": fem.MeshContainer(stack.meshes[1::2]).stack(),
     "metal": fem.MeshContainer(stack.meshes[0::2]).stack(),
 }
 '''
 
 
 def sandwich_spring():
-    """Rubber discs between steel sheets (#184), made by a script with parameters
+    """Hyperelastic discs between steel sheets (#184), made by a script with parameters
     (#180, #182): the base sheet fixed, the top sheet sheared by 12 mm. The bottom
     and the top are point sets at the bounds of the meshes (#181), so they follow
     the number and the height of the layers."""
@@ -501,11 +502,11 @@ def sandwich_spring():
             max=100,
             step=5,
         ),
-        parameter("layers", 3, "Number of rubber layers", integer=True, min=1, max=6),
+        parameter("layers", 3, "Number of soft layers", integer=True, min=1, max=6),
         parameter(
             "height",
             8,
-            "Height of a rubber layer",
+            "Height of a soft layer",
             quantity="length",
             min=2,
             max=20,
@@ -531,16 +532,16 @@ def sandwich_spring():
         parameter(
             "cells_height",
             2,
-            "Number of cells through a rubber layer",
+            "Number of cells through a soft layer",
             integer=True,
             min=1,
             max=8,
         ),
         {
             "command": "mesh.script",
-            "name": "rubber_mesh",
+            "name": "soft_mesh",
             "file": "sandwich_spring.py",
-            "item": "rubber",
+            "item": "soft",
         },
         {
             "command": "mesh.script",
@@ -548,11 +549,11 @@ def sandwich_spring():
             "file": "sandwich_spring.py",
             "item": "metal",
         },
-        {"command": "cellset.from_file", "name": "rubber_cells", "mesh": "rubber_mesh"},
+        {"command": "cellset.from_file", "name": "soft_cells", "mesh": "soft_mesh"},
         {"command": "cellset.from_file", "name": "metal_cells", "mesh": "metal_mesh"},
         {
             "command": "material.add",
-            "name": "rubber",
+            "name": "hyperelastic",
             "model": "NeoHooke",
             "parameters": {"mu": 0.5},
         },
@@ -564,9 +565,9 @@ def sandwich_spring():
         },
         {
             "command": "section.add",
-            "name": "rubber_layers",
-            "cellset": "rubber_cells",
-            "material": "rubber",
+            "name": "soft_layers",
+            "cellset": "soft_cells",
+            "material": "hyperelastic",
             "formulation": "u-p-J",
             "bulk": 1000,
         },
@@ -616,13 +617,13 @@ def sandwich_spring():
 
 
 # the script of the mesh of the axisymmetric sandwich spring (#175)
-SANDWICH_SPRING_2D = '''"""A rubber-metal sandwich spring as an axisymmetric model.
+SANDWICH_SPRING_2D = '''"""A sandwich spring as an axisymmetric model.
 
-The section of rubber discs between steel sheets in the xy-plane: x is the axis of
+The section of hyperelastic discs between steel sheets in the xy-plane: x is the axis of
 rotation, y the radius. FElupe Studio runs this script with the parameters of the
 model as variables: radius, layers, height, sheet, cells and cells_height. It makes
-a dict of two meshes on the same points, the rubber and the metal, along the axis:
-a sheet, then a rubber layer and a sheet per layer.
+a dict of two meshes on the same points, the soft and the metal one, along the
+axis: a sheet, then a soft layer and a sheet per layer.
 """
 
 import felupe as fem
@@ -649,7 +650,7 @@ parts = [
 # all layers on the same points, merged at the edges between them
 stack = fem.MeshContainer(parts, merge=True, decimals=8)
 mesh = {
-    "rubber": fem.MeshContainer(stack.meshes[1::2]).stack(),
+    "soft": fem.MeshContainer(stack.meshes[1::2]).stack(),
     "metal": fem.MeshContainer(stack.meshes[0::2]).stack(),
 }
 '''
@@ -668,8 +669,8 @@ def parameter(name, value, description, **options):
 
 def sandwich_spring_axisymmetric():
     """The sandwich spring of #184 as an axisymmetric model (#175): the section of
-    the rubber discs and the steel sheets in the xy-plane, made by a script with the
-    same parameters. The first sheet (x == min) is pressed by 4 mm along the axis
+    the hyperelastic discs and the steel sheets in the xy-plane, made by a script with
+    the same parameters. The first sheet (x == min) is pressed by 4 mm along the axis
     against the fixed last sheet (x == max); the axis is a symmetry plane y = 0."""
     commands = [
         {
@@ -687,11 +688,11 @@ def sandwich_spring_axisymmetric():
             max=100,
             step=5,
         ),
-        parameter("layers", 3, "Number of rubber layers", integer=True, min=1, max=6),
+        parameter("layers", 3, "Number of soft layers", integer=True, min=1, max=6),
         parameter(
             "height",
             8,
-            "Height of a rubber layer",
+            "Height of a soft layer",
             quantity="length",
             min=2,
             max=20,
@@ -717,16 +718,16 @@ def sandwich_spring_axisymmetric():
         parameter(
             "cells_height",
             4,
-            "Number of cells through a rubber layer",
+            "Number of cells through a soft layer",
             integer=True,
             min=1,
             max=12,
         ),
         {
             "command": "mesh.script",
-            "name": "rubber_mesh",
+            "name": "soft_mesh",
             "file": "sandwich_spring_2d.py",
-            "item": "rubber",
+            "item": "soft",
         },
         {
             "command": "mesh.script",
@@ -734,11 +735,11 @@ def sandwich_spring_axisymmetric():
             "file": "sandwich_spring_2d.py",
             "item": "metal",
         },
-        {"command": "cellset.from_file", "name": "rubber_cells", "mesh": "rubber_mesh"},
+        {"command": "cellset.from_file", "name": "soft_cells", "mesh": "soft_mesh"},
         {"command": "cellset.from_file", "name": "metal_cells", "mesh": "metal_mesh"},
         {
             "command": "material.add",
-            "name": "rubber",
+            "name": "hyperelastic",
             "model": "NeoHooke",
             "parameters": {"mu": 0.5},
         },
@@ -750,9 +751,9 @@ def sandwich_spring_axisymmetric():
         },
         {
             "command": "section.add",
-            "name": "rubber_layers",
-            "cellset": "rubber_cells",
-            "material": "rubber",
+            "name": "soft_layers",
+            "cellset": "soft_cells",
+            "material": "hyperelastic",
             "formulation": "u-p-J",
             "bulk": 1000,
         },
@@ -851,8 +852,8 @@ mesh = fem.MeshContainer([right, top], merge=True, decimals=8).stack()
 
 
 def plate_with_hole():
-    """A quarter of a rubber plate with a hole in plane strain (#175), made by a script
-    with parameters: symmetry planes x = 0 and y = 0, the end x == max pulled by
+    """A quarter of a hyperelastic plate with a hole in plane strain (#175), made by a
+    script with parameters: symmetry planes x = 0 and y = 0, the end x == max pulled by
     8 mm. The force is per unit thickness."""
     commands = [
         {
@@ -890,7 +891,7 @@ def plate_with_hole():
         {"command": "cellset.from_file", "name": "plate_cells", "mesh": "plate_mesh"},
         {
             "command": "material.add",
-            "name": "rubber",
+            "name": "hyperelastic",
             "model": "NeoHooke",
             "parameters": {"mu": 0.5},
         },
@@ -898,7 +899,7 @@ def plate_with_hole():
             "command": "section.add",
             "name": "plate",
             "cellset": "plate_cells",
-            "material": "rubber",
+            "material": "hyperelastic",
             "formulation": "u-p-J",
             "bulk": 1000,
         },
@@ -925,13 +926,13 @@ def plate_with_hole():
 
 
 # the script of the mesh of the bushing (#185), like the example ex05 of FElupe
-BUSHING = '''"""A rubber-metal bushing, like the example ex05 of FElupe.
+BUSHING = '''"""A bushing with steel sleeves, like the example ex05 of FElupe.
 
 FElupe Studio runs this script with the parameters of the model as variables:
-the lengths of the sleeves, their thickness, the runout of the rubber and the
+the lengths of the sleeves, their thickness, the runout of the soft body and the
 fineness of the mesh. The inner sleeve is inside at the radius 25, the outer sleeve
 outside at the radius 65 (the point sets of the model). It makes a dict of the
-rubber and the metal meshes, revolved about the x axis.
+soft and the metal meshes, revolved about the x axis.
 """
 
 import felupe as fem
@@ -950,7 +951,7 @@ cells_around = globals().get("cells_around", 18)
 INNER, OUTER = 25, 65
 inside, outside = INNER + sleeve, OUTER - sleeve
 
-# the section of the rubber between two lines in the xy plane, with runouts
+# the section of the soft body between two lines in the xy plane, with runouts
 bottom = fem.mesh.Line(a=-inner_length / 2, b=inner_length / 2, n=cells_axial + 1)
 top = fem.mesh.Line(a=-outer_length / 2, b=outer_length / 2, n=cells_axial + 1)
 bottom.update(points=np.pad(bottom.points, ((0, 0), (0, 1)), constant_values=inside))
@@ -962,7 +963,7 @@ section = section.add_runouts(
 
 # revolved about the x axis, with the sleeves
 around = {"n": cells_around + 1, "phi": 360}
-rubber = section.revolve(**around)
+body = section.revolve(**around)
 metal = fem.MeshContainer(
     [
         fem.Rectangle(
@@ -978,12 +979,12 @@ metal = fem.MeshContainer(
     ],
     merge=True,
 ).stack()
-mesh = {"rubber": rubber, "metal": metal}
+mesh = {"soft": body, "metal": metal}
 '''
 
 
 def bushing():
-    """A rubber-metal bushing like the example ex05 of FElupe (#185), made by a
+    """A bushing with steel sleeves like the example ex05 of FElupe (#185), made by a
     script with parameters (#182). The outside of the outer sleeve (r = 65) is
     fixed; the inside of the inner sleeve (r = 25), point sets on cylinders (#181),
     is connected to a control point at the axis with a rotation point: moved by
@@ -1031,7 +1032,7 @@ def bushing():
         parameter(
             "runout",
             0.2,
-            "Runout of the free faces of the rubber",
+            "Runout of the free faces of the soft body",
             min=0,
             max=0.4,
             step=0.05,
@@ -1040,16 +1041,21 @@ def bushing():
             "cells_axial", 5, "Cells along the axis", integer=True, min=2, max=20
         ),
         parameter(
-            "cells_radial", 7, "Cells through the rubber", integer=True, min=2, max=20
+            "cells_radial",
+            7,
+            "Cells through the soft body",
+            integer=True,
+            min=2,
+            max=20,
         ),
         parameter(
             "cells_around", 18, "Cells around the axis", integer=True, min=8, max=72
         ),
         {
             "command": "mesh.script",
-            "name": "rubber_mesh",
+            "name": "soft_mesh",
             "file": "bushing.py",
-            "item": "rubber",
+            "item": "soft",
         },
         {
             "command": "mesh.script",
@@ -1057,11 +1063,11 @@ def bushing():
             "file": "bushing.py",
             "item": "metal",
         },
-        {"command": "cellset.from_file", "name": "rubber_cells", "mesh": "rubber_mesh"},
+        {"command": "cellset.from_file", "name": "soft_cells", "mesh": "soft_mesh"},
         {"command": "cellset.from_file", "name": "metal_cells", "mesh": "metal_mesh"},
         {
             "command": "material.add",
-            "name": "rubber",
+            "name": "hyperelastic",
             "model": "NeoHooke",
             "parameters": {"mu": 1},
         },
@@ -1073,9 +1079,9 @@ def bushing():
         },
         {
             "command": "section.add",
-            "name": "rubber_body",
-            "cellset": "rubber_cells",
-            "material": "rubber",
+            "name": "soft_body",
+            "cellset": "soft_cells",
+            "material": "hyperelastic",
             "formulation": "u-p-J",
             "bulk": 5000,
         },
@@ -1181,7 +1187,7 @@ def two_materials():
         },
         {
             "command": "material.add",
-            "name": "rubber",
+            "name": "hyperelastic",
             "model": "NeoHooke",
             "parameters": {"mu": 1},
         },
@@ -1196,7 +1202,7 @@ def two_materials():
             "command": "section.add",
             "name": "soft_half",
             "cellset": "soft",
-            "material": "rubber",
+            "material": "hyperelastic",
             "formulation": "u-p-J",
             "bulk": 5000,
         },
@@ -1247,7 +1253,7 @@ def material_test():
         {"command": "cellset.from_file", "name": "all_cells", "mesh": "cube"},
         {
             "command": "material.add",
-            "name": "rubber",
+            "name": "hyperelastic",
             "model": "NeoHooke",
             "parameters": {"mu": 0.5},
         },
@@ -1255,7 +1261,7 @@ def material_test():
             "command": "section.add",
             "name": "specimen",
             "cellset": "all_cells",
-            "material": "rubber",
+            "material": "hyperelastic",
             "formulation": "u-p-J",
             "bulk": 5000,
         },
@@ -1312,7 +1318,7 @@ def hex_tet():
         {"command": "cellset.from_file", "name": "tetrahedrons", "mesh": "bar_tetra"},
         {
             "command": "material.add",
-            "name": "rubber",
+            "name": "hyperelastic",
             "model": "NeoHooke",
             "parameters": {"mu": 1},
         },
@@ -1320,7 +1326,7 @@ def hex_tet():
             "command": "section.add",
             "name": "hex_part",
             "cellset": "hexahedrons",
-            "material": "rubber",
+            "material": "hyperelastic",
             "formulation": "u-p-J",
             "bulk": 5000,
         },
@@ -1328,7 +1334,7 @@ def hex_tet():
             "command": "section.add",
             "name": "tet_part",
             "cellset": "tetrahedrons",
-            "material": "rubber",
+            "material": "hyperelastic",
             "formulation": "u-p-J",
             "bulk": 5000,
         },
@@ -1365,7 +1371,7 @@ def hex_tet():
 
 
 def main():
-    rubber_mount()
+    shear_mount()
     two_materials()
     material_test()
     hex_tet()
