@@ -503,6 +503,145 @@ CHANGES = {
             },
         ),
     ),
+    # rigid surfaces (#219): reference points with a plane or a cylinder
+    "rigid surfaces": lambda d: (
+        d["commands"].insert(
+            9,
+            {
+                "command": "rigid.add",
+                "name": "plate",
+                "coordinates": [4, 0.5, 0.5],
+                "shape": {"normal": [-1, 0, 0]},
+            },
+        ),
+        d["commands"].insert(
+            10,
+            {
+                "command": "rigid.add",
+                "name": "roller",
+                "coordinates": [1.5, 2, 0.5],
+                "shape": {"radius": 0.5, "axis": [0, 0, 1], "inside": False},
+            },
+        ),
+        d["commands"].insert(
+            11,
+            {
+                "command": "boundary.add",
+                "name": "push",
+                "pointset": "plate",
+                "constrained": ["x", "y", "z"],
+            },
+        ),
+        d["commands"].insert(
+            12,
+            {
+                "command": "boundary.add",
+                "name": "hold",
+                "pointset": "roller",
+                "constrained": ["x", "y", "z"],
+            },
+        ),
+    ),
+    "rigid surface problems": lambda d: (
+        d["commands"].insert(
+            9, {"command": "point.add", "name": "pin", "coordinates": [4, 0.5, 0.5]}
+        ),
+        d["commands"].insert(
+            10,
+            {
+                "command": "rigid.add",
+                "name": "plate",
+                "coordinates": [4, 0.5, 0.5],
+                "shape": {"normal": [0, 0, 0]},
+            },
+        ),
+        d["commands"].insert(
+            11,
+            {
+                "command": "rigid.add",
+                "name": "roller",
+                "coordinates": [1.5, 2, 0.5],
+                "shape": {"radius": 0.5, "axis": [0, 0, 0]},
+            },
+        ),
+        d["commands"].insert(
+            12,
+            {
+                "command": "boundary.add",
+                "name": "hold",
+                "pointset": "roller",
+                "constrained": ["x", "z"],
+            },
+        ),
+        d["commands"].insert(
+            13,
+            {
+                "command": "boundary.add",
+                "name": "pin_fixed",
+                "pointset": "pin",
+                "constrained": ["x", "y", "z"],
+            },
+        ),
+    ),
+    "2d model with rigid surfaces": lambda d: (
+        d["commands"].insert(
+            0,
+            {
+                "command": "model.settings",
+                "name": "settings",
+                "analysis": "plane-strain",
+            },
+        ),
+        d["commands"].__setitem__(10, {**d["commands"][10], "constrained": ["x", "y"]}),
+        d["commands"].insert(
+            10,
+            {
+                "command": "rigid.add",
+                "name": "plate",
+                "coordinates": [4, 0.5, 1],
+                "shape": {"normal": [-1, 0, 0]},
+            },
+        ),
+        d["commands"].insert(
+            11,
+            {
+                "command": "rigid.add",
+                "name": "wall",
+                "coordinates": [4, 0.5, 0],
+                "shape": {"normal": [-1, 0, 1]},
+            },
+        ),
+        d["commands"].insert(
+            12,
+            {
+                "command": "rigid.add",
+                "name": "roller",
+                "coordinates": [1.5, 2, 0],
+                "shape": {"radius": 0.5, "axis": [1, 0, 0]},
+            },
+        ),
+        d["commands"].insert(
+            13,
+            {
+                "command": "rigid.add",
+                "name": "wheel",
+                "coordinates": [1.5, 3, 0],
+                "shape": {"radius": 0.5, "axis": [0, 0, 1]},
+            },
+        ),
+        *(
+            d["commands"].insert(
+                14 + i,
+                {
+                    "command": "boundary.add",
+                    "name": f"hold_{name}",
+                    "pointset": name,
+                    "constrained": ["x", "y"],
+                },
+            )
+            for i, name in enumerate(["plate", "wall", "roller", "wheel"])
+        ),
+    ),
     "2d cells": lambda d: (
         d["commands"].insert(
             0,

@@ -360,6 +360,32 @@ describe("new boundaries and constraints of 2D models (#175)", () => {
   });
 });
 
+describe("rigid surfaces (#219)", () => {
+  it("are a plane or a cylinder", () => {
+    const draft = initialDraft("rigid.add", { commands });
+    expect(draft).toMatchObject({
+      coordinates: [0, 0, 0],
+      shape: { normal: [0, 0, 1] },
+    });
+    const keys = (d: Draft) =>
+      fieldSpecs("rigid.add", d).map((spec) => spec.key);
+    expect(keys(draft)).toEqual([
+      "name",
+      "coordinates",
+      "shape",
+      "shape.normal",
+    ]);
+    expect(keys({ ...draft, shape: { radius: 1 } })).toEqual([
+      "name",
+      "coordinates",
+      "shape",
+      "shape.radius",
+      "shape.axis",
+      "shape.inside",
+    ]);
+  });
+});
+
 describe("new sections", () => {
   // the model up to its materials: two cell sets, two materials
   const model = commands.slice(0, 5);

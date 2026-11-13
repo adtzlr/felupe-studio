@@ -6288,6 +6288,585 @@
     "notes": []
   },
   {
+    "name": "rigid surfaces",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "rigid.add",
+          "name": "plate",
+          "coordinates": [
+            4,
+            0.5,
+            0.5
+          ],
+          "shape": {
+            "normal": [
+              -1,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "command": "rigid.add",
+          "name": "roller",
+          "coordinates": [
+            1.5,
+            2,
+            0.5
+          ],
+          "shape": {
+            "radius": 0.5,
+            "axis": [
+              0,
+              0,
+              1
+            ],
+            "inside": false
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "push",
+          "pointset": "plate",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "hold",
+          "pointset": "roller",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [],
+    "notes": []
+  },
+  {
+    "name": "rigid surface problems",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "point.add",
+          "name": "pin",
+          "coordinates": [
+            4,
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "command": "rigid.add",
+          "name": "plate",
+          "coordinates": [
+            4,
+            0.5,
+            0.5
+          ],
+          "shape": {
+            "normal": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "command": "rigid.add",
+          "name": "roller",
+          "coordinates": [
+            1.5,
+            2,
+            0.5
+          ],
+          "shape": {
+            "radius": 0.5,
+            "axis": [
+              0,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "hold",
+          "pointset": "roller",
+          "constrained": [
+            "x",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "pin_fixed",
+          "pointset": "pin",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/10: rigid surface 'plate' is at the coordinates of control point 'pin': the script merges them.",
+      "commands/10: rigid surface 'plate' has a normal of zero length.",
+      "commands/11: rigid surface 'roller' has an axis of zero length.",
+      "commands/10: rigid surface 'plate' has no stiffness in x, y and z: its reference point needs a boundary of these components.",
+      "commands/11: rigid surface 'roller' has no stiffness in y: its reference point needs a boundary of these components."
+    ],
+    "notes": []
+  },
+  {
+    "name": "2d model with rigid surfaces",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "model.settings",
+          "name": "settings",
+          "analysis": "plane-strain"
+        },
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "rigid.add",
+          "name": "plate",
+          "coordinates": [
+            4,
+            0.5,
+            1
+          ],
+          "shape": {
+            "normal": [
+              -1,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "command": "rigid.add",
+          "name": "wall",
+          "coordinates": [
+            4,
+            0.5,
+            0
+          ],
+          "shape": {
+            "normal": [
+              -1,
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "command": "rigid.add",
+          "name": "roller",
+          "coordinates": [
+            1.5,
+            2,
+            0
+          ],
+          "shape": {
+            "radius": 0.5,
+            "axis": [
+              1,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "command": "rigid.add",
+          "name": "wheel",
+          "coordinates": [
+            1.5,
+            3,
+            0
+          ],
+          "shape": {
+            "radius": 0.5,
+            "axis": [
+              0,
+              0,
+              1
+            ]
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "hold_plate",
+          "pointset": "plate",
+          "constrained": [
+            "x",
+            "y"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "hold_wall",
+          "pointset": "wall",
+          "constrained": [
+            "x",
+            "y"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "hold_roller",
+          "pointset": "roller",
+          "constrained": [
+            "x",
+            "y"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "hold_wheel",
+          "pointset": "wheel",
+          "constrained": [
+            "x",
+            "y"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/10: rigid surface 'plate' has a z coordinate: the points of a 2D model are in the plane z = 0.",
+      "commands/11: rigid surface 'wall' has a normal with a z component: the planes of a 2D model are lines in the xy-plane.",
+      "commands/12: rigid surface 'roller' has an axis that is not z: the cylinders of a 2D model are circles in the xy-plane."
+    ],
+    "notes": []
+  },
+  {
     "name": "2d cells",
     "document": {
       "schema_version": 3,

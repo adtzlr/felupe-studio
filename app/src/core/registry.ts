@@ -494,6 +494,38 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       },
     },
   },
+  "rigid.add": {
+    label: "Rigid surface",
+    tab: "loads",
+    prefix: "rigid",
+    noun: "rigid surface",
+    fields: {
+      coordinates: {
+        label: "Reference point",
+        hint: "x, y, z: a point of the plane or of the axis; boundaries move the surface",
+        default: [0, 0, 0],
+      },
+      shape: { label: "Shape" },
+      "shape.normal": {
+        label: "Normal",
+        hint: "Outward, towards the points that touch the plane",
+        default: [0, 0, 1],
+      },
+      "shape.radius": { label: "Radius", default: 1 },
+      "shape.axis": {
+        label: "Axis",
+        hint: "The direction of the axis",
+        default: [0, 0, 1],
+      },
+      "shape.inside": {
+        label: "Inside",
+        hint: "The points are inside the cylinder (a tube), else outside (a roller)",
+      },
+    },
+    options: {
+      shape: { normal: "Plane", radius: "Cylinder" },
+    },
+  },
   "mpc.add": {
     label: "Multi-point constraint",
     tab: "loads",
@@ -532,7 +564,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     fields: {
       points: {
         label: "Points",
-        hint: "A point set or a control point",
+        hint: "A point set, a control point or a rigid surface",
       },
       force: {
         label: "Force",

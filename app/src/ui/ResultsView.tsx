@@ -6,6 +6,7 @@ import { NodesButton, useShowNodes } from "./NodesButton";
 import { CONTROL_COLOR, EXTREME_COLORS } from "../viewer/palette";
 import { extremeShape } from "../viewer/extremes";
 import { outlined } from "../viewer/pointsets";
+import { rigidShapes } from "../viewer/rigid";
 import {
   constraintLines,
   constraintShapes,
@@ -610,6 +611,21 @@ export function ResultsView({
             : [];
         })
       : [];
+    // the rigid surfaces, moved by the displacements of their reference points
+    // (#219)
+    const rigid =
+      scene && view && commands.some((c) => c.command === "rigid.add")
+        ? rigidShapes(commands, resultPlacement(scene, scale).nodes, {
+            highlight: HIGHLIGHT,
+            offsets: new Map(
+              (scene.points ?? []).map((p) => [
+                p.name,
+                p.displacement.map((u) => scale * u),
+              ]),
+            ),
+          })
+        : { faces: [], lines: [] };
+    viewer.current.setFaces(rigid.faces);
     if (scene && view && commands.some((c) => c.command === "mpc.add")) {
       const { nodes, place } = resultPlacement(scene, scale);
       viewer.current.setLines([
@@ -617,9 +633,10 @@ export function ResultsView({
           highlight: HIGHLIGHT,
           place,
         }),
+        ...rigid.lines,
         ...outlines,
       ]);
-    } else viewer.current.setLines(outlines);
+    } else viewer.current.setLines([...rigid.lines, ...outlines]);
   }, [
     scene,
     titled,

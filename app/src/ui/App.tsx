@@ -626,7 +626,9 @@ export function App({
           failed("The results could not be exported."),
         ),
     },
-    ...(store.commands.some((c) => c.command === "point.add")
+    ...(store.commands.some(
+      (c) => c.command === "point.add" || c.command === "rigid.add",
+    )
       ? [
           {
             id: "points",

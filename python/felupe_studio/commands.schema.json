@@ -138,6 +138,9 @@
           "$ref": "#/$defs/PointAdd"
         },
         {
+          "$ref": "#/$defs/RigidAdd"
+        },
+        {
           "$ref": "#/$defs/FaceSetAdd"
         },
         {
@@ -1110,6 +1113,63 @@
         "coordinates": {
           "x-quantity": "length",
           "$ref": "#/$defs/Coordinates"
+        }
+      }
+    },
+    "RigidAdd": {
+      "description": "A rigid surface (#219): a reference point with a plane or a cylinder. The reference point is a vertex like the control points and a point set of one point, so boundaries move the surface; it does not rotate. Contacts connect points of the model to it.",
+      "type": "object",
+      "required": ["command", "name", "coordinates", "shape"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "rigid.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "coordinates": {
+          "description": "The reference point: a point of the plane, or of the axis of the cylinder.",
+          "x-quantity": "length",
+          "$ref": "#/$defs/Coordinates"
+        },
+        "shape": {
+          "oneOf": [
+            {
+              "description": "A plane through the reference point.",
+              "type": "object",
+              "required": ["normal"],
+              "additionalProperties": false,
+              "properties": {
+                "normal": {
+                  "description": "The outward normal of the plane, towards the points that touch it.",
+                  "$ref": "#/$defs/Coordinates"
+                }
+              }
+            },
+            {
+              "description": "A cylinder whose axis goes through the reference point.",
+              "type": "object",
+              "required": ["radius", "axis"],
+              "additionalProperties": false,
+              "properties": {
+                "radius": {
+                  "description": "The radius of the cylinder.",
+                  "x-quantity": "length",
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "axis": {
+                  "description": "The direction of the axis of the cylinder.",
+                  "$ref": "#/$defs/Coordinates"
+                },
+                "inside": {
+                  "description": "The points are inside the cylinder (a tube around them), else outside (a roller).",
+                  "type": "boolean"
+                }
+              }
+            }
+          ]
         }
       }
     },
