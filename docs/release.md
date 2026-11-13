@@ -26,6 +26,10 @@ With real Pyodide, after the deployment of `main` has finished. Use the cases in
 - [ ] Face sets and pressures: on the sample *Hyperelastic block with a rigid plate*, a face set of a side face (click, *Create face set*) and a pressure on it ramped by the step; it solves, and the side face bulges in (positive) or out (negative).
 - [ ] Results: the contour settings (color map, bands, range over all substeps), *Min/Max* with its labels, and playing the substeps (Space).
 - [ ] Picking: a click on a face creates a point set of its plane; with Nodes shown, Shift+click picks nodes; *Control point at center* creates a control point.
+- [ ] Parameters and mesh scripts: *Sandwich spring with parameters* asks for its parameters when it opens; with 5 layers instead of 3 it opens with the higher stack and is softer; *Show* reads the script; *All parameters…* changes them later. An error in a mesh script (e.g. a wrong name) is an issue of the mesh with its traceback.
+- [ ] 2D models: *Axisymmetric sandwich spring* and *Plate with a hole in plane strain* open onto the xy-plane, solve, and show their results in 2D; the plate shows the concentration of the stress at the hole.
+- [ ] Contact: *Hyperelastic spring with end stops* solves; the point set `outer` highlights the surface, the contact `lower_stop` its points and its plane; in the results the plates move with their reference points and the force rises steeply at the end of the compression.
+- [ ] Live results: *Show live results* during a run shows the growing curve and the scenes; *Live results* off shows the curve only.
 - [ ] Cancel a running job: Python loads again and Solve works again without opening the files again.
 - [ ] A failing job (a large ramp with few substeps) shows the traceback; with cutback it runs.
 - [ ] Exports: the Python script runs next to the mesh files with FElupe; the XDMF and the VTU open in ParaView; the PNG shows the view with its scalar bar.

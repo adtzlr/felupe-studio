@@ -1841,7 +1841,7 @@ button {
 }
 
 .results-controls .substep input {
-  width: 200px;
+  width: 160px;
 }
 
 /* the contour with the button of its settings (#139) */
@@ -1851,11 +1851,16 @@ button {
   gap: var(--space-4);
 }
 
-/* play and pause the substeps (#141) */
+/* play and pause the substeps (#141), and back and forth */
 .play-button {
   width: var(--control-height-sm);
   height: var(--control-height-sm);
   padding: var(--space-2);
+}
+
+.play-button[aria-pressed="true"] {
+  background: var(--color-selected);
+  color: var(--color-accent);
 }
 
 .contour-button {

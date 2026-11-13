@@ -26,7 +26,7 @@ import { valueWithUnit } from "../core/units";
 import type { Quantity } from "../worker/protocol";
 import { ContourSettings } from "./ContourSettings";
 import { Icon } from "./icons";
-import { PLAY_MODES, type Player, type Speed, SPEEDS } from "./usePlayer";
+import { type Player, type Speed, SPEEDS } from "./usePlayer";
 
 interface Props {
   store: ModelStore;
@@ -194,6 +194,21 @@ export function ResultsControls({
             <Icon name={player.playing ? "pause" : "play"} />
           </button>
         )}
+        {player && (
+          <button
+            type="button"
+            class="icon-button play-button"
+            aria-label="Back and forth"
+            aria-pressed={player.mode === "bounce"}
+            title="Back and forth: after the last substep backward to the first one, and forward again (off: in a loop, after the last substep the first one)"
+            disabled={total < 2 || !!live}
+            onClick={() =>
+              player.setMode(player.mode === "bounce" ? "loop" : "bounce")
+            }
+          >
+            <Icon name="bounce" />
+          </button>
+        )}
         <label
           class="field substep"
           title={`${hint("substep-previous")} and ${hint("substep-next")} step through the substeps, ${hint("substep-first")} and ${hint("substep-last")} go to the first and the last one`}
@@ -232,30 +247,6 @@ export function ResultsControls({
               {SPEEDS.map((speed) => (
                 <option key={speed} value={speed}>
                   {speed}/s
-                </option>
-              ))}
-            </select>
-          </label>
-        )}
-        {player && (
-          <label
-            class="field play-mode"
-            title="Play the substeps in a loop (after the last substep the first one) or back and forth (after the last substep backward to the first one)"
-          >
-            <span>Repeat</span>
-            <select
-              value={player.mode}
-              disabled={total < 2 || !!live}
-              onChange={(event) =>
-                player.setMode(
-                  event.currentTarget
-                    .value as (typeof PLAY_MODES)[number]["mode"],
-                )
-              }
-            >
-              {PLAY_MODES.map(({ mode, label }) => (
-                <option key={mode} value={mode}>
-                  {label}
                 </option>
               ))}
             </select>

@@ -15,12 +15,6 @@ export const SPEEDS = [1, 2, 5, 10, 20] as const;
 export type Speed = (typeof SPEEDS)[number];
 export const DEFAULT_SPEED: Speed = 5;
 
-/** The modes of playing, with their labels. */
-export const PLAY_MODES: readonly { mode: PlayMode; label: string }[] = [
-  { mode: "loop", label: "Loop" },
-  { mode: "bounce", label: "Back and forth" },
-];
-
 /** The number of scenes loaded ahead while playing. */
 const AHEAD = 4;
 

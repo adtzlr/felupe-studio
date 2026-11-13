@@ -10,7 +10,9 @@ root::
 The script serves ``app/dist``, opens the sample *Hyperelastic block with a rigid
 plate*, solves it with Python in the browser (the first start downloads Pyodide) and
 writes small PNGs to ``docs/images``: the model, the results and a pressure on a face
-set.
+set. Then it opens three samples of version 0.4: the parameters of the sandwich
+spring (the dialog when it is opened), the results of the plate with a hole (a 2D
+model) and of the spring with end stops (contact).
 """
 
 import argparse
@@ -50,7 +52,8 @@ def capture(context, url, out):
         path = out / f"{name}.png"
         page.screenshot(path=str(path))
         shrink(path)
-        print(f"{path.relative_to(ROOT)}: {path.stat().st_size // 1024} kB")
+        name = path.relative_to(ROOT) if path.is_relative_to(ROOT) else path
+        print(f"{name}: {path.stat().st_size // 1024} kB")
 
     page.goto(url)
     page.wait_for_selector("text=/FElupe [0-9.]+ ready/", timeout=300_000)
@@ -90,6 +93,64 @@ def capture(context, url, out):
     dialog.get_by_role("textbox", name=re.compile("^Pressure")).fill("0.1")
     dialog.get_by_role("button", name="Create").click()
     shot("pressure")
+
+    def open_sample(title, file):
+        """Open a sample from File ▸ Samples…, replacing the current model (after
+        asking, if it has changes); a sample with parameters asks for them first."""
+        page.keyboard.press("Escape")
+        page.get_by_role("button", name="File", exact=True).click()
+        page.get_by_role("menuitem", name="Samples…").click()
+        card = page.get_by_role("dialog").locator("li", has_text=title)
+        card.get_by_role("button", name="Open").click()
+        confirm = page.get_by_role("dialog", name="Open project")
+        parameters = page.get_by_role("dialog", name=re.compile("^Parameters"))
+        opened = page.get_by_text(file, exact=True)
+        confirm.or_(parameters).or_(opened).first.wait_for()
+        if confirm.is_visible():
+            confirm.get_by_role("button", name="Open", exact=True).click()
+
+    def solve(substep=None, quantity=None):
+        """Solve the model and show the results of a substep (default the last)."""
+        # from the Model workspace, whose job panel offers the results
+        page.get_by_role("button", name="Model", exact=True).click()
+        page.get_by_role("button", name="Solve").first.click()
+        page.get_by_role("button", name="Show results").click(timeout=300_000)
+        page.wait_for_timeout(1500)
+        if quantity:
+            page.locator(".results-controls select").first.select_option(quantity)
+        if substep:
+            page.locator(".results-controls .substep input").fill(str(substep))
+        page.wait_for_timeout(1500)
+
+    # the parameters of the sandwich spring when it is opened, then its model
+    open_sample("Sandwich spring with parameters", "sandwich-spring.felupe.zip")
+    dialog = page.get_by_role("dialog", name=re.compile("^Parameters"))
+    dialog.locator("#parameter-layers").fill("4")
+    page.set_viewport_size({**SIZE, "height": 960})  # the whole dialog
+    shot("parameters")
+    page.set_viewport_size(SIZE)
+    dialog.get_by_role("button", name="Open", exact=True).click()
+    page.wait_for_selector("text=sandwich-spring.felupe.zip")
+
+    # a 2D model: the largest principal stress at the hole of the plate
+    open_sample("Plate with a hole in plane strain", "plate-with-hole.felupe.zip")
+    page.get_by_role("dialog", name=re.compile("^Parameters")).get_by_role(
+        "button", name="Open", exact=True
+    ).click()
+    page.wait_for_selector("text=plate-with-hole.felupe.zip")
+    solve(quantity="stress_max")
+    page.get_by_label("Curve", exact=True).set_checked(False)  # the whole plate
+    shot("plane-strain")
+
+    # contact: the spring with end stops at the end of its compression
+    open_sample("Hyperelastic spring with end stops", "hyperelastic-spring.felupe.zip")
+    page.wait_for_selector("text=hyperelastic-spring.felupe.zip")
+    solve(substep=5, quantity="strain_max")
+    page.get_by_label("Curve", exact=True).set_checked(True)
+    extremes = page.get_by_role("button", name="Min/Max")
+    if extremes.get_attribute("aria-pressed") == "true":
+        extremes.click()  # the plates in the middle without labels
+    shot("contact")
 
     if errors:
         raise RuntimeError(f"Errors of the page: {errors}")

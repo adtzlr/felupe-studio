@@ -1623,9 +1623,12 @@ describe("solve", () => {
     await waitFor(() => expect(calls).toEqual([6]));
 
     // from the last substep backward: the scenes ahead are the ones before it
-    const repeat = within(panel).getByLabelText("Repeat") as HTMLSelectElement;
-    expect(repeat.value).toBe("loop");
-    fireEvent.change(repeat, { target: { value: "bounce" } });
+    const bounce = within(panel).getByRole("button", {
+      name: "Back and forth",
+    });
+    expect(bounce.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(bounce);
+    expect(bounce.getAttribute("aria-pressed")).toBe("true");
     fireEvent.change(within(panel).getByLabelText("Speed"), {
       target: { value: "20" },
     });

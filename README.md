@@ -8,15 +8,17 @@ Every node in the GUI is a FElupe object. Every action is a command; the command
 
 ![FElupe Studio with the sample "Hyperelastic block with a rigid plate"](docs/images/model.png)
 
-FElupe Studio builds models of hyperelastic solids from mesh files: cell sets from cell tags, materials (Neo-Hooke, Mooney-Rivlin, Yeoh, Ogden, Arruda-Boyce, …), sections with the `u` or `u-p-J` formulation, point sets (by a plane, by picked nodes or by ids), face sets, boundaries and load cases, control points, multi-point constraints with rotation points (e.g. a rigid plate glued to a face), point loads and pressures, and steps that ramp several items with their own values. Solve runs in the browser with live progress; the results show the deformed shape with contours of the displacement, the strains and the stresses per substep, their minimum and maximum, the force-displacement (or moment-rotation) curve and the displacements and forces of the control points, and play the substeps. The FElupe script, the results (XDMF/VTU/CSV) and pictures of the view can be exported; a project is saved as a text file or as an archive with its mesh files.
+FElupe Studio builds models of hyperelastic solids, in 3D, in plane strain or axisymmetric, from mesh files or from Python scripts with parameters: cell sets from cell tags, materials (Neo-Hooke, Mooney-Rivlin, Yeoh, Ogden, Arruda-Boyce, …), sections with the `u` or `u-p-J` formulation, point sets (by a plane, at a bound, on a cylinder, on the outer surface, by picked surfaces or nodes), face sets, boundaries, symmetry planes and load cases, control points, multi-point constraints with rotation points (e.g. a rigid plate glued to a face), rigid planes and cylinders with contacts and friction, point loads and pressures, and steps that ramp several items with their own values. Solve runs in the browser with live results; the results show the deformed shape with contours of the displacement, the strains and the stresses per substep, their minimum and maximum, the force-displacement (or moment-rotation) curve with free axes and the displacements and forces of the control points, and play the substeps. The FElupe script, the results (XDMF/VTU/CSV) and pictures of the view can be exported; a project is saved as a text file or as an archive with its mesh files.
 
-Version 0.3 adds the units of a model, the material models of tensortrax, contour settings (color maps, bands, ranges), the minimum and maximum of a contour, playing the substeps, project archives (`.felupe.zip`), face sets and pressures. See the [changelog](CHANGELOG.md).
+Version 0.4 adds model parameters and meshes made by Python scripts (asked for when a project is opened), 2D models (plane strain and axisymmetric), symmetry planes, rigid surfaces and contacts, live results of a running job, free axes of the curve, the linear solver of a job and a default tolerance of 0.01, with samples from the FElupe examples (the bushing ex05 and the spring with end stops ex06). See the [changelog](CHANGELOG.md).
+
+![The parameters of the sample "Sandwich spring with parameters", asked for when it is opened](docs/images/parameters.png)
 
 ![The results of the sample: the von Mises stress with its minimum and maximum and the force-displacement curve](docs/images/results.png)
 
-**Documentation:** the [user guide](docs/guide.md) with a tutorial, the [command reference](docs/reference.md), how the [commands](docs/commands.md) become a FElupe script, the [architecture decision records](docs/adr/), the [changelog](CHANGELOG.md) and the [roadmap](https://github.com/adtzlr/felupe-studio/issues/104).
+**Documentation:** the [user guide](docs/guide.md) with a tutorial, the [command reference](docs/reference.md), how the [commands](docs/commands.md) become a FElupe script, the [architecture decision records](docs/adr/), the [changelog](CHANGELOG.md) and the [roadmap](https://github.com/adtzlr/felupe-studio/issues/178).
 
-**Non-goals:** meshing from CAD, contact, a server backend.
+**Non-goals:** meshing from CAD, contact between deformable bodies (contacts are with rigid planes and cylinders), a server backend.
 
 ## Repository layout
 
