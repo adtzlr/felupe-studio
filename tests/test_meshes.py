@@ -222,6 +222,10 @@ def test_meshes_of_scripts(tmp_path, monkeypatch):
     )
     assert "is not a dict" in json.loads(make("plain.py", {}, "left")[0])["error"]
     assert json.loads(make("plain.py", {})[0])["solids"][0]["cells"] == 1
+    # JavaScript's null of the worker arrives as pyodide.ffi.jsnull, which is no item
+    jsnull = type("JsNull", (), {"__bool__": lambda self: False})()
+    text, _ = make_json("plain.py", "{}", jsnull)
+    assert json.loads(text)["solids"][0]["cells"] == 1
 
 
 def test_2d_meshes(tmp_path):

@@ -121,7 +121,8 @@ function makeMesh(
   item?: string,
 ) {
   inspected(id, (meshes) =>
-    meshes.make_json(safeName(file), JSON.stringify(parameters), item ?? null),
+    // undefined, not null: Pyodide converts null to jsnull, which is not None
+    meshes.make_json(safeName(file), JSON.stringify(parameters), item),
   );
 }
 
@@ -176,7 +177,7 @@ async function run(id: number, document: string, live?: LiveSettings) {
     const results = runner.run_json(
       document,
       report,
-      live ? JSON.stringify(live) : null,
+      live ? JSON.stringify(live) : undefined,
       reportScene,
     ) as string;
     post({
@@ -239,7 +240,7 @@ function exportResults(
 ) {
   const results = python().pyimport("felupe_studio.results");
   try {
-    const proxy = results.export(job, format, substep ?? null);
+    const proxy = results.export(job, format, substep);
     const bytes = proxy.toJs() as Uint8Array;
     proxy.destroy();
     const data = bytes.buffer.slice(
