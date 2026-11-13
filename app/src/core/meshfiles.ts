@@ -237,7 +237,15 @@ export class MeshFiles {
 }
 
 /** The cell types whose faces have a boundary region in FElupe 12 (#142). */
-export const FACE_CELL_TYPES = ["hexahedron", "hexahedron20", "hexahedron27"];
+export const FACE_CELL_TYPES = [
+  "hexahedron",
+  "hexahedron20",
+  "hexahedron27",
+  // the edges of the quads of 2D models (#175)
+  "quad",
+  "quad8",
+  "quad9",
+];
 
 /** The type of the solid cells of a section, if its mesh file is read. */
 export function sectionCellType(
@@ -275,7 +283,9 @@ export function faceSetNotes(
     const type = sectionCellType(commands, command.section, files);
     if (type && !FACE_CELL_TYPES.includes(type)) {
       notes.set(command.name, [
-        `The faces of ${type} cells of '${command.section}' have no boundary region in FElupe 12; a face set needs a section of hexahedrons.`,
+        type.startsWith("triangle")
+          ? `The edges of ${type} cells of '${command.section}' have no boundary region in FElupe 12; a face set of a 2D model needs a section of quads.`
+          : `The faces of ${type} cells of '${command.section}' have no boundary region in FElupe 12; a face set needs a section of hexahedrons.`,
       ]);
     }
   }

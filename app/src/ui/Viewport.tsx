@@ -33,6 +33,8 @@ import {
   type SectionFaces,
   sectionFaces,
   selectedFaces,
+  sideAt,
+  sideRibbons,
 } from "../viewer/facesets";
 import { axisOf, type Vec3 } from "../viewer/picking";
 import {
@@ -44,6 +46,7 @@ import {
   type Surface,
 } from "../viewer/surfaces";
 import { combine, type Patch, patchCounts, pickPatch } from "../viewer/patches";
+import { analysisOf, is2d } from "../core/analysis";
 import { toName } from "../core/importmesh";
 import {
   type CoordinateSelect,
@@ -125,15 +128,19 @@ interface Picked {
 
 const isFaceSet = (c: Command): c is FaceSetAdd => c.command === "faceset.add";
 
-/** The face of the boundary of a section at a picked triangle, if any. */
+/**
+ * The face of the boundary of a section at a picked triangle, if any: of a 2D model
+ * (#175), the nearest side of the picked cell on the boundary of its section.
+ */
 function faceAt(
   sections: ReadonlyMap<string, SectionFaces>,
-  mesh: string,
-  triangle: number,
+  { mesh, triangle, point }: Pick,
 ): { section: string; face: number } | undefined {
   for (const of of sections.values()) {
     if (of.mesh !== mesh) continue;
-    const face = of.ofTriangle[triangle] ?? -1;
+    const face = of.planar
+      ? sideAt(of, triangle, point)
+      : (of.ofTriangle[triangle] ?? -1);
     if (face >= 0) return { section: of.section, face };
   }
   return undefined;
@@ -324,21 +331,27 @@ export function Viewport({
     ): Highlight[] => {
       const layer = content.meshes.find((m) => m.name === of.mesh);
       if (!layer || !indices.length) return [];
-      const shown = indices.filter((i) =>
-        of.faces[i].triangles.every(
+      const shown = indices.filter((i) => {
+        const face = of.faces[i];
+        // a side of a 2D cell (#175) is shown with its cell
+        if (face.owner !== undefined) return !layer.hidden?.[face.owner];
+        return face.triangles.every(
           (t) => !layer.hidden?.[of.surface.owners[t]],
-        ),
-      );
-      return shown.length
-        ? [
-            {
-              positions: of.surface.positions,
-              triangles: faceTriangles(of, shown),
-              color,
-              opacity,
-            },
-          ]
-        : [];
+        );
+      });
+      if (!shown.length) return [];
+      // the sides of 2D cells as ribbons inside the cells
+      if (of.planar) {
+        return [{ ...sideRibbons(of, shown, 0.015 * of.size), color, opacity }];
+      }
+      return [
+        {
+          positions: of.surface.positions,
+          triangles: faceTriangles(of, shown),
+          color,
+          opacity,
+        },
+      ];
     };
     const sets = commands.filter(isFaceSet).filter((c) => !hidden.has(c.name));
     const picks = (
@@ -550,9 +563,13 @@ export function Viewport({
   // viewer calls it with the nodes of the latest render)
   const nodesRef = useRef(nodes);
   nodesRef.current = nodes;
+  const planarRef = useRef(false);
+  planarRef.current = is2d(analysisOf(commands));
   const planeOf = (pick: Pick): Picked => {
-    const axis = axisOf(pick.normal);
-    const face = faceAt(sectionsRef.current, pick.mesh, pick.triangle);
+    // the plane of a 2D model is no plane of its point sets (#175)
+    const normal = axisOf(pick.normal);
+    const axis = normal === 2 && planarRef.current ? undefined : normal;
+    const face = faceAt(sectionsRef.current, pick);
     return {
       point: pick.point,
       normal: pick.normal,
@@ -604,8 +621,7 @@ export function Viewport({
         // a face of a section: a left click adds its connected surface up to the
         // feature angle (#189), a right click deselects or excludes it, Shift single
         // faces (#195)
-        const at =
-          pick && faceAt(sectionsRef.current, pick.mesh, pick.triangle);
+        const at = pick && faceAt(sectionsRef.current, pick);
         if (at) {
           setPicked(undefined);
           setPickedNodes([]);

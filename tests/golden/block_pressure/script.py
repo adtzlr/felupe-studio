@@ -123,11 +123,15 @@ def mixed_region(mesh):
     return REGIONS[mesh.cell_type](mesh)
 
 
-# boundary regions by cell type of the solid cells (no tetrahedrons in FElupe 12)
+# boundary regions by cell type of the solid cells (no tetrahedrons and triangles in
+# FElupe 12); the faces of the 2D cells of 2D models are their edges
 BOUNDARY_REGIONS = {
     "hexahedron": fem.RegionHexahedronBoundary,
     "hexahedron20": fem.RegionQuadraticHexahedronBoundary,
     "hexahedron27": fem.RegionTriQuadraticHexahedronBoundary,
+    "quad": fem.RegionQuadBoundary,
+    "quad8": fem.RegionQuadraticQuadBoundary,
+    "quad9": fem.RegionBiQuadraticQuadBoundary,
 }
 
 
@@ -137,20 +141,23 @@ def boundary_faces(mesh, plane=None, centers=None, atol=None):
     the points of a face, the nearest face within ``atol``, by default 1e-6 of the
     size of the mesh). Picked faces are selected by the points of their faces on
     their cells; a ``ValueError`` is raised if these select more faces, e.g. both
-    sides of a plate that is one cell thick."""
+    sides of a plate that is one cell thick. The faces of 2D cells are their edges,
+    with the normals of the edges in the xy-plane (``ensure_3d=True``)."""
     if mesh.cell_type not in BOUNDARY_REGIONS:
         raise NotImplementedError(
             f"Faces of {mesh.cell_type} cells have no boundary region in FElupe."
         )
     region = BOUNDARY_REGIONS[mesh.cell_type]
+    options = {"ensure_3d": True} if mesh.dim == 2 else {}
     points = mesh.points
     if plane is not None:
         axis, value = plane
         tolerance = 1e-8 if atol is None else atol
-        return region(mesh, mask=np.isclose(points[:, axis], value, atol=tolerance))
+        mask = np.isclose(points[:, axis], value, atol=tolerance)
+        return region(mesh, mask=mask, **options)
 
     # the nearest outer face of every center
-    outer = region(mesh, grad=False)
+    outer = region(mesh, grad=False, **options)
     faces = outer.mesh.cells_faces
     centers = np.atleast_2d(np.asarray(centers, dtype=float))
     if atol is None:
@@ -174,7 +181,7 @@ def boundary_faces(mesh, plane=None, centers=None, atol=None):
     selected.update(cells=mesh.cells[owners])
     mask = np.zeros(len(points), dtype=bool)
     mask[faces[chosen]] = True
-    result = region(selected, mask=mask)
+    result = region(selected, mask=mask, **options)
     if len(result.mesh.cells) != len(chosen):
         raise ValueError(
             f"The points of the {len(chosen)} faces select {len(result.mesh.cells)} "

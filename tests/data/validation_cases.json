@@ -5689,6 +5689,21 @@
           ]
         },
         {
+          "command": "faceset.add",
+          "name": "end",
+          "section": "section_soft",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "pressure.add",
+          "name": "pull",
+          "faces": "end",
+          "pressure": -1
+        },
+        {
           "command": "boundary.add",
           "name": "move",
           "pointset": "right",
@@ -5862,6 +5877,29 @@
           ]
         },
         {
+          "command": "faceset.add",
+          "name": "bottom",
+          "section": "section_soft",
+          "select": {
+            "axis": "z",
+            "value": 0
+          }
+        },
+        {
+          "command": "faceset.add",
+          "name": "picked",
+          "section": "section_soft",
+          "select": {
+            "centers": [
+              [
+                3,
+                0.5,
+                0.5
+              ]
+            ]
+          }
+        },
+        {
           "command": "boundary.add",
           "name": "move",
           "pointset": "right",
@@ -5900,7 +5938,9 @@
       "commands/13: point set 'top' selects by z, which a 2D model does not have.",
       "commands/14: symmetry 'half' has a plane normal to z, which a 2D model does not have.",
       "commands/15: load case 'test' has the axis z in 'normal', which a 2D model does not have.",
-      "commands/16: point load 'pull' has a force in z, which a 2D model does not have."
+      "commands/16: point load 'pull' has a force in z, which a 2D model does not have.",
+      "commands/17: face set 'bottom' selects by z, which a 2D model does not have.",
+      "commands/18: face set 'picked' has centers with a z coordinate: the edges of a 2D model are in the plane z = 0."
     ],
     "notes": [
       "commands/14: the plane y = 0 of symmetry 'half' is already a symmetry plane of load case 'test'."

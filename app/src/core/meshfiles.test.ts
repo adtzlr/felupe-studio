@@ -68,6 +68,11 @@ describe("face sets and the mesh files (#142)", () => {
     });
     // without the mesh file, nothing is known
     expect(faceSetNotes(model, new MeshFiles()).size).toBe(0);
+    // the edges of the 2D cells of 2D models (#175)
+    expect(faceSetNotes(model, await files("quad8")).size).toBe(0);
+    expect(faceSetNotes(model, await files("triangle")).get("end")).toEqual([
+      "The edges of triangle cells of 'section_soft' have no boundary region in FElupe 12; a face set of a 2D model needs a section of quads.",
+    ]);
   });
 });
 

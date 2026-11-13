@@ -36,7 +36,8 @@ def enclosed_volume(positions, triangles):
 
 
 def solid_of(mesh):
-    return volume_cells(meshio.Mesh(mesh.points, [(mesh.cell_type, mesh.cells)]))
+    cells = [(mesh.cell_type, mesh.cells)]
+    return volume_cells(meshio.Mesh(mesh.points, cells), dim=None)
 
 
 def test_like_felupe():
@@ -131,3 +132,22 @@ def test_regions():
     tags = {"a": np.array([1, 1, 2, 2]), "b": np.array([5, 6, 6, 6])}
     np.testing.assert_array_equal(regions(4, tags), [0, 1, 2, 2])
     np.testing.assert_array_equal(regions(3, {}), [0, 0, 0])
+
+
+@pytest.mark.parametrize("cell_type", ["quad8", "quad9", "triangle6", "quad"])
+def test_corners_of_2d_cells(cell_type):
+    # the corners split the outline of a quadratic 2D cell into its sides (#175)
+    mesh = fem.Rectangle(n=3)
+    if cell_type == "triangle6":
+        mesh = fem.mesh.convert(mesh.triangulate(), order=2)
+    elif cell_type != "quad":
+        mesh = fem.mesh.convert(mesh, order=2, calc_midfaces=cell_type == "quad9")
+    result = surface(solid_of(mesh))
+    if cell_type == "quad":
+        assert result["corners"] is None
+        return
+    corners = np.frombuffer(result["corners"], "u1")
+    positions = np.frombuffer(result["positions"], "<f4").reshape(-1, 3)
+    # the corners of the cells are the points of the grid 0, 0.5, 1
+    grid = np.isin(positions[:, :2], [0, 0.5, 1]).all(axis=1)
+    assert np.array_equal(corners.astype(bool), grid)

@@ -97,6 +97,12 @@ def main():
             np.pad(plate.points, ((0, 0), (0, 1))), [("quad", plate.cells)]
         ).write(HERE / case / "plate.vtu", binary=False)
 
+    # the cylinder of quadratic quads (6 x 2 cells), pulled by a pressure on its end
+    quadratic = fem.mesh.convert(fem.Rectangle(b=(3, 1), n=(7, 3)), order=2)
+    meshio.Mesh(
+        np.pad(quadratic.points, ((0, 0), (0, 1))), [("quad8", quadratic.cells)]
+    ).write(HERE / "cylinder_pressure_axisymmetric" / "plate.vtu", binary=False)
+
     # a cube of 2 x 2 x 2 cells for the uniaxial tension of the material models
     for case in MATERIAL_CASES:
         write_vtu(HERE / case / "cube.vtu", fem.Cube(n=3))
