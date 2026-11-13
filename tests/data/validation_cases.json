@@ -465,7 +465,7 @@
       ]
     },
     "errors": [
-      "commands/9: boundary.add 'fixed' references unknown pointset 'right2' in 'pointset'."
+      "commands/9: boundary.add 'fixed' references unknown pointset or rigid surface 'right2' in 'pointset'."
     ],
     "notes": []
   },
@@ -2270,7 +2270,7 @@
       ]
     },
     "errors": [
-      "commands/11: 'hard' in 'points' of 'pull' is a cellset, not a pointset."
+      "commands/11: 'hard' in 'points' of 'pull' is a cellset, not a pointset or rigid surface."
     ],
     "notes": []
   },
@@ -6637,6 +6637,508 @@
       "commands/11: rigid surface 'roller' has an axis of zero length.",
       "commands/10: rigid surface 'plate' has no stiffness in x, y and z: its reference point needs a boundary of these components.",
       "commands/11: rigid surface 'roller' has no stiffness in y: its reference point needs a boundary of these components."
+    ],
+    "notes": []
+  },
+  {
+    "name": "contacts",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "rigid.add",
+          "name": "plate",
+          "coordinates": [
+            4,
+            0.5,
+            0.5
+          ],
+          "shape": {
+            "normal": [
+              -1,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "push",
+          "pointset": "plate",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "faceset.add",
+          "name": "end",
+          "section": "section_soft",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "contact.add",
+          "name": "touch",
+          "points": "end",
+          "surface": "plate",
+          "friction": 0.3,
+          "elastic_slip": 0.01
+        },
+        {
+          "command": "contact.add",
+          "name": "edge",
+          "points": "right",
+          "surface": "plate",
+          "multiplier": 10
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [],
+    "notes": []
+  },
+  {
+    "name": "contact problems",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "point.add",
+          "name": "pin",
+          "coordinates": [
+            5,
+            0.5,
+            0.5
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "pin_fixed",
+          "pointset": "pin",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "rigid.add",
+          "name": "plate",
+          "coordinates": [
+            4,
+            0.5,
+            0.5
+          ],
+          "shape": {
+            "normal": [
+              -1,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "push",
+          "pointset": "plate",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "contact.add",
+          "name": "wrong_surface",
+          "points": "right",
+          "surface": "left"
+        },
+        {
+          "command": "contact.add",
+          "name": "wrong_points",
+          "points": "pin",
+          "surface": "plate"
+        },
+        {
+          "command": "contact.add",
+          "name": "unknown",
+          "points": "right",
+          "surface": "wall"
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/13: 'left' in 'surface' of 'wrong_surface' is a pointset, not a rigid surface.",
+      "commands/14: contact 'wrong_points' takes the control point 'pin': a contact needs points of the sections.",
+      "commands/15: contact.add 'unknown' references unknown rigid surface 'wall' in 'surface'."
+    ],
+    "notes": []
+  },
+  {
+    "name": "2d model with a contact",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "model.settings",
+          "name": "settings",
+          "analysis": "plane-strain"
+        },
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "rigid.add",
+          "name": "plate",
+          "coordinates": [
+            4,
+            0.5,
+            0
+          ],
+          "shape": {
+            "normal": [
+              -1,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "push",
+          "pointset": "plate",
+          "constrained": [
+            "x",
+            "y"
+          ]
+        },
+        {
+          "command": "contact.add",
+          "name": "touch",
+          "points": "right",
+          "surface": "plate"
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/12: Contacts are not available in 2D models yet: remove 'touch' or make the model 3D."
     ],
     "notes": []
   },

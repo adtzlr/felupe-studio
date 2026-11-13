@@ -388,6 +388,7 @@ def codegen(document, evaluate=True, check_schema=True):
     if pointsets and not sections:
         raise ValidationError(["Point sets need at least one section (a field)."])
     facesets = get("faceset.add")
+    facesets_by_name = {fs["name"] for fs in facesets}
 
     out = [HEADER.format(version=__version__, schema=SCHEMA_VERSION)]
     settings = get("model.settings")
@@ -547,8 +548,17 @@ def codegen(document, evaluate=True, check_schema=True):
     if pointsets:
         out.append("\n# point sets of the merged mesh")
         out.append("points = field.mesh_container.points")
-        if any("bound" in ps.get("select", {}) for ps in pointsets):
-            # the bounds of the cells of the sections, not of the control points (#181)
+        contacts_of_sets = any(
+            c["command"] == "contact.add"
+            and any(
+                ps["name"] == c["points"] and ps["command"] == "pointset.add"
+                for ps in pointsets
+            )
+            for c in commands
+        )
+        if contacts_of_sets or any("bound" in ps.get("select", {}) for ps in pointsets):
+            # the points of the cells of the sections, not the control points: for
+            # the bounds (#181) and the points of contacts (#220)
             cells = [f"region_{sec['name']}.mesh.cells" for sec in sections]
             if len(cells) == 1:
                 out.append(_call("solid_points", "np.unique", cells))
@@ -717,6 +727,51 @@ def codegen(document, evaluate=True, check_schema=True):
                 args.append(f"rotationpoint={point}")
             out.append(_call(mpc["name"], "fem.MultiPointConstraint", args))
 
+    contacts = get("contact.add")
+    if contacts:
+        rigids = {r["name"]: r for r in get("rigid.add")}
+        solids = [f"solid_{sec['name']}" for sec in sections]
+        out.append(
+            "\n# the stiffness of the solid bodies for the penalties of the contacts: "
+            "without it,\n# a contact would assemble them with its field, which has "
+            "the vertices of the\n# control points"
+        )
+        out.append(f"for solid in {_List(solids)}:")
+        out.append("    solid.assemble.matrix()")
+        out.append(
+            "\n# contacts with rigid surfaces (#220): the points of a point set (of "
+            "the sections)\n# or of a face set"
+        )
+        for contact in contacts:
+            rigid = rigids[contact["surface"]]
+            shape = rigid["shape"]
+            if contact["points"] in facesets_by_name:
+                points = f"np.unique(region_{contact['points']}.mesh.cells_faces)"
+            else:
+                points = (
+                    f"np.intersect1d(np.flatnonzero({contact['points']}), solid_points)"
+                )
+            args = [
+                "field",
+                f"points={points}",
+                f"centerpoint=single_point({rigid['name']}, {_str(rigid['name'])})",
+            ]
+            if "normal" in shape:
+                normal = [float(x) for x in shape["normal"]]
+                args.append(f"normal={normal!r}")
+                func = "fem.ContactRigidPlane"
+            else:
+                axis = [float(x) for x in shape["axis"]]
+                args += [f"radius={shape['radius']!r}", f"axis={axis!r}"]
+                if shape.get("inside"):
+                    args.append("inside=True")
+                func = "fem.ContactRigidCylinder"
+            for key in ("friction", "multiplier", "elastic_slip"):
+                if key in contact:
+                    args.append(f"{key}={contact[key]!r}")
+            args.append(f"items={_List(solids)}")
+            out.append(_call(contact["name"], func, args))
+
     if loads:
         out.append("\n# point loads: the force at every point, scaled by the ramps")
         for load in loads.values():
@@ -741,7 +796,14 @@ def codegen(document, evaluate=True, check_schema=True):
             names = step.get("sections", [s["name"] for s in sections])
             items = (
                 ["solid_" + n for n in names]
-                + step.get("constraints", [c["name"] for c in constraints])
+                + step.get(
+                    "constraints",
+                    [
+                        c["name"]
+                        for c in commands
+                        if c["command"] in ("mpc.add", "contact.add")
+                    ],
+                )
                 + step.get("loads", [*loads, *pressures])
             )
             lines = [_List(items, prefix="items=")]

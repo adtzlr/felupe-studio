@@ -252,6 +252,89 @@ def test_rotation_in_plane_strain_like_the_bar_with_fixed_z(tmp_path, monkeypatc
     assert plate["force"][-1] > 0
 
 
+def curve_in_z(document, folder, tmp_path, monkeypatch):
+    """The displacements and the forces in z of the curve of a job, by the script."""
+    shutil.copy(HERE / folder / "block.vtu", tmp_path)
+    script = tmp_path / "script.py"
+    script.write_text(codegen(document), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    job = runpy.run_path(str(script))["job_1"]
+    return np.array(job.x)[:, 2], np.array(job.y)[:, 2]
+
+
+def prescribed(document, constrained):
+    """The block of a contact case with its top moved like the rigid surface."""
+    commands = [
+        c
+        for c in document["commands"]
+        if c["command"] not in ("rigid.add", "contact.add")
+        and c["name"] not in ("press", "guide")
+    ]
+    at = next(i for i, c in enumerate(commands) if c["command"] == "step.add")
+    commands.insert(
+        at,
+        {
+            "command": "boundary.add",
+            "name": "press",
+            "pointset": "top",
+            "constrained": ["z"],
+        },
+    )
+    if constrained:
+        commands.insert(
+            at + 1,
+            {
+                "command": "boundary.add",
+                "name": "guide",
+                "pointset": "top",
+                "constrained": constrained,
+            },
+        )
+    return {**document, "commands": commands}
+
+
+@pytest.mark.parametrize(
+    "case, constrained",
+    [("block_contact_plane", []), ("block_contact_friction", ["x", "y"])],
+)
+def test_contact_with_a_plane_like_a_prescribed_top(
+    case, constrained, tmp_path, monkeypatch
+):
+    # a block pressed by a rigid plane (#220): without friction its top slides
+    # freely like a prescribed displacement in z, with friction it sticks like a
+    # prescribed displacement with x and y fixed; the penalty of the contact lets
+    # the top penetrate the plane a little (a relative difference of 6e-4)
+    document = load(case)
+    moves, forces = curve_in_z(document, case, tmp_path, monkeypatch)
+    np.testing.assert_allclose(moves, np.linspace(0, -0.2, 6))
+    _, reference = curve_in_z(
+        prescribed(document, constrained), case, tmp_path, monkeypatch
+    )
+    assert forces[-1] < 0
+    np.testing.assert_allclose(forces, reference, rtol=1e-3, atol=1e-12)
+
+
+def test_contact_with_a_cylinder(tmp_path, monkeypatch):
+    # a roller pressed onto the top of the block (#220): the points in contact are
+    # on the deformed cylinder (within the penetration of the penalty)
+    document = load("block_contact_cylinder")
+    shutil.copy(HERE / "block_contact_cylinder" / "block.vtu", tmp_path)
+    script = tmp_path / "script.py"
+    script.write_text(codegen(document), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    namespace = runpy.run_path(str(script))
+    job, field = namespace["job_1"], namespace["field"]
+    forces = np.array(job.y)[:, 2]
+    assert forces[-1] < 0 and np.all(np.diff(forces) <= 0)
+    contact = namespace["touch"]
+    points = field.mesh_container.points + field[0].values
+    center = np.array([0, 0.5, 3 - 0.2])
+    distance = np.hypot(*(points[contact.points] - center)[:, [0, 2]].T)
+    active = np.asarray(contact.results.active).ravel()
+    assert active.any()
+    np.testing.assert_allclose(distance[active], 2, atol=5e-3)
+
+
 def test_axisymmetric_cylinder_like_the_analytical_solution(tmp_path, monkeypatch):
     # the solid cylinder (radius 1, length 3) in uniaxial tension (#175): at a small
     # strain, the total force over the circumference is E * strain * pi * R^2 with

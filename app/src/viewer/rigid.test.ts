@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Command } from "../core/commands";
-import { extent, RIGID_COLOR, rigidShapes } from "./rigid";
+import { contactPoints, extent, RIGID_COLOR, rigidShapes } from "./rigid";
 
 // the nodes of a unit cube
 const cube = [
@@ -118,5 +118,25 @@ describe("rigid surfaces (#219)", () => {
     expect(
       disc.every((p) => Math.hypot(p[0] - 0.5, p[1] - 2) <= 0.5 + 1e-6),
     ).toBe(true);
+  });
+
+  it("know the points of a contact (#220)", () => {
+    const top = {
+      command: "pointset.add",
+      name: "top",
+      select: { axis: "z", value: 1 },
+    } as Command;
+    const contact = {
+      command: "contact.add",
+      name: "touch",
+      points: "top",
+      surface: "plate",
+    } as Command & { command: "contact.add" };
+    expect(contactPoints(contact, [top], cube, new Map())).toEqual([
+      0, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 1,
+    ]);
+    expect(
+      contactPoints({ ...contact, points: "none" }, [top], cube, new Map()),
+    ).toEqual([]);
   });
 });

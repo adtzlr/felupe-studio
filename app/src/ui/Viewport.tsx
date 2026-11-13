@@ -4,6 +4,7 @@ import type {
   Command,
   FaceSetAdd,
   MpcAdd,
+  ContactAdd,
   PointAdd,
   RigidAdd,
   PointSetAdd,
@@ -15,7 +16,7 @@ import {
 } from "../viewer/constraints";
 import { loadLines } from "../viewer/loads";
 import { pressureLines } from "../viewer/pressures";
-import { rigidShapes } from "../viewer/rigid";
+import { contactPoints, rigidShapes } from "../viewer/rigid";
 import type { MeshFiles } from "../core/meshfiles";
 import type { ModelStore } from "../core/store";
 import { useViewKeys } from "./hooks";
@@ -432,9 +433,18 @@ export function Viewport({
       const all = list.map((c) => selectedPoints(c.select, nodes));
       return Float64Array.from(all.flatMap((p) => [...p]));
     };
+    // the points of the selected contact (#220): of its point set or face set
+    const contact = commands.find(
+      (c): c is ContactAdd =>
+        c.name === selected && c.command === "contact.add",
+    );
+    const touching = contact
+      ? contactPoints(contact, commands, nodes, sections)
+      : [];
     return [
       ...outlined(points(others), POINTS),
       ...(chosen ? outlined(points([chosen]), HIGHLIGHT, 9) : []),
+      ...outlined(Float64Array.from(touching), HIGHLIGHT, 9),
       ...(preview ? outlined(preview, HIGHLIGHT, 9) : []),
       ...(surfacePoints ? outlined(surfacePoints, HIGHLIGHT, 9) : []),
       ...outlined(Float64Array.from(pickedNodes.flat()), HIGHLIGHT, 9),
@@ -467,6 +477,7 @@ export function Viewport({
     surfacePoints,
     pickedNodes,
     controls,
+    sections,
   ]);
 
   // the nodes of the selected point set (by nodes) that the meshes do not have; the
@@ -527,11 +538,19 @@ export function Viewport({
     () => constraintShapes(commands, nodes),
     [commands, nodes],
   );
-  // the rigid surfaces: translucent planes and cylinders (#219)
+  // the rigid surfaces: translucent planes and cylinders (#219); the surface of the
+  // selected contact is highlighted (#220)
+  const contactSurface = commands.find(
+    (c): c is ContactAdd => c.name === selected && c.command === "contact.add",
+  )?.surface;
   const rigid = useMemo(
     () =>
-      rigidShapes(commands, nodes, { hidden, selected, highlight: HIGHLIGHT }),
-    [commands, nodes, hidden, selected],
+      rigidShapes(commands, nodes, {
+        hidden,
+        selected: contactSurface ?? selected,
+        highlight: HIGHLIGHT,
+      }),
+    [commands, nodes, hidden, selected, contactSurface],
   );
   const lines = useMemo(
     () => [

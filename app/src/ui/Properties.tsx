@@ -39,13 +39,15 @@ export function Properties({ store, files, notes, selected, onSelect }: Props) {
     .map(withoutIndex);
   const dependents = store.dependents(command.name);
   // a control point is a point set of one point, with a label of its own (#95), and
-  // so is a rigid surface (#219)
+  // so are a rigid surface (#219) and a contact (#220)
   const head: { icon: IconName; label: string } | undefined =
     command.command === "point.add"
       ? { icon: "point", label: "Control point" }
       : command.command === "rigid.add"
         ? { icon: "rigid", label: "Rigid surface" }
-        : undefined;
+        : command.command === "contact.add"
+          ? { icon: "contact", label: "Contact" }
+          : undefined;
   // the values of a rotation point are rotations (#98)
   const rotation =
     command.command === "boundary.add"

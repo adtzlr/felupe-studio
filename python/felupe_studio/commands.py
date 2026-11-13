@@ -29,8 +29,9 @@ KINDS = {
     "pointset.add": "pointset",
     # a control point is a point set of one point (boundaries, constraints, curves)
     "point.add": "pointset",
-    # a rigid surface (#219): its reference point is a point set of one point too
-    "rigid.add": "pointset",
+    # a rigid surface (#219): its reference point is used like a point set of one
+    # point by boundaries and loads
+    "rigid.add": "rigid",
     "faceset.add": "faceset",
     "boundary.add": "boundary",
     # a load case is referenced like a boundary (ramps of steps, curves of jobs)
@@ -38,11 +39,16 @@ KINDS = {
     # symmetry planes (#186): boundaries of all steps, neither ramped nor a curve
     "symmetry.add": "symmetry",
     "mpc.add": "constraint",
+    # a contact with a rigid surface (#220): an item of the steps like a constraint
+    "contact.add": "constraint",
     "load.add": "load",
     "pressure.add": "pressure",
     "step.add": "step",
     "job.add": "job",
 }
+
+# the names of the kinds in the messages, if not the kind itself
+KIND_NAMES = {"rigid": "rigid surface"}
 
 AXES = ("x", "y", "z")
 
@@ -60,13 +66,18 @@ REFERENCES = {
     "cellset.from_file": {"mesh": ("mesh", False)},
     "section.add": {"cellset": ("cellset", False), "material": ("material", False)},
     "faceset.add": {"section": ("section", False)},
-    "boundary.add": {"pointset": ("pointset", False)},
+    # the reference point of a rigid surface is moved by boundaries (#219)
+    "boundary.add": {"pointset": (("pointset", "rigid"), False)},
     "mpc.add": {
         "points": ("pointset", False),
         "center": ("pointset", False),
         "rotation": ("pointset", False),
     },
-    "load.add": {"points": ("pointset", False)},
+    "load.add": {"points": (("pointset", "rigid"), False)},
+    "contact.add": {
+        "points": (("pointset", "faceset"), False),
+        "surface": ("rigid", False),
+    },
     "pressure.add": {"faces": ("faceset", False)},
     "step.add": {
         "sections": ("section", True),
@@ -201,6 +212,11 @@ def analysis_problems(cmd, analysis, rotations=()):
             f"control point '{name}' has a z coordinate: the points of a 2D model are "
             "in the plane z = 0."
         ]
+    if kind == "contact.add":
+        return [
+            f"Contacts are not available in 2D models yet: remove '{name}' or make "
+            "the model 3D."
+        ]
     if kind == "rigid.add":
         shape = cmd["shape"]
         if cmd["coordinates"][2] != 0:
@@ -291,7 +307,7 @@ def _reference_errors(commands):
                 continue
             if isinstance(ref_kinds, str):
                 ref_kinds = (ref_kinds,)
-            ref_kind = " or ".join(ref_kinds)
+            ref_kind = " or ".join(KIND_NAMES.get(k, k) for k in ref_kinds)
             for ref in cmd[field] if is_list else [cmd[field]]:
                 if ref not in defined:
                     messages.append(
@@ -300,6 +316,7 @@ def _reference_errors(commands):
                     )
                 elif KINDS[defined[ref][1]["command"]] not in ref_kinds:
                     other = KINDS[defined[ref][1]["command"]]
+                    other = KIND_NAMES.get(other, other)
                     messages.append(
                         f"commands/{i}: '{ref}' in '{field}' of '{name}' is a "
                         f"{other}, not a {ref_kind}."
@@ -358,6 +375,15 @@ def _reference_errors(commands):
                     f"commands/{i}: {VERTICES[cmd['command']]} '{name}' is at the "
                     f"coordinates of {VERTICES[same['command']]} '{same['name']}': "
                     "the script merges them."
+                )
+
+        # the points of a contact are points of the sections (#220)
+        if cmd["command"] == "contact.add" and cmd["points"] in defined:
+            other = defined[cmd["points"]][1]
+            if other["command"] == "point.add":
+                messages.append(
+                    f"commands/{i}: contact '{name}' takes the control point "
+                    f"'{other['name']}': a contact needs points of the sections."
                 )
 
         # the normal of a plane and the axis of a cylinder of a rigid surface

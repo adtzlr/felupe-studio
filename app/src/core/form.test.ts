@@ -386,6 +386,30 @@ describe("rigid surfaces (#219)", () => {
   });
 });
 
+describe("new contacts (#220)", () => {
+  it("take the latest rigid surface and face set", () => {
+    const plate = {
+      command: "rigid.add",
+      name: "plate",
+      coordinates: [4, 0.5, 0.5],
+      shape: { normal: [-1, 0, 0] },
+    } as Command;
+    // the latest point set without face sets
+    expect(
+      initialDraft("contact.add", { commands: [...commands, plate] }),
+    ).toMatchObject({ points: "right", surface: "plate" });
+    const faces = {
+      command: "faceset.add",
+      name: "end",
+      section: "section_soft",
+      select: { axis: "x", value: 3 },
+    } as Command;
+    expect(
+      initialDraft("contact.add", { commands: [...commands, faces, plate] }),
+    ).toMatchObject({ points: "end", surface: "plate" });
+  });
+});
+
 describe("new sections", () => {
   // the model up to its materials: two cell sets, two materials
   const model = commands.slice(0, 5);

@@ -1,0 +1,149 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "mesh.import",
+      "name": "block",
+      "file": "block.vtu"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "all_cells",
+      "mesh": "block"
+    },
+    {
+      "command": "material.add",
+      "name": "soft",
+      "model": "NeoHookeCompressible",
+      "parameters": {
+        "mu": 1.0,
+        "lmbda": 2.0
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "body",
+      "cellset": "all_cells",
+      "material": "soft",
+      "formulation": "u"
+    },
+    {
+      "command": "pointset.add",
+      "name": "x_min",
+      "select": {
+        "axis": "x",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "y_min",
+      "select": {
+        "axis": "y",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "z_min",
+      "select": {
+        "axis": "z",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "top",
+      "select": {
+        "axis": "z",
+        "value": 1
+      }
+    },
+    {
+      "command": "rigid.add",
+      "name": "plate",
+      "coordinates": [
+        2,
+        2,
+        1
+      ],
+      "shape": {
+        "normal": [
+          0,
+          0,
+          -1
+        ]
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "symmetry_x",
+      "pointset": "x_min",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "symmetry_y",
+      "pointset": "y_min",
+      "constrained": [
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "symmetry_z",
+      "pointset": "z_min",
+      "constrained": [
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "press",
+      "pointset": "plate",
+      "constrained": [
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "guide",
+      "pointset": "plate",
+      "constrained": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "command": "contact.add",
+      "name": "touch",
+      "points": "top",
+      "surface": "plate",
+      "multiplier": 1000
+    },
+    {
+      "command": "step.add",
+      "name": "step_1",
+      "ramp": {
+        "num": 5,
+        "items": [
+          {
+            "target": "press",
+            "end": -0.2
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "step_1"
+      ],
+      "curve": "press",
+      "tol": 1.49e-08
+    }
+  ]
+}

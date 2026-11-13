@@ -19,10 +19,11 @@ KIND_NAMES = {
     "material": "material",
     "section": "section",
     "pointset": "point set, control point",
+    "rigid": "rigid surface",
     "faceset": "face set",
     # a load case is referenced like a boundary
     "boundary": "boundary, load case",
-    "constraint": "multi-point constraint",
+    "constraint": "multi-point constraint, contact",
     "load": "point load",
     "pressure": "pressure",
     "step": "step",

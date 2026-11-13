@@ -189,7 +189,7 @@ describe("runLine", () => {
     const failed = await runLine('boundary.add {"pointset": "nowhere"}', s);
     expect(failed.ok).toBe(false);
     expect(failed.message).toContain(
-      "Not created: pointset: There is no point set 'nowhere'",
+      "Not created: pointset: There is no point set or rigid surface 'nowhere'",
     );
     expect(s.commands).toHaveLength(13);
   });
@@ -205,7 +205,7 @@ describe("complete", () => {
     expect(labels("de")).toEqual(["delete", "model.settings"]); // contained
     expect(labels("tag")).toEqual(["cellset.from_tag"]); // contained
     expect(labels("undo")).toEqual([]); // complete already
-    expect(labels("")).toHaveLength(26);
+    expect(labels("")).toHaveLength(27);
     expect(labels("param")).toEqual(["parameter.add"]);
     expect(labels("sym")).toEqual(["symmetry.add"]);
   });

@@ -23,6 +23,7 @@ export type Command =
   | LoadcaseAdd
   | SymmetryAdd
   | MpcAdd
+  | ContactAdd
   | LoadAdd
   | PressureAdd
   | StepAdd
@@ -889,6 +890,36 @@ export interface MpcAdd {
    * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
    */
   rotation?: string;
+}
+/**
+ * A contact of points with a rigid surface (#220): fem.ContactRigidPlane or fem.ContactRigidCylinder, an item of the steps like the constraints. The penalty of the contact is a factor of the mean stiffness of the solid bodies at the points.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "ContactAdd".
+ */
+export interface ContactAdd {
+  command: "contact.add";
+  name: Name;
+  /**
+   * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
+   */
+  points: string;
+  /**
+   * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
+   */
+  surface: string;
+  /**
+   * The Coulomb friction coefficient (default 0, without friction).
+   */
+  friction?: number;
+  /**
+   * The factor of the penalty of the contact, times the mean stiffness of the solid bodies at the points (default 1).
+   */
+  multiplier?: number;
+  /**
+   * The allowable elastic slip of sticking points (default none: a constant tangential penalty), e.g. 0.5 % to 1 % of the size of a cell.
+   */
+  elastic_slip?: number;
 }
 /**
  * A point load (fem.PointLoad): a force at every point of a point set or at a control point, an item of the steps. A ramp of a step scales the force.

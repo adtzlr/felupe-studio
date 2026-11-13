@@ -75,6 +75,25 @@ function initialConstraint(
   };
 }
 
+/**
+ * A new contact (#220) takes the latest rigid surface and the latest face set (or
+ * point set, without face sets).
+ */
+function initialContact(
+  draft: Record<string, unknown>,
+  commands: readonly Command[],
+): Record<string, unknown> {
+  const latest = (command: string) =>
+    commands.filter((c) => c.command === command).at(-1)?.name;
+  const points = latest("faceset.add") ?? latest("pointset.add");
+  const surface = latest("rigid.add");
+  return {
+    ...draft,
+    ...(points ? { points } : {}),
+    ...(surface ? { surface } : {}),
+  };
+}
+
 /** A new pressure takes the last face set. */
 function initialPressure(
   draft: Record<string, unknown>,
@@ -124,6 +143,7 @@ export const KIND_LABELS: Record<Kind, string> = {
   material: "Material",
   section: "Section",
   pointset: "Point set",
+  rigid: "Rigid surface",
   faceset: "Face set",
   boundary: "Boundary",
   symmetry: "Symmetry",
@@ -555,6 +575,34 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     },
     options: { constrained: AXES },
     initial: initialConstraint,
+  },
+  "contact.add": {
+    label: "Contact",
+    tab: "loads",
+    prefix: "contact",
+    fields: {
+      points: {
+        label: "Points",
+        hint: "A face set (its points) or a point set that may touch the surface",
+      },
+      surface: { label: "Rigid surface" },
+      friction: {
+        label: "Friction",
+        hint: "Coulomb friction coefficient",
+        placeholder: "0 (none)",
+      },
+      multiplier: {
+        label: "Multiplier",
+        hint: "Factor of the penalty, times the mean stiffness at the points",
+        placeholder: "1",
+      },
+      elastic_slip: {
+        label: "Elastic slip",
+        hint: "Allowable slip of sticking points, e.g. 1 % of a cell",
+        placeholder: "none",
+      },
+    },
+    initial: initialContact,
   },
   "load.add": {
     label: "Point load",

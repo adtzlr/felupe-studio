@@ -107,6 +107,14 @@ def main():
         np.pad(quadratic.points, ((0, 0), (0, 1))), [("quad8", quadratic.cells)]
     ).write(HERE / "cylinder_pressure_axisymmetric" / "plate.vtu", binary=False)
 
+    # a unit cube of 4 x 4 x 4 cells pressed by rigid surfaces (#220)
+    for case in (
+        "block_contact_plane",
+        "block_contact_friction",
+        "block_contact_cylinder",
+    ):
+        write_vtu(HERE / case / "block.vtu", fem.Cube(n=5))
+
     # a cube of 2 x 2 x 2 cells for the uniaxial tension of the material models
     for case in MATERIAL_CASES:
         write_vtu(HERE / case / "cube.vtu", fem.Cube(n=3))
