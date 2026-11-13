@@ -79,6 +79,23 @@ SAMPLES = [
         "topics": ["parameters", "mesh script", "point sets at bounds", "shear"],
     },
     {
+        "id": "sandwich-spring-axisymmetric",
+        "title": "Axisymmetric sandwich spring",
+        "description": "The rubber discs between steel sheets as an axisymmetric "
+        "model: the section in the xy-plane, x is the axis. The first sheet is "
+        "pressed along the axis against the fixed last one; the force is the total "
+        "over the circumference.",
+        "topics": ["axisymmetric", "2D mesh script", "parameters", "compression"],
+    },
+    {
+        "id": "plate-with-hole",
+        "title": "Plate with a hole in plane strain",
+        "description": "A quarter of a rubber plate with a hole and two symmetry "
+        "planes, pulled at its end; the stresses concentrate at the hole. A script "
+        "makes the mesh from the radius of the hole, the width and the fineness.",
+        "topics": ["plane strain", "2D mesh script", "symmetry", "u-p-J"],
+    },
+    {
         "id": "bushing",
         "title": "Rubber-metal bushing (FElupe ex05)",
         "description": "A rubber bushing between two steel sleeves, the inner sleeve "
@@ -126,6 +143,9 @@ FACES = {
 # quadratic cells and the MINI element (tetra5): the faces of their corner points
 FACES["hexahedron20"] = FACES["hexahedron27"] = FACES["hexahedron"]
 FACES["tetra5"] = FACES["tetra10"] = FACES["tetra"]
+# the 2D cells of 2D models (#175) are faces in the xy-plane
+FACES["quad"] = FACES["quad8"] = FACES["quad9"] = [[0, 1, 2, 3]]
+FACES["triangle"] = FACES["triangle4"] = FACES["triangle6"] = [[0, 1, 2]]
 
 
 def _view(azimuth=-55, elevation=20.264):
@@ -154,8 +174,15 @@ def thumbnail(folder, width=160, height=100, margin=6):
         os.chdir(cwd)
     sections = [c for c in document["commands"] if c["command"] == "section.add"]
     faces = {}  # sorted corner points -> (corner points, cell center, color)
+    planar = False
     for i, section in enumerate(sections):
         mesh = namespace[f"solid_{section['name']}"].field[0].region.mesh
+        # the cells of a 2D model in the plane z = 0, seen from z (#175)
+        if mesh.dim == 2:
+            planar = True
+            mesh = fem.Mesh(
+                np.pad(mesh.points, ((0, 0), (0, 1))), mesh.cells, mesh.cell_type
+            )
         for cell in mesh.cells:
             center = mesh.points[cell].mean(axis=0)
             for face in FACES[mesh.cell_type]:
@@ -165,7 +192,7 @@ def thumbnail(folder, width=160, height=100, margin=6):
                     del faces[key]  # inner face, shared by two cells
                 else:
                     faces[key] = (corners, center, colors[i % len(colors)], mesh)
-    right, up, back = _view()
+    right, up, back = np.eye(3) if planar else _view()
     light = back + 0.5 * up - 0.3 * right
     light /= np.linalg.norm(light)
     polygons = []
@@ -173,7 +200,9 @@ def thumbnail(folder, width=160, height=100, margin=6):
         x = mesh.points[corners]
         normal = np.cross(x[1] - x[0], x[2] - x[0])
         normal /= np.linalg.norm(normal)
-        if normal @ (x.mean(axis=0) - center) < 0:
+        if planar:
+            normal = back
+        elif normal @ (x.mean(axis=0) - center) < 0:
             normal = -normal
         if normal @ back <= 1e-9:
             continue  # facing away from the camera
@@ -574,6 +603,305 @@ def sandwich_spring():
         {"command": "job.add", "name": "job", "steps": ["shearing"], "curve": "shear"},
     ]
     write("sandwich-spring", commands, {"sandwich_spring.py": SANDWICH_SPRING})
+
+
+# the script of the mesh of the axisymmetric sandwich spring (#175)
+SANDWICH_SPRING_2D = '''"""A rubber-metal sandwich spring as an axisymmetric model.
+
+The section of rubber discs between steel sheets in the xy-plane: x is the axis of
+rotation, y the radius. FElupe Studio runs this script with the parameters of the
+model as variables: radius, layers, height, sheet and cells. It makes a dict of two
+meshes on the same points, the rubber and the metal, along the axis: a sheet, then
+a rubber layer and a sheet per layer.
+"""
+
+import felupe as fem
+import numpy as np
+
+# the parameters of the model, or these values if the script runs alone
+radius = globals().get("radius", 50)
+layers = globals().get("layers", 3)
+height = globals().get("height", 8)
+sheet = globals().get("sheet", 2)
+cells = globals().get("cells", 10)
+
+# the thickness and the number of cells through it of every layer, along the axis
+thickness = [sheet] + [height, sheet] * layers
+divisions = [1] + [4, 1] * layers
+start = np.concatenate([[0], np.cumsum(thickness)[:-1]])
+parts = [
+    fem.Rectangle(a=(x, 0), b=(x + t, radius), n=(n + 1, cells + 1))
+    for t, n, x in zip(thickness, divisions, start, strict=True)
+]
+
+# all layers on the same points, merged at the edges between them
+stack = fem.MeshContainer(parts, merge=True, decimals=8)
+mesh = {
+    "rubber": fem.MeshContainer(stack.meshes[1::2]).stack(),
+    "metal": fem.MeshContainer(stack.meshes[0::2]).stack(),
+}
+'''
+
+
+def parameter(name, value, description, **options):
+    """A parameter of a sample (#180)."""
+    return {
+        "command": "parameter.add",
+        "name": name,
+        "value": value,
+        **options,
+        "description": description,
+    }
+
+
+def sandwich_spring_axisymmetric():
+    """The sandwich spring of #184 as an axisymmetric model (#175): the section of
+    the rubber discs and the steel sheets in the xy-plane, made by a script with the
+    same parameters. The first sheet (x == min) is pressed by 4 mm along the axis
+    against the fixed last sheet (x == max); the axis is a symmetry plane y = 0."""
+    commands = [
+        {
+            "command": "model.settings",
+            "name": "settings",
+            "analysis": "axisymmetric",
+            "units": {"length": "mm", "force": "N"},
+        },
+        parameter(
+            "radius",
+            50,
+            "Radius of the discs",
+            quantity="length",
+            min=20,
+            max=100,
+            step=5,
+        ),
+        parameter("layers", 3, "Number of rubber layers", integer=True, min=1, max=6),
+        parameter(
+            "height",
+            8,
+            "Height of a rubber layer",
+            quantity="length",
+            min=2,
+            max=20,
+            step=1,
+        ),
+        parameter(
+            "sheet",
+            2,
+            "Thickness of a steel sheet",
+            quantity="length",
+            min=1,
+            max=5,
+            step=0.5,
+        ),
+        parameter(
+            "cells",
+            10,
+            "Number of cells along the radius",
+            integer=True,
+            min=4,
+            max=30,
+        ),
+        {
+            "command": "mesh.script",
+            "name": "rubber_mesh",
+            "file": "sandwich_spring_2d.py",
+            "item": "rubber",
+        },
+        {
+            "command": "mesh.script",
+            "name": "metal_mesh",
+            "file": "sandwich_spring_2d.py",
+            "item": "metal",
+        },
+        {"command": "cellset.from_file", "name": "rubber_cells", "mesh": "rubber_mesh"},
+        {"command": "cellset.from_file", "name": "metal_cells", "mesh": "metal_mesh"},
+        {
+            "command": "material.add",
+            "name": "rubber",
+            "model": "NeoHooke",
+            "parameters": {"mu": 0.5},
+        },
+        {
+            "command": "material.add",
+            "name": "steel",
+            "model": "LinearElasticLargeStrain",
+            "parameters": {"E": 210000, "nu": 0.3},
+        },
+        {
+            "command": "section.add",
+            "name": "rubber_layers",
+            "cellset": "rubber_cells",
+            "material": "rubber",
+            "formulation": "u-p-J",
+            "bulk": 1000,
+        },
+        {
+            "command": "section.add",
+            "name": "steel_sheets",
+            "cellset": "metal_cells",
+            "material": "steel",
+            "formulation": "u",
+        },
+        {
+            "command": "pointset.add",
+            "name": "first",
+            "select": {"bound": "min", "axis": "x"},
+        },
+        {
+            "command": "pointset.add",
+            "name": "last",
+            "select": {"bound": "max", "axis": "x"},
+        },
+        {"command": "symmetry.add", "name": "axis", "axes": ["y"]},
+        {
+            "command": "boundary.add",
+            "name": "fixed",
+            "pointset": "last",
+            "constrained": ["x", "y"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "press",
+            "pointset": "first",
+            "constrained": ["x"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "guide",
+            "pointset": "first",
+            "constrained": ["y"],
+        },
+        {
+            "command": "step.add",
+            "name": "pressing",
+            "ramp": {"num": 8, "items": [{"target": "press", "end": 4}]},
+        },
+        {"command": "job.add", "name": "job", "steps": ["pressing"], "curve": "press"},
+    ]
+    write(
+        "sandwich-spring-axisymmetric",
+        commands,
+        {"sandwich_spring_2d.py": SANDWICH_SPRING_2D},
+    )
+
+
+# the script of the mesh of the plate with a hole (#175)
+PLATE_WITH_HOLE = '''"""A quarter of a plate with a hole, in the xy-plane.
+
+FElupe Studio runs this script with the parameters of the model as variables: the
+radius of the hole, the half width of the square plate and the fineness. The
+quarter is made of two patches between the arc of the hole and the edges x = width
+and y = width, which meet at 45 degrees.
+"""
+
+import felupe as fem
+import numpy as np
+
+# the parameters of the model, or these values if the script runs alone
+radius = globals().get("radius", 10)
+width = globals().get("width", 40)
+cells = globals().get("cells", 8)
+
+
+def patch(start, end, edge):
+    """The cells between the arc of the hole and an edge of the plate."""
+    phi = np.linspace(start, end, cells + 1)
+    arc = fem.mesh.Line(n=cells + 1)
+    arc.update(points=radius * np.column_stack([np.cos(phi), np.sin(phi)]))
+    outer = fem.mesh.Line(n=cells + 1)
+    outer.update(points=edge(phi))
+    return fem.mesh.fill_between(arc, outer, n=cells + 1).flip()
+
+
+right = patch(
+    0,
+    np.pi / 4,
+    lambda phi: np.column_stack([np.full_like(phi, width), width * np.tan(phi)]),
+)
+top = patch(
+    np.pi / 4,
+    np.pi / 2,
+    lambda phi: np.column_stack(
+        [width * np.cos(phi) / np.sin(phi), np.full_like(phi, width)]
+    ),
+)
+mesh = fem.MeshContainer([right, top], merge=True, decimals=8).stack()
+'''
+
+
+def plate_with_hole():
+    """A quarter of a rubber plate with a hole in plane strain (#175), made by a script
+    with parameters: symmetry planes x = 0 and y = 0, the end x == max pulled by
+    8 mm. The force is per unit thickness."""
+    commands = [
+        {
+            "command": "model.settings",
+            "name": "settings",
+            "analysis": "plane-strain",
+            "units": {"length": "mm", "force": "N"},
+        },
+        parameter(
+            "radius",
+            10,
+            "Radius of the hole",
+            quantity="length",
+            min=2,
+            max=30,
+            step=1,
+        ),
+        parameter(
+            "width",
+            40,
+            "Half width of the plate",
+            quantity="length",
+            min=35,
+            max=100,
+            step=5,
+        ),
+        parameter(
+            "cells", 8, "Number of cells along an edge", integer=True, min=3, max=20
+        ),
+        {
+            "command": "mesh.script",
+            "name": "plate_mesh",
+            "file": "plate_with_hole.py",
+        },
+        {"command": "cellset.from_file", "name": "plate_cells", "mesh": "plate_mesh"},
+        {
+            "command": "material.add",
+            "name": "rubber",
+            "model": "NeoHooke",
+            "parameters": {"mu": 0.5},
+        },
+        {
+            "command": "section.add",
+            "name": "plate",
+            "cellset": "plate_cells",
+            "material": "rubber",
+            "formulation": "u-p-J",
+            "bulk": 1000,
+        },
+        {"command": "symmetry.add", "name": "quarter", "axes": ["x", "y"]},
+        {
+            "command": "pointset.add",
+            "name": "end",
+            "select": {"bound": "max", "axis": "x"},
+        },
+        {
+            "command": "boundary.add",
+            "name": "pull",
+            "pointset": "end",
+            "constrained": ["x"],
+        },
+        {
+            "command": "step.add",
+            "name": "pulling",
+            "ramp": {"num": 8, "items": [{"target": "pull", "end": 8}]},
+        },
+        {"command": "job.add", "name": "job", "steps": ["pulling"], "curve": "pull"},
+    ]
+    write("plate-with-hole", commands, {"plate_with_hole.py": PLATE_WITH_HOLE})
 
 
 # the script of the mesh of the bushing (#185), like the example ex05 of FElupe
@@ -1023,6 +1351,8 @@ def main():
     hex_tet()
     glued_plate()
     sandwich_spring()
+    sandwich_spring_axisymmetric()
+    plate_with_hole()
     bushing()
     INDEX.write_text(json.dumps(SAMPLES, indent=2) + "\n", encoding="utf-8")
 

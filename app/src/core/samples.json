@@ -80,6 +80,34 @@
     ]
   },
   {
+    "id": "sandwich-spring-axisymmetric",
+    "title": "Axisymmetric sandwich spring",
+    "description": "The rubber discs between steel sheets as an axisymmetric model: the section in the xy-plane, x is the axis. The first sheet is pressed along the axis against the fixed last one; the force is the total over the circumference.",
+    "topics": [
+      "axisymmetric",
+      "2D mesh script",
+      "parameters",
+      "compression"
+    ],
+    "files": [
+      "sandwich_spring_2d.py"
+    ]
+  },
+  {
+    "id": "plate-with-hole",
+    "title": "Plate with a hole in plane strain",
+    "description": "A quarter of a rubber plate with a hole and two symmetry planes, pulled at its end; the stresses concentrate at the hole. A script makes the mesh from the radius of the hole, the width and the fineness.",
+    "topics": [
+      "plane strain",
+      "2D mesh script",
+      "symmetry",
+      "u-p-J"
+    ],
+    "files": [
+      "plate_with_hole.py"
+    ]
+  },
+  {
     "id": "bushing",
     "title": "Rubber-metal bushing (FElupe ex05)",
     "description": "A rubber bushing between two steel sleeves, the inner sleeve moved radially, twisted and tilted by a rigid connection. A script makes the mesh from the lengths of the sleeves, the runout and the fineness.",
