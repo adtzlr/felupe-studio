@@ -26,7 +26,7 @@ import { valueWithUnit } from "../core/units";
 import type { Quantity } from "../worker/protocol";
 import { ContourSettings } from "./ContourSettings";
 import { Icon } from "./icons";
-import { type Player, type Speed, SPEEDS } from "./usePlayer";
+import { PLAY_MODES, type Player, type Speed, SPEEDS } from "./usePlayer";
 
 interface Props {
   store: ModelStore;
@@ -232,6 +232,30 @@ export function ResultsControls({
               {SPEEDS.map((speed) => (
                 <option key={speed} value={speed}>
                   {speed}/s
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {player && (
+          <label
+            class="field play-mode"
+            title="Play the substeps in a loop (after the last substep the first one) or back and forth (after the last substep backward to the first one)"
+          >
+            <span>Repeat</span>
+            <select
+              value={player.mode}
+              disabled={total < 2 || !!live}
+              onChange={(event) =>
+                player.setMode(
+                  event.currentTarget
+                    .value as (typeof PLAY_MODES)[number]["mode"],
+                )
+              }
+            >
+              {PLAY_MODES.map(({ mode, label }) => (
+                <option key={mode} value={mode}>
+                  {label}
                 </option>
               ))}
             </select>
