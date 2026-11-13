@@ -310,6 +310,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         placeholder: "0, 0, 0",
       },
       "select.atol": { label: "Tolerance", placeholder: "1e-8" },
+      "select.surface": { label: "Surface", default: true },
       "select.points": {
         label: "Nodes",
         hint: "One point per line: x, y, z",
@@ -326,6 +327,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         axis: "By coordinate",
         bound: "At a bound",
         radius: "On a cylinder",
+        surface: "On the outer surface",
         points: "By nodes",
         ids: "By point ids",
       },

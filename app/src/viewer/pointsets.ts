@@ -1,8 +1,9 @@
 // Point sets in the viewport: the points a point set selects by a coordinate, at a
-// bound of the meshes, on a cylinder or by the coordinates of nodes (a preview on the
-// nodes of the drawn meshes, like `np.isclose` in the generated script), and the
-// point set of a picked face normal to x, y or z.
+// bound of the meshes, on a cylinder, on the outer surface or by the coordinates of
+// nodes (a preview on the nodes of the drawn meshes, like `np.isclose` in the
+// generated script), and the point set of a picked face normal to x, y or z.
 import type { Command, PointSetAdd } from "../core/commands";
+import type { MeshSurface } from "../worker/protocol";
 import { toName } from "../core/importmesh";
 import type { Vec3 } from "./picking";
 import type { Markers } from "./scene";
@@ -59,19 +60,61 @@ export function missingPoints(
 }
 
 /**
+ * The points on the outer surface of the drawn meshes (#222), three coordinates each:
+ * the nodes of their surfaces, or of the outline of the 2D cells of a 2D model (the
+ * edges of the triangles of a surface which belong to one triangle). Like the faces
+ * of the script, but every mesh (and region of tags) has its own closed surface.
+ */
+export function outerPoints(
+  surfaces: readonly MeshSurface[],
+  planar: boolean,
+): Float64Array[] {
+  return surfaces.map(({ positions, triangles, isNode }) => {
+    const npoints = positions.length / 3;
+    const on = new Uint8Array(npoints);
+    if (!planar) on.fill(1);
+    else {
+      // how often every edge of the triangles is used
+      const used = new Map<number, number>();
+      for (let t = 0; t < triangles.length; t += 3) {
+        for (let k = 0; k < 3; k++) {
+          const a = triangles[t + k];
+          const b = triangles[t + ((k + 1) % 3)];
+          const key = Math.min(a, b) * npoints + Math.max(a, b);
+          used.set(key, (used.get(key) ?? 0) + 1);
+        }
+      }
+      for (const [key, count] of used) {
+        if (count !== 1) continue;
+        on[Math.floor(key / npoints)] = 1;
+        on[key % npoints] = 1;
+      }
+    }
+    const result: number[] = [];
+    for (let p = 0; p < npoints; p++) {
+      if (!on[p] || (isNode && !isNode[p])) continue;
+      result.push(positions[3 * p], positions[3 * p + 1], positions[3 * p + 2]);
+    }
+    return Float64Array.from(result);
+  });
+}
+
+/**
  * The points of the nodes (three coordinates each, without duplicates) that a point
- * set selects. Point ids refer to the merged mesh of the script and are not shown.
+ * set selects; on the outer surface, the points of the surfaces (`outerPoints`).
+ * Point ids refer to the merged mesh of the script and are not shown.
  */
 export function selectedPoints(
   select: PointSetAdd["select"],
   nodes: readonly Float64Array[],
+  surface: readonly Float64Array[] = [],
 ): Float64Array {
   if ("ids" in select) return new Float64Array();
-  const selects = selector(select, nodes);
+  const selects = "surface" in select ? () => true : selector(select, nodes);
   if (!selects) return new Float64Array();
   const seen = new Set<string>();
   const result: number[] = [];
-  for (const array of nodes) {
+  for (const array of "surface" in select ? surface : nodes) {
     for (let p = 0; p < array.length; p += 3) {
       if (!selects(array, p)) continue;
       const key = `${array[p]} ${array[p + 1]} ${array[p + 2]}`;
@@ -87,7 +130,7 @@ export function selectedPoints(
 type Selector = (array: Float64Array, p: number) => boolean;
 
 function selector(
-  select: Exclude<PointSetAdd["select"], { ids: number[] }>,
+  select: Exclude<PointSetAdd["select"], { ids: number[] } | { surface: true }>,
   nodes: readonly Float64Array[],
 ): Selector | undefined {
   const atol = select.atol ?? ATOL;
@@ -127,6 +170,7 @@ export const selectsNothing = (
   nodes.length > 0 &&
   !("ids" in select) &&
   !("points" in select) &&
+  !("surface" in select) &&
   selectedPoints(select, nodes).length === 0;
 
 /**

@@ -1,7 +1,7 @@
 // Validation of the references between commands. Mirrors the Python validation
 // (felupe_studio.commands); both are tested with tests/data/validation_cases.json,
 // so the messages are identical.
-import type { Command } from "./commands";
+import type { Command, PointSetAdd } from "./commands";
 import { analysisOf, analysisProblems, is2d } from "./analysis";
 import { loadcaseFieldErrors, loadcaseProblems } from "./loadcases";
 import { materialProblems, needsBulk } from "./materials";
@@ -17,6 +17,34 @@ import {
 export type CommandType = Command["command"];
 
 const AXES = ["x", "y", "z"] as const;
+
+/** Like `np.isclose` of the generated script (relative tolerance 1e-5). */
+const isClose = (a: number, b: number, atol: number) =>
+  Math.abs(a - b) <= atol + 1e-5 * Math.abs(b);
+
+/**
+ * Whether a point set by a coordinate, on a cylinder or by nodes selects the
+ * coordinates of a point, like the script: also a control point or the reference
+ * point of a rigid surface, e.g. on the plane of a bonded face (#222). Point sets at
+ * a bound, on the surface or by ids select no such point.
+ */
+function selectsPoint(
+  select: PointSetAdd["select"],
+  point: readonly number[],
+): boolean {
+  if ("ids" in select || "surface" in select || "bound" in select) return false;
+  const atol = select.atol ?? 1e-8;
+  if ("points" in select)
+    return select.points.some((node) =>
+      node.every((value, k) => isClose(point[k], value, atol)),
+    );
+  const k = AXES.indexOf(select.axis);
+  if ("value" in select) return isClose(point[k], select.value, atol);
+  const [i, j] = [0, 1, 2].filter((n) => n !== k);
+  const center = select.center ?? [0, 0, 0];
+  const distance = Math.hypot(point[i] - center[i], point[j] - center[j]);
+  return isClose(distance, select.radius, atol);
+}
 
 export type Kind =
   | "settings"
@@ -419,12 +447,24 @@ export function validate(commands: readonly Command[]): Issue[] {
   });
 
   // a control point has no stiffness of its own: its components need a boundary
-  // or a constraint (as the center point, or all of them as the rotation point)
+  // or a constraint (as the center point, or all of them as the rotation point); a
+  // boundary of a point set that selects the point counts, e.g. of a plane (#222)
+  const selects = new Map(
+    commands.flatMap((c) =>
+      c.command === "pointset.add" ? [[c.name, c.select] as const] : [],
+    ),
+  );
   commands.forEach((cmd, i) => {
     if (cmd.command !== "point.add" && cmd.command !== "rigid.add") return;
     const fixed = new Set<string>();
     for (const c of commands) {
-      if (c.command === "boundary.add" && c.pointset === cmd.name)
+      const select =
+        c.command === "boundary.add" ? selects.get(c.pointset) : undefined;
+      if (
+        c.command === "boundary.add" &&
+        (c.pointset === cmd.name ||
+          (select !== undefined && selectsPoint(select, cmd.coordinates)))
+      )
         c.constrained.forEach((a) => fixed.add(a));
       else if (c.command === "mpc.add") {
         if (c.center === cmd.name) c.constrained.forEach((a) => fixed.add(a));

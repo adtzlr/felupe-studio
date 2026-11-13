@@ -205,6 +205,17 @@ describe("axes of the curve (#197)", () => {
 
   it("plots any component over any other, or over the substep", () => {
     expect(defaultSeries(result)).toEqual(["uy", "Fy"]);
+    // of equal displacements, the one with the largest force (#222)
+    const sheared = {
+      ...result,
+      x: [[40, 0, 40]],
+      y: [[3000, 80, -18000]],
+    };
+    expect(defaultSeries(sheared)).toEqual(["uz", "Fz"]);
+    expect(defaultSeries({ ...sheared, y: [[3000, 0, 1]] })).toEqual([
+      "ux",
+      "Fx",
+    ]);
     expect(curveOf(result, "ux", "uy")[3]).toEqual({
       substep: 4,
       u: 0.3,

@@ -275,6 +275,32 @@ def analysis_problems(cmd, analysis, rotations=()):
     return []
 
 
+def _isclose(a, b, atol):
+    """Like ``np.isclose`` of the generated script (relative tolerance 1e-5)."""
+    return abs(a - b) <= atol + 1e-5 * abs(b)
+
+
+def selects_point(select, point):
+    """Return whether a point set by a coordinate, on a cylinder or by nodes selects
+    the coordinates of a point, like the script: also a control point or the
+    reference point of a rigid surface, e.g. on the plane of a bonded face (#222).
+    Point sets at a bound, on the surface or by ids select no such point."""
+    atol = select.get("atol", 1e-8)
+    if "value" in select:
+        return _isclose(point[AXES.index(select["axis"])], select["value"], atol)
+    if "radius" in select:
+        center = select.get("center", [0, 0, 0])
+        i, j = (k for k in range(3) if k != AXES.index(select["axis"]))
+        distance = ((point[i] - center[i]) ** 2 + (point[j] - center[j]) ** 2) ** 0.5
+        return _isclose(distance, select["radius"], atol)
+    if "points" in select:
+        return any(
+            all(_isclose(a, b, atol) for a, b in zip(point, node, strict=True))
+            for node in select["points"]
+        )
+    return False
+
+
 def _reference_errors(commands):
     # the registries read the schema of this module
     from .loadcases import problems as loadcase_problems
@@ -436,13 +462,23 @@ def _reference_errors(commands):
 
     # a control point has no stiffness of its own: its components need a boundary
     # or a constraint (as the center point, or all of them as the rotation point);
-    # the reference point of a rigid surface needs boundaries (#219)
+    # the reference point of a rigid surface needs boundaries (#219). A boundary of
+    # a point set that selects the point counts, e.g. of a plane through it (#222).
+    selects = {
+        c["name"]: c["select"] for c in commands if c["command"] == "pointset.add"
+    }
     for i, cmd in enumerate(commands):
         if cmd["command"] not in VERTICES:
             continue
         fixed = set()
         for other in commands:
-            if other["command"] == "boundary.add" and other["pointset"] == cmd["name"]:
+            if other["command"] == "boundary.add" and (
+                other["pointset"] == cmd["name"]
+                or (
+                    other["pointset"] in selects
+                    and selects_point(selects[other["pointset"]], cmd["coordinates"])
+                )
+            ):
                 fixed.update(other["constrained"])
             elif other["command"] == "mpc.add":
                 if other["center"] == cmd["name"]:

@@ -812,6 +812,54 @@ def test_point_set_by_coordinates(two_sections, tmp_path, monkeypatch):
         run(two_sections, tmp_path, monkeypatch)
 
 
+def test_point_set_on_the_surface(two_sections, tmp_path, monkeypatch):
+    # the points on the outer surface of the sections (#222): the interface of the
+    # two sections and the control points are not on it, also with the bubble points
+    # of the MINI element of tetrahedrons
+    mesh, tag = bar()
+    assert "def surface_points(" not in codegen(two_sections)
+    surface = {"command": "pointset.add", "name": "outer", "select": {"surface": True}}
+    point = {"command": "point.add", "name": "center", "coordinates": [1.5, 0.5, 0.5]}
+    hold = {"command": "boundary.add", "name": "hold", "pointset": "center"}
+    hold["constrained"] = ["x", "y", "z"]
+    two_sections["commands"][9:9] = [surface, point, hold]
+    script = codegen(two_sections)
+    assert "def surface_points(" in script
+    assert (
+        "outer = surface_points([region_section_hard.mesh, region_section_soft.mesh], "
+        "points)\n" in script
+    )
+    expected = (13 * 5 * 5) - (11 * 3 * 3)
+    for cells in [mesh, mesh.triangulate()]:
+        tags = tag if cells is mesh else np.repeat(tag, len(cells.cells) // len(tag))
+        write(tmp_path / "specimen.vtu", cells, tags)
+        namespace = run(two_sections, tmp_path, monkeypatch, evaluate=False)
+        outer, points = namespace["outer"], namespace["points"]
+        assert outer.sum() == expected
+        x, y, z = points[outer].T
+        on = np.isclose(x % 3, 0) | np.isclose(y % 1, 0) | np.isclose(z % 1, 0)
+        assert on.all()
+
+
+def test_surface_points_of_2d_cells():
+    # the outline of 2D cells, linear and quadratic, and of 2D cells with a bubble
+    from felupe_studio._helpers import surface_points
+
+    rect = fem.Rectangle(b=(2, 1), n=(5, 4))
+    outline = 2 * (4 + 3)
+    assert surface_points([rect], rect.points).sum() == outline
+    assert surface_points([rect.triangulate()], rect.points).sum() == outline
+    quadratic = fem.mesh.convert(rect, order=2)
+    assert surface_points([quadratic], quadratic.points).sum() == 2 * outline
+    bubble = fem.mesh.add_midpoints_faces(rect.triangulate(), cell_type_new="triangle4")
+    assert surface_points([bubble], bubble.points).sum() == outline
+    # two halves: the interface is inside
+    left = fem.Rectangle(b=(1, 1), n=(3, 4))
+    right = left.translate(1, axis=0)
+    both = fem.MeshContainer([left, right], merge=True)
+    assert surface_points(both.meshes, both.points).sum() == outline
+
+
 def test_control_point(two_sections, tmp_path, monkeypatch):
     mesh, tag = bar()
     write(tmp_path / "specimen.vtu", mesh, tag)

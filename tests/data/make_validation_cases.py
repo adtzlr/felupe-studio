@@ -542,6 +542,40 @@ CHANGES = {
             },
         ),
     ),
+    # a boundary of a point set that selects a reference point or a control point,
+    # e.g. on the plane of a bonded face (#222): x == 0 is fixed, x == 3 moves in x
+    "reference points on planes of point sets": lambda d: (
+        d["commands"].insert(
+            9,
+            {
+                "command": "rigid.add",
+                "name": "base",
+                "coordinates": [0, 2, 2],
+                "shape": {"normal": [1, 0, 0]},
+            },
+        ),
+        d["commands"].insert(
+            10,
+            {
+                "command": "rigid.add",
+                "name": "stop",
+                "coordinates": [3, 2, 2],
+                "shape": {"normal": [-1, 0, 0]},
+            },
+        ),
+        d["commands"].insert(
+            11, {"command": "point.add", "name": "pin", "coordinates": [3, 0.55, 0.55]}
+        ),
+        d["commands"].insert(
+            12,
+            {
+                "command": "boundary.add",
+                "name": "half",
+                "pointset": "pin",
+                "constrained": ["y", "z"],
+            },
+        ),
+    ),
     "rigid surface problems": lambda d: (
         d["commands"].insert(
             9, {"command": "point.add", "name": "pin", "coordinates": [4, 0.5, 0.5]}

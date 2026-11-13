@@ -120,5 +120,19 @@
     "files": [
       "bushing.py"
     ]
+  },
+  {
+    "id": "hyperelastic-spring",
+    "title": "Hyperelastic spring with end stops (FElupe ex06)",
+    "description": "A half of a hyperelastic spring bonded to two plates, compressed and then sheared by the lower plate. The plates are end stops, rigid planes in contact with the points on the outer surface with friction: the bulging spring touches the upper one and gets stiffer.",
+    "topics": [
+      "contacts",
+      "rigid surfaces",
+      "friction",
+      "point set on the surface"
+    ],
+    "files": [
+      "spring.vtu"
+    ]
   }
 ]

@@ -197,6 +197,51 @@ def boundary_faces(mesh, plane=None, centers=None, atol=None):
     return result
 
 
+# --- embedded in generated scripts with surface point sets ---
+# the edges of 2D cells: their corners and their mid point (2D cells of the MINI
+# element have a bubble point inside)
+EDGES = {
+    "triangle": [[0, 1], [1, 2], [2, 0]],
+    "triangle4": [[0, 1], [1, 2], [2, 0]],
+    "triangle6": [[0, 1, 3], [1, 2, 4], [2, 0, 5]],
+    "quad": [[0, 1], [1, 2], [2, 3], [3, 0]],
+    "quad8": [[0, 1, 4], [1, 2, 5], [2, 3, 6], [3, 0, 7]],
+    "quad9": [[0, 1, 4], [1, 2, 5], [2, 3, 6], [3, 0, 7]],
+}
+
+
+def surface_points(meshes, points):
+    """Return a mask of the points on the outer surface of meshes with the given
+    points, e.g. the meshes of the sections with the merged points (#222): the points
+    of the faces which belong to one cell, like the surface of ``mesh.plot()``, or of
+    the edges which belong to one cell of 2D cells. Faces or edges of two meshes at
+    an interface are inside."""
+    from felupe.view._surface import triangulate_surface
+
+    mask = np.zeros(len(points), dtype=bool)
+    if all(mesh.cell_type in EDGES for mesh in meshes):
+        blocks = [m.cells[:, edge] for m in meshes for edge in EDGES[m.cell_type]]
+        corners = np.vstack([np.sort(block[:, :2], axis=1) for block in blocks])
+        _, inverse, counts = np.unique(
+            corners, axis=0, return_inverse=True, return_counts=True
+        )
+        once = np.split(
+            counts[inverse.ravel()] == 1, np.cumsum([len(b) for b in blocks])[:-1]
+        )
+        for block, outer in zip(blocks, once, strict=True):
+            mask[block[outer]] = True
+        return mask
+    # the cells of the MINI element without their bubble points
+    corners = {"tetra5": ("tetra", 4)}
+    solids = []
+    for mesh in meshes:
+        cell_type, npoints = corners.get(mesh.cell_type, (mesh.cell_type, None))
+        solids.append(fem.Mesh(points, mesh.cells[:, :npoints], cell_type))
+    surface = triangulate_surface(solids)
+    mask[np.unique(surface.interpolation.tocsr().indices)] = True
+    return mask
+
+
 # --- embedded in generated scripts with meshes of scripts ---
 def script_mesh(file, parameters, item=None):
     """Run a Python script that makes a mesh, with the parameters as variables, and

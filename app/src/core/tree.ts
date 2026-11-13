@@ -127,6 +127,7 @@ function detail(cmd: Command, commands: readonly Command[]): string {
           ? `${cmd.select.points.length} nodes`
           : `node ${valueWithUnit(`(${first.join(", ")})`, length)}`;
       }
+      if ("surface" in cmd.select) return "outer surface";
       return `${cmd.select.ids.length} points`;
     case "point.add":
       return `control ${valueWithUnit(`(${cmd.coordinates.join(", ")})`, length)}`;

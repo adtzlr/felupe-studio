@@ -59,6 +59,7 @@ import {
   boundOf,
   missingPoints,
   nodesName,
+  outerPoints,
   outlined,
   planeName,
   planeSelect,
@@ -398,6 +399,17 @@ export function Viewport({
       content.meshes.flatMap((m) => (m.surface.nodes ? [m.surface.nodes] : [])),
     [content],
   );
+  // the points on the outer surface of the drawn meshes, of 2D models on the
+  // outline, for point sets on the surface (#222)
+  const planar = is2d(analysisOf(commands));
+  const outer = useMemo(
+    () =>
+      outerPoints(
+        content.meshes.map((m) => m.surface),
+        planar,
+      ),
+    [content, planar],
+  );
   const preview = useMemo(
     () => (picked?.select ? selectedPoints(picked.select, nodes) : undefined),
     [picked, nodes],
@@ -430,7 +442,7 @@ export function Viewport({
     const others = sets.filter((c) => c.name !== selected);
     const chosen = sets.find((c) => c.name === selected);
     const points = (list: PointSetAdd[]) => {
-      const all = list.map((c) => selectedPoints(c.select, nodes));
+      const all = list.map((c) => selectedPoints(c.select, nodes, outer));
       return Float64Array.from(all.flatMap((p) => [...p]));
     };
     // the points of the selected contact (#220): of its point set or face set
@@ -439,7 +451,7 @@ export function Viewport({
         c.name === selected && c.command === "contact.add",
     );
     const touching = contact
-      ? contactPoints(contact, commands, nodes, sections)
+      ? contactPoints(contact, commands, nodes, sections, outer)
       : [];
     return [
       ...outlined(points(others), POINTS),
@@ -473,6 +485,7 @@ export function Viewport({
     hidden,
     selected,
     nodes,
+    outer,
     preview,
     surfacePoints,
     pickedNodes,
@@ -510,9 +523,9 @@ export function Viewport({
   const selectedSet = useMemo(() => {
     const set = commands.find((c) => c.name === selected);
     if (!set || !isPointSet(set) || hidden.has(set.name)) return undefined;
-    const points = selectedPoints(set.select, nodes);
+    const points = selectedPoints(set.select, nodes, outer);
     return points.length ? { name: set.name, points } : undefined;
-  }, [commands, selected, hidden, nodes]);
+  }, [commands, selected, hidden, nodes, outer]);
   const controlAt = (points: ArrayLike<number>, of?: string) =>
     onCreateControlPoint?.({
       name: controlName(of, commands),

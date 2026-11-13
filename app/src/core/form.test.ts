@@ -733,6 +733,24 @@ describe("editing a draft", () => {
       "select.atol:number",
     ]);
     expect(schemaAccepts(cylinder)).toBe(true);
+
+    // on the outer surface (#222): no fields
+    const surface = setValue(
+      "pointset.add",
+      cylinder,
+      ["select"],
+      spec.input.seeds.surface,
+      context,
+    );
+    expect(surface.select).toEqual({ surface: true });
+    expect(summary("pointset.add", surface)).toEqual([
+      "name:name*",
+      "select:variant*",
+    ]);
+    expect(schemaAccepts(surface)).toBe(true);
+    expect(
+      spec.input.options.map((o) => o.label).includes("On the outer surface"),
+    ).toBe(true);
   });
 
   it("switches the ramp of a step on and off", () => {
