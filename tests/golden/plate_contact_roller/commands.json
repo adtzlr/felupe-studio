@@ -1,0 +1,131 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "model.settings",
+      "name": "settings",
+      "analysis": "plane-strain"
+    },
+    {
+      "command": "mesh.import",
+      "name": "plate",
+      "file": "plate.vtu"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "all_cells",
+      "mesh": "plate"
+    },
+    {
+      "command": "material.add",
+      "name": "soft",
+      "model": "NeoHookeCompressible",
+      "parameters": {
+        "mu": 1.0,
+        "lmbda": 2.0
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "body",
+      "cellset": "all_cells",
+      "material": "soft",
+      "formulation": "u"
+    },
+    {
+      "command": "pointset.add",
+      "name": "x_min",
+      "select": {
+        "axis": "x",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "y_min",
+      "select": {
+        "axis": "y",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "top",
+      "select": {
+        "axis": "y",
+        "value": 1
+      }
+    },
+    {
+      "command": "rigid.add",
+      "name": "roller",
+      "coordinates": [
+        1.5,
+        3,
+        0
+      ],
+      "shape": {
+        "radius": 2,
+        "axis": [
+          0,
+          0,
+          1
+        ]
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "y_min",
+      "constrained": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "press",
+      "pointset": "roller",
+      "constrained": [
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "guide",
+      "pointset": "roller",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "contact.add",
+      "name": "touch",
+      "points": "top",
+      "surface": "roller",
+      "multiplier": 100
+    },
+    {
+      "command": "step.add",
+      "name": "step_1",
+      "ramp": {
+        "num": 4,
+        "items": [
+          {
+            "target": "press",
+            "end": -0.2
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "step_1"
+      ],
+      "curve": "press",
+      "tol": 1.49e-08
+    }
+  ]
+}

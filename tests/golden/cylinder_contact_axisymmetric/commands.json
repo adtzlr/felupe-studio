@@ -1,0 +1,137 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "model.settings",
+      "name": "settings",
+      "analysis": "axisymmetric"
+    },
+    {
+      "command": "mesh.import",
+      "name": "plate",
+      "file": "plate.vtu"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "all_cells",
+      "mesh": "plate"
+    },
+    {
+      "command": "material.add",
+      "name": "soft",
+      "model": "NeoHookeCompressible",
+      "parameters": {
+        "mu": 1.0,
+        "lmbda": 2.0
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "body",
+      "cellset": "all_cells",
+      "material": "soft",
+      "formulation": "u"
+    },
+    {
+      "command": "pointset.add",
+      "name": "x_min",
+      "select": {
+        "axis": "x",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "y_min",
+      "select": {
+        "axis": "y",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "end",
+      "select": {
+        "axis": "x",
+        "value": 3
+      }
+    },
+    {
+      "command": "rigid.add",
+      "name": "wall",
+      "coordinates": [
+        3,
+        2,
+        0
+      ],
+      "shape": {
+        "normal": [
+          -1,
+          0,
+          0
+        ]
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "symmetry_x",
+      "pointset": "x_min",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "symmetry_y",
+      "pointset": "y_min",
+      "constrained": [
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "press",
+      "pointset": "wall",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "guide",
+      "pointset": "wall",
+      "constrained": [
+        "y"
+      ]
+    },
+    {
+      "command": "contact.add",
+      "name": "touch",
+      "points": "end",
+      "surface": "wall",
+      "multiplier": 1000
+    },
+    {
+      "command": "step.add",
+      "name": "step_1",
+      "ramp": {
+        "num": 3,
+        "items": [
+          {
+            "target": "press",
+            "end": -0.3
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "step_1"
+      ],
+      "curve": "press",
+      "tol": 1.49e-08
+    }
+  ]
+}

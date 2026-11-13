@@ -96,6 +96,10 @@ def main():
         "plate_plane_strain",
         "cylinder_axisymmetric",
         "plate_rotation_plane_strain",
+        # pressed by rigid lines and circles (#221)
+        "plate_contact_plane_strain",
+        "cylinder_contact_axisymmetric",
+        "plate_contact_roller",
     ):
         meshio.Mesh(
             np.pad(plate.points, ((0, 0), (0, 1))), [("quad", plate.cells)]

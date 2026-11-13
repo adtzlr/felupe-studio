@@ -212,11 +212,6 @@ def analysis_problems(cmd, analysis, rotations=()):
             f"control point '{name}' has a z coordinate: the points of a 2D model are "
             "in the plane z = 0."
         ]
-    if kind == "contact.add":
-        return [
-            f"Contacts are not available in 2D models yet: remove '{name}' or make "
-            "the model 3D."
-        ]
     if kind == "rigid.add":
         shape = cmd["shape"]
         if cmd["coordinates"][2] != 0:

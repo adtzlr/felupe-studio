@@ -106,3 +106,13 @@ def test_contact_force_at_the_reference_point(tmp_path, monkeypatch):
     (plate,) = meta["points"]
     np.testing.assert_allclose(plate["displacement"], [0, 0, -0.2], atol=1e-12)
     assert plate["force"][2] == np.float64(result["y"][-1][2]) != 0
+
+
+def test_script_of_contacts_in_2d_models():
+    # a line of a 2D model has a normal in the xy-plane, a circle has no axis (#221)
+    line = codegen(document("plate_contact_plane_strain"))
+    assert "    normal=[-1.0, 0.0],\n" in line
+    assert '    centerpoint=single_point(wall, "wall"),' in line
+    circle = codegen(document("plate_contact_roller"))
+    assert "    radius=2,\n    multiplier=100,\n" in circle
+    assert "axis=" not in circle.split("touch = ")[1].split(")")[0]

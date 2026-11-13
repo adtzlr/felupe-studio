@@ -756,13 +756,17 @@ def codegen(document, evaluate=True, check_schema=True):
                 f"points={points}",
                 f"centerpoint=single_point({rigid['name']}, {_str(rigid['name'])})",
             ]
+            # in a 2D model (#221), a plane is a line in the xy-plane and a cylinder
+            # a circle about z (without an axis)
             if "normal" in shape:
-                normal = [float(x) for x in shape["normal"]]
+                normal = [float(x) for x in shape["normal"][:dim]]
                 args.append(f"normal={normal!r}")
                 func = "fem.ContactRigidPlane"
             else:
-                axis = [float(x) for x in shape["axis"]]
-                args += [f"radius={shape['radius']!r}", f"axis={axis!r}"]
+                args.append(f"radius={shape['radius']!r}")
+                if dim == 3:
+                    axis = [float(x) for x in shape["axis"]]
+                    args.append(f"axis={axis!r}")
                 if shape.get("inside"):
                     args.append("inside=True")
                 func = "fem.ContactRigidCylinder"

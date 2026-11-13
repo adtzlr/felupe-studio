@@ -252,18 +252,20 @@ def test_rotation_in_plane_strain_like_the_bar_with_fixed_z(tmp_path, monkeypatc
     assert plate["force"][-1] > 0
 
 
-def curve_in_z(document, folder, tmp_path, monkeypatch):
-    """The displacements and the forces in z of the curve of a job, by the script."""
-    shutil.copy(HERE / folder / "block.vtu", tmp_path)
+def curve_of(document, folder, tmp_path, monkeypatch, k=2):
+    """The displacements and the forces of component k of the curve of a job, by the
+    script."""
+    for path in (HERE / folder).glob("*.vtu"):
+        shutil.copy(path, tmp_path)
     script = tmp_path / "script.py"
     script.write_text(codegen(document), encoding="utf-8")
     monkeypatch.chdir(tmp_path)
     job = runpy.run_path(str(script))["job_1"]
-    return np.array(job.x)[:, 2], np.array(job.y)[:, 2]
+    return np.array(job.x)[:, k], np.array(job.y)[:, k]
 
 
-def prescribed(document, constrained):
-    """The block of a contact case with its top moved like the rigid surface."""
+def prescribed(document, constrained, points="top", axis="z"):
+    """The model of a contact case with its points moved like the rigid surface."""
     commands = [
         c
         for c in document["commands"]
@@ -276,8 +278,8 @@ def prescribed(document, constrained):
         {
             "command": "boundary.add",
             "name": "press",
-            "pointset": "top",
-            "constrained": ["z"],
+            "pointset": points,
+            "constrained": [axis],
         },
     )
     if constrained:
@@ -286,7 +288,7 @@ def prescribed(document, constrained):
             {
                 "command": "boundary.add",
                 "name": "guide",
-                "pointset": "top",
+                "pointset": points,
                 "constrained": constrained,
             },
         )
@@ -305,13 +307,55 @@ def test_contact_with_a_plane_like_a_prescribed_top(
     # prescribed displacement with x and y fixed; the penalty of the contact lets
     # the top penetrate the plane a little (a relative difference of 6e-4)
     document = load(case)
-    moves, forces = curve_in_z(document, case, tmp_path, monkeypatch)
+    moves, forces = curve_of(document, case, tmp_path, monkeypatch)
     np.testing.assert_allclose(moves, np.linspace(0, -0.2, 6))
-    _, reference = curve_in_z(
+    _, reference = curve_of(
         prescribed(document, constrained), case, tmp_path, monkeypatch
     )
     assert forces[-1] < 0
     np.testing.assert_allclose(forces, reference, rtol=1e-3, atol=1e-12)
+
+
+@pytest.mark.parametrize(
+    "case", ["plate_contact_plane_strain", "cylinder_contact_axisymmetric"]
+)
+def test_contact_with_a_line_like_a_prescribed_end(case, tmp_path, monkeypatch):
+    # the plate (plane strain) and the cylinder (axisymmetric) pressed at their end
+    # by a rigid line without friction (#221), like a prescribed displacement of the
+    # end in x; the penalty of the contact of an axisymmetric model does not depend
+    # on the radius of a point, but its penetration vanishes with the multiplier
+    document = load(case)
+    moves, forces = curve_of(document, case, tmp_path, monkeypatch, k=0)
+    np.testing.assert_allclose(moves, np.linspace(0, -0.3, 4))
+    _, reference = curve_of(
+        prescribed(document, [], points="end", axis="x"),
+        case,
+        tmp_path,
+        monkeypatch,
+        k=0,
+    )
+    assert forces[-1] < 0
+    np.testing.assert_allclose(forces, reference, rtol=1e-3, atol=1e-12)
+
+
+def test_contact_with_a_circle(tmp_path, monkeypatch):
+    # a roller (a circle about z) pressed onto the top of the plate in plane strain
+    # (#221): the points in contact are on the circle
+    document = load("plate_contact_roller")
+    shutil.copy(HERE / "plate_contact_roller" / "plate.vtu", tmp_path)
+    script = tmp_path / "script.py"
+    script.write_text(codegen(document), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    namespace = runpy.run_path(str(script))
+    job, field = namespace["job_1"], namespace["field"]
+    forces = np.array(job.y)[:, 1]
+    assert forces[-1] < 0 and np.all(np.diff(forces) <= 0)
+    contact = namespace["touch"]
+    points = field.mesh_container.points + field[0].values
+    distance = np.hypot(*(points[contact.points] - [1.5, 3 - 0.2]).T)
+    active = np.asarray(contact.results.active).ravel()
+    assert active.sum() > 1
+    np.testing.assert_allclose(distance[active], 2, atol=5e-3)
 
 
 def test_contact_with_a_cylinder(tmp_path, monkeypatch):

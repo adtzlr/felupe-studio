@@ -7137,9 +7137,7 @@
         }
       ]
     },
-    "errors": [
-      "commands/12: Contacts are not available in 2D models yet: remove 'touch' or make the model 3D."
-    ],
+    "errors": [],
     "notes": []
   },
   {
