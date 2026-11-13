@@ -33,6 +33,7 @@ describe("ribbonGroups", () => {
       ["Uniaxial", "Biaxial", "Planar", "Shear"],
       ["Symmetry"],
       ["Control point"],
+      ["Rigid surface"],
       ["Multi-point constraint"],
       ["Point load"],
       ["Pressure"],

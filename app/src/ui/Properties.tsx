@@ -38,8 +38,14 @@ export function Properties({ store, files, notes, selected, onSelect }: Props) {
     .filter((message) => !message.includes("is not loaded"))
     .map(withoutIndex);
   const dependents = store.dependents(command.name);
-  // a control point is a point set of one point, with a label of its own (#95)
-  const control = command.command === "point.add";
+  // a control point is a point set of one point, with a label of its own (#95), and
+  // so is a rigid surface (#219)
+  const head: { icon: IconName; label: string } | undefined =
+    command.command === "point.add"
+      ? { icon: "point", label: "Control point" }
+      : command.command === "rigid.add"
+        ? { icon: "rigid", label: "Rigid surface" }
+        : undefined;
   // the values of a rotation point are rotations (#98)
   const rotation =
     command.command === "boundary.add"
@@ -55,8 +61,8 @@ export function Properties({ store, files, notes, selected, onSelect }: Props) {
   return (
     <div class="properties-content">
       <div class="properties-head">
-        <Icon name={(control ? "point" : kind) as IconName} />
-        <strong>{control ? "Control point" : KIND_LABELS[kind]}</strong>
+        <Icon name={head?.icon ?? (kind as IconName)} />
+        <strong>{head?.label ?? KIND_LABELS[kind]}</strong>
         <code class="muted">{command.command}</code>
       </div>
       {(command.command === "mesh.import" ||

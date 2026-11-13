@@ -381,8 +381,10 @@ def codegen(document, evaluate=True, check_schema=True):
         return [c for c in commands if c["command"] == command]
 
     sections = get("section.add")
-    # point sets, with the control points (a point set of one point each)
-    pointsets = [c for c in commands if c["command"] in ("pointset.add", "point.add")]
+    # point sets, with the control points and the reference points of the rigid
+    # surfaces (a point set of one point each, #219)
+    vertices = ("point.add", "rigid.add")
+    pointsets = [c for c in commands if c["command"] in ("pointset.add", *vertices)]
     if pointsets and not sections:
         raise ValidationError(["Point sets need at least one section (a field)."])
     facesets = get("faceset.add")
@@ -488,11 +490,19 @@ def codegen(document, evaluate=True, check_schema=True):
                 args = [region, "n=3", *([mixed_flag] if mixed_flag else [])]
                 out.append(_call(f"field_{sec['name']}", "fem.FieldsMixed", args))
 
-        controls = get("point.add")
+        controls = [c for c in commands if c["command"] in vertices]
         if controls:
-            out.append(
-                "\n# control points: a mesh of vertices, not nodes of the sections"
-            )
+            if get("rigid.add"):
+                out.append(
+                    "\n# control points and reference points of rigid surfaces (#219): "
+                    "a mesh of\n# vertices, not nodes of the sections"
+                )
+            else:
+                out.append(
+                    "\n# control points: a mesh of vertices, not nodes of the sections"
+                )
+            for rigid in get("rigid.add"):
+                out.append(f"# {rigid_comment(rigid, dim)}")
             # in the xy-plane of a 2D model (#175)
             coordinates = (
                 f"[{', '.join(map(repr, p['coordinates'][:dim]))}]" for p in controls
@@ -547,7 +557,7 @@ def codegen(document, evaluate=True, check_schema=True):
                 out.append(_call("solid_points", "np.concatenate", args))
                 out.append("solid_points = np.unique(solid_points)")
         for ps in pointsets:
-            if ps["command"] == "point.add":
+            if ps["command"] in vertices:
                 point = f"[{', '.join(map(repr, ps['coordinates'][:dim]))}]"
                 out.append(_call(ps["name"], "points_at", ["points", point]))
                 continue
@@ -804,6 +814,50 @@ def _names(node):
     return {n.id for n in ast.walk(node) if isinstance(n, ast.Name)}
 
 
+def rigid_comment(rigid, dim=3):
+    """The comment of a rigid surface in the script (#219): its shape and its
+    reference point.
+
+    Examples
+    --------
+    >>> plate = {"name": "plate", "coordinates": [0, 0, 10]}
+    >>> rigid_comment({**plate, "shape": {"normal": [0, 0, -1]}})
+    'plate: a rigid plane through [0, 0, 10], its normal [0, 0, -1]'
+    >>> rigid_comment(
+    ...     {"name": "roller", "coordinates": [0, 0, 0], "shape": {"radius": 5,
+    ...      "axis": [0, 0, 1]}},
+    ...     dim=2,
+    ... )
+    'roller: a rigid circle of radius 5 about [0, 0]'
+    """
+
+    def vector(values):
+        return f"[{', '.join(_text(v) for v in values)}]"
+
+    shape, point = rigid["shape"], vector(rigid["coordinates"][:dim])
+    if "normal" in shape:
+        kind = "plane" if dim == 3 else "line"
+        normal = vector(shape["normal"][:dim])
+        return f"{rigid['name']}: a rigid {kind} through {point}, its normal {normal}"
+    inside = ", the points inside" if shape.get("inside") else ""
+    radius = _text(shape["radius"])
+    if dim == 2:
+        return (
+            f"{rigid['name']}: a rigid circle of radius {radius} about {point}{inside}"
+        )
+    axis = vector(shape["axis"])
+    return (
+        f"{rigid['name']}: a rigid cylinder of radius {radius} about {point}, its axis "
+        f"{axis}{inside}"
+    )
+
+
+def _text(value):
+    """A number as text, e.g. 0 or 12.5."""
+    value = float(value)
+    return str(int(value)) if value.is_integer() else repr(value)
+
+
 def object_lines(script, document):
     """Return the lines of a generated script that belong to the objects of the
     command list, for the script view of the app (#130).
@@ -827,7 +881,9 @@ def object_lines(script, document):
     commands = document["commands"]
     names = {c["name"] for c in commands}
     kinds = {c["name"]: c["command"] for c in commands}
-    controls = [c["name"] for c in commands if c["command"] == "point.add"]
+    controls = [
+        c["name"] for c in commands if c["command"] in ("point.add", "rigid.add")
+    ]
     merge = [c["name"] for c in commands if c["command"] == "mesh.merge"]
     lines = {}
 

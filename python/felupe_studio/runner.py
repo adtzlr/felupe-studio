@@ -293,7 +293,12 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
     sections = [
         c["name"] for c in document["commands"] if c["command"] == "section.add"
     ]
-    points = [c["name"] for c in document["commands"] if c["command"] == "point.add"]
+    # the control points and the reference points of the rigid surfaces (#219)
+    points = [
+        c["name"]
+        for c in document["commands"]
+        if c["command"] in ("point.add", "rigid.add")
+    ]
     settings = [c for c in document["commands"] if c["command"] == "model.settings"]
     units = settings[0].get("units") if settings else None
     results_.reset(namespace, sections, points, units)

@@ -103,6 +103,25 @@ export function analysisProblems(
             "coordinates",
           )
         : [];
+    case "rigid.add": {
+      const shape = cmd.shape as { normal?: number[]; axis?: number[] };
+      if (cmd.coordinates[2] !== 0)
+        return z(
+          `rigid surface '${name}' has a z coordinate: the points of a 2D model are in the plane z = 0.`,
+          "coordinates",
+        );
+      if (shape.normal && shape.normal[2] !== 0)
+        return z(
+          `rigid surface '${name}' has a normal with a z component: the planes of a 2D model are lines in the xy-plane.`,
+          "shape.normal",
+        );
+      if (shape.axis && (shape.axis[0] !== 0 || shape.axis[1] !== 0))
+        return z(
+          `rigid surface '${name}' has an axis that is not z: the cylinders of a 2D model are circles in the xy-plane.`,
+          "shape.axis",
+        );
+      return [];
+    }
     case "mpc.add":
       if (cmd.constrained.includes("z"))
         return z(

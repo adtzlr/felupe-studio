@@ -17,6 +17,7 @@ export type Command =
   | SectionAdd
   | PointSetAdd
   | PointAdd
+  | RigidAdd
   | FaceSetAdd
   | BoundaryAdd
   | LoadcaseAdd
@@ -79,6 +80,27 @@ export type Coordinates1 = [number, number, number];
  */
 export type Coordinates2 = [number, number, number];
 /**
+ * The coordinates x, y and z of a point.
+ *
+ * @minItems 3
+ * @maxItems 3
+ */
+export type Coordinates3 = [number, number, number];
+/**
+ * The coordinates x, y and z of a point.
+ *
+ * @minItems 3
+ * @maxItems 3
+ */
+export type Coordinates4 = [number, number, number];
+/**
+ * The coordinates x, y and z of a point.
+ *
+ * @minItems 3
+ * @maxItems 3
+ */
+export type Coordinates5 = [number, number, number];
+/**
  * A load case of FElupe (fem.dof) on the merged field: the boundaries of a standard test. It is referenced like a boundary: a step ramps its moving end faces, a job records the reaction force of its (first) moving end face.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
@@ -92,7 +114,7 @@ export type LoadcaseAdd =
  * @minItems 3
  * @maxItems 3
  */
-export type Coordinates3 = [number, number, number];
+export type Coordinates6 = [number, number, number];
 
 /**
  * A list of FElupe Studio commands. Objects are created by commands and referenced by their names.
@@ -625,6 +647,32 @@ export interface PointAdd {
   coordinates: Coordinates2;
 }
 /**
+ * A rigid surface (#219): a reference point with a plane or a cylinder. The reference point is a vertex like the control points and a point set of one point, so boundaries move the surface; it does not rotate. Contacts connect points of the model to it.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "RigidAdd".
+ */
+export interface RigidAdd {
+  command: "rigid.add";
+  name: Name;
+  coordinates: Coordinates3;
+  shape:
+    | {
+        normal: Coordinates4;
+      }
+    | {
+        /**
+         * The radius of the cylinder.
+         */
+        radius: number;
+        axis: Coordinates5;
+        /**
+         * The points are inside the cylinder (a tube around them), else outside (a roller).
+         */
+        inside?: boolean;
+      };
+}
+/**
  * Faces of the boundary of a section, e.g. for a pressure: on a plane, or the faces with the given centers (picked in the viewport). The script makes a boundary region of the faces and a field of it, linked to the merged field. Faces of tetrahedrons have no boundary region in FElupe 12.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
@@ -855,7 +903,7 @@ export interface LoadAdd {
    * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
    */
   points: string;
-  force: Coordinates3;
+  force: Coordinates6;
 }
 /**
  * A pressure on the faces of a face set (fem.SolidBodyPressure), an item of the steps: a force per deformed area, normal to the faces. A positive pressure pushes onto the faces, a negative one pulls. A ramp of a step scales the pressure.
