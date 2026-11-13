@@ -18,6 +18,8 @@ const PATHS = {
   redo: "M15 6 L20 11 L15 16 M20 11 H9 A5 5 0 0 0 9 21 H13",
   play: "M7 4 L19 12 L7 20 Z",
   pause: "M8 5 V19 M16 5 V19",
+  // playing back and forth: two arrows in opposite directions
+  bounce: "M4 8 H19 M15 4 L19 8 L15 12 M20 16 H5 M9 12 L5 16 L9 20",
   stop: "M6 6 H18 V18 H6 Z",
   cube: "M12 3 L20 7.5 V16.5 L12 21 L4 16.5 V7.5 Z M4 7.5 L12 12 L20 7.5 M12 12 V21",
   chart: "M4 20 V4 M4 20 H20 M7 16 L11 11 L14 13 L19 7",
