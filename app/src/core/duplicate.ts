@@ -6,7 +6,7 @@ import { NAME_MAX_LENGTH } from "./schema";
 import { nameProblem } from "./validate";
 
 /**
- * The next free name of a copy: `rubber` → `rubber_2`, `material_1` → `material_2`
+ * The next free name of a copy: `soft` → `soft_2`, `material_1` → `material_2`
  * (or the next number that is not used), shortened to the longest name.
  */
 export function duplicateName(

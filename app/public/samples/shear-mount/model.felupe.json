@@ -23,7 +23,7 @@
     },
     {
       "command": "cellset.from_tag",
-      "name": "rubber_layer",
+      "name": "soft_layer",
       "mesh": "mount",
       "value": 2
     },
@@ -44,7 +44,7 @@
     },
     {
       "command": "material.add",
-      "name": "rubber",
+      "name": "hyperelastic",
       "model": "MooneyRivlin",
       "parameters": {
         "C10": 0.4,
@@ -61,8 +61,8 @@
     {
       "command": "section.add",
       "name": "block",
-      "cellset": "rubber_layer",
-      "material": "rubber",
+      "cellset": "soft_layer",
+      "material": "hyperelastic",
       "formulation": "u-p-J",
       "bulk": 2000
     },

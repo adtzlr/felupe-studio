@@ -2,10 +2,10 @@
 // being typed. Every GUI action is a command (ADR 0003), so the command line accepts
 // the same JSON as the project file:
 //
-//   material.add {"name": "rubber", "model": "NeoHooke", "parameters": {"mu": 1}}
-//   {"command": "material.add", "name": "rubber", ...}
+//   material.add {"name": "soft", "model": "NeoHooke", "parameters": {"mu": 1}}
+//   {"command": "material.add", "name": "soft", ...}
 //   material.add                      opens the dialog of a new material
-//   delete rubber · select rubber · undo · redo · help
+//   delete soft · select soft · undo · redo · help
 import type { Command } from "./commands";
 import {
   type Context,
@@ -51,7 +51,7 @@ const KEYWORD_HINTS: Record<(typeof KEYWORDS)[number], string> = {
 };
 
 export const HELP =
-  'Type a command and a JSON object, e.g. material.add {"name": "rubber", ' +
+  'Type a command and a JSON object, e.g. material.add {"name": "soft", ' +
   '"model": "NeoHooke", "parameters": {"mu": 1}}; a command alone opens its dialog. ' +
   "Also: delete <name>, select <name>, undo, redo. Tab completes.";
 

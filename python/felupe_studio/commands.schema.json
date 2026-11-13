@@ -240,7 +240,7 @@
           }
         },
         "item": {
-          "description": "The item of a dict of meshes, e.g. rubber.",
+          "description": "The item of a dict of meshes, e.g. soft.",
           "type": "string",
           "minLength": 1
         },
@@ -342,7 +342,7 @@
           "type": "boolean"
         },
         "description": {
-          "description": "What the parameter is, in a few words, e.g. Radius of the rubber disc.",
+          "description": "What the parameter is, in a few words, e.g. Radius of the disc.",
           "type": "string",
           "maxLength": 120
         }

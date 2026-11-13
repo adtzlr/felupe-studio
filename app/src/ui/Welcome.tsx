@@ -48,7 +48,7 @@ export function Welcome({ onImportMesh, onOpen, onOpenSample }: Props) {
           User guide
         </a>
         <a href={LINKS.tutorial} target="_blank" rel="noopener">
-          Tutorial: a rubber block with a rigid plate
+          Tutorial: a hyperelastic block with a rigid plate
         </a>
       </p>
     </section>

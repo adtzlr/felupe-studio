@@ -12,11 +12,11 @@ Every object of a model is a FElupe object, and every action creates or changes 
 
 ## The window
 
-![The Model workspace with the sample "Rubber block with a rigid plate": the model browser, the viewport with the multi-point constraint of the plate selected, and its properties](images/model.png)
+![The Model workspace with the sample "Hyperelastic block with a rigid plate": the model browser, the viewport with the multi-point constraint of the plate selected, and its properties](images/model.png)
 
 - **Header:** the menus **File** (new, open, samples, save and the exports) and **Help** (this guide, the command reference, the keyboard shortcuts and *About* with the versions of FElupe, Python and Pyodide), buttons for Open, Save, Export, Undo and Redo, and **Solve**.
 - **Ribbon:** the workspaces **Model** and **Results**. The tabs of the model create its objects in the order in which a model is usually built: Mesh, Materials, Sections, Loads & BCs, Steps & Job. A button that cannot be used yet tells you what is missing, e.g. "Create a cell set and a material first."
-- **Model browser** (left): the objects of the model in groups. A number at an object counts its issues. A click on an object selects it in the viewport and opens its **properties**, where you edit and **Apply** or **Delete** it. After a change, **Apply** (Enter) takes it over and **Reset** (Esc) discards it; an issue of the object is shown at its field, e.g. a missing material at *Material*. The tooltip of a symbol, e.g. C₁₀, names its key in the project file (`C10`). A right click on an object, its **⋯** button or Shift+F10 opens its menu: **Duplicate** (Ctrl+D) creates a copy with the next free name, e.g. `rubber_2`, right after the original and selects it, so a second material or boundary that differs in one value is quick to make; objects that use the original keep using it. **Rename** (F2), **Show/Hide** (H) and **Delete** (Del) work on the selected object too.
+- **Model browser** (left): the objects of the model in groups. A number at an object counts its issues. A click on an object selects it in the viewport and opens its **properties**, where you edit and **Apply** or **Delete** it. After a change, **Apply** (Enter) takes it over and **Reset** (Esc) discards it; an issue of the object is shown at its field, e.g. a missing material at *Material*. The tooltip of a symbol, e.g. C₁₀, names its key in the project file (`C10`). A right click on an object, its **⋯** button or Shift+F10 opens its menu: **Duplicate** (Ctrl+D) creates a copy with the next free name, e.g. `soft_2`, right after the original and selects it, so a second material or boundary that differs in one value is quick to make; objects that use the original keep using it. **Rename** (F2), **Show/Hide** (H) and **Delete** (Del) work on the selected object too.
 - **Viewport:** the meshes with their point sets, face sets, boundaries, control points, rigid surfaces, constraints, point loads and pressures. The toolbar has the views, *Fit*, *Color by* (mesh, cell set or section) and *Nodes*.
 - **Footer:** the command line, the state of Python, the number of commands and issues, and the history: the commands in their order, with Undo (Ctrl+Z) and Redo (Ctrl+Shift+Z).
 
@@ -44,20 +44,20 @@ An empty model shows a welcome panel with *Import mesh*, *Open project* and the 
 | Bar of two materials | cell sets from a cell tag of a VTU file, the `u` and `u-p-J` formulations, a force-displacement curve |
 | Material test: uniaxial tension | a load case with symmetry planes, compared with the analytical curve |
 | Hexahedrons and tetrahedrons | a Gmsh file with two types of cells |
-| Rubber mount in shear | three sections, the Mooney-Rivlin model, the shear load case |
-| Rubber block with a rigid plate | control points, a multi-point constraint with a rotation point, a step with several ramps |
+| Mount in shear | three sections, the Mooney-Rivlin model, the shear load case |
+| Hyperelastic block with a rigid plate | control points, a multi-point constraint with a rotation point, a step with several ramps |
 | Sandwich spring with parameters | parameters, a mesh made by a Python script, point sets at the bounds of the meshes |
 | Axisymmetric sandwich spring | an axisymmetric model of the sandwich spring, its section made by a 2D mesh script, the force over the circumference |
 | Plate with a hole in plane strain | a plane strain model, two symmetry planes, the concentration of the stress at a hole |
-| Rubber-metal bushing (FElupe ex05) | a mesh script with the fineness of the mesh as parameters, point sets on cylinders, a rotation point for torsion and tilt |
+| Bushing with steel sleeves (FElupe ex05) | a mesh script with the fineness of the mesh as parameters, point sets on cylinders, a rotation point for torsion and tilt |
 
 Open a sample, press **Solve** and look at the results; then change a value in the properties and solve again.
 
-The **sandwich spring** is a parametric sample: rubber discs between steel sheets, the base sheet fixed and the top sheet sheared by 12 mm. Its mesh comes from the script `sandwich_spring.py`, which gets the parameters *radius*, *layers*, *height*, *sheet*, *cells* (the fineness of the discs) and *cells_height* (the cells through a rubber layer; a sheet has one cell through its thickness) and makes a dict of a rubber and a metal mesh on the same points. Opening it asks for the values first: with 5 layers instead of 3 the spring is softer by about 3/5, and the point sets `base` (`z == min`) and `top` (`z == max`) follow the height of the stack without a change.
+The **sandwich spring** is a parametric sample: hyperelastic discs between steel sheets, the base sheet fixed and the top sheet sheared by 12 mm. Its mesh comes from the script `sandwich_spring.py`, which gets the parameters *radius*, *layers*, *height*, *sheet*, *cells* (the fineness of the discs) and *cells_height* (the cells through a soft layer; a sheet has one cell through its thickness) and makes a dict of a soft and a metal mesh on the same points. Opening it asks for the values first: with 5 layers instead of 3 the spring is softer by about 3/5, and the point sets `base` (`z == min`) and `top` (`z == max`) follow the height of the stack without a change. The top sheet is guided by two boundaries, `guide_y` and `guide_z`: a ramp of `guide_z` in the step compresses the spring while it is sheared.
 
-The **axisymmetric sandwich spring** has the same parameters, but its script `sandwich_spring_2d.py` makes the section of the discs and the sheets in the xy-plane: x is the axis, y the radius (*cells* along the radius). The first sheet (`x == min`) is pressed by 4 mm along the axis against the fixed last sheet; the axis is a symmetry plane `y = 0`. The force of the curve is the total over the circumference. The **plate with a hole** is a quarter of a square rubber plate in plane strain, made by `plate_with_hole.py` from the radius of the hole, the half width and the fineness; the symmetry planes `x = 0` and `y = 0` and a pull of the end by 8 mm load it, and the contour of the largest principal stress shows the concentration at the top of the hole. Its force is per unit thickness.
+The **axisymmetric sandwich spring** has the same parameters, but its script `sandwich_spring_2d.py` makes the section of the discs and the sheets in the xy-plane: x is the axis, y the radius (*cells* along the radius). The first sheet (`x == min`) is pressed by 4 mm along the axis against the fixed last sheet; the axis is a symmetry plane `y = 0`. The force of the curve is the total over the circumference. The **plate with a hole** is a quarter of a square hyperelastic plate in plane strain, made by `plate_with_hole.py` from the radius of the hole, the half width and the fineness; the symmetry planes `x = 0` and `y = 0` and a pull of the end by 8 mm load it, and the contour of the largest principal stress shows the concentration at the top of the hole. Its force is per unit thickness.
 
-The **rubber-metal bushing** is the example ex05 of FElupe: a rubber body between two steel sleeves, made by `bushing.py` with the lengths of the sleeves, their thickness, the runout of the free faces and the fineness of the mesh (cells along the axis, through the rubber and around it) as parameters. The outside of the outer sleeve (`r = 65`) is fixed; the inside of the inner sleeve (`r = 25`) is connected to a control point at the axis with a rotation point, which moves it by 8 mm in z, twists it by 30° about x and tilts it by −5° about y. The curve is the moment of the torsion over its angle. The multiplier of the connection (100000) is large compared with the steel, so the moment of the torsion agrees with ex05, which prescribes the rotated positions, within 0.1 %; a finer mesh is a change of three parameters.
+The **bushing with steel sleeves** is the example ex05 of FElupe: a hyperelastic body between two steel sleeves, made by `bushing.py` with the lengths of the sleeves, their thickness, the runout of the free faces and the fineness of the mesh (cells along the axis, through the soft body and around it) as parameters. The outside of the outer sleeve (`r = 65`) is fixed; the inside of the inner sleeve (`r = 25`) is connected to a control point at the axis with a rotation point, which moves it by 8 mm in z, twists it by 30° about x and tilts it by −5° about y. The curve is the moment of the torsion over its angle. The multiplier of the connection (100000) is large compared with the steel, so the moment of the torsion agrees with ex05, which prescribes the rotated positions, within 0.1 %; a finer mesh is a change of three parameters.
 
 ## Building a model
 
@@ -71,13 +71,13 @@ FElupe has no units: the numbers of a model only need to fit together, e.g. mill
 
 ### Parameters
 
-A **Parameter** (*Mesh* tab, next to *Model settings*) is a named number of the model, e.g. the radius of a disc or the number of rubber layers. Its *Quantity* (length, force or stress) gives it the unit of the model settings; *Minimum*, *Maximum* and *Step* describe the values it may take, *Integer* makes it a whole number, and the *Description* says in a few words what it is. The browser lists the parameters below the settings, with their value and range; a value outside of the range is an issue of the parameter. The script defines the parameters as variables at its top, e.g. `radius = 50.0  # mm`, so you can change them there. A *Mesh script* gets them as variables (see Mesh). Opening a project with parameters shows their values first: change them (with a slider if they have a range) and *Open*, or *Keep the saved values*; the meshes of scripts are made after that. The dialog lists the scripts the project runs, with *Show* to read them first. Later, *All parameters…* in the menu of a parameter in the browser opens the same dialog; the changed values are one undo step.
+A **Parameter** (*Mesh* tab, next to *Model settings*) is a named number of the model, e.g. the radius of a disc or the number of soft layers. Its *Quantity* (length, force or stress) gives it the unit of the model settings; *Minimum*, *Maximum* and *Step* describe the values it may take, *Integer* makes it a whole number, and the *Description* says in a few words what it is. The browser lists the parameters below the settings, with their value and range; a value outside of the range is an issue of the parameter. The script defines the parameters as variables at its top, e.g. `radius = 50.0  # mm`, so you can change them there. A *Mesh script* gets them as variables (see Mesh). Opening a project with parameters shows their values first: change them (with a slider if they have a range) and *Open*, or *Keep the saved values*; the meshes of scripts are made after that. The dialog lists the scripts the project runs, with *Show* to read them first. Later, *All parameters…* in the menu of a parameter in the browser opens the same dialog; the changed values are one undo step.
 
 ### 1. Mesh
 
 **Import mesh** reads any mesh file that meshio reads, e.g. VTK (`.vtu`, `.vtk`), Gmsh (`.msh`), Abaqus (`.inp`), XDMF, Medit or Exodus; **Open project** accepts mesh files too. The solid cells are tetrahedrons or hexahedrons, linear or quadratic, or triangles or quads of a 2D model (see 2D models). A file with several types of cells gives one mesh per type. The dialog shows the size of the mesh; its *Scale* multiplies the coordinates, e.g. by 1000 for a mesh made in metres of a model in millimetres. The dialog suggests it if the mesh is very small or very large for the units of the model (smaller than 1 mm or larger than 10 m). Point sets and points use the scaled coordinates, so set the scale before you add them.
 
-**Mesh script** makes a mesh with a Python script next to the project, e.g. with the mesh tools of FElupe. Open the script like a mesh file (**Open project**, or drop it); a script opened alone starts a new mesh script with it. The script gets the **parameters** of the model as variables (all of them, or the chosen ones) and makes a variable `mesh`: a `fem.Mesh`, a `fem.MeshContainer`, a `meshio.Mesh` or a dict of names and meshes, of which *Item* takes one, e.g. `rubber`. For a rubber and a metal part, make a dict and add two mesh scripts with the items. A changed parameter makes the mesh again; an error of the script is an issue of the mesh, and its properties show the traceback. The script is kept with the project like a mesh file, also in archives, and the generated script runs it with `run_mesh_script()`, so it needs the script in its folder.
+**Mesh script** makes a mesh with a Python script next to the project, e.g. with the mesh tools of FElupe. Open the script like a mesh file (**Open project**, or drop it); a script opened alone starts a new mesh script with it. The script gets the **parameters** of the model as variables (all of them, or the chosen ones) and makes a variable `mesh`: a `fem.Mesh`, a `fem.MeshContainer`, a `meshio.Mesh` or a dict of names and meshes, of which *Item* takes one, e.g. `soft`. For a soft and a metal part, make a dict and add two mesh scripts with the items. A changed parameter makes the mesh again; an error of the script is an issue of the mesh, and its properties show the traceback. The script is kept with the project like a mesh file, also in archives, and the generated script runs it with `run_mesh_script()`, so it needs the script in its folder.
 
 ```python
 import felupe as fem
@@ -88,7 +88,7 @@ layers = globals().get("layers", 3)
 height = globals().get("height", 8)
 
 disc = fem.Circle(radius=radius, n=6)
-mesh = {"rubber": disc.expand(n=layers + 1, z=height)}
+mesh = {"soft": disc.expand(n=layers + 1, z=height)}
 ```
 
 The lines with `globals().get()` are optional: they give the script values of its own, so it also runs alone (`python disc.py`) and linters know the names.
@@ -97,7 +97,7 @@ The cells of a model come from **cell sets**: **Cell set of a mesh** takes all c
 
 ### 2. Materials and sections
 
-The **Materials** tab has the material models, grouped in menus: *Neo-Hooke* (incompressible, or compressible with λ), *Polynomial* (Mooney-Rivlin, Yeoh, third-order deformation), *Ogden* (one to three terms: the moduli μᵢ and the exponents αᵢ as lists, e.g. `1, 0.2` and `1.7, -1.5`), *Micromechanical* (Arruda-Boyce, extended tube) and *Linear elastic (large strain)*. The rubber models have an optional bulk modulus K: without it they are incompressible and need the `u-p-J` formulation of a section; the defaults are the examples of the FElupe documentation. A **Section** assigns a material and a formulation to a cell set: `u` with the displacements only, or `u-p-J` for (nearly) incompressible materials with a bulk modulus K. The *Volumetric part* of `u-p-J` is the strain energy U(J) of the volume ratio J: *Volume ratio* K/2 (J − 1)² (the default), *Stretch* 9K/2 (J^⅓ − 1)² or *Logarithm* K/2 ln(J)². With a large bulk modulus (nearly incompressible) J stays close to 1 and the choice hardly matters; with a small one, e.g. of a foam-like or a compressible rubber, it changes the response. Every section becomes a solid body.
+The **Materials** tab has the material models, grouped in menus: *Neo-Hooke* (incompressible, or compressible with λ), *Polynomial* (Mooney-Rivlin, Yeoh, third-order deformation), *Ogden* (one to three terms: the moduli μᵢ and the exponents αᵢ as lists, e.g. `1, 0.2` and `1.7, -1.5`), *Micromechanical* (Arruda-Boyce, extended tube) and *Linear elastic (large strain)*. The hyperelastic models have an optional bulk modulus K: without it they are incompressible and need the `u-p-J` formulation of a section; the defaults are the examples of the FElupe documentation. A **Section** assigns a material and a formulation to a cell set: `u` with the displacements only, or `u-p-J` for (nearly) incompressible materials with a bulk modulus K. The *Volumetric part* of `u-p-J` is the strain energy U(J) of the volume ratio J: *Volume ratio* K/2 (J − 1)² (the default), *Stretch* 9K/2 (J^⅓ − 1)² or *Logarithm* K/2 ln(J)². With a large bulk modulus (nearly incompressible) J stays close to 1 and the choice hardly matters; with a small one, e.g. of a foam-like or a compressible soft material, it changes the response. Every section becomes a solid body.
 
 ### 3. Point sets
 
@@ -202,20 +202,20 @@ While you type in a field, only Ctrl+S and Ctrl+Enter are shortcuts.
 Every button creates a command, and so does the command line in the footer. It accepts the JSON of the project file and completes what you type:
 
 ```text
-material.add {"name": "rubber", "model": "NeoHooke", "parameters": {"mu": 1}}
+material.add {"name": "soft", "model": "NeoHooke", "parameters": {"mu": 1}}
 material.add          opens the dialog of a new material
-select rubber
-delete rubber
+select soft
+delete soft
 undo · redo · help
 ```
 
-## Tutorial: a rubber block with a rigid plate
+## Tutorial: a hyperelastic block with a rigid plate
 
-The sample *Rubber block with a rigid plate* glues the top face of a rubber block to a rigid plate. The plate moves 8 mm sideways and tilts by 0.1 rad at the same time. To build it yourself, start a new project and import `block.vtu` of the sample (a block of 40 × 40 × 20 mm):
+The sample *Hyperelastic block with a rigid plate* glues the top face of a hyperelastic block to a rigid plate. The plate moves 8 mm sideways and tilts by 0.1 rad at the same time. To build it yourself, start a new project and import `block.vtu` of the sample (a block of 40 × 40 × 20 mm):
 
 1. **Mesh:** *Cell set of a mesh* `all_cells` of the mesh `block`, and *Model settings* with the units mm and N.
-2. **Materials:** a *Mooney-Rivlin* material `rubber` with C10 = 0.4 and C01 = 0.1.
-3. **Sections:** a section `rubber_block` of `all_cells` with `rubber`, the formulation `u-p-J` and the bulk modulus 2000.
+2. **Materials:** a *Mooney-Rivlin* material `hyperelastic` with C10 = 0.4 and C01 = 0.1.
+3. **Sections:** a section `soft_block` of `all_cells` with `hyperelastic`, the formulation `u-p-J` and the bulk modulus 2000.
 4. **Point sets:** click the bottom face and create the point set `base` (`z == 0`), click the top face and create `top` (`z == 20`). The viewport suggests names; change them in the properties.
 5. **Control points:** select `top`, click *Control point at center*, name the new control point `plate` and move it above the face to (20, 20, 25): this is the center of the plate. Create a second control point `tilt` at (20, 20, 30): its values are the rotations of the plate. Two control points at the same coordinates would be merged, therefore they are apart.
 6. **Boundaries:** `fixed` holds x, y and z of `base`. `shift` constrains x of `plate`, `hold` its y and z. `tilt_y` constrains the rotation y of `tilt`, `tilt_lock` its rotations x and z.

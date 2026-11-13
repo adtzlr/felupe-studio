@@ -1,10 +1,10 @@
-"""A rubber-metal bushing, like the example ex05 of FElupe.
+"""A bushing with steel sleeves, like the example ex05 of FElupe.
 
 FElupe Studio runs this script with the parameters of the model as variables:
-the lengths of the sleeves, their thickness, the runout of the rubber and the
+the lengths of the sleeves, their thickness, the runout of the soft body and the
 fineness of the mesh. The inner sleeve is inside at the radius 25, the outer sleeve
 outside at the radius 65 (the point sets of the model). It makes a dict of the
-rubber and the metal meshes, revolved about the x axis.
+soft and the metal meshes, revolved about the x axis.
 """
 
 import felupe as fem
@@ -23,7 +23,7 @@ cells_around = globals().get("cells_around", 18)
 INNER, OUTER = 25, 65
 inside, outside = INNER + sleeve, OUTER - sleeve
 
-# the section of the rubber between two lines in the xy plane, with runouts
+# the section of the soft body between two lines in the xy plane, with runouts
 bottom = fem.mesh.Line(a=-inner_length / 2, b=inner_length / 2, n=cells_axial + 1)
 top = fem.mesh.Line(a=-outer_length / 2, b=outer_length / 2, n=cells_axial + 1)
 bottom.update(points=np.pad(bottom.points, ((0, 0), (0, 1)), constant_values=inside))
@@ -35,7 +35,7 @@ section = section.add_runouts(
 
 # revolved about the x axis, with the sleeves
 around = {"n": cells_around + 1, "phi": 360}
-rubber = section.revolve(**around)
+body = section.revolve(**around)
 metal = fem.MeshContainer(
     [
         fem.Rectangle(
@@ -51,4 +51,4 @@ metal = fem.MeshContainer(
     ],
     merge=True,
 ).stack()
-mesh = {"rubber": rubber, "metal": metal}
+mesh = {"soft": body, "metal": metal}

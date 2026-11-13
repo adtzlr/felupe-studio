@@ -7,9 +7,10 @@ root::
     playwright install chromium
     python docs/make_screenshots.py
 
-The script serves ``app/dist``, opens the sample *Rubber block with a rigid plate*,
-solves it with Python in the browser (the first start downloads Pyodide) and writes
-small PNGs to ``docs/images``: the model, the results and a pressure on a face set.
+The script serves ``app/dist``, opens the sample *Hyperelastic block with a rigid
+plate*, solves it with Python in the browser (the first start downloads Pyodide) and
+writes small PNGs to ``docs/images``: the model, the results and a pressure on a face
+set.
 """
 
 import argparse
@@ -20,7 +21,7 @@ import threading
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
-SAMPLE = "Rubber block with a rigid plate"
+SAMPLE = "Hyperelastic block with a rigid plate"
 SIZE = {"width": 1280, "height": 800}
 
 

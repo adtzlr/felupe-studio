@@ -6,7 +6,7 @@ Every node in the GUI is a FElupe object. Every action is a command; the command
 
 **Open the app:** <https://adtzlr.github.io/felupe-studio/>
 
-![FElupe Studio with the sample "Rubber block with a rigid plate"](docs/images/model.png)
+![FElupe Studio with the sample "Hyperelastic block with a rigid plate"](docs/images/model.png)
 
 FElupe Studio builds models of hyperelastic solids from mesh files: cell sets from cell tags, materials (Neo-Hooke, Mooney-Rivlin, Yeoh, Ogden, Arruda-Boyce, …), sections with the `u` or `u-p-J` formulation, point sets (by a plane, by picked nodes or by ids), face sets, boundaries and load cases, control points, multi-point constraints with rotation points (e.g. a rigid plate glued to a face), point loads and pressures, and steps that ramp several items with their own values. Solve runs in the browser with live progress; the results show the deformed shape with contours of the displacement, the strains and the stresses per substep, their minimum and maximum, the force-displacement (or moment-rotation) curve and the displacements and forces of the control points, and play the substeps. The FElupe script, the results (XDMF/VTU/CSV) and pictures of the view can be exported; a project is saved as a text file or as an archive with its mesh files.
 

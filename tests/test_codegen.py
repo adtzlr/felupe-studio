@@ -1023,8 +1023,8 @@ def test_object_lines_of_the_glued_plate():
         return [text[a - 1 : b] for a, b in lines[name]]
 
     assert set(lines) == {c["name"] for c in document["commands"]}
-    assert code("rubber") == [
-        ["rubber = fem.Hyperelastic(fem.mooney_rivlin, C10=0.4, C01=0.1)"]
+    assert code("hyperelastic") == [
+        ["hyperelastic = fem.Hyperelastic(fem.mooney_rivlin, C10=0.4, C01=0.1)"]
     ]
     # the comment of the units (#132)
     assert code("settings") == [
@@ -1034,10 +1034,10 @@ def test_object_lines_of_the_glued_plate():
         ]
     ]
     # the region, the field and the solid body of a section
-    section = code("rubber_block")
-    assert section[0][0].startswith("region_rubber_block = ")
-    assert section[0][1].startswith("field_rubber_block = ")
-    assert section[1][0].startswith("solid_rubber_block = fem.SolidBody(")
+    section = code("soft_block")
+    assert section[0][0].startswith("region_soft_block = ")
+    assert section[0][1].startswith("field_soft_block = ")
+    assert section[1][0].startswith("solid_soft_block = fem.SolidBody(")
     # an entry of the boundaries, the vertices of the control points
     assert code("shift") == [
         ['    "shift": fem.Boundary(field[0], mask=plate, skip=(0, 1, 1)),']

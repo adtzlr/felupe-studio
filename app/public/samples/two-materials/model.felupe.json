@@ -30,7 +30,7 @@
     },
     {
       "command": "material.add",
-      "name": "rubber",
+      "name": "hyperelastic",
       "model": "NeoHooke",
       "parameters": {
         "mu": 1
@@ -47,7 +47,7 @@
       "command": "section.add",
       "name": "soft_half",
       "cellset": "soft",
-      "material": "rubber",
+      "material": "hyperelastic",
       "formulation": "u-p-J",
       "bulk": 5000
     },

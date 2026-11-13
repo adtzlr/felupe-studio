@@ -178,7 +178,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       },
       item: {
         label: "Item",
-        hint: "Of a dict of meshes, e.g. rubber",
+        hint: "Of a dict of meshes, e.g. soft",
         placeholder: "none (one mesh)",
       },
       tag: {
@@ -474,7 +474,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       description: {
         label: "Description",
         hint: "What the parameter is, in a few words",
-        placeholder: "e.g. Radius of the rubber disc",
+        placeholder: "e.g. Radius of the disc",
       },
     },
     options: {

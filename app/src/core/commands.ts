@@ -187,7 +187,7 @@ export interface ParameterAdd {
    */
   integer?: boolean;
   /**
-   * What the parameter is, in a few words, e.g. Radius of the rubber disc.
+   * What the parameter is, in a few words, e.g. Radius of the disc.
    */
   description?: string;
 }
@@ -245,7 +245,7 @@ export interface MeshScript {
    */
   parameters?: Name[];
   /**
-   * The item of a dict of meshes, e.g. rubber.
+   * The item of a dict of meshes, e.g. soft.
    */
   item?: string;
   /**

@@ -62,7 +62,7 @@ A parameter of the model: a number, e.g. a dimension or the number of cells of a
 | `max` | number |  | The largest value. |
 | `step` | number > 0 |  | The step of the value, e.g. of a slider. |
 | `integer` | boolean |  | The value is an integer, e.g. a number of layers or cells (default false); the range and the step are integers too. |
-| `description` | string |  | What the parameter is, in a few words, e.g. Radius of the rubber disc. |
+| `description` | string |  | What the parameter is, in a few words, e.g. Radius of the disc. |
 
 ### `mesh.import`
 
@@ -85,7 +85,7 @@ A mesh made by a Python script next to the project, e.g. with the mesh tools of 
 | `name` | name | yes | Name of the object. |
 | `file` | string | yes | File name of the script, e.g. bushing.py. |
 | `parameters` | names of parameters (unique) |  | The parameters of the model that the script gets as variables (default: all). |
-| `item` | string |  | The item of a dict of meshes, e.g. rubber. |
+| `item` | string |  | The item of a dict of meshes, e.g. soft. |
 | `tag` | string |  | Name of an integer cell data array of a meshio.Mesh used to split the mesh into cell sets. |
 | `cell_type` | `tetra`, `tetra10`, `hexahedron`, `hexahedron20`, `hexahedron27`, `triangle`, `triangle6`, `quad`, `quad8` or `quad9` |  | Type of the solid cells to take, if the mesh has more than one. |
 
