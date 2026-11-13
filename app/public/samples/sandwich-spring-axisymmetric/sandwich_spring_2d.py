@@ -2,9 +2,9 @@
 
 The section of rubber discs between steel sheets in the xy-plane: x is the axis of
 rotation, y the radius. FElupe Studio runs this script with the parameters of the
-model as variables: radius, layers, height, sheet and cells. It makes a dict of two
-meshes on the same points, the rubber and the metal, along the axis: a sheet, then
-a rubber layer and a sheet per layer.
+model as variables: radius, layers, height, sheet, cells and cells_height. It makes
+a dict of two meshes on the same points, the rubber and the metal, along the axis:
+a sheet, then a rubber layer and a sheet per layer.
 """
 
 import felupe as fem
@@ -16,10 +16,12 @@ layers = globals().get("layers", 3)
 height = globals().get("height", 8)
 sheet = globals().get("sheet", 2)
 cells = globals().get("cells", 10)
+cells_height = globals().get("cells_height", 4)
 
-# the thickness and the number of cells through it of every layer, along the axis
+# the thickness and the number of cells through it of every layer, along the axis:
+# one cell through a sheet
 thickness = [sheet] + [height, sheet] * layers
-divisions = [1] + [4, 1] * layers
+divisions = [1] + [cells_height, 1] * layers
 start = np.concatenate([[0], np.cumsum(thickness)[:-1]])
 parts = [
     fem.Rectangle(a=(x, 0), b=(x + t, radius), n=(n + 1, cells + 1))

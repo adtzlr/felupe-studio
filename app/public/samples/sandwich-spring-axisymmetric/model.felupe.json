@@ -59,6 +59,15 @@
       "description": "Number of cells along the radius"
     },
     {
+      "command": "parameter.add",
+      "name": "cells_height",
+      "value": 4,
+      "min": 1,
+      "max": 12,
+      "integer": true,
+      "description": "Number of cells through a rubber layer"
+    },
+    {
       "command": "mesh.script",
       "name": "rubber_mesh",
       "file": "sandwich_spring_2d.py",

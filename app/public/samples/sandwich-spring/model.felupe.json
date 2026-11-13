@@ -58,6 +58,15 @@
       "description": "Fineness of the discs (n of fem.Circle)"
     },
     {
+      "command": "parameter.add",
+      "name": "cells_height",
+      "value": 2,
+      "min": 1,
+      "max": 8,
+      "integer": true,
+      "description": "Number of cells through a rubber layer"
+    },
+    {
       "command": "mesh.script",
       "name": "rubber_mesh",
       "file": "sandwich_spring.py",
