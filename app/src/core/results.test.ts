@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { Command } from "./commands";
 import { startProgress } from "./jobs";
 import {
+  advance,
   curvePoint,
+  type Direction,
   type Finished,
   formatValue,
   nextSubstep,
@@ -111,6 +113,30 @@ describe("the substeps ahead (#141)", () => {
     // never the substep itself
     expect(substepsAhead(2, 3, 4)).toEqual([3, 1]);
     expect(substepsAhead(1, 1, 4)).toEqual([]);
+  });
+
+  it("go back and forth", () => {
+    // forward, turn at the last substep, backward, turn at the first one
+    const played: number[] = [];
+    let state: [number, Direction] = [1, 1];
+    for (let i = 0; i < 9; i++) {
+      state = advance(state[0], 4, "bounce", state[1]);
+      played.push(state[0]);
+    }
+    expect(played).toEqual([2, 3, 4, 3, 2, 1, 2, 3, 4]);
+    // from the last substep backward, also from a substep beyond the ends
+    expect(advance(5, 5, "bounce", 1)).toEqual([4, -1]);
+    expect(advance(7, 5, "bounce", 1)).toEqual([6, -1]);
+    expect(advance(1, 5, "bounce", -1)).toEqual([2, 1]);
+    expect(advance(3, 5, "bounce", -1)).toEqual([2, -1]);
+    // a single substep stays
+    expect(advance(1, 1, "bounce", 1)).toEqual([1, 1]);
+    // looping is always forward
+    expect(advance(5, 5, "loop", -1)).toEqual([1, 1]);
+    // the substeps ahead in the order of playing, each once
+    expect(substepsAhead(3, 5, 4, "bounce", 1)).toEqual([4, 5]);
+    expect(substepsAhead(4, 5, 4, "bounce", -1)).toEqual([3, 2, 1]);
+    expect(substepsAhead(2, 2, 4, "bounce", 1)).toEqual([1]);
   });
 });
 
