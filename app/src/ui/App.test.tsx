@@ -1583,6 +1583,62 @@ describe("solve", () => {
     ).toBeTruthy();
   });
 
+  it("plays the substeps back and forth (#141)", async () => {
+    const jobs = runner();
+    const calls: number[] = [];
+    const resultScene = vi.fn(async (_: string, substep: number) => {
+      calls.push(substep);
+      return {
+        label: "Displacement",
+        at: "point",
+        range: [0, substep],
+        points: [],
+        surfaces: [],
+      } as ResultScene;
+    });
+    render(
+      <App
+        store={new ModelStore(fixture as CommandList)}
+        files={await files()}
+        client={client(Promise.resolve(readyValue), { ...jobs, resultScene })}
+      />,
+    );
+    await waitFor(() =>
+      expect(solveButton().getAttribute("aria-disabled")).toBeNull(),
+    );
+    fireEvent.click(solveButton());
+    await waitFor(() => expect(jobs.run).toHaveBeenCalledTimes(1));
+    await act(async () =>
+      jobs.settle().resolve({
+        job_1: {
+          substeps: 6,
+          time: 0.1,
+          x: [0, 0.1, 0.2, 0.3, 0.4, 0.5].map((u) => [u, 0, 0]),
+          y: [0, 1, 2, 3, 4, 5].map((f) => [f, 0, 0]),
+        },
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show results" }));
+    const panel = screen.getByRole("tabpanel");
+    await waitFor(() => expect(calls).toEqual([6]));
+
+    // from the last substep backward: the scenes ahead are the ones before it
+    const repeat = within(panel).getByLabelText("Repeat") as HTMLSelectElement;
+    expect(repeat.value).toBe("loop");
+    fireEvent.change(repeat, { target: { value: "bounce" } });
+    fireEvent.change(within(panel).getByLabelText("Speed"), {
+      target: { value: "20" },
+    });
+    fireEvent.click(within(panel).getByRole("button", { name: "Play" }));
+    await waitFor(() => expect(panel.textContent).toContain("Substep 4 of 6"));
+    expect(calls.slice(0, 5)).toEqual([6, 5, 4, 3, 2]);
+    // at the first substep it turns forward again
+    await waitFor(() => expect(panel.textContent).toContain("Substep 1 of 6"));
+    await waitFor(() => expect(panel.textContent).toContain("Substep 3 of 6"));
+    fireEvent.click(within(panel).getByRole("button", { name: "Pause" }));
+    expect(calls).toEqual([6, 5, 4, 3, 2, 1]);
+  });
+
   it("exports the script and a picture of the view", async () => {
     const download = vi.fn();
     const script = vi.fn<(document: string) => Promise<string>>(

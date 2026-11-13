@@ -75,20 +75,56 @@ export type Finished = Extract<JobRun, { state: "finished" }>;
 export const substepsOf = (run: Finished, job: string): number =>
   run.results[job]?.substeps ?? 0;
 
+/**
+ * How the substeps are played (#141): in a loop (after the last substep the first
+ * one) or back and forth (after the last substep the one before, after the first
+ * substep the second one; the ends are shown once).
+ */
+export type PlayMode = "loop" | "bounce";
+
+/** The direction of playing: forward (+1) or backward (-1). */
+export type Direction = 1 | -1;
+
+/**
+ * The substep after a substep of a job with a number of substeps and the direction
+ * after it: looping, or back and forth in the mode "bounce".
+ */
+export function advance(
+  substep: number,
+  total: number,
+  mode: PlayMode = "loop",
+  direction: Direction = 1,
+): [number, Direction] {
+  if (mode === "loop" || total < 2) {
+    return [substep >= total ? 1 : substep + 1, 1];
+  }
+  // turn at an end, also from a substep beyond it
+  const turned: Direction =
+    substep >= total ? -1 : substep <= 1 ? 1 : direction;
+  return [substep + turned, turned];
+}
+
 /** The substep after a substep of a job with a number of substeps, looping (#141). */
 export const nextSubstep = (substep: number, total: number): number =>
-  substep >= total ? 1 : substep + 1;
+  advance(substep, total)[0];
 
-/** The next substeps after a substep (looping, without itself), e.g. to load ahead. */
+/**
+ * The substeps of the next steps after a substep (in the order of playing, each
+ * once and without itself), e.g. to load ahead: looping, or back and forth in the
+ * mode "bounce".
+ */
 export function substepsAhead(
   substep: number,
   total: number,
   count: number,
+  mode: PlayMode = "loop",
+  direction: Direction = 1,
 ): number[] {
   const ahead: number[] = [];
-  for (let s = substep, i = 0; i < Math.min(count, total - 1); i++) {
-    s = nextSubstep(s, total);
-    ahead.push(s);
+  let state: [number, Direction] = [substep, direction];
+  for (let i = 0; i < count; i++) {
+    state = advance(state[0], total, mode, state[1]);
+    if (state[0] !== substep && !ahead.includes(state[0])) ahead.push(state[0]);
   }
   return ahead;
 }
