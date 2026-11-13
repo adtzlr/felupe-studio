@@ -101,6 +101,32 @@ def test_sandwich_spring_follows_its_parameters(monkeypatch):
     assert forces[3] / forces[5] == pytest.approx(5 / 3, rel=0.02)
 
 
+@pytest.mark.parametrize(
+    "sample, script",
+    [
+        ("sandwich-spring", "sandwich_spring.py"),
+        ("sandwich-spring-axisymmetric", "sandwich_spring_2d.py"),
+    ],
+)
+def test_sandwich_springs_have_cells_through_the_rubber(sample, script):
+    """The parameter cells_height of the sandwich springs is the number of cells
+    through a rubber layer; a sheet keeps one cell through its thickness."""
+    import runpy
+
+    folder = APP / "public" / "samples" / sample
+    document = loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
+    names = [c["name"] for c in document["commands"] if c["command"] == "parameter.add"]
+    assert "cells_height" in names
+    counts = {}
+    for n in (1, 3):
+        meshes = runpy.run_path(
+            str(folder / script), init_globals={"cells_height": n, "layers": 2}
+        )["mesh"]
+        counts[n] = (len(meshes["rubber"].cells), len(meshes["metal"].cells))
+    assert counts[3][0] == 3 * counts[1][0]
+    assert counts[3][1] == counts[1][1]
+
+
 def test_axisymmetric_sandwich_spring_follows_its_parameters(monkeypatch):
     """The axisymmetric sandwich spring (#175) with 3 and 5 rubber layers, pressed by
     0.04 mm: the first sheet follows the stack (x == min), the stiffness of the

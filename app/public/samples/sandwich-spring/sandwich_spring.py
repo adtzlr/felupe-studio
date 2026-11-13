@@ -1,9 +1,9 @@
 """A rubber-metal sandwich spring: rubber discs, steel sheets.
 
 FElupe Studio runs this script with the parameters of the model as variables:
-radius, layers, height, sheet and cells. It makes a dict of two meshes on the same
-points, the rubber and the metal, from the bottom: a sheet, then a rubber layer and
-a sheet per layer.
+radius, layers, height, sheet, cells and cells_height. It makes a dict of two meshes
+on the same points, the rubber and the metal, from the bottom: a sheet, then a
+rubber layer and a sheet per layer.
 """
 
 import felupe as fem
@@ -15,12 +15,14 @@ layers = globals().get("layers", 3)
 height = globals().get("height", 8)
 sheet = globals().get("sheet", 2)
 cells = globals().get("cells", 4)
+cells_height = globals().get("cells_height", 2)
 
 disc = fem.Circle(radius=radius, n=cells)
 
-# the thickness and the number of cells through it of every layer, from the bottom
+# the thickness and the number of cells through it of every layer, from the bottom:
+# one cell through a sheet
 thickness = [sheet] + [height, sheet] * layers
-divisions = [1] + [2, 1] * layers
+divisions = [1] + [cells_height, 1] * layers
 bottom = np.concatenate([[0], np.cumsum(thickness)[:-1]])
 parts = [
     disc.expand(n=n + 1, z=t).translate(z, axis=2)
