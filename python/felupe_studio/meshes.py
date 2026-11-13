@@ -196,5 +196,9 @@ def make(filename, parameters, item=None):
 
 
 def make_json(filename, parameters, item=None):
-    """:func:`make` with the parameters as JSON text, for the worker."""
-    return make(filename, json.loads(parameters), item)
+    """:func:`make` with the parameters as JSON text, for the worker. An item that is
+    not a name is no item: JavaScript's null arrives as ``pyodide.ffi.jsnull``, not as
+    None."""
+    return make(
+        filename, json.loads(parameters), item if isinstance(item, str) else None
+    )

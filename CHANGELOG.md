@@ -35,6 +35,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Fixed
 
+- A mesh script without items, e.g. of the sample *Plate with a hole*, failed in the app with *The mesh of 'plate_with_hole.py' is not a dict with an item jsnull*: the worker passed JavaScript's null, which Pyodide converts to `jsnull`, not to None.
 - *Save project as…* refuses a name of an archive whose script would have the name of a mesh script of the project, e.g. `bushing` with the script for the sample *Bushing with steel sleeves*, instead of failing with two files `bushing.py` (#205).
 - *Iso* (key 1) resets the camera to the default view, in which the viewer opens (like the plots of FElupe, onto the xy-plane for a planar model), instead of the isometric view.
 - The labels of a dialog that creates an object point to its own fields: with an object selected, the properties and the dialog had fields of the same ids, so a click on a label of the dialog focused the field of the properties (#181).
