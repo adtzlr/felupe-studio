@@ -11,7 +11,7 @@ A project file is a JSON document `{"schema_version": 3, "commands": [...]}`. Ev
 
 Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
 
-A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `DIMENSIONS`, `REGIONS`, `SimpleNamespace`, `boundaries`, `boundary_faces`, `control_points`, `fem`, `field`, `iterative_solver`, `meshio`, `mixed_region`, `np`, `points`, `points_at`, `run_mesh_script`, `script_mesh`, `single_point`, `spsolve`, `vertex_region`, `volume_cells`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
+A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `DIMENSIONS`, `EDGES`, `REGIONS`, `SimpleNamespace`, `boundaries`, `boundary_faces`, `control_points`, `fem`, `field`, `iterative_solver`, `meshio`, `mixed_field`, `mixed_region`, `nearly_incompressible`, `np`, `points`, `points_at`, `run_mesh_script`, `script_mesh`, `single_point`, `solid_points`, `solid_types`, `spsolve`, `surface_points`, `vertex_region`, `volume_cells`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
 
 ## Commands
 

@@ -107,25 +107,6 @@ def points_at(points, coordinates, atol=1e-8):
     return close.any(axis=1)
 
 
-def mixed_region(mesh):
-    """Return the region of the mixed fields (u-p-J) of a mesh. Linear tetrahedra and
-    triangles get a bubble point in every cell (MINI element), the dual fields are
-    linear.
-
-    Only the points of the cells are kept: the dual fields of tetrahedra are fields of
-    the points, and a point of another section would be a free degree of freedom
-    without stiffness. ``fem.field.merge`` merges the points of the sections again."""
-    used, cells = np.unique(mesh.cells, return_inverse=True)
-    mesh = fem.Mesh(mesh.points[used], cells.reshape(mesh.cells.shape), mesh.cell_type)
-    if mesh.cell_type == "tetra":
-        bubble = fem.mesh.add_midpoints_volumes(mesh, cell_type_new="tetra5")
-        return fem.RegionTetraMINI(bubble)
-    if mesh.cell_type == "triangle":
-        bubble = fem.mesh.add_midpoints_faces(mesh, cell_type_new="triangle4")
-        return fem.RegionTriangleMINI(bubble)
-    return REGIONS[mesh.cell_type](mesh)
-
-
 # boundary regions by cell type of the solid cells (no tetrahedrons and triangles in
 # FElupe 12); the faces of the 2D cells of 2D models are their edges
 BOUNDARY_REGIONS = {

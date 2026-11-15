@@ -123,6 +123,37 @@ def mixed_region(mesh):
     return REGIONS[mesh.cell_type](mesh)
 
 
+def mixed_field(region, **kwargs):
+    """Return the field container of a section with the u-p-J formulation. Linear
+    hexahedrons and quads have the displacements only: their pressure and volume
+    ratio are constant in every cell and condensed by
+    ``fem.SolidBodyNearlyIncompressible`` (see ``nearly_incompressible``). Other cells
+    get the mixed fields of the displacements, the pressure and the volume ratio,
+    ``fem.FieldsMixed`` (with ``planestrain=True`` or ``axisymmetric=True`` of 2D
+    models)."""
+    if region.mesh.cell_type in ("hexahedron", "quad"):
+        if kwargs.get("axisymmetric"):
+            return fem.FieldContainer([fem.FieldAxisymmetric(region, dim=2)])
+        if kwargs.get("planestrain"):
+            return fem.FieldContainer([fem.FieldPlaneStrain(region, dim=2)])
+        return fem.FieldContainer([fem.Field(region, dim=3)])
+    return fem.FieldsMixed(region, n=3, **kwargs)
+
+
+def nearly_incompressible(umat, field, bulk, volumetric="volume-ratio"):
+    """Return the solid body of a section with the u-p-J formulation: of a field of the
+    displacements only (``mixed_field`` of linear hexahedrons and quads)
+    ``fem.SolidBodyNearlyIncompressible``, which condenses the pressure and the volume
+    ratio of every cell, else ``fem.SolidBody`` with ``fem.NearlyIncompressible`` on
+    the mixed fields. Both are the same three-field formulation."""
+    if len(field.fields) == 1:
+        return fem.SolidBodyNearlyIncompressible(
+            umat, field, bulk=bulk, volumetric=volumetric
+        )
+    umat = fem.NearlyIncompressible(umat, bulk=bulk, volumetric=volumetric)
+    return fem.SolidBody(umat, field)
+
+
 # meshes
 bar = volume_cells(meshio.read("bar.vtu"), tag="material")
 
@@ -138,16 +169,14 @@ rubber = fem.NeoHooke(mu=1)
 region_hard_body = REGIONS[hard.cell_type](hard)
 field_hard_body = fem.FieldContainer([fem.Field(region_hard_body, dim=3)])
 region_soft_body = mixed_region(soft)
-field_soft_body = fem.FieldsMixed(region_soft_body, n=3)
+field_soft_body = mixed_field(region_soft_body)
 
 # merge the displacements of all sections into the top-level field
 field = fem.field.merge([field_hard_body, field_soft_body])
 
 # solid bodies
 solid_hard_body = fem.SolidBody(steel_like, field_hard_body)
-solid_soft_body = fem.SolidBody(
-    fem.NearlyIncompressible(rubber, bulk=5000), field_soft_body
-)
+solid_soft_body = nearly_incompressible(rubber, field_soft_body, bulk=5000)
 
 # point sets of the merged mesh
 points = field.mesh_container.points

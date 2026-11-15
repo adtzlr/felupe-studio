@@ -4,6 +4,11 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ## [Unreleased]
 
+### Changed
+
+- The `u-p-J` formulation of linear hexahedrons and quads uses `fem.SolidBodyNearlyIncompressible` on the displacements only, which condenses the constant pressure and volume ratio of every cell, instead of the mixed fields `fem.FieldsMixed` with `fem.NearlyIncompressible`. The discretization is the same: converged results agree within 1e-9. The system has about a third fewer unknowns. At the default tolerance a job may take a few more Newton iterations but ends closer to the converged result (see `docs/benchmarks.md`). Other cells (tetrahedrons and triangles with the MINI element, quadratic cells) keep the mixed fields. The generated script has the helpers `mixed_field()` and `nearly_incompressible()` (only with a `u-p-J` section), so `mixed_field`, `nearly_incompressible` and the other names of the helpers are reserved (#226).
+- The sample *Material test: uniaxial tension* has the tolerance 1e-6, for its comparison with the analytical curve.
+
 ## [0.4.0] - 2026-11-13
 
 Parameters, 2D models and contact: a project gets model parameters with units, asked for when it is opened, and its meshes can be made by Python scripts with them (the parametric sandwich spring and the bushing of FElupe's example ex05). Models are 3D, plane strain or axisymmetric (ADR 0010). Rigid planes and cylinders touch the points of a model by contacts with friction (ADR 0011; the spring with end stops of FElupe's example ex06). Symmetry planes are objects of their own, a running job shows its results live, the curve has free axes, a job chooses its linear solver, and the default tolerance of the Newton-Raphson method is 0.01. The schema version stays 3: projects of v0.3 open unchanged, and new commands are additive (`parameter.add`, `mesh.script`, `symmetry.add`, `rigid.add`, `contact.add`, `analysis` of `model.settings`). Projects of schema versions 1 and 2 are migrated when they are opened.

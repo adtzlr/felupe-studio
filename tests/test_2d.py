@@ -80,8 +80,12 @@ def test_runs_2d_cells(tmp_path, monkeypatch, analysis, cells, formulation):
     if formulation == "u-p-J":
         script = codegen(doc)
         flag = "planestrain" if analysis == "plane-strain" else "axisymmetric"
-        assert f"fem.FieldsMixed(region_body, n=3, {flag}=True)" in script
+        assert f"mixed_field(region_body, {flag}=True)" in script
     result = run(doc)["job_1"]
+    if formulation == "u-p-J":
+        # the displacements only of linear quads (#226), else the mixed fields
+        fields = 1 if cells == "quad" else 3
+        assert len(results._state["namespace"]["field_body"].fields) == fields
     assert result["substeps"] == 3
     assert result["y"][-1][0] > 0
     # the results in the plane z = 0, with the out-of-plane stress
