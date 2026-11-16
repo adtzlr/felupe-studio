@@ -183,12 +183,19 @@ export function CommandForm({
       ? issues[spec.key]
       : undefined;
 
-  const change = (spec: FieldSpec, value: unknown, raw?: RawText) => {
+  const change = (
+    spec: FieldSpec,
+    value: unknown,
+    raw?: RawText,
+    key?: string,
+  ) => {
     const next = setValue(type, draft, spec.path, value, context);
-    // keep the typed text of a field only while it still matches its value
+    // keep the typed text of a field only while it still matches its value; a value
+    // per component (#225) keeps the text of its own component
+    const typed = key ?? spec.key;
     const kept = Object.entries({
       ...texts,
-      ...(raw ? { [spec.key]: raw } : {}),
+      ...(raw ? { [typed]: raw } : {}),
     }).filter(([key, t]) =>
       sameDraft(t.parse(t.text), getValue(next, key.split("."))),
     );
@@ -307,23 +314,33 @@ export function CommandForm({
             }}
           />
         );
-      case "numbers":
+      case "numbers": {
+        // a number is one value, e.g. of a ramp with one value per component (#225)
+        const parse = (text: string) => {
+          const numbers = parseNumbers(text);
+          return input.collapse && numbers.length === 1 ? numbers[0] : numbers;
+        };
+        const shown =
+          typeof value === "number"
+            ? String(value)
+            : Array.isArray(value)
+              ? value.join(", ")
+              : "";
         return (
           <input
             {...common}
             type="text"
             inputMode="decimal"
-            value={
-              texts[key]?.text ?? (Array.isArray(value) ? value.join(", ") : "")
-            }
+            value={texts[key]?.text ?? shown}
             placeholder={spec.placeholder}
             autocomplete="off"
             onInput={(event) => {
               const text = event.currentTarget.value;
-              change(spec, parseNumbers(text), { text, parse: parseNumbers });
+              change(spec, parse(text), { text, parse });
             }}
           />
         );
+      }
       case "coordinates": {
         const text = texts[key]?.text ?? coordinatesText(value);
         return (
@@ -403,6 +420,56 @@ export function CommandForm({
                 />
                 {o.label}
               </label>
+            ))}
+          </div>
+        );
+      }
+      case "components": {
+        // one field per constrained component (#225): one component is a number, a
+        // list of numbers is one value per component, in the order x, y, z
+        const axes = input.axes;
+        const numbers = axes.map((_, i) =>
+          Array.isArray(value)
+            ? (value[i] as number | undefined)
+            : (value as number | undefined),
+        );
+        const edit = (i: number, text: string) => {
+          const parsed = parseNumber(text);
+          const typed = { text, parse: parseNumber };
+          // the text of a component is kept while it matches, e.g. `1e-`
+          const at = axes.length === 1 ? key : `${key}.${i}`;
+          if (axes.length === 1) return change(spec, parsed, typed, at);
+          const next = numbers.map((n, j) =>
+            j === i ? (parsed ?? 0) : (n ?? 0),
+          );
+          change(spec, next, typed, at);
+        };
+        return (
+          <div
+            {...common}
+            role="group"
+            aria-labelledby={`${id}-label`}
+            class="components"
+          >
+            {axes.map((axis, i) => (
+              <span key={axis} class="component">
+                <input
+                  id={`${id}-${axis}`}
+                  type="text"
+                  inputMode="decimal"
+                  aria-label={`${spec.label} ${axis}${
+                    spec.row === undefined ? "" : ` ${spec.row + 1}`
+                  }`}
+                  autocomplete="off"
+                  value={
+                    texts[axes.length === 1 ? key : `${key}.${i}`]?.text ??
+                    numberText(numbers[i])
+                  }
+                  placeholder={spec.placeholder}
+                  onInput={(event) => edit(i, event.currentTarget.value)}
+                />
+                <span class="muted">{axis}</span>
+              </span>
             ))}
           </div>
         );
@@ -560,7 +627,7 @@ export function CommandForm({
         }
         if (spec.input.type === "rows") {
           const { columns, minItems } = spec.input;
-          const rows = cells(spec, draft);
+          const rows = cells(spec, draft, context);
           const seed = addRow(type, spec, draft, context).at(-1)!;
           // a new row needs an object that is not used yet
           const full = columns.some(
@@ -665,6 +732,7 @@ export function CommandForm({
         }
         const group =
           spec.input.type === "multichoice" ||
+          spec.input.type === "components" ||
           (spec.input.type === "reference" && spec.input.multiple);
         return (
           <div

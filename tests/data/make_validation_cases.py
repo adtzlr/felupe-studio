@@ -897,6 +897,27 @@ CHANGES = {
         find(d, "hard").update(mesh="nomesh"),
         find(d, "job_1").update(name="hard"),
     ),
+    # a value per constrained component of a boundary (#225)
+    "values per component": lambda d: (
+        find(d, "move").update(constrained=["x", "z"], value=[0.1, -0.2]),
+        find(d, "step_1")["ramp"]["items"][0].update(start=[0, 0.1], end=[0.5, -0.1]),
+    ),
+    "boundary with too many values": lambda d: find(d, "fixed").update(value=[0, 0]),
+    "boundary with too few values": lambda d: find(d, "move").update(
+        constrained=["x", "y", "z"], value=[0.1, -0.2]
+    ),
+    "ramp with too many values": lambda d: find(d, "step_1")["ramp"]["items"][0].update(
+        end=[0.5, -0.1]
+    ),
+    "ramp of a load case with values": lambda d: (
+        d["commands"].insert(
+            -2,
+            {"command": "loadcase.add", "name": "tension", "type": "uniaxial"},
+        ),
+        find(d, "step_1")["ramp"]["items"].append(
+            {"target": "tension", "end": [0.1, 0.2]}
+        ),
+    ),
 }
 
 

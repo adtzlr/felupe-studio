@@ -82,7 +82,7 @@ describe("fieldSpecs", () => {
       "name:name*",
       "pointset:reference*",
       "constrained:multichoice*",
-      "value:number",
+      "value:components",
     ]);
     expect(summary("mpc.add", {} as Draft)).toEqual([
       "name:name*",
@@ -779,7 +779,7 @@ describe("editing a draft", () => {
     const spec = fieldSpecs("step.add", step).find(
       (s) => s.key === "ramp.items",
     )!;
-    const [[target, start, end]] = cells(spec, step);
+    const [[target, start, end]] = cells(spec, step, editing("step_1"));
     expect(target).toMatchObject({
       key: "ramp.items.0.target",
       path: ["ramp", "items", "0", "target"],
@@ -793,7 +793,7 @@ describe("editing a draft", () => {
     expect(rows.at(-1)).toEqual({ target: "fixed", end: 1 });
     const two = setValue("step.add", step, spec.path, rows, context);
     expect(draftErrors("step.add", two, editing("step_1"))).toEqual({});
-    const second = cells(spec, two)[1];
+    const second = cells(spec, two, editing("step_1"))[1];
     expect(offered(second[0], two, editing("step_1"))).toEqual(["fixed"]);
     expect(offered(target, two, editing("step_1"))).toEqual(["move"]);
     // every boundary is ramped: no further row
@@ -928,6 +928,106 @@ describe("editing a draft", () => {
     expect(sameDraft({ a: 1, b: undefined }, { a: 1 })).toBe(true);
     expect(sameDraft({ a: [1, 2] }, { a: [2, 1] })).toBe(false);
     expect(sameDraft({ a: NaN }, { a: NaN })).toBe(true);
+  });
+});
+
+describe("a value per constrained component (#225)", () => {
+  const boundary = (value?: unknown) =>
+    ({
+      command: "boundary.add",
+      name: "move",
+      pointset: "right",
+      constrained: ["x", "z"],
+      ...(value === undefined ? {} : { value }),
+    }) as unknown as Draft;
+  const spec = (draft: Draft) =>
+    fieldSpecs("boundary.add", draft).find((s) => s.key === "value")!;
+
+  it("shows a field per constrained component", () => {
+    expect(spec(boundary()).input).toEqual({
+      type: "components",
+      axes: ["x", "z"],
+    });
+    // in the order x, y, z, not in the order of the list
+    expect(spec({ ...boundary(), constrained: ["z", "x"] }).input).toEqual({
+      type: "components",
+      axes: ["x", "z"],
+    });
+    // a number applies to all components, a list has one value per component
+    expect(draftErrors("boundary.add", boundary(0.5), editing("move"))).toEqual(
+      {},
+    );
+    expect(
+      draftErrors("boundary.add", boundary([0.1, -0.2]), editing("move")),
+    ).toEqual({});
+    expect(
+      draftErrors("boundary.add", boundary([0.1]), editing("move")),
+    ).toEqual({
+      value:
+        "Enter one number per component (x, z), with a point as decimal separator.",
+    });
+    expect(schemaAccepts(boundary([0.1, -0.2]))).toBe(true);
+    // the schema allows one to three numbers, the validation the components
+    expect(schemaAccepts(boundary([0.1, -0.2, 0]))).toBe(true);
+    expect(
+      validate([
+        ...commands,
+        { ...(boundary([0.1, -0.2, 0]) as object), name: "pull" } as Command,
+      ]).map((issue) => issue.message),
+    ).toEqual([
+      `commands/${commands.length}: boundary 'pull' has 3 values, but it constrains 2 components.`,
+    ]);
+  });
+
+  it("keeps the values of the components that stay", () => {
+    const context: Context = { commands, editing: "move" };
+    const both = setValue(
+      "boundary.add",
+      boundary(0.5),
+      ["value"],
+      [0.1, -0.2],
+      context,
+    );
+    expect(both.value).toEqual([0.1, -0.2]);
+    // z only: the value of z, as one number
+    const z = setValue("boundary.add", both, ["constrained"], ["z"], context);
+    expect(z.value).toBe(-0.2);
+    // a number applies to all constrained components
+    expect(
+      setValue("boundary.add", z, ["constrained"], ["x", "z"], context).value,
+    ).toBe(-0.2);
+  });
+
+  it("ramps one value per component", () => {
+    const two = {
+      ...find("move"),
+      constrained: ["x", "z"],
+    } as unknown as Command;
+    const context: Context = {
+      commands: [...commands.filter((c) => c.name !== "move"), two],
+      editing: "step_1",
+    };
+    const step = find("step_1");
+    const ramp = fieldSpecs("step.add", step).find(
+      (s) => s.key === "ramp.items",
+    )!;
+    const [[, , end]] = cells(ramp, step, context);
+    expect(end.input).toEqual({
+      type: "numbers",
+      minItems: 2,
+      maxItems: 2,
+      collapse: true,
+    });
+    expect(draftErrors("step.add", step, context)).toEqual({});
+    const ramped = setValue("step.add", step, end.path, [0.5, -0.1], context);
+    expect(ramped.ramp).toMatchObject({
+      items: [{ target: "move", end: [0.5, -0.1] }],
+    });
+    expect(draftErrors("step.add", ramped, context)).toEqual({});
+    // a boundary with one constrained component ramps a number, as before
+    expect(cells(ramp, step, editing("step_1"))[0][2].input.type).toBe(
+      "number",
+    );
   });
 });
 

@@ -8,6 +8,7 @@ import {
   boundarySymbols,
   direction,
   emptyPlanes,
+  expand,
   loadcaseParts,
   modelSize,
   strokes,
@@ -61,7 +62,7 @@ describe("boundaries of load cases like fem.dof", () => {
           ).toEqual(expected.points);
           expect(symbol!.components, key).toEqual(expected.components);
           // -0 of a move of 0 backwards is 0
-          expect(symbol!.value + 0, key).toBe(expected.value + 0);
+          expect(symbol!.values[0] + 0, key).toBe(expected.value + 0);
         }
         // no other boundaries
         expect(
@@ -121,7 +122,7 @@ describe("symmetry planes like fem.dof.symmetry (#186)", () => {
           }
           expect(points.sort((a, b) => a - b)).toEqual(expected.points);
           expect(symbol.components).toEqual(expected.components);
-          expect(symbol.value).toBe(0);
+          expect(symbol.values).toEqual([0]);
         }
       });
     }
@@ -189,13 +190,16 @@ describe("boundary symbols", () => {
     expect(get("fixed")).toMatchObject({
       owner: "fixed",
       components: [0, 1, 2],
-      value: 0,
+      values: [0, 0, 0],
     });
     expect(get("fixed").points.length / 3).toBe(6);
     // the last step that ramps a boundary gives its value
-    expect(get("move").value).toBe(-0.25);
-    expect(get("pulled").value).toBe(0.1);
-    expect(get("tension/move")).toMatchObject({ owner: "tension", value: 0.5 });
+    expect(get("move").values).toEqual([-0.25]);
+    expect(get("pulled").values).toEqual([0.1, 0.1]);
+    expect(get("tension/move")).toMatchObject({
+      owner: "tension",
+      values: [0.5],
+    });
     // point sets of point ids are not drawn
     expect(symbols.find((s) => s.name === "by_ids")).toBeUndefined();
     expect(boundarySymbols(commands, [])).toEqual([]);
@@ -299,9 +303,21 @@ describe("boundary symbols", () => {
     const d = direction(pulled);
     expect(d[0]).toBe(0);
     expect(d[1]).toBeCloseTo(Math.SQRT1_2);
-    expect(direction({ ...pulled, components: [0], value: -1 })).toEqual([
+    expect(direction({ ...pulled, components: [0], values: [-1] })).toEqual([
       -1, 0, 0,
     ]);
+    // a value per constrained component (#225): the direction of the sum
+    const diagonal = direction({
+      ...pulled,
+      components: [0, 2],
+      values: [0.5, -0.5],
+    });
+    expect(diagonal[0]).toBeCloseTo(Math.SQRT1_2);
+    expect(diagonal[1]).toBe(0);
+    expect(diagonal[2]).toBeCloseTo(-Math.SQRT1_2);
+    // one value for all components, and a list of one per component
+    expect(expand(0.5, 2)).toEqual([0.5, 0.5]);
+    expect(expand([0.5, -0.1], 2)).toEqual([0.5, -0.1]);
     expect(modelSize(nodes)).toBeCloseTo(Math.sqrt(6));
     const many = new Float64Array(3 * 1000).map((_, i) => i);
     expect(thinned(many).length).toBe(900);

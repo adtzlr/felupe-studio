@@ -22,6 +22,10 @@ const AXES = ["x", "y", "z"] as const;
 const isClose = (a: number, b: number, atol: number) =>
   Math.abs(a - b) <= atol + 1e-5 * Math.abs(b);
 
+/** A number with its noun, in the plural if needed, e.g. `1 value`. */
+const countOf = (count: number, word: string) =>
+  count === 1 ? `${count} ${word}` : `${count} ${word}s`;
+
 /**
  * Whether a point set by a coordinate, on a cylinder or by nodes selects the
  * coordinates of a point, like the script: also a control point or the reference
@@ -321,6 +325,45 @@ export function validate(commands: readonly Command[]): Issue[] {
       const twice = targets.filter((t, i) => targets.indexOf(t) !== i);
       for (const ref of [...new Set(twice)].sort()) {
         add(`step '${name}' ramps '${ref}' twice.`, "ramp.items");
+      }
+      // one value per constrained component of a boundary (#225)
+      for (const item of cmd.ramp.items) {
+        const values = [item.start ?? 0, item.end].filter((v) =>
+          Array.isArray(v),
+        ) as number[][];
+        if (!values.length) continue;
+        const target = defined.get(item.target)?.[1];
+        if (!target) continue;
+        if (target.command !== "boundary.add") {
+          add(
+            `step '${name}' ramps '${item.target}' with ${countOf(values[0].length, "value")}: only a boundary ramps one value per constrained component.`,
+            "ramp.items",
+          );
+          continue;
+        }
+        const constrained = target.constrained.length;
+        const counts = [
+          ...new Set(
+            values.filter((v) => v.length !== constrained).map((v) => v.length),
+          ),
+        ].sort((a, b) => a - b);
+        for (const count of counts) {
+          add(
+            `step '${name}' ramps '${item.target}' with ${countOf(count, "value")}, but the boundary constrains ${countOf(constrained, "component")}.`,
+            "ramp.items",
+          );
+        }
+      }
+    }
+
+    // a boundary with a value per constrained component (#225)
+    if (cmd.command === "boundary.add" && Array.isArray(cmd.value)) {
+      const constrained = cmd.constrained.length;
+      if (cmd.value.length !== constrained) {
+        add(
+          `boundary '${name}' has ${countOf(cmd.value.length, "value")}, but it constrains ${countOf(constrained, "component")}.`,
+          "value",
+        );
       }
     }
 

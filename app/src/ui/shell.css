@@ -903,6 +903,24 @@ button {
   cursor: pointer;
 }
 
+/* a value per constrained component (#225): one field per axis */
+.components {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-6);
+  padding-top: var(--space-4);
+}
+
+.component {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.component input {
+  width: 5rem;
+}
+
 .form-toggle,
 .command-form .actions {
   grid-column: 1 / -1;

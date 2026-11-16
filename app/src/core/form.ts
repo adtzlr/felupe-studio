@@ -22,6 +22,16 @@ import {
 /** A command that is being edited; it may be incomplete or hold invalid values. */
 export type Draft = Record<string, unknown>;
 
+const AXES = ["x", "y", "z"] as const;
+
+/**
+ * The components of a value per component, in the order x, y, z of the constrained
+ * components of a boundary (#225).
+ */
+export function componentAxes(constrained: readonly string[] = []): string[] {
+  return AXES.filter((axis) => constrained.includes(axis));
+}
+
 export interface Option {
   value: string;
   label: string;
@@ -54,6 +64,8 @@ export type Input =
       maxItems?: number;
       /** No item may be zero, e.g. an exponent of Ogden (#136). */
       nonzero?: boolean;
+      /** One number stays a number, e.g. the value of a ramp (#225). */
+      collapse?: boolean;
     }
   | {
       type: "reference";
@@ -61,6 +73,11 @@ export type Input =
       multiple: boolean;
       minItems: number;
     }
+  /**
+   * A number per constrained component, e.g. the value of a boundary (#225): one
+   * field per axis; one component is a number, more are a list of numbers.
+   */
+  | { type: "components"; axes: string[] }
   /**
    * A list of objects, edited as rows; `columns` are the fields of a row, with
    * paths relative to the row (see `cells`).
@@ -133,6 +150,11 @@ interface Node {
    * property has it, e.g. `x` of a symmetry with `x` in `axes` (#186).
    */
   "x-if-axis"?: string;
+  /**
+   * The property that lists the components of a value per component, e.g.
+   * `constrained` of the value of a boundary (#225).
+   */
+  "x-components"?: string;
   not?: Node;
   if?: Node;
   then?: Node;
@@ -153,6 +175,10 @@ const isObject = (value: unknown): value is Draft =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
 const info = (type: CommandType, key: string) => REGISTRY[type].fields[key];
+
+/** The types of a property: a list for a value of more than one type (#225). */
+const typeNames = (node: Node): readonly string[] =>
+  Array.isArray(node.type) ? node.type : node.type ? [node.type] : [];
 
 const option = (type: CommandType, key: string, value: string): Option => ({
   value,
@@ -340,6 +366,19 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
             minItems: 0,
           });
         }
+      } else if (raw["x-components"] !== undefined) {
+        // a value per constrained component, e.g. of a boundary (#225)
+        const list = value[raw["x-components"]];
+        const axes = componentAxes(
+          Array.isArray(list) ? (list as string[]) : [],
+        );
+        push(
+          path,
+          isRequired,
+          { type: "components", axes },
+          raw.description,
+          raw,
+        );
       } else if (property.enum) {
         const options = property.enum.map((v) => option(type, key, v));
         push(path, isRequired, { type: "choice", options }, raw.description);
@@ -352,7 +391,10 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
           { type: "boolean", default: raw.default === true },
           raw.description,
         );
-      } else if (property.type === "number" || property.type === "integer") {
+      } else if (
+        typeNames(property).includes("number") ||
+        typeNames(property).includes("integer")
+      ) {
         push(
           path,
           isRequired,
@@ -601,17 +643,49 @@ export function addRow(
 }
 
 /** The fields of the rows of a rows field, by row, with their full paths. */
-export function cells(spec: FieldSpec, draft: Draft): FieldSpec[][] {
+export function cells(
+  spec: FieldSpec,
+  draft: Draft,
+  context: Context,
+): FieldSpec[][] {
   if (spec.input.type !== "rows") return [];
   const value = getValue(draft, spec.path);
-  const rows = Array.isArray(value) ? value : [];
+  const rows = Array.isArray(value) ? (value as Draft[]) : [];
   const { columns } = spec.input;
-  return rows.map((_, row) =>
+  return rows.map((row, i) =>
     columns.map((column) => {
-      const path = [...spec.path, String(row), ...column.path];
-      return { ...column, path, key: path.join("."), row };
+      const path = [...spec.path, String(i), ...column.path];
+      const cell = { ...column, path, key: path.join("."), row: i };
+      return { ...cell, input: cellInput(spec, column, cell, row, context) };
     }),
   );
+}
+
+/**
+ * The input of a cell of the rows of a ramp: the values of the boundary that the row
+ * targets, one per constrained component (#225) as numbers separated by commas;
+ * else the input of the column.
+ */
+function cellInput(
+  spec: FieldSpec,
+  column: FieldSpec,
+  cell: FieldSpec,
+  row: Draft,
+  context: Context,
+): Input {
+  const values = ["ramp.items.start", "ramp.items.end"];
+  if (spec.key !== "ramp.items" || !values.includes(column.key))
+    return cell.input;
+  const target = context.commands.find((c) => c.name === row.target);
+  const axes =
+    target?.command === "boundary.add" ? componentAxes(target.constrained) : [];
+  if (axes.length < 2) return cell.input;
+  return {
+    type: "numbers",
+    minItems: axes.length,
+    maxItems: axes.length,
+    collapse: true,
+  };
 }
 
 /**
@@ -712,7 +786,30 @@ export function setValue(
 ): Draft {
   const next = structuredClone(draft);
   assign(next, path, value);
-  return normalize(type, next, context, keysOf(type, draft));
+  const normalized = normalize(type, next, context, keysOf(type, draft));
+  return type === "boundary.add" ? adjustValues(draft, normalized) : normalized;
+}
+
+/**
+ * Follow a change of the constrained components of a boundary (#225): the values of
+ * the components that stay keep their value, in the order x, y, z; one component is
+ * a number, more are a list.
+ */
+function adjustValues(draft: Draft, next: Draft): Draft {
+  const value = next.value;
+  // a number applies to all constrained components
+  if (!Array.isArray(value)) return next;
+  const axes = (d: Draft) =>
+    componentAxes(
+      Array.isArray(d.constrained) ? (d.constrained as string[]) : [],
+    );
+  const before = axes(draft);
+  // a list of another length than the components was not made by the form
+  if (before.length !== value.length) return next;
+  const numbers = new Map(before.map((axis, i) => [axis, value[i] as number]));
+  const after = axes(next);
+  const values = after.map((axis) => numbers.get(axis) ?? 0);
+  return { ...next, value: values.length === 1 ? values[0] : values };
 }
 
 /** Set (or with undefined: remove) the value at a path of a draft, in place. */
@@ -805,6 +902,24 @@ function fieldError(
         ? "Each id may appear only once."
         : undefined;
     }
+    case "components": {
+      if (value === undefined || value === "")
+        return required ? "Required." : undefined;
+      // a number applies to all constrained components
+      if (typeof value === "number") {
+        return Number.isFinite(value)
+          ? undefined
+          : "Enter a number, with a point as decimal separator.";
+      }
+      const numbers = Array.isArray(value) ? (value as unknown[]) : [];
+      const ok =
+        numbers.length === input.axes.length &&
+        numbers.every((x) => typeof x === "number" && Number.isFinite(x));
+      if (ok) return undefined;
+      return input.axes.length === 1
+        ? "Enter a number, with a point as decimal separator."
+        : `Enter one number per component (${input.axes.join(", ")}), with a point as decimal separator.`;
+    }
     case "reference": {
       const names = available(context, input.kind);
       const kind = kindLabel(input.kind);
@@ -833,8 +948,13 @@ function fieldError(
         : `There is no ${kind} '${String(value)}'.`;
     }
     case "numbers": {
+      // a number is one value, e.g. of a ramp with one value per component (#225)
+      if (typeof value === "number")
+        return Number.isFinite(value)
+          ? undefined
+          : "Enter a number, with a point as decimal separator.";
       const numbers = Array.isArray(value) ? (value as unknown[]) : [];
-      if (!numbers.length && !required) return undefined;
+      if (!numbers.length) return required ? "Required." : undefined;
       const count =
         input.maxItems === input.minItems
           ? `${input.minItems} numbers`
@@ -895,7 +1015,7 @@ export function draftErrors(
   for (const spec of fieldSpecs(type, draft)) {
     const error = fieldError(spec, getValue(draft, spec.path), context);
     if (error) errors[spec.key] = error;
-    for (const row of cells(spec, draft)) {
+    for (const row of cells(spec, draft, context)) {
       for (const cell of row) {
         const message = fieldError(cell, getValue(draft, cell.path), context);
         if (message) errors[cell.key] = message;

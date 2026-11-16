@@ -103,6 +103,9 @@ def _type(node, command="", key=""):
     if "enum" in node:
         return _join([_code(v) for v in node["enum"]])
     kind = node.get("type")
+    if isinstance(kind, list):
+        # a value of more than one type, e.g. a number or one per component (#225)
+        return _join([_type({**node, "type": k}, command, key) for k in kind])
     if kind == "array":
         items = node["items"]
         item = _type(items, command, key)
@@ -110,11 +113,16 @@ def _type(node, command="", key=""):
             item = f"names of {_kinds(command, key, plural=True)}"
         elif _resolve(items).get("type") == "object":
             item = "list of objects"
+        elif _resolve(items).get("type") == "number":
+            item = "numbers"
         else:
             item = f"list of {item}"
         extra = []
-        if node.get("minItems"):
-            extra.append(f"at least {node['minItems']}")
+        low, high = node.get("minItems"), node.get("maxItems")
+        if low and high:
+            item = f"list of {low} to {high} {item}"
+        elif low:
+            extra.append(f"at least {low}")
         if node.get("uniqueItems"):
             extra.append("unique")
         return item + (f" ({', '.join(extra)})" if extra else "")

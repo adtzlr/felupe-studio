@@ -4,6 +4,10 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ## [Unreleased]
 
+### Added
+
+- A boundary prescribes its value per constrained component (`value: [0.1, -0.2]`, #225), e.g. to move a point set diagonally instead of two boundaries on the same points, and a step ramps one value per component (`np.outer(fem.math.linsteps([0, 1], num), [ex, ez])`, `np.linspace` from a start other than zero). With two of three axes constrained the list has two values, the constrained components only. The form shows one *Value* field per constrained component and the *End* of a ramp of such a boundary takes the values separated by commas; the viewport draws the arrow of the combined direction. The validation (shared cases) reports a list of another length than the constrained components, and a list in the ramp of a load case, point load or pressure, which have one value.
+
 ### Changed
 
 - The `u-p-J` formulation of linear hexahedrons and quads uses `fem.SolidBodyNearlyIncompressible` on the displacements only, which condenses the constant pressure and volume ratio of every cell, instead of the mixed fields `fem.FieldsMixed` with `fem.NearlyIncompressible`. The discretization is the same: converged results agree within 1e-9. The system has about a third fewer unknowns. At the default tolerance a job may take a few more Newton iterations but ends closer to the converged result (see `docs/benchmarks.md`). Other cells (tetrahedrons and triangles with the MINI element, quadratic cells) keep the mixed fields. The generated script has the helpers `mixed_field()` and `nearly_incompressible()` (only with a `u-p-J` section), so `mixed_field`, `nearly_incompressible` and the other names of the helpers are reserved (#226).

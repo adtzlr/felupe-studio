@@ -726,9 +726,12 @@ export interface BoundaryAdd {
    */
   constrained: [Axis, ...Axis[]];
   /**
-   * Prescribed displacement of the constrained components (default 0); a rotation in rad at a rotation point.
+   * Prescribed displacement of the constrained components (default 0): one number for all of them, or one number per constrained component in the order x, y, z (e.g. a point set that moves diagonally); a rotation in rad at a rotation point.
+   *
+   * @minItems 1
+   * @maxItems 3
    */
-  value?: number;
+  value?: number | [number] | [number, number] | [number, number, number];
 }
 /**
  * Uniaxial tension or compression along an axis (fem.dof.uniaxial). The end face at the largest coordinate moves.
@@ -1001,7 +1004,7 @@ export interface StepAdd {
   };
 }
 /**
- * A ramped item: a boundary (its value, e.g. a displacement), a load case (the displacement of its moving faces), a point load (a factor of its force) or a pressure (a factor of its pressure).
+ * A ramped item: a boundary (its value, e.g. a displacement, or one value per constrained component), a load case (the displacement of its moving faces), a point load (a factor of its force) or a pressure (a factor of its pressure).
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "RampItem".
@@ -1012,13 +1015,19 @@ export interface RampItem {
    */
   target: string;
   /**
-   * Value at the start of the step (default 0).
+   * Value at the start of the step (default 0); of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z.
+   *
+   * @minItems 1
+   * @maxItems 3
    */
-  start?: number;
+  start?: number | [number] | [number, number] | [number, number, number];
   /**
-   * Value at the end of the step.
+   * Value at the end of the step; of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z.
+   *
+   * @minItems 1
+   * @maxItems 3
    */
-  end: number;
+  end: number | [number] | [number, number] | [number, number, number];
 }
 /**
  * A job evaluating steps one after another (fem.Job). With a curve, the force-displacement curve of a boundary, a load case or a point load is recorded (fem.CharacteristicCurve).

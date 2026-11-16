@@ -235,6 +235,29 @@ describe("editing in the properties panel", () => {
     expect(store.get("section_hard")).toMatchObject({ material: "umat_hard" });
   });
 
+  it("edits a value per constrained component (#225)", () => {
+    const boundary = edit("fixed");
+    // one field per constrained component, in the order x, y, z
+    expect(boundary.field("Value x")).toBeTruthy();
+    expect(boundary.field("Value z")).toBeTruthy();
+    // a partial number stays while it is typed
+    boundary.type("Value x", "1e-");
+    expect(boundary.field("Value x").value).toBe("1e-");
+    boundary.type("Value x", "0");
+    boundary.type("Value y", "0.05");
+    fireEvent.click(boundary.button("Apply"));
+    expect(boundary.store.get("fixed")).toMatchObject({ value: [0, 0.05, 0] });
+    cleanup();
+
+    // one constrained component is a number, as before
+    const move = edit("move");
+    expect(move.field("Value x")).toBeTruthy();
+    expect(within(move.properties).queryByLabelText("Value z")).toBeNull();
+    move.type("Value x", "-0.2");
+    fireEvent.click(move.button("Apply"));
+    expect(move.store.get("move")).toMatchObject({ value: -0.2 });
+  });
+
   it("edits checkbox groups, optional groups and variants", () => {
     const boundary = edit("fixed");
     fireEvent.click(boundary.field("y"));

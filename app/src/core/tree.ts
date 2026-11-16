@@ -172,12 +172,19 @@ function detail(cmd: Command, commands: readonly Command[]): string {
         .filter(Boolean)
         .join(" · ");
     case "boundary.add": {
+      // one value for all constrained components, or one per component (#225)
       const value = cmd.value ?? 0;
+      const zero = Array.isArray(value)
+        ? !value.some((v) => v !== 0)
+        : value === 0;
+      const text = Array.isArray(value)
+        ? `(${value.join(", ")})`
+        : String(value);
       const constrained = AXES.filter((a) => cmd.constrained.includes(a)).join(
         ", ",
       );
       const unit = unitOf(boundaryQuantity(commands, cmd.pointset), units);
-      return `${cmd.pointset} · ${constrained}${value !== 0 ? ` = ${valueWithUnit(String(value), unit)}` : ""}`;
+      return `${cmd.pointset} · ${constrained}${zero ? "" : ` = ${valueWithUnit(text, unit)}`}`;
     }
     case "loadcase.add":
       return describeLoadcase(cmd);
@@ -188,7 +195,11 @@ function detail(cmd: Command, commands: readonly Command[]): string {
         ? cmd.ramp.items
             .map((i) => {
               const unit = unitOf(rampedQuantity(commands, i.target), units);
-              return `${i.target}: ${i.start ?? 0} → ${valueWithUnit(String(i.end), unit)}`;
+              // one value per constrained component of a boundary (#225)
+              const text = (v: unknown) =>
+                Array.isArray(v) ? `(${v.join(", ")})` : String(v);
+              const from = text(i.start ?? 0);
+              return `${i.target}: ${from} → ${valueWithUnit(text(i.end), unit)}`;
             })
             .join(", ") + ` (${cmd.ramp.num})`
         : "no ramp";
