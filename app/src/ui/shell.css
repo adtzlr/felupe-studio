@@ -987,6 +987,12 @@ button {
   min-width: 0;
 }
 
+/* the remove button of a row stays at its top, also when the row is higher than one
+   line (a value per component, #225) */
+.rows > .icon-button {
+  align-self: start;
+}
+
 /* the unit of a value in a row, e.g. of a ramped item (#132) */
 .rows-cell:has(> .unit) {
   display: flex;
