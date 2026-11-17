@@ -240,6 +240,8 @@ describe("editing in the properties panel", () => {
     // one field per constrained component, in the order x, y, z
     expect(boundary.field("Value x")).toBeTruthy();
     expect(boundary.field("Value z")).toBeTruthy();
+    // an empty field is 0
+    expect(boundary.properties.textContent).toContain("0 if empty");
     // a partial number stays while it is typed
     boundary.type("Value x", "1e-");
     expect(boundary.field("Value x").value).toBe("1e-");
@@ -258,6 +260,39 @@ describe("editing in the properties panel", () => {
     move.type("Value x", "-0.2");
     fireEvent.click(move.button("Apply"));
     expect(move.store.get("move")).toMatchObject({ value: -0.2 });
+  });
+
+  it("says that the value of a rotation point is a rotation (#225)", () => {
+    // a 2D model with a rotation point: its boundary constrains z, the rotation
+    const commands = [
+      { command: "model.settings", name: "settings", analysis: "plane-strain" },
+      ...(fixture as CommandList).commands.map((c) =>
+        c.name === "fixed" ? { ...c, constrained: ["x", "y"] } : c,
+      ),
+      { command: "point.add", name: "pivot", coordinates: [4, 0.6, 0] },
+      { command: "point.add", name: "pin", coordinates: [4, 0.5, 0] },
+      {
+        command: "mpc.add",
+        name: "glue",
+        points: "right",
+        center: "pin",
+        constrained: ["x", "y"],
+        rotation: "pivot",
+      },
+      {
+        command: "boundary.add",
+        name: "turn",
+        pointset: "pivot",
+        constrained: ["z"],
+      },
+    ] as Command[];
+    const store = new ModelStore({ ...(fixture as CommandList), commands });
+    render(<App store={store} />);
+    const tree = screen.getByRole("tree", { name: "Model" });
+    fireEvent.click(within(tree).getByRole("treeitem", { name: "turn" }));
+    const properties = screen.getByRole("region", { name: "Properties" });
+    expect(properties.textContent).toContain("Prescribed rotation in rad");
+    expect(properties.textContent).not.toContain("Prescribed displacement");
   });
 
   it("edits checkbox groups, optional groups and variants", () => {

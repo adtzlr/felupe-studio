@@ -124,7 +124,7 @@ A **face set** (Mesh tab) selects faces of the boundary of a section, e.g. for a
 
 ### 4. Boundaries and load cases
 
-A **Boundary** prescribes displacement components of a point set: *Constrained* are the components, *Value* is the displacement (default 0), one field per constrained component, so one boundary moves a point set diagonally, e.g. in x and z at once. Components that are not constrained are free. To fix some components and move others, use two boundaries, e.g. `hold` with y and z and `move` with x.
+A **Boundary** prescribes displacement components of a point set: *Constrained* are the components, *Value* is the displacement (default 0; of a rotation point a rotation in rad), one field per constrained component, so one boundary moves a point set diagonally, e.g. in x and z at once. Components that are not constrained are free. To fix some components and move others, use two boundaries, e.g. `hold` with y and z and `move` with x.
 
 A **Load case** creates the boundaries of a standard test at once (uniaxial, biaxial, planar, shear), optionally with symmetry planes. A step ramps the displacement of its moving end faces.
 

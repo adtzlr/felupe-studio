@@ -10,6 +10,10 @@ const source = new URL(
 const target = new URL("../src/core/commands.ts", import.meta.url);
 
 const schema = JSON.parse(await readFile(source, "utf-8"));
+// A value per constrained component (#225) stays a type of its own in the schema
+// instead of a shared `$defs` entry: json-schema-to-typescript specializes a `$ref`
+// whose property has siblings (`x-quantity`, `x-components`, `default`), which gives
+// one near-duplicate type alias per property instead of one type.
 const types = await compile(schema, "CommandList", {
   bannerComment:
     "/* Generated from python/felupe_studio/commands.schema.json by\n" +

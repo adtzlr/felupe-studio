@@ -227,6 +227,21 @@ export function CommandForm({
     return unitOf(quantity, units);
   };
 
+  /**
+   * The hint of a field: the value of a rotation point is a rotation in rad, not a
+   * displacement (#98, #225); an empty value is 0.
+   */
+  const hint = (spec: FieldSpec) => {
+    const rotation =
+      type === "boundary.add" &&
+      spec.key === "value" &&
+      boundaryQuantity(
+        context.commands,
+        draft.pointset as string | undefined,
+      ) === "rotation";
+    return rotation ? "Prescribed rotation in rad, 0 if empty" : spec.hint;
+  };
+
   const reset = () => {
     setDraft(start);
     setTexts({});
@@ -254,7 +269,7 @@ export function CommandForm({
     const error = errorOf(key);
     const issue = issueOf(spec);
     const describedBy =
-      [spec.hint && `${id}-hint`, (error || issue) && `${id}-error`]
+      [hint(spec) && `${id}-hint`, (error || issue) && `${id}-error`]
         .filter(Boolean)
         .join(" ") || undefined;
     const common = {
@@ -588,16 +603,16 @@ export function CommandForm({
                     id={id}
                     type="checkbox"
                     checked={checked}
-                    aria-describedby={spec.hint ? `${id}-hint` : undefined}
+                    aria-describedby={hint(spec) ? `${id}-hint` : undefined}
                     onChange={(event) =>
                       change(spec, event.currentTarget.checked)
                     }
                   />
                   {spec.label}
                 </label>
-                {spec.hint && (
+                {hint(spec) && (
                   <small id={`${id}-hint`} class="muted">
-                    {spec.hint}
+                    {hint(spec)}
                   </small>
                 )}
               </div>
@@ -613,16 +628,16 @@ export function CommandForm({
                   id={id}
                   type="checkbox"
                   checked={on}
-                  aria-describedby={spec.hint ? `${id}-hint` : undefined}
+                  aria-describedby={hint(spec) ? `${id}-hint` : undefined}
                   onChange={(event) =>
                     change(spec, event.currentTarget.checked ? {} : undefined)
                   }
                 />
                 {spec.label}
               </label>
-              {spec.hint && (
+              {hint(spec) && (
                 <small id={`${id}-hint`} class="muted">
-                  {spec.hint}
+                  {hint(spec)}
                 </small>
               )}
             </div>
@@ -652,7 +667,7 @@ export function CommandForm({
               class={spec.path.length > 1 ? "form-rows nested" : "form-rows"}
               role="group"
               aria-labelledby={`${id}-label`}
-              aria-describedby={spec.hint ? `${id}-hint` : undefined}
+              aria-describedby={hint(spec) ? `${id}-hint` : undefined}
             >
               <span
                 id={`${id}-label`}
@@ -724,9 +739,9 @@ export function CommandForm({
                   + Add row
                 </button>
               </div>
-              {spec.hint && (
+              {hint(spec) && (
                 <small id={`${id}-hint`} class="muted">
-                  {spec.hint}
+                  {hint(spec)}
                 </small>
               )}
               <Message id={id} error={error} issue={issueOf(spec)} />
@@ -753,9 +768,9 @@ export function CommandForm({
             )}
             <div class="form-control">
               {control(spec)}
-              {spec.hint && (
+              {hint(spec) && (
                 <small id={`${id}-hint`} class="muted">
-                  {spec.hint}
+                  {hint(spec)}
                 </small>
               )}
               <Message id={id} error={error} issue={issueOf(spec)} />

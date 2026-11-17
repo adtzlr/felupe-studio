@@ -372,7 +372,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       constrained: { label: "Constrained", default: ["x", "y", "z"] },
       value: {
         label: "Value",
-        hint: "Prescribed displacement",
+        hint: "Prescribed displacement, 0 if empty",
         placeholder: "0",
       },
     },
