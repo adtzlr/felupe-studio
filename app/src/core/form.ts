@@ -75,9 +75,10 @@ export type Input =
     }
   /**
    * A number per constrained component, e.g. the value of a boundary (#225): one
-   * field per axis; one component is a number, more are a list of numbers.
+   * field per axis; one component is a number, more are a list of numbers. In a cell
+   * of the rows, the fields are one above the other.
    */
-  | { type: "components"; axes: string[] }
+  | { type: "components"; axes: string[]; stack?: boolean }
   /**
    * A list of objects, edited as rows; `columns` are the fields of a row, with
    * paths relative to the row (see `cells`).
@@ -658,17 +659,8 @@ export function cells(
       const cell = { ...column, path, key: path.join("."), row: i };
       const axes = rampAxes(spec, column, row, context);
       if (axes.length < 2) return cell;
-      // one value per constrained component (#225), as numbers separated by commas
-      return {
-        ...cell,
-        input: {
-          type: "numbers",
-          minItems: axes.length,
-          maxItems: axes.length,
-          collapse: true,
-        },
-        placeholder: axes.map(() => "0").join(", "),
-      };
+      // one field per constrained component (#225), one above the other in the cell
+      return { ...cell, input: { type: "components", axes, stack: true } };
     }),
   );
 }

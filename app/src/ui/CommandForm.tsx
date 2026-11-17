@@ -464,8 +464,10 @@ export function CommandForm({
             id={id}
             role="group"
             tabIndex={-1}
-            aria-labelledby={`${id}-label`}
-            class="components"
+            {...(spec.row === undefined
+              ? { "aria-labelledby": `${id}-label` }
+              : { "aria-label": `${spec.label} ${spec.row + 1}` })}
+            class={input.stack ? "components stacked" : "components"}
           >
             {axes.map((axis, i) => (
               <span key={axis} class="component">

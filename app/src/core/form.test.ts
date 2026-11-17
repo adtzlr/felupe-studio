@@ -1012,14 +1012,12 @@ describe("a value per constrained component (#225)", () => {
       (s) => s.key === "ramp.items",
     )!;
     const [[, , end]] = cells(ramp, step, context);
+    // one field per constrained component, one above the other in the cell
     expect(end.input).toEqual({
-      type: "numbers",
-      minItems: 2,
-      maxItems: 2,
-      collapse: true,
+      type: "components",
+      axes: ["x", "z"],
+      stack: true,
     });
-    // the placeholder shows how many values the cell takes
-    expect(end.placeholder).toBe("0, 0");
     expect(draftErrors("step.add", step, context)).toEqual({});
     const ramped = setValue("step.add", step, end.path, [0.5, -0.1], context);
     expect(ramped.ramp).toMatchObject({

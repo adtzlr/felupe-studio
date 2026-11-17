@@ -6,7 +6,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Added
 
-- A boundary prescribes its value per constrained component (`value: [0.1, -0.2]`, #225), e.g. to move a point set diagonally instead of two boundaries on the same points, and a step ramps one value per component (`np.outer(fem.math.linsteps([0, 1], num), [ex, ez])`, `np.linspace` from a start other than zero). With two of three axes constrained the list has two values, the constrained components only. The form shows one *Value* field per constrained component and the *End* of a ramp of such a boundary takes the values separated by commas; the viewport draws the arrow of the combined direction. The validation (shared cases) reports a list of another length than the constrained components, and a list in the ramp of a load case, point load or pressure, which have one value.
+- A boundary prescribes its value per constrained component (`value: [0.1, -0.2]`, #225), e.g. to move a point set diagonally instead of two boundaries on the same points, and a step ramps one value per component (`np.outer(fem.math.linsteps([0, 1], num), [ex, ez])`, `np.linspace` from a start other than zero). With two of three axes constrained the list has two values, the constrained components only. The form shows one *Value* field per constrained component, and the *Start* and *End* of a ramp of such a boundary one field per component; the viewport draws the arrow of the combined direction. The validation (shared cases) reports a list of another length than the constrained components, and a list in the ramp of a load case, point load or pressure, which have one value.
 
 ### Changed
 

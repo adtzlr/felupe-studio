@@ -649,7 +649,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       "ramp.num": { label: "Increments", default: 5 },
       "ramp.items": {
         label: "Ramped",
-        hint: "Boundaries, load cases or loads (a factor of the force), each from its start to its end value; of a boundary with several constrained components one value per component (x, y, z), separated by commas",
+        hint: "Boundaries, load cases or loads (a factor of the force), each from its start to its end value; of a boundary with several constrained components one value per component (x, y, z)",
       },
       "ramp.items.target": { label: "Item", unique: true },
       "ramp.items.start": { label: "Start", placeholder: "0" },

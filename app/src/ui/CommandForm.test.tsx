@@ -319,21 +319,25 @@ describe("editing in the properties panel", () => {
     const options = (label: string) =>
       [...step.field<HTMLSelectElement>(label).options].map((o) => o.value);
     expect(options("Item 1")).toEqual(["move"]);
-    step.type("End 2", "-0.1");
+    // the values of a boundary with several components: one field per component,
+    // the new row starts at 1 for all of them and keeps the ones not edited
+    step.type("End x 2", "-0.1");
     fireEvent.click(step.button("Apply"));
     expect(step.store.get("step_1")).toMatchObject({
       ramp: {
         num: 5,
         items: [
           { target: "move", start: 0, end: 0.5 },
-          { target: "fixed", end: -0.1 },
+          { target: "fixed", end: [-0.1, 1, 1] },
         ],
       },
     });
-    fireEvent.click(step.button("Remove row 1"));
-    expect(step.button("Remove row 1").disabled).toBe(true);
+    // an end is required: of a boundary with one component it is one number
     step.type("End 1", "");
     expect(step.properties.textContent).toContain("End 1: Required.");
+    step.type("End 1", "0.5");
+    fireEvent.click(step.button("Remove row 1"));
+    expect(step.button("Remove row 1").disabled).toBe(true);
     fireEvent.click(step.field("Ramp"));
     expect(within(step.properties).queryByLabelText("Increments")).toBeNull();
     fireEvent.click(step.field("section_soft"));
