@@ -167,26 +167,10 @@ class _Call:
         return f"{self.func}(\n{args}{pad})"
 
 
-class _Sum:
-    """A sum of two expressions ``left + right`` that ruff format may explode, e.g.
-    the offset of the values of a boundary that a step ramps (#225)."""
-
-    def __init__(self, left, right):
-        self.left = left
-        self.right = right
-
-    def __str__(self):
-        return f"{self.left} + {self.right}"
-
-    def exploded(self, level):
-        left = self.left.exploded(level) if isinstance(self.left, _Call) else self.left
-        return f"{left} + {self.right}"
-
-
 def _assign(target, expression):
     """An assignment of an expression, wrapped like ruff format would wrap it."""
     line = f"{target} = {expression}"
-    if len(line) <= LINE_LENGTH or not isinstance(expression, (_Call, _Sum)):
+    if len(line) <= LINE_LENGTH or not isinstance(expression, _Call):
         return line
     return f"{target} = {expression.exploded(0)}"
 
@@ -197,7 +181,7 @@ def _explode(args, level=1):
     lines = []
     for arg in args:
         line = f"{pad}{arg},"
-        if len(line) > LINE_LENGTH and isinstance(arg, (_List, _Dict, _Call, _Sum)):
+        if len(line) > LINE_LENGTH and isinstance(arg, (_List, _Dict, _Call)):
             line = f"{pad}{arg.exploded(level)},"
         lines.append(line + "\n")
     return "".join(lines)
@@ -899,7 +883,7 @@ def codegen(document, evaluate=True, check_schema=True):
                     for item in r["items"]:
                         value = values[item["target"]]
                         line = f"    {value},  # {item['target']}"
-                        if len(line) > LINE_LENGTH and isinstance(value, (_Call, _Sum)):
+                        if len(line) > LINE_LENGTH and isinstance(value, _Call):
                             line = f"    {value.exploded(1)},  # {item['target']}"
                         out.append(line)
                     out.append("]")

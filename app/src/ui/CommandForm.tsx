@@ -446,8 +446,9 @@ export function CommandForm({
         };
         return (
           <div
-            {...common}
+            id={id}
             role="group"
+            tabIndex={-1}
             aria-labelledby={`${id}-label`}
             class="components"
           >
@@ -460,6 +461,8 @@ export function CommandForm({
                   aria-label={`${spec.label} ${axis}${
                     spec.row === undefined ? "" : ` ${spec.row + 1}`
                   }`}
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={describedBy}
                   autocomplete="off"
                   value={
                     texts[axes.length === 1 ? key : `${key}.${i}`]?.text ??

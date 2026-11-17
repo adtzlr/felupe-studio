@@ -1018,6 +1018,8 @@ describe("a value per constrained component (#225)", () => {
       maxItems: 2,
       collapse: true,
     });
+    // the placeholder shows how many values the cell takes
+    expect(end.placeholder).toBe("0, 0");
     expect(draftErrors("step.add", step, context)).toEqual({});
     const ramped = setValue("step.add", step, end.path, [0.5, -0.1], context);
     expect(ramped.ramp).toMatchObject({

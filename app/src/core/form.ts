@@ -656,36 +656,39 @@ export function cells(
     columns.map((column) => {
       const path = [...spec.path, String(i), ...column.path];
       const cell = { ...column, path, key: path.join("."), row: i };
-      return { ...cell, input: cellInput(spec, column, cell, row, context) };
+      const axes = rampAxes(spec, column, row, context);
+      if (axes.length < 2) return cell;
+      // one value per constrained component (#225), as numbers separated by commas
+      return {
+        ...cell,
+        input: {
+          type: "numbers",
+          minItems: axes.length,
+          maxItems: axes.length,
+          collapse: true,
+        },
+        placeholder: axes.map(() => "0").join(", "),
+      };
     }),
   );
 }
 
 /**
- * The input of a cell of the rows of a ramp: the values of the boundary that the row
- * targets, one per constrained component (#225) as numbers separated by commas;
- * else the input of the column.
+ * The constrained components of the boundary that a row of a ramp targets: its
+ * values are one per component (#225); else none.
  */
-function cellInput(
+function rampAxes(
   spec: FieldSpec,
   column: FieldSpec,
-  cell: FieldSpec,
   row: Draft,
   context: Context,
-): Input {
+): string[] {
   const values = ["ramp.items.start", "ramp.items.end"];
-  if (spec.key !== "ramp.items" || !values.includes(column.key))
-    return cell.input;
+  if (spec.key !== "ramp.items" || !values.includes(column.key)) return [];
   const target = context.commands.find((c) => c.name === row.target);
-  const axes =
-    target?.command === "boundary.add" ? componentAxes(target.constrained) : [];
-  if (axes.length < 2) return cell.input;
-  return {
-    type: "numbers",
-    minItems: axes.length,
-    maxItems: axes.length,
-    collapse: true,
-  };
+  return target?.command === "boundary.add"
+    ? componentAxes(target.constrained)
+    : [];
 }
 
 /**

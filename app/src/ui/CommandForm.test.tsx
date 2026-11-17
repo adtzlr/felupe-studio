@@ -243,6 +243,8 @@ describe("editing in the properties panel", () => {
     // a partial number stays while it is typed
     boundary.type("Value x", "1e-");
     expect(boundary.field("Value x").value).toBe("1e-");
+    // the error belongs to the field, not only to the group (#225)
+    expect(boundary.field("Value x").getAttribute("aria-invalid")).toBe("true");
     boundary.type("Value x", "0");
     boundary.type("Value y", "0.05");
     fireEvent.click(boundary.button("Apply"));
