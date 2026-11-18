@@ -1,7 +1,16 @@
-// Main-thread client of the Pyodide worker. Creating it starts loading Pyodide and
-// FElupe right away, so loading overlaps with building the model (#40). Python runs
-// jobs synchronously in the worker: a running job is cancelled by restarting the
-// worker, which loads Python again (from the cache) and gets the files again.
+// Main-thread client of the Python runtime: the Pyodide worker, or the local Python
+// of `felupe-studio serve` (#240, ADR 0014) over a WebSocket with the same messages.
+// Creating it starts loading Pyodide and FElupe right away, so loading overlaps with
+// building the model (#40). Python runs jobs synchronously: a running job is
+// cancelled by restarting the worker (or the connection, which ends the process of
+// the local runtime), which loads Python again and gets the files again.
+import {
+  type Channel,
+  isLocal,
+  LocalChannel,
+  runtimeUrl,
+  takeToken,
+} from "./local";
 import type {
   BenchmarkResult,
   FromWorker,
@@ -57,21 +66,28 @@ const newWorker = () =>
     type: "module",
   });
 
-export class PyodideClient {
+export class RuntimeClient {
   /** Resolves when Pyodide and FElupe are loaded (and the files are written). */
   ready!: Promise<Ready>;
   private booted!: Promise<Ready>;
-  private worker!: Worker;
+  private worker!: Channel;
   private pending = new Map<number, Pending>();
   private nextId = 1;
   /** The files written into the project directory, written again on a restart. */
   private files = new Map<string, Uint8Array>();
   private listeners = new Set<() => void>();
-  private createWorker: () => Worker;
+  private createWorker: () => Channel;
 
+  /**
+   * @param worker The worker, or a function that makes one (a new one on a
+   *   restart), or a channel to the local runtime.
+   * @param local Python runs on this computer (`felupe-studio serve`), not in
+   *   Pyodide.
+   */
   constructor(
-    worker: Worker | (() => Worker) = newWorker,
+    worker: Channel | (() => Channel) = newWorker,
     private base: string = document.baseURI,
+    readonly local = false,
   ) {
     this.createWorker = typeof worker === "function" ? worker : () => worker;
     this.start([]);
@@ -90,6 +106,13 @@ export class PyodideClient {
     for (const listener of this.listeners) listener();
   }
 
+  /** Python is gone after it was ready, e.g. the local runtime was stopped. */
+  private fail(error: Error): void {
+    this.ready = Promise.reject(error);
+    this.ready.catch(() => {});
+    for (const listener of this.listeners) listener();
+  }
+
   /** Listen to restarts, e.g. to wait for the new `ready`. */
   onRestart(listener: () => void): () => void {
     this.listeners.add(listener);
@@ -99,14 +122,22 @@ export class PyodideClient {
   private start(files: [string, Uint8Array][]): void {
     const worker = this.createWorker();
     this.worker = worker;
+    let started = false;
     this.booted = new Promise<Ready>((resolve, reject) => {
       worker.addEventListener("message", (event: MessageEvent<FromWorker>) => {
         if (this.worker !== worker) return;
         const message = event.data;
         if (message.type === "ready") {
+          started = true;
           resolve({ versions: message.versions, timings: message.timings });
         } else if (message.type === "error" && message.id === undefined) {
-          reject(new Error(message.message));
+          // Python could not start, or the connection to the local runtime ended
+          const error = new Error(message.message);
+          reject(error);
+          const pending = [...this.pending.values()];
+          this.pending.clear();
+          for (const p of pending) p.reject(error);
+          if (started) this.fail(error);
         } else {
           this.dispatch(message);
         }
@@ -346,4 +377,14 @@ export class PyodideClient {
       pending.onMessage?.(message);
     }
   }
+}
+
+/**
+ * The client of the runtime of the page: the local Python if the page was served by
+ * `felupe-studio serve` (#240), else Pyodide.
+ */
+export function createClient(): RuntimeClient {
+  if (!isLocal()) return new RuntimeClient();
+  const url = runtimeUrl(window.location, takeToken() ?? "");
+  return new RuntimeClient(() => new LocalChannel(url), document.baseURI, true);
 }

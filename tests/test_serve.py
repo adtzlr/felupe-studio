@@ -60,6 +60,36 @@ def test_frames():
     assert np.frombuffer(nodes).tolist() == [1, 1, 1]
 
 
+FRAMES = Path(__file__).parent / "data" / "frames"
+
+
+def shared_message():
+    """The message of the frames shared with the app (frames.test.ts)."""
+    return {
+        "type": "mesh-info",
+        "id": 7,
+        "info": {"file": "würfel.vtu", "points": 8},
+        "surfaces": {
+            "hexahedron": {
+                "positions": np.array([0, 1, 2.5], dtype=np.float32).tobytes(),
+                "nodes": np.array([1.5, -2]).tobytes(),
+                "tags": {"part": np.array([1, 2, 3], dtype=np.int32).tobytes()},
+                "faces": None,
+                "cells": 1,
+            }
+        },
+    }
+
+
+def test_frames_shared_with_the_app():
+    # the frame of Python, which the app decodes, and the frame of the app
+    frame = encode(shared_message())
+    assert (FRAMES / "python.bin").read_bytes() == frame, (
+        "Write tests/data/frames/python.bin again with encode(shared_message())."
+    )
+    assert decode((FRAMES / "app.bin").read_bytes()) == shared_message()
+
+
 def test_safe_names():
     assert safe_name("a/b\\cube.vtu") == "cube.vtu"
     for name in ("", "a/..", "."):

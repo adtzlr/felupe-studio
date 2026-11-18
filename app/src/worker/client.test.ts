@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { CancelledError, PyodideClient } from "./client";
+import { CancelledError, RuntimeClient } from "./client";
 import { safeName } from "./files";
 import type { FromWorker, ToWorker } from "./protocol";
 
@@ -31,14 +31,14 @@ const ready: FromWorker = {
 
 const start = () => {
   const worker = new FakeWorker();
-  const client = new PyodideClient(
+  const client = new RuntimeClient(
     worker as unknown as Worker,
     "https://example.org/app/",
   );
   return { worker, client };
 };
 
-describe("PyodideClient", () => {
+describe("RuntimeClient", () => {
   it("starts loading with the pinned versions and the wheels of the app", () => {
     const { worker } = start();
     expect(worker.sent).toEqual([
@@ -242,7 +242,7 @@ describe("jobs", () => {
 
   it("cancels a job by restarting the worker and writes the files again", async () => {
     const workers: FakeWorker[] = [];
-    const client = new PyodideClient(() => {
+    const client = new RuntimeClient(() => {
       const worker = new FakeWorker();
       workers.push(worker);
       return worker as unknown as Worker;

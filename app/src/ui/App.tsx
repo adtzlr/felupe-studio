@@ -45,7 +45,7 @@ import type { RibbonItem } from "../core/ribbon";
 import type { ModelStore } from "../core/store";
 import { SCHEMA_VERSION } from "../core/schema";
 import type { UpdateWatcher } from "../updates";
-import type { PyodideClient } from "../worker/client";
+import type { RuntimeClient } from "../worker/client";
 import { KINDS } from "../core/validate";
 import { AboutDialog } from "./AboutDialog";
 import { VISIBLE_KINDS } from "./Browser";
@@ -79,7 +79,7 @@ import "./shell.css";
 
 interface Props {
   store: ModelStore;
-  client?: PyodideClient;
+  client?: RuntimeClient;
   /** Mesh files of the project; read with the client. */
   files?: MeshFiles;
   /** Save a file; the default downloads it in the browser. */
@@ -383,7 +383,11 @@ export function App({
         }
         if (await openProject(projects[0], name)) {
           // its parameters first, if it has any, before its meshes are made (#183)
-          if (parametersOf(store.commands).length)
+          // in the local runtime also its scripts, which run on this computer (#240)
+          if (
+            parametersOf(store.commands).length ||
+            (client?.local && meshFileNames(store.commands).some(isScript))
+          )
             setParametersShown({ project: name, opening: true });
           await files.addFiles(meshes);
           if (ignored.length) {
@@ -1104,6 +1108,7 @@ export function App({
                   onImportMesh={() => setImporting({})}
                   onOpen={() => fileInput.current?.click()}
                   onOpenSample={openSample}
+                  local={client?.local}
                 />
               ) : undefined
             }
@@ -1297,6 +1302,7 @@ export function App({
           files={files}
           project={parametersShown.project}
           opening={parametersShown.opening}
+          local={client?.local}
           onClose={() => setParametersShown(undefined)}
         />
       )}

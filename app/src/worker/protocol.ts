@@ -5,10 +5,15 @@
 
 export interface Versions {
   python: string;
-  pyodide: string;
+  /** Not of the local runtime (#240). */
+  pyodide?: string;
   felupe: string;
   numpy: string;
   scipy: string;
+  /** The runtime: Pyodide in the browser, or Python of `felupe-studio serve`. */
+  runtime?: "pyodide" | "python";
+  /** The version of the package of the local runtime. */
+  felupe_studio?: string;
 }
 
 /** Load times in milliseconds: Pyodide, NumPy and SciPy, the wheels of the app. */
