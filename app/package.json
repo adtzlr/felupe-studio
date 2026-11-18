@@ -31,7 +31,7 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "schema:types": "node scripts/generate-types.js && prettier --write src/core/commands.ts",
+    "schema:types": "node scripts/generate-types.js && prettier --write src/core/commands.ts src/core/resolved.ts",
     "wheels": "node scripts/fetch-wheels.js"
   },
   "devDependencies": {

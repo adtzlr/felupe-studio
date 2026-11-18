@@ -2,7 +2,7 @@
 // bound of the meshes, on a cylinder, on the outer surface or by the coordinates of
 // nodes (a preview on the nodes of the drawn meshes, like `np.isclose` in the
 // generated script), and the point set of a picked face normal to x, y or z.
-import type { Command, PointSetAdd } from "../core/commands";
+import type { Command, PointSetAdd } from "../core/resolved";
 import type { MeshSurface } from "../worker/protocol";
 import { toName } from "../core/importmesh";
 import type { Vec3 } from "./picking";

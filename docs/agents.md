@@ -51,6 +51,10 @@ The tools are few and generic and follow the schema of the commands, like the co
 | `results(job, quantity?, substep?, method?)` | A quantity at a substep (the last one): its range, the minimum and the maximum with their section, node or cell and position, the control points with their forces. |
 | `export(job, format, path, substep?, method?)` | The results as VTU, XDMF or CSV. |
 
+## Expressions of parameters
+
+A number of a command may be an expression of the parameters as a string, e.g. `"end": "0.5 * layers * height"` or `"value": "height"` (see [Expressions of parameters](commands.md#expressions-of-parameters)). Its problems are errors of the validation like the others, e.g. *'layer' is not a parameter in '0.5 * layer * height'*; the script shows it as written. A renamed parameter is renamed in the expressions; a deleted one leaves them as errors.
+
 ## Mesh scripts
 
 A mesh script (`mesh.script`) runs Python code with your rights; in the browser, Pyodide is a sandbox, here it is not. So the server runs a script only if it wrote it itself (`write_file`) or copied it from a sample, and the script has not changed since, or if it was started with `--allow-scripts`. Before you allow the scripts of a project from elsewhere, check them.

@@ -130,6 +130,21 @@ def test_same_body_gives_same_curve():
         )
 
 
+def test_expressions_like_numbers():
+    # the sandwich spring of 3 layers with expressions of its parameters (#242):
+    # the same values, the same curve
+    curves = [
+        json.loads((HERE / case / "results.json").read_text(encoding="utf-8"))
+        for case in ("sandwich_spring_3_layers", "sandwich_spring_expressions")
+    ]
+    for key in ("displacement", "force"):
+        np.testing.assert_allclose(
+            curves[1]["jobs"]["job"][key], curves[0]["jobs"]["job"][key], rtol=1e-12
+        )
+    script = (HERE / "sandwich_spring_expressions" / "script.py").read_text("utf-8")
+    assert "fem.math.linsteps([0, (0.5 * layers * height)], num=(2 * cells))" in script
+
+
 def test_two_materials_reference():
     # checked by hand with FElupe 12.0.0 before the GUI existed
     results = json.loads(

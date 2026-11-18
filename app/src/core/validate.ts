@@ -1,11 +1,13 @@
 // Validation of the references between commands. Mirrors the Python validation
 // (felupe_studio.commands); both are tested with tests/data/validation_cases.json,
 // so the messages are identical.
-import type { Command, PointSetAdd } from "./commands";
+import type { Command } from "./commands";
+import type { Command as ResolvedCommand, PointSetAdd } from "./resolved";
 import { analysisOf, analysisProblems, is2d } from "./analysis";
 import { loadcaseFieldErrors, loadcaseProblems } from "./loadcases";
 import { materialProblems, needsBulk, strainBased } from "./materials";
 import { parameterProblems } from "./parameters";
+import { type Resolved, renameParameter, resolveCommands } from "./resolve";
 import {
   NAME_MAX_LENGTH,
   NAME_PATTERN,
@@ -265,7 +267,8 @@ export function renameReferences(
   if (command.command === "step.add" && ramp) {
     for (const item of ramp.items) if (item.target === from) item.target = to;
   }
-  return copy as unknown as Command;
+  // the expressions of a renamed parameter (#242)
+  return renameParameter(copy as unknown as Command, from, to);
 }
 
 /** Reason why a name is not allowed, or undefined if it is allowed. */
@@ -286,8 +289,36 @@ export function nameProblem(name: string): string | undefined {
   return undefined;
 }
 
-/** Validate the references between the commands of a command list. */
+/**
+ * Validate a command list: first the expressions of the parameters (#242), then,
+ * with their values, the references between the commands, like `errors()` in
+ * Python.
+ */
 export function validate(commands: readonly Command[]): Issue[] {
+  return validateResolution(resolveCommands(commands));
+}
+
+/** The issues of the commands with the values of their expressions. */
+export function validateResolution({
+  commands: resolved,
+  problems,
+}: Resolved): Issue[] {
+  if (problems.length)
+    return problems.map(({ index, name, message, field }) => ({
+      index,
+      name,
+      message,
+      // the field of the form: a vector without the index of its component, e.g.
+      // `coordinates` of `coordinates.1`, a cell of rows with it (`ramp.items.0.end`)
+      field: field.replace(/(\.\d+)+$/, ""),
+    }));
+  return validateResolved(resolved);
+}
+
+/** Validate the references between the commands with the values of expressions. */
+export function validateResolved(
+  commands: readonly ResolvedCommand[],
+): Issue[] {
   const issues: Issue[] = [];
   const defined = new Map<string, [number, Command]>();
   // the type of the analysis of the settings (#175)

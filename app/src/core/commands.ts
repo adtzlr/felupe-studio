@@ -1,5 +1,6 @@
 /* Generated from python/felupe_studio/commands.schema.json by
- * `npm run schema:types`. Do not edit by hand. */
+ * `npm run schema:types`. Do not edit by hand. The commands as written:
+ * a number may be an expression of the parameters (#242). */
 
 /**
  * This interface was referenced by `CommandList`'s JSON-Schema
@@ -65,7 +66,7 @@ export type Axis = "x" | "y" | "z";
  * @minItems 3
  * @maxItems 3
  */
-export type Coordinates = [number, number, number];
+export type Coordinates = [number | string, number | string, number | string];
 /**
  * The coordinates x, y and z of a point.
  *
@@ -75,35 +76,35 @@ export type Coordinates = [number, number, number];
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "Coordinates".
  */
-export type Coordinates1 = [number, number, number];
+export type Coordinates1 = [number | string, number | string, number | string];
 /**
  * The coordinates x, y and z of a point.
  *
  * @minItems 3
  * @maxItems 3
  */
-export type Coordinates2 = [number, number, number];
+export type Coordinates2 = [number | string, number | string, number | string];
 /**
  * The coordinates x, y and z of a point.
  *
  * @minItems 3
  * @maxItems 3
  */
-export type Coordinates3 = [number, number, number];
+export type Coordinates3 = [number | string, number | string, number | string];
 /**
  * The coordinates x, y and z of a point.
  *
  * @minItems 3
  * @maxItems 3
  */
-export type Coordinates4 = [number, number, number];
+export type Coordinates4 = [number | string, number | string, number | string];
 /**
  * The coordinates x, y and z of a point.
  *
  * @minItems 3
  * @maxItems 3
  */
-export type Coordinates5 = [number, number, number];
+export type Coordinates5 = [number | string, number | string, number | string];
 /**
  * A load case of FElupe (fem.dof) on the merged field: the boundaries of a standard test. It is referenced like a boundary: a step ramps its moving end faces, a job records the reaction force of its (first) moving end face.
  *
@@ -118,7 +119,7 @@ export type LoadcaseAdd =
  * @minItems 3
  * @maxItems 3
  */
-export type Coordinates6 = [number, number, number];
+export type Coordinates6 = [number | string, number | string, number | string];
 
 /**
  * A list of FElupe Studio commands. Objects are created by commands and referenced by their names.
@@ -229,7 +230,7 @@ export interface MeshImport {
   /**
    * Factor of the coordinates of the points, e.g. 1000 for a mesh in m of a model in mm. The points are multiplied after reading, before the cell sets; point sets and points are in the scaled coordinates.
    */
-  scale?: number;
+  scale?: number | string;
 }
 /**
  * A mesh made by a Python script next to the project, e.g. with the mesh tools of FElupe. The script runs with the parameters of the model as variables and makes a variable mesh: a fem.Mesh, a fem.MeshContainer, a meshio.Mesh or a dict of names and meshes (one mesh object per item).
@@ -325,11 +326,11 @@ export interface MaterialLinearElasticSmallStrain {
     /**
      * Young's modulus
      */
-    E: number;
+    E: number | string;
     /**
      * Poisson's ratio
      */
-    nu: number;
+    nu: number | string;
   };
 }
 /**
@@ -346,11 +347,11 @@ export interface MaterialLinearElasticLargeStrain {
     /**
      * Young's modulus
      */
-    E: number;
+    E: number | string;
     /**
      * Poisson's ratio
      */
-    nu: number;
+    nu: number | string;
   };
 }
 /**
@@ -367,11 +368,11 @@ export interface MaterialNeoHooke {
     /**
      * Shear modulus
      */
-    mu: number;
+    mu: number | string;
     /**
      * Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.
      */
-    bulk?: number;
+    bulk?: number | string;
   };
 }
 /**
@@ -388,11 +389,11 @@ export interface MaterialNeoHookeCompressible {
     /**
      * Shear modulus
      */
-    mu: number;
+    mu: number | string;
     /**
      * First Lamé parameter
      */
-    lmbda: number;
+    lmbda: number | string;
   };
 }
 /**
@@ -409,15 +410,15 @@ export interface MaterialMooneyRivlin {
     /**
      * Material parameter of the first invariant
      */
-    C10: number;
+    C10: number | string;
     /**
      * Material parameter of the second invariant
      */
-    C01: number;
+    C01: number | string;
     /**
      * Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.
      */
-    bulk?: number;
+    bulk?: number | string;
   };
 }
 /**
@@ -434,19 +435,19 @@ export interface MaterialYeoh {
     /**
      * Material parameter of the linear term of the first invariant
      */
-    C10: number;
+    C10: number | string;
     /**
      * Material parameter of the quadratic term of the first invariant
      */
-    C20: number;
+    C20: number | string;
     /**
      * Material parameter of the cubic term of the first invariant
      */
-    C30: number;
+    C30: number | string;
     /**
      * Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.
      */
-    bulk?: number;
+    bulk?: number | string;
   };
 }
 /**
@@ -463,27 +464,27 @@ export interface MaterialThirdOrderDeformation {
     /**
      * Material parameter of the linear term of the first invariant
      */
-    C10: number;
+    C10: number | string;
     /**
      * Material parameter of the linear term of the second invariant
      */
-    C01: number;
+    C01: number | string;
     /**
      * Material parameter of the mixed term of the first and second invariant
      */
-    C11: number;
+    C11: number | string;
     /**
      * Material parameter of the quadratic term of the first invariant
      */
-    C20: number;
+    C20: number | string;
     /**
      * Material parameter of the cubic term of the first invariant
      */
-    C30: number;
+    C30: number | string;
     /**
      * Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.
      */
-    bulk?: number;
+    bulk?: number | string;
   };
 }
 /**
@@ -503,18 +504,24 @@ export interface MaterialOgden {
      * @minItems 1
      * @maxItems 3
      */
-    mu: [number] | [number, number] | [number, number, number];
+    mu:
+      | [number | string]
+      | [number | string, number | string]
+      | [number | string, number | string, number | string];
     /**
      * Stretch exponents of the terms, one per modulus, not zero
      *
      * @minItems 1
      * @maxItems 3
      */
-    alpha: [number] | [number, number] | [number, number, number];
+    alpha:
+      | [number | string]
+      | [number | string, number | string]
+      | [number | string, number | string, number | string];
     /**
      * Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.
      */
-    bulk?: number;
+    bulk?: number | string;
   };
 }
 /**
@@ -531,15 +538,15 @@ export interface MaterialArrudaBoyce {
     /**
      * Shear modulus of the chain network (the initial shear modulus for a large limiting stretch)
      */
-    C1: number;
+    C1: number | string;
     /**
      * Limiting stretch at which the chains are locked
      */
-    limit: number;
+    limit: number | string;
     /**
      * Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.
      */
-    bulk?: number;
+    bulk?: number | string;
   };
 }
 /**
@@ -556,23 +563,23 @@ export interface MaterialExtendedTube {
     /**
      * Cross-link modulus
      */
-    Gc: number;
+    Gc: number | string;
     /**
      * Finite extensibility of the chains
      */
-    delta: number;
+    delta: number | string;
     /**
      * Constraint (tube) modulus
      */
-    Ge: number;
+    Ge: number | string;
     /**
      * Exponent of the tube constraint
      */
-    beta: number;
+    beta: number | string;
     /**
      * Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.
      */
-    bulk?: number;
+    bulk?: number | string;
   };
 }
 /**
@@ -592,16 +599,16 @@ export interface MaterialLinearElastic {
   /**
    * The strain exponent m of the Seth-Hill strain (only, and required, with the framework seth-hill): 0 for the logarithmic (Hencky) strain, 1 for the Biot strain (like co-rotational), 2 for the Green-Lagrange strain (like total-lagrange), -2 for the Euler-Almansi strain.
    */
-  strain_exponent?: number;
+  strain_exponent?: number | string;
   parameters: {
     /**
      * Young's modulus (converted with ν into the Lamé constants λ and μ)
      */
-    E: number;
+    E: number | string;
     /**
      * Poisson's ratio
      */
-    nu: number;
+    nu: number | string;
   };
 }
 /**
@@ -621,24 +628,24 @@ export interface MaterialLinearElasticPlasticIsotropicHardening {
   /**
    * The strain exponent m of the Seth-Hill strain (only, and required, with the framework seth-hill): 0 for the logarithmic (Hencky) strain, 1 for the Biot strain (like co-rotational), 2 for the Green-Lagrange strain (like total-lagrange), -2 for the Euler-Almansi strain.
    */
-  strain_exponent?: number;
+  strain_exponent?: number | string;
   parameters: {
     /**
      * Young's modulus (converted with ν into the Lamé constants λ and μ)
      */
-    E: number;
+    E: number | string;
     /**
      * Poisson's ratio
      */
-    nu: number;
+    nu: number | string;
     /**
      * Initial yield stress (uniaxial)
      */
-    sigma_y: number;
+    sigma_y: number | string;
     /**
      * Isotropic hardening modulus: the yield stress grows by K times the equivalent plastic strain
      */
-    K: number;
+    K: number | string;
   };
 }
 /**
@@ -659,7 +666,7 @@ export interface SectionAdd {
   /**
    * Bulk modulus of the nearly incompressible formulation (required for u-p-J).
    */
-  bulk?: number;
+  bulk?: number | string;
   /**
    * The volumetric part U(J) of the strain energy of the u-p-J formulation with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)².
    */
@@ -677,11 +684,11 @@ export interface PointSetAdd {
   select:
     | {
         axis: Axis;
-        value: number;
+        value: number | string;
         /**
          * Absolute tolerance (default 1e-8).
          */
-        atol?: number;
+        atol?: number | string;
       }
     | {
         /**
@@ -692,13 +699,13 @@ export interface PointSetAdd {
         /**
          * Absolute tolerance (default 1e-8).
          */
-        atol?: number;
+        atol?: number | string;
       }
     | {
         /**
          * The radius of the cylinder.
          */
-        radius: number;
+        radius: number | string;
         /**
          * The direction of the axis of the cylinder.
          */
@@ -707,7 +714,7 @@ export interface PointSetAdd {
         /**
          * Absolute tolerance (default 1e-8).
          */
-        atol?: number;
+        atol?: number | string;
       }
     | {
         surface: true;
@@ -720,7 +727,7 @@ export interface PointSetAdd {
         /**
          * Absolute tolerance (default 1e-8).
          */
-        atol?: number;
+        atol?: number | string;
       }
     | {
         section: Name;
@@ -761,7 +768,7 @@ export interface RigidAdd {
         /**
          * The radius of the cylinder.
          */
-        radius: number;
+        radius: number | string;
         axis: Coordinates5;
         /**
          * The points are inside the cylinder (a tube around them), else outside (a roller).
@@ -785,11 +792,11 @@ export interface FaceSetAdd {
   select:
     | {
         axis: Axis;
-        value: number;
+        value: number | string;
         /**
          * Absolute tolerance of the coordinates of the points (default 1e-8).
          */
-        atol?: number;
+        atol?: number | string;
       }
     | {
         /**
@@ -799,7 +806,7 @@ export interface FaceSetAdd {
         /**
          * Absolute tolerance of the centers (default 1e-6 of the size of the section).
          */
-        atol?: number;
+        atol?: number | string;
       };
 }
 /**
@@ -824,7 +831,12 @@ export interface BoundaryAdd {
    * @minItems 1
    * @maxItems 3
    */
-  value?: number | [number] | [number, number] | [number, number, number];
+  value?:
+    | number
+    | string
+    | [number | string]
+    | [number | string, number | string]
+    | [number | string, number | string, number | string];
 }
 /**
  * Uniaxial tension or compression along an axis (fem.dof.uniaxial). The end face at the largest coordinate moves.
@@ -924,7 +936,7 @@ export interface LoadcaseShear {
   /**
    * Displacement of the moving face along the normal, held during the shear (default 0).
    */
-  compression?: number;
+  compression?: number | string;
   /**
    * Symmetry plane normal to the third axis at its zero coordinate.
    */
@@ -948,15 +960,15 @@ export interface SymmetryAdd {
   /**
    * Coordinate of the plane normal to x (default 0), only with x in axes.
    */
-  x?: number;
+  x?: number | string;
   /**
    * Coordinate of the plane normal to y (default 0), only with y in axes.
    */
-  y?: number;
+  y?: number | string;
   /**
    * Coordinate of the plane normal to z (default 0), only with z in axes.
    */
-  z?: number;
+  z?: number | string;
 }
 /**
  * A multi-point constraint (fem.MultiPointConstraint): the points of a point set follow a center point rigidly, connected by a penalty. With a rotation point, they also rotate about the center point.
@@ -984,7 +996,7 @@ export interface MpcAdd {
   /**
    * The penalty of the relative displacements (default 1000).
    */
-  multiplier?: number;
+  multiplier?: number | string;
   /**
    * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
    */
@@ -1010,15 +1022,15 @@ export interface ContactAdd {
   /**
    * The Coulomb friction coefficient (default 0, without friction).
    */
-  friction?: number;
+  friction?: number | string;
   /**
    * The factor of the penalty of the contact, times the mean stiffness of the solid bodies at the points (default 1).
    */
-  multiplier?: number;
+  multiplier?: number | string;
   /**
    * The allowable elastic slip of sticking points (default none: a constant tangential penalty), e.g. 0.5 % to 1 % of the size of a cell.
    */
-  elastic_slip?: number;
+  elastic_slip?: number | string;
 }
 /**
  * A point load (fem.PointLoad): a force at every point of a point set or at a control point, an item of the steps. A ramp of a step scales the force.
@@ -1051,7 +1063,7 @@ export interface PressureAdd {
   /**
    * The pressure; positive pushes onto the faces.
    */
-  pressure: number;
+  pressure: number | string;
 }
 /**
  * A step with all boundaries, optionally ramping items, each with its own values (fem.Step).
@@ -1087,7 +1099,7 @@ export interface StepAdd {
     /**
      * Increments of the step.
      */
-    num: number;
+    num: number | string;
     /**
      * The ramped items, each with its own values.
      *
@@ -1113,14 +1125,24 @@ export interface RampItem {
    * @minItems 1
    * @maxItems 3
    */
-  start?: number | [number] | [number, number] | [number, number, number];
+  start?:
+    | number
+    | string
+    | [number | string]
+    | [number | string, number | string]
+    | [number | string, number | string, number | string];
   /**
    * Value at the end of the step; of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z.
    *
    * @minItems 1
    * @maxItems 3
    */
-  end: number | [number] | [number, number] | [number, number, number];
+  end:
+    | number
+    | string
+    | [number | string]
+    | [number | string, number | string]
+    | [number | string, number | string, number | string];
 }
 /**
  * A job evaluating steps one after another (fem.Job). With a curve, the force-displacement curve of a boundary, a load case or a point load is recorded (fem.CharacteristicCurve).
@@ -1144,11 +1166,11 @@ export interface JobAdd {
   /**
    * Tolerance of the Newton-Raphson method: the norm of the residual forces relative to a reference force, the reaction forces or the forces between the items (e.g. of a pressure on a solid body), if they are larger (default 0.01, like commercial codes).
    */
-  tol?: number;
+  tol?: number | string;
   /**
    * The maximum number of Newton iterations of a substep (default 16).
    */
-  maxiter?: number;
+  maxiter?: number | string;
   /**
    * The linear solver of the Newton iterations (Job.evaluate(solver=...)); without it, SuperLU of FElupe.
    */
@@ -1164,11 +1186,11 @@ export interface JobAdd {
     /**
      * Relative tolerance of the iterative method, relative to the norm of the residual forces (default: the tolerance of the job / 100).
      */
-    rtol?: number;
+    rtol?: number | string;
     /**
      * The maximum number of iterations of the iterative method (default of SciPy).
      */
-    maxiter?: number;
+    maxiter?: number | string;
   };
   /**
    * Retry a substep that does not converge with smaller increments (fem.CutbackPlugin); without a value, a parameter has the default of FElupe.
@@ -1177,14 +1199,14 @@ export interface JobAdd {
     /**
      * The factor by which the increment is reduced after a failed attempt (default 0.5).
      */
-    factor?: number;
+    factor?: number | string;
     /**
      * The maximum number of successive cutbacks of the increment (default 10): the smallest increment of a substep is factor ** max_cutbacks.
      */
-    max_cutbacks?: number;
+    max_cutbacks?: number | string;
     /**
      * The factor by which the increment is increased after a converged increment (default 2.0); 1 keeps the increment.
      */
-    growth?: number;
+    growth?: number | string;
   };
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ResultScene } from "../worker/protocol";
-import type { Command } from "./commands";
+import type { Command } from "./resolved";
 import { type JobRun, type Live, startProgress } from "./jobs";
 import { liveResults, loadLiveOn, saveLiveOn } from "./live";
 

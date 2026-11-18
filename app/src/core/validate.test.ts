@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import cases from "../../../tests/data/validation_cases.json";
 import type { Command } from "./commands";
+import { resolveCommands } from "./resolve";
 import { NAME_MAX_LENGTH, RESERVED_KEYWORDS, SCHEMA_VERSION } from "./schema";
 import { symmetryNotes } from "./symmetry";
 import {
@@ -18,7 +19,8 @@ describe("validate", () => {
     const issues = validate(commands);
     expect(issues.map((i) => i.message)).toEqual(c.errors);
     // the notes that are no errors, e.g. a repeated symmetry plane (#186)
-    expect(symmetryNotes(commands).map((i) => i.message)).toEqual(c.notes);
+    const resolved = resolveCommands(commands).commands;
+    expect(symmetryNotes(resolved).map((i) => i.message)).toEqual(c.notes);
   });
 
   it("returns index and name of the command", () => {
@@ -38,6 +40,14 @@ describe("validate", () => {
       "parameters.alpha",
     ]);
     expect(field("two model settings")).toEqual([undefined]);
+    // the field of an expression of the parameters (#242)
+    expect(field("expressions with two problems")).toEqual([
+      "select.value",
+      "ramp.num",
+    ]);
+    expect(field("expression with an unknown parameter")).toEqual([
+      "ramp.items.0.end",
+    ]);
   });
 });
 

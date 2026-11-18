@@ -8,7 +8,7 @@ import type {
   Quantity,
   ResultScene,
 } from "../worker/protocol";
-import type { Command } from "./commands";
+import type { Command } from "./resolved";
 
 /** The progress of a run, from the events of the runner. */
 export interface JobProgress {
@@ -199,7 +199,8 @@ export function solveBlocker({
   notes,
   runtime,
 }: {
-  commands: readonly Command[];
+  /** The commands as written or with the values of their expressions. */
+  commands: readonly { command: string }[];
   issues: number;
   /** Messages about the mesh files, by object name. */
   notes: number;

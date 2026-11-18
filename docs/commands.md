@@ -22,7 +22,7 @@ Every action in FElupe Studio is a command. A project is a command list:
 }
 ```
 
-The JSON schema [`python/felupe_studio/commands.schema.json`](../python/felupe_studio/commands.schema.json) is the single source of truth ([ADR 0003](adr/0003-command-interpretation.md)). The TypeScript types in `app/src/core/commands.ts` are generated from it with `npm run schema:types`; CI checks that they are up to date.
+The JSON schema [`python/felupe_studio/commands.schema.json`](../python/felupe_studio/commands.schema.json) is the single source of truth ([ADR 0003](adr/0003-command-interpretation.md)). The TypeScript types in `app/src/core/commands.ts` are generated from it with `npm run schema:types`, and those of the commands with the values of their expressions in `app/src/core/resolved.ts` (#242); CI checks that they are up to date.
 
 The [command reference](reference.md) lists all properties of the commands; it is generated from the schema by `python docs/make_reference.py`, and a test checks that it is up to date. The [user guide](guide.md) shows how to build a model in the app.
 
@@ -154,6 +154,21 @@ Control points and multi-point constraints of a 2D model (#175) are in the xy-pl
 
 `parameter.add {name, value, quantity, min, max, step, integer, description}` (#180) is a named number of the model, e.g. a dimension or the number of cells of a mesh made by a script (#182). Its name shares the namespace of all objects and must not be a name of the script. `quantity` (`length`, `force` or `stress`) gives the value its unit of the model settings, in the forms (`Value [mm]`, also of the range), the browser (`50 mm · 10–100`) and the script; `min`, `max` and `step` describe its values, for the open dialog of a parametric project (#183). The validation (`felupe_studio.commands.parameter_problems` and `app/src/core/parameters.ts`, shared cases) reports a value outside of the range, a minimum that is not smaller than the maximum and, of an integer parameter, numbers that are not integers. The browser lists the parameters in the group *Parameters* below *Settings*.
 
+## Expressions of parameters
+
+See [ADR 0013](adr/0013-expressions-of-parameters.md). A number of a command may be an expression of the parameters as a string (#242), e.g. `"end": "0.5 * layers * height"`, `"value": "height"` or `"num": "2 * cells"`: numbers (also `1e-3`), the names of the parameters, the constant `pi`, `+ - * /` and `**` (right-associative, before a unary minus on its left), parentheses and the functions `sqrt`, `exp`, `log`, `sin`, `cos`, `tan`, `abs` (one argument) and `min`, `max` (two or more), angles in radians. The schema gives such a field the types `["number", "string"]` (`["integer", "string"]`); the fields of `parameter.add`, the numbers that name things (the `value` of `cellset.from_tag`, the `ids` of a point set) and the `decimals` of `mesh.merge` are numbers.
+
+`felupe_studio.expressions` (Python) and `app/src/core/expressions.ts` parse an expression by the same recursive descent, without `eval`, and compute with doubles; integer parameters are integers, like in the script. `tests/data/expression_cases.json` (`python tests/data/make_expression_cases.py`) has expressions with their values or messages, and the commands of the golden cases and the samples with the fields that may hold an expression, which both read from the schema (`fields()`, `expressionFields()`). `resolve(document)` (Python) and `resolveCommands(commands)` (app) replace the expressions by their values and report their problems:
+
+- `'h / (n - 3)' is not a finite number.`, also inside an expression, e.g. a division by zero;
+- `'layer' is not a parameter in '0.5 * layer * height'.`, `'sinh' is not a function in 'sinh(h)'.`, `'min' takes at least 2 arguments in 'min(h)'.`, `'h *' is not a valid expression.`;
+- `'cells / 3' is 1.3333333333333333, not an integer.` of an integer field;
+- `'1 - cells' is -3, it must be at least 1.` of a bound of the field in the schema.
+
+The messages name the command and the field, e.g. `commands/21: 'ramp.num' of 'shearing': …`. The validation reports the problems of the expressions first and checks the other rules only without them, with the values (shared cases). The script shows an expression as written, in parentheses unless it is one name or number, with `np.` before the functions of NumPy and `pi` (unless `pi` is a parameter): `fem.math.linsteps([0, (0.5 * layers * height)], num=(2 * cells))`. The values know their expression (a `float` or `int` whose `repr` is the code), so the code generation computes with them like with numbers. Renaming a parameter renames it in the expressions; deleting it leaves an issue. The golden case `sandwich_spring_expressions` is `sandwich_spring_3_layers` with expressions, with the same curve.
+
+In the app, the store keeps the commands as written and gives `resolved`, the commands with the values of their expressions (a command with a problem is left out), for the viewer, the validation, the notes of symmetry planes and the runs; the TypeScript types of the resolved commands (`app/src/core/resolved.ts`, generated from the schema without the strings) have numbers. The forms edit numbers only, a field with an expression is not edited yet; the browser shows an expression as written.
+
 ## Meshes made by scripts
 
 `mesh.script {name, file, parameters, item, tag, cell_type}` (#182, ADR 0009) is a mesh made by a Python script next to the project (`file` ends with `.py`). The script runs with the parameters of the model as variables (`parameters`, default all) and makes a variable `mesh`: a `fem.Mesh`, a `fem.MeshContainer`, a `meshio.Mesh` or a dict of names and meshes, of which `item` takes one. `tag` and `cell_type` work as for an imported mesh. The script calls `run_mesh_script(file, {"radius": radius}, item="soft")`, embedded only in scripts with mesh scripts (with `script_mesh()`, which runs the file with `runpy.run_path` and converts the mesh to meshio). The app keeps the script like a mesh file (also in archives; a script named like the FElupe script of an archive stays a script of a mesh) and makes the mesh in the worker with `felupe_studio.meshes.make` by file, item and parameter values, so a changed parameter or a replaced script makes it again. An error of the script is a note at the mesh with its message, and the properties show the traceback of the script (only its frames). Opening a script alone starts a new mesh script with it. `felupe_studio.checks` makes the meshes the same way.
@@ -178,7 +193,7 @@ Generated scripts pass `ruff check` and `ruff format --check`. The tests run the
 
 - `apply(edit)` with `add` (optionally at an index), `update` (also renames) and `remove`; an array of edits is one undo step and is applied completely or not at all
 - `undo()`, `redo()` with up to 100 steps; `load(document)` replaces the model and clears the history
-- derived state: `issues` (validation, `app/src/core/validate.ts`), `tree` (browser tree, `app/src/core/tree.ts`) and `dependents(name)`; `setReport(report)` adds the check report of the worker until the commands change
+- derived state: `issues` (validation, `app/src/core/validate.ts`), `tree` (browser tree, `app/src/core/tree.ts`), `resolved` (the commands with the values of the expressions of the parameters, #242) and `dependents(name)`; `setReport(report)` adds the check report of the worker until the commands change
 - `subscribe(listener)` for the UI
 
 The TypeScript validation mirrors the Python validation. Both run the shared cases in `tests/data/validation_cases.json`, so their messages are identical; after changing a message, run `python tests/data/make_validation_cases.py`. Reserved names are part of the schema (`x-reserved`).

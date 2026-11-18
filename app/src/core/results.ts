@@ -2,7 +2,7 @@
 // quantity of the contour, the scale of the deformation and the undeformed ghost.
 import type { JobResult, Quantity } from "../worker/protocol";
 import { analysisOf, is2d } from "./analysis";
-import type { Command } from "./commands";
+import type { Command } from "./resolved";
 import type { JobRun } from "./jobs";
 import { hasStatevars } from "./materials";
 import type { Series } from "./curve";

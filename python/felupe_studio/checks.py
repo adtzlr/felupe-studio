@@ -24,6 +24,7 @@ from scipy.spatial import cKDTree
 from ._helpers import run_mesh_script, volume_cells
 from .codegen import analysis_of, parameter_value
 from .commands import validate
+from .expressions import resolve
 
 # faces of the solid cells by their corner points (VTK ordering, quadratic cells
 # start with their corner points)
@@ -145,7 +146,8 @@ def check(document, directory="."):
         number of ``shared`` and ``hanging`` points per pair of sections.
     """
     validate(document)
-    commands = document["commands"]
+    # the values of the expressions of the parameters (#242)
+    commands = resolve(document)[0]["commands"]
     directory = Path(directory)
     # the 2D cells of a 2D model (#175)
     dim = 3 if analysis_of(commands) == "3d" else 2

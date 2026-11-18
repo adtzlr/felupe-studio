@@ -8,7 +8,7 @@ import {
 } from "@testing-library/preact";
 import { useState } from "preact/hooks";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Command } from "../core/commands";
+import type { Command } from "../core/resolved";
 import { startProgress } from "../core/jobs";
 import type { Finished, ResultView } from "../core/results";
 import { CurveCard } from "./CurveCard";

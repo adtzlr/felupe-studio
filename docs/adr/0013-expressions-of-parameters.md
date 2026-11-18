@@ -20,7 +20,7 @@ The numbers of the commands are read in many places: the code generation (Python
     - the functions `sqrt`, `exp`, `log`, `sin`, `cos`, `tan`, `abs`, `min` and `max` (angles in radians);
     - the constant `pi`.
   - **Not allowed:** other names, attributes, indexing, comparisons, strings or calls of anything else.
-  - **Evaluation:** Python parses an expression with `ast.parse(..., mode="eval")` and walks a whitelist of node types, without `eval`. TypeScript evaluates it with a small recursive-descent parser. Shared cases list expressions with their values (to 1e-12 relative) or their error messages.
+  - **Evaluation:** Python and TypeScript parse an expression with the same small recursive-descent parser (ASCII numbers and names only), without `eval`, and compute with doubles. Shared cases list expressions with their values (to 1e-12 relative) or their error messages, and the fields of the commands that may hold an expression.
 - **Fields:** every number of a command may be an expression, also the items of lists. There are three exceptions:
   - the fields of `parameter.add` (a parameter is a number: its value, range and step);
   - numbers that name things (`cellset.from_tag` `value`, the point `ids` of a point set);
@@ -36,9 +36,12 @@ The numbers of the commands are read in many places: the code generation (Python
      - unknown names (*'hieght' is not a parameter*);
      - functions that are not allowed;
      - division by zero and non-finite values;
-     - integer fields with a value that is not an integer.
-  3. The **resolved** command list (with the values) is checked against the schema again for the constraints of the values, and by the other rules. The messages name the field and the expression, e.g. *'end' of 'loading': 0.25 * layers * height = -1.5 must be at least 0*.
-- **Script:** the expression as written, in parentheses, with `np.` before the functions and `pi` (`np.sqrt`, `np.pi`), e.g. `fem.math.linsteps([0, (0.25 * layers * height)], num=10)`. Where the code generation computes with a value (e.g. `num + 1`), it uses the value.
+     - integer fields with a value that is not an integer;
+     - values out of the bounds of their fields in the schema, e.g. `minimum`.
+
+     The messages name the field and the expression, e.g. *'ramp.num' of 'loading': '2 * cells - 8' is 0, it must be at least 1.* A command list with such problems is not checked further.
+  3. The **resolved** command list (with the values) is checked by the other rules.
+- **Script:** the expression as written, in parentheses unless it is one name or number, with `np.` before the functions and `pi` (`np.sqrt`, `np.pi`), e.g. `fem.math.linsteps([0, (0.25 * layers * height)], num=10)`. Where the code generation computes with a value (e.g. `num + 1`), it uses the value.
 - **App:**
   - **Two lists:** the store keeps the command list as written (the history, the files, the forms). A resolved list, recomputed when the commands or the values of the parameters change, feeds the viewer, the validation, the checks and the hints. A changed parameter, e.g. in the open dialog of the parameters, moves the point sets, arrows and rigid surfaces that depend on it.
   - **Forms:** a number field takes a number or an expression and shows the value of an expression with its unit.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Command } from "../core/commands";
+import type { Command } from "../core/resolved";
 import { loadLines } from "./loads";
 import { FORCE_COLOR } from "./palette";
 

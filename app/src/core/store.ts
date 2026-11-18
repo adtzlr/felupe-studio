@@ -2,6 +2,7 @@
 import type { CheckReport } from "./checks";
 import type { Command, CommandList } from "./commands";
 import { duplicateBlocker, duplicateCommand } from "./duplicate";
+import { type ResolvedCommand, resolveCommands, usesName } from "./resolve";
 import { SCHEMA_VERSION } from "./schema";
 import { type TreeNode, deriveTree } from "./tree";
 import {
@@ -9,7 +10,7 @@ import {
   order,
   references,
   renameReferences,
-  validate,
+  validateResolution,
 } from "./validate";
 
 export type Edit =
@@ -36,6 +37,7 @@ export class ModelStore {
     issues: Issue[];
     tree: TreeNode[];
   } = { list: [], issues: [], tree: deriveTree([]) };
+  private resolution = { list: this.list, value: resolveCommands([]) };
 
   constructor(document?: CommandList) {
     if (document) this.list = freeze(document.commands);
@@ -51,6 +53,20 @@ export class ModelStore {
 
   get commands(): Commands {
     return this.list;
+  }
+
+  /**
+   * The commands with the values of the expressions of the parameters (#242), e.g.
+   * for the viewer; a command with a problem of an expression is left out. The
+   * same list for the same commands.
+   */
+  get resolved(): readonly ResolvedCommand[] {
+    return this.resolve().commands;
+  }
+
+  /** Find a command by its name, with the values of its expressions. */
+  getResolved(name: string): ResolvedCommand | undefined {
+    return this.resolved.find((c) => c.name === name);
   }
 
   get canUndo(): boolean {
@@ -106,7 +122,8 @@ export class ModelStore {
 
   /**
    * Change a command as one undo step. If the command is renamed, the references
-   * of the other commands follow.
+   * of the other commands follow, and so do their expressions of a parameter
+   * (#242).
    */
   update(name: string, command: Command): void {
     const edits: Edit[] = [{ type: "update", name, command }];
@@ -114,7 +131,8 @@ export class ModelStore {
       for (const other of this.list) {
         if (
           other.name !== name &&
-          references(other).some((r) => r.name === name)
+          (references(other).some((r) => r.name === name) ||
+            usesName(other, name))
         ) {
           const renamed = renameReferences(other, name, command.name);
           edits.push({ type: "update", name: other.name, command: renamed });
@@ -185,12 +203,18 @@ export class ModelStore {
     for (const listener of this.listeners) listener();
   }
 
+  private resolve() {
+    if (this.resolution.list !== this.list)
+      this.resolution = { list: this.list, value: resolveCommands(this.list) };
+    return this.resolution.value;
+  }
+
   private derived() {
     if (
       this.cache.list !== this.list ||
       this.cache.report !== this.checkReport
     ) {
-      const issues = validate(this.list);
+      const issues = validateResolution(this.resolve());
       this.cache = {
         list: this.list,
         report: this.checkReport,

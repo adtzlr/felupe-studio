@@ -1,0 +1,6306 @@
+{
+  "expressions": [
+    {
+      "text": "1 + 2 * 3",
+      "values": {},
+      "value": 7.0
+    },
+    {
+      "text": "(1 + 2) * 3",
+      "values": {},
+      "value": 9.0
+    },
+    {
+      "text": "7 - 2 - 1",
+      "values": {},
+      "value": 4.0
+    },
+    {
+      "text": "8 / 4 / 2",
+      "values": {},
+      "value": 1.0
+    },
+    {
+      "text": "1 / 3",
+      "values": {},
+      "value": 0.3333333333333333
+    },
+    {
+      "text": "2 ** 3 ** 2",
+      "values": {},
+      "value": 512.0
+    },
+    {
+      "text": "-2 ** 2",
+      "values": {},
+      "value": -4.0
+    },
+    {
+      "text": "2 ** -1",
+      "values": {},
+      "value": 0.5
+    },
+    {
+      "text": "2 * -h",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "value": -5.0
+    },
+    {
+      "text": "-(-h)",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "value": 2.5
+    },
+    {
+      "text": "+h",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "value": 2.5
+    },
+    {
+      "text": "--h",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "value": 2.5
+    },
+    {
+      "text": "1e-3 * 2",
+      "values": {},
+      "value": 0.002
+    },
+    {
+      "text": "2.5E+2",
+      "values": {},
+      "value": 250.0
+    },
+    {
+      "text": ".5 + 1.",
+      "values": {},
+      "value": 1.5
+    },
+    {
+      "text": "  0.25*layers *height ",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "value": 10.0
+    },
+    {
+      "text": "n / 2",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "value": 1.5
+    },
+    {
+      "text": "pi",
+      "values": {},
+      "value": 3.141592653589793
+    },
+    {
+      "text": "2 * pi * h",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "value": 15.707963267948966
+    },
+    {
+      "text": "sqrt(2) * h",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "value": 3.5355339059327378
+    },
+    {
+      "text": "exp(1)",
+      "values": {},
+      "value": 2.718281828459045
+    },
+    {
+      "text": "log(10)",
+      "values": {},
+      "value": 2.302585092994046
+    },
+    {
+      "text": "sin(pi / 6)",
+      "values": {},
+      "value": 0.49999999999999994
+    },
+    {
+      "text": "cos(0)",
+      "values": {},
+      "value": 1.0
+    },
+    {
+      "text": "tan(pi / 4)",
+      "values": {},
+      "value": 0.9999999999999999
+    },
+    {
+      "text": "abs(-h)",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "value": 2.5
+    },
+    {
+      "text": "min(3, h, 1)",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "value": 1.0
+    },
+    {
+      "text": "max(h, 2)",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "value": 2.5
+    },
+    {
+      "text": "max(min(h, n), 1) ** 2",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "value": 6.25
+    },
+    {
+      "text": "pi",
+      "values": {
+        "pi": 3
+      },
+      "value": 3.0
+    },
+    {
+      "text": "sqrt(sqrt)",
+      "values": {
+        "sqrt": 16
+      },
+      "value": 4.0
+    },
+    {
+      "text": "",
+      "values": {},
+      "error": "'' is not a valid expression."
+    },
+    {
+      "text": "   ",
+      "values": {},
+      "error": "'   ' is not a valid expression."
+    },
+    {
+      "text": "1 +",
+      "values": {},
+      "error": "'1 +' is not a valid expression."
+    },
+    {
+      "text": "(1 + 2",
+      "values": {},
+      "error": "'(1 + 2' is not a valid expression."
+    },
+    {
+      "text": "1 + 2)",
+      "values": {},
+      "error": "'1 + 2)' is not a valid expression."
+    },
+    {
+      "text": "2 h",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "error": "'2 h' is not a valid expression."
+    },
+    {
+      "text": "h(",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "error": "'h(' is not a valid expression."
+    },
+    {
+      "text": "min(1,)",
+      "values": {},
+      "error": "'min(1,)' is not a valid expression."
+    },
+    {
+      "text": "()",
+      "values": {},
+      "error": "'()' is not a valid expression."
+    },
+    {
+      "text": "1 ** ",
+      "values": {},
+      "error": "'1 ** ' is not a valid expression."
+    },
+    {
+      "text": "2 * * 3",
+      "values": {},
+      "error": "'2 * * 3' is not a valid expression."
+    },
+    {
+      "text": "a.b",
+      "values": {},
+      "error": "'a.b' is not a valid expression."
+    },
+    {
+      "text": "1 @ 2",
+      "values": {},
+      "error": "'1 @ 2' is not a valid expression."
+    },
+    {
+      "text": "h ^ 2",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "error": "'h ^ 2' is not a valid expression."
+    },
+    {
+      "text": "1,2",
+      "values": {},
+      "error": "'1,2' is not a valid expression."
+    },
+    {
+      "text": "٣ + 1",
+      "values": {},
+      "error": "'٣ + 1' is not a valid expression."
+    },
+    {
+      "text": "2 * x",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "error": "'x' is not a parameter in '2 * x'."
+    },
+    {
+      "text": "0.5 * layer * height",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "error": "'layer' is not a parameter in '0.5 * layer * height'."
+    },
+    {
+      "text": "sinh(h)",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "error": "'sinh' is not a function in 'sinh(h)'."
+    },
+    {
+      "text": "h(2)",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "error": "'h' is not a function in 'h(2)'."
+    },
+    {
+      "text": "min(h)",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "error": "'min' takes at least 2 arguments in 'min(h)'."
+    },
+    {
+      "text": "sqrt(1, 2)",
+      "values": {},
+      "error": "'sqrt' takes 1 argument in 'sqrt(1, 2)'."
+    },
+    {
+      "text": "1 / 0",
+      "values": {},
+      "error": "'1 / 0' is not a finite number."
+    },
+    {
+      "text": "h / (n - 3)",
+      "values": {
+        "h": 2.5,
+        "n": 3,
+        "layers": 4,
+        "height": 10.0
+      },
+      "error": "'h / (n - 3)' is not a finite number."
+    },
+    {
+      "text": "1 / (1 / 0)",
+      "values": {},
+      "error": "'1 / (1 / 0)' is not a finite number."
+    },
+    {
+      "text": "log(0)",
+      "values": {},
+      "error": "'log(0)' is not a finite number."
+    },
+    {
+      "text": "sqrt(-1)",
+      "values": {},
+      "error": "'sqrt(-1)' is not a finite number."
+    },
+    {
+      "text": "exp(1000)",
+      "values": {},
+      "error": "'exp(1000)' is not a finite number."
+    },
+    {
+      "text": "10 ** 400",
+      "values": {},
+      "error": "'10 ** 400' is not a finite number."
+    },
+    {
+      "text": "0 ** -1",
+      "values": {},
+      "error": "'0 ** -1' is not a finite number."
+    },
+    {
+      "text": "(-8) ** (1 / 3)",
+      "values": {},
+      "error": "'(-8) ** (1 / 3)' is not a finite number."
+    },
+    {
+      "text": "1e400",
+      "values": {},
+      "error": "'1e400' is not a finite number."
+    },
+    {
+      "text": "1e400 * 0",
+      "values": {},
+      "error": "'1e400 * 0' is not a finite number."
+    }
+  ],
+  "fields": [
+    {
+      "command": {
+        "command": "mesh.import",
+        "name": "bar_hexahedron",
+        "file": "bar.vtu",
+        "cell_type": "hexahedron"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.import",
+        "name": "bar_tetra",
+        "file": "bar.vtu",
+        "cell_type": "tetra"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "left_half",
+        "mesh": "bar_hexahedron"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "right_half",
+        "mesh": "bar_tetra"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "rubber",
+        "model": "NeoHookeCompressible",
+        "parameters": {
+          "mu": "1.0",
+          "lmbda": "2.0"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "mu"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "lmbda"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "left_body",
+        "cellset": "left_half",
+        "material": "rubber",
+        "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "right_body",
+        "cellset": "right_half",
+        "material": "rubber",
+        "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "left",
+        "select": {
+          "axis": "x",
+          "value": "0"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "right",
+        "select": {
+          "axis": "x",
+          "value": "3"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "fixed",
+        "pointset": "left",
+        "constrained": [
+          "x",
+          "y",
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "move",
+        "pointset": "right",
+        "constrained": [
+          "x"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "step_1",
+        "ramp": {
+          "num": "5",
+          "items": [
+            {
+              "target": "move",
+              "start": "0",
+              "end": "0.5"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "start"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "step_1"
+        ],
+        "curve": "move"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.import",
+        "name": "bar",
+        "file": "bar.vtu",
+        "tag": "material"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_tag",
+        "name": "hard",
+        "mesh": "bar",
+        "value": "1"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_tag",
+        "name": "soft",
+        "mesh": "bar",
+        "value": "2"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "steel_like",
+        "model": "LinearElasticLargeStrain",
+        "parameters": {
+          "E": "10",
+          "nu": "0.3"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "E"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "nu"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": -1,
+            "exclusiveMaximum": 0.5
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "rubber",
+        "model": "NeoHooke",
+        "parameters": {
+          "mu": "1"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "mu"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "hard_body",
+        "cellset": "hard",
+        "material": "steel_like",
+        "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "soft_body",
+        "cellset": "soft",
+        "material": "rubber",
+        "formulation": "u-p-J",
+        "bulk": "5000"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "step_1",
+        "ramp": {
+          "num": "1",
+          "items": [
+            {
+              "target": "move",
+              "start": "0",
+              "end": "5"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "start"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "step_1"
+        ],
+        "curve": "move",
+        "maxiter": "20",
+        "cutback": {
+          "factor": "0.25",
+          "max_cutbacks": "1",
+          "growth": "1.5"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "maxiter"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "cutback",
+            "factor"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0,
+            "exclusiveMaximum": 1
+          }
+        },
+        {
+          "path": [
+            "cutback",
+            "max_cutbacks"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "cutback",
+            "growth"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": 1
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.import",
+        "name": "bar",
+        "file": "bar.vtu"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "all_cells",
+        "mesh": "bar"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "body",
+        "cellset": "all_cells",
+        "material": "rubber",
+        "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "step_1"
+        ],
+        "curve": "move",
+        "solver": {
+          "type": "iterative",
+          "method": "minres"
+        },
+        "tol": "1.49e-08"
+      },
+      "fields": [
+        {
+          "path": [
+            "tol"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "loadcase.add",
+        "name": "tension",
+        "type": "uniaxial",
+        "clamped": true,
+        "symmetry": false
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "step_1",
+        "ramp": {
+          "num": "5",
+          "items": [
+            {
+              "target": "tension",
+              "end": "0.5"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "step_1"
+        ],
+        "curve": "tension"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "rubber",
+        "model": "MooneyRivlin",
+        "parameters": {
+          "C10": "0.4",
+          "C01": "0.1",
+          "bulk": "50.0"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "C10"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "C01"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.import",
+        "name": "left_file",
+        "file": "left.vtu"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.import",
+        "name": "right_file",
+        "file": "right.vtu"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "left_half",
+        "mesh": "left_file"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "right_half",
+        "mesh": "right_file"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.merge",
+        "name": "merge",
+        "decimals": "6"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.import",
+        "name": "bar",
+        "file": "bar.msh",
+        "tag": "gmsh:physical"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_tag",
+        "name": "left_half",
+        "mesh": "bar",
+        "value": "1"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_tag",
+        "name": "right_half",
+        "mesh": "bar",
+        "value": "2"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "symmetry.add",
+        "name": "quarter",
+        "axes": [
+          "y",
+          "z"
+        ],
+        "y": "0.5",
+        "z": "0.5"
+      },
+      "fields": [
+        {
+          "path": [
+            "y"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "z"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "step_1"
+        ],
+        "curve": "tension",
+        "tol": "1.49e-08"
+      },
+      "fields": [
+        {
+          "path": [
+            "tol"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "step_1"
+        ],
+        "curve": "move",
+        "tol": "1.49e-08"
+      },
+      "fields": [
+        {
+          "path": [
+            "tol"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "body",
+        "cellset": "all_cells",
+        "material": "rubber",
+        "formulation": "u-p-J",
+        "bulk": "10",
+        "volumetric": "log"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.import",
+        "name": "block",
+        "file": "block.vtu"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "all_cells",
+        "mesh": "block"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "soft",
+        "model": "NeoHookeCompressible",
+        "parameters": {
+          "mu": "1.0",
+          "lmbda": "2.0"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "mu"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "lmbda"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "body",
+        "cellset": "all_cells",
+        "material": "soft",
+        "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "x_min",
+        "select": {
+          "axis": "x",
+          "value": "0"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "y_min",
+        "select": {
+          "axis": "y",
+          "value": "0"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "z_min",
+        "select": {
+          "axis": "z",
+          "value": "0"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "top",
+        "select": {
+          "axis": "z",
+          "value": "1"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "rigid.add",
+        "name": "roller",
+        "coordinates": [
+          "0",
+          "0.5",
+          "3"
+        ],
+        "shape": {
+          "radius": "2",
+          "axis": [
+            "0",
+            "1",
+            "0"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "coordinates",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "shape",
+            "radius"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "shape",
+            "axis",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "shape",
+            "axis",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "shape",
+            "axis",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "symmetry_x",
+        "pointset": "x_min",
+        "constrained": [
+          "x"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "symmetry_y",
+        "pointset": "y_min",
+        "constrained": [
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "symmetry_z",
+        "pointset": "z_min",
+        "constrained": [
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "press",
+        "pointset": "roller",
+        "constrained": [
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "guide",
+        "pointset": "roller",
+        "constrained": [
+          "x",
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "contact.add",
+        "name": "touch",
+        "points": "top",
+        "surface": "roller",
+        "multiplier": "100"
+      },
+      "fields": [
+        {
+          "path": [
+            "multiplier"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "step_1",
+        "ramp": {
+          "num": "5",
+          "items": [
+            {
+              "target": "press",
+              "end": "-0.2"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "step_1"
+        ],
+        "curve": "press",
+        "tol": "1.49e-08"
+      },
+      "fields": [
+        {
+          "path": [
+            "tol"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "rigid.add",
+        "name": "plate",
+        "coordinates": [
+          "2",
+          "2",
+          "1"
+        ],
+        "shape": {
+          "normal": [
+            "0",
+            "0",
+            "-1"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "coordinates",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "shape",
+            "normal",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "shape",
+            "normal",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "shape",
+            "normal",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "press",
+        "pointset": "plate",
+        "constrained": [
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "guide",
+        "pointset": "plate",
+        "constrained": [
+          "x",
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "contact.add",
+        "name": "touch",
+        "points": "top",
+        "surface": "plate",
+        "multiplier": "1000",
+        "friction": "1.0",
+        "elastic_slip": "0.0001"
+      },
+      "fields": [
+        {
+          "path": [
+            "friction"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": 0
+          }
+        },
+        {
+          "path": [
+            "multiplier"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "elastic_slip"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "contact.add",
+        "name": "touch",
+        "points": "top",
+        "surface": "plate",
+        "multiplier": "1000"
+      },
+      "fields": [
+        {
+          "path": [
+            "multiplier"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "faceset.add",
+        "name": "end",
+        "section": "body",
+        "select": {
+          "axis": "x",
+          "value": "1"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pressure.add",
+        "name": "pull",
+        "faces": "end",
+        "pressure": "-0.5"
+      },
+      "fields": [
+        {
+          "path": [
+            "pressure"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "step_1",
+        "ramp": {
+          "num": "5",
+          "items": [
+            {
+              "target": "pull",
+              "end": "1"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "step_1"
+        ],
+        "curve": "symmetry_x"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "model.settings",
+        "name": "settings",
+        "units": {
+          "length": "mm",
+          "force": "N"
+        }
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "inner_length",
+        "value": "100",
+        "quantity": "length",
+        "min": "60",
+        "max": "140",
+        "step": "10",
+        "description": "Length of the inner sleeve"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "outer_length",
+        "value": "60",
+        "quantity": "length",
+        "min": "30",
+        "max": "100",
+        "step": "10",
+        "description": "Length of the outer sleeve"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "sleeve",
+        "value": "5",
+        "quantity": "length",
+        "min": "2",
+        "max": "10",
+        "step": "1",
+        "description": "Thickness of the sleeves"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "runout",
+        "value": "0.2",
+        "min": "0",
+        "max": "0.4",
+        "step": "0.05",
+        "description": "Runout of the free faces of the rubber"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "cells_axial",
+        "value": "3",
+        "min": "2",
+        "max": "20",
+        "integer": true,
+        "description": "Cells along the axis"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "cells_radial",
+        "value": "3",
+        "min": "2",
+        "max": "20",
+        "integer": true,
+        "description": "Cells through the rubber"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "cells_around",
+        "value": "12",
+        "min": "8",
+        "max": "72",
+        "integer": true,
+        "description": "Cells around the axis"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.script",
+        "name": "rubber_mesh",
+        "file": "bushing.py",
+        "item": "rubber"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.script",
+        "name": "metal_mesh",
+        "file": "bushing.py",
+        "item": "metal"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "rubber_cells",
+        "mesh": "rubber_mesh"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "metal_cells",
+        "mesh": "metal_mesh"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "steel",
+        "model": "LinearElasticLargeStrain",
+        "parameters": {
+          "E": "210000",
+          "nu": "0.3"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "E"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "nu"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": -1,
+            "exclusiveMaximum": 0.5
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "rubber_body",
+        "cellset": "rubber_cells",
+        "material": "rubber",
+        "formulation": "u-p-J",
+        "bulk": "5000"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "sleeves",
+        "cellset": "metal_cells",
+        "material": "steel",
+        "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "inner",
+        "select": {
+          "radius": "25",
+          "axis": "x"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "radius"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "outer",
+        "select": {
+          "radius": "65",
+          "axis": "x"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "radius"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "point.add",
+        "name": "center",
+        "coordinates": [
+          "0",
+          "0",
+          "0"
+        ]
+      },
+      "fields": [
+        {
+          "path": [
+            "coordinates",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "point.add",
+        "name": "turn",
+        "coordinates": [
+          "0",
+          "0",
+          "10"
+        ]
+      },
+      "fields": [
+        {
+          "path": [
+            "coordinates",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mpc.add",
+        "name": "connect",
+        "points": "inner",
+        "center": "center",
+        "constrained": [
+          "x",
+          "y",
+          "z"
+        ],
+        "multiplier": "100000",
+        "rotation": "turn"
+      },
+      "fields": [
+        {
+          "path": [
+            "multiplier"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "fixed",
+        "pointset": "outer",
+        "constrained": [
+          "x",
+          "y",
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "radial",
+        "pointset": "center",
+        "constrained": [
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "hold",
+        "pointset": "center",
+        "constrained": [
+          "x",
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "torsion",
+        "pointset": "turn",
+        "constrained": [
+          "x"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "cardanic",
+        "pointset": "turn",
+        "constrained": [
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "lock",
+        "pointset": "turn",
+        "constrained": [
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "loading",
+        "ramp": {
+          "num": "6",
+          "items": [
+            {
+              "target": "radial",
+              "end": "8"
+            },
+            {
+              "target": "torsion",
+              "end": "0.5236"
+            },
+            {
+              "target": "cardanic",
+              "end": "-0.0873"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            1,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            2,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job",
+        "steps": [
+          "loading"
+        ],
+        "curve": "torsion"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.import",
+        "name": "cube",
+        "file": "cube.vtu"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "all_cells",
+        "mesh": "cube"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "rubber",
+        "model": "ArrudaBoyce",
+        "parameters": {
+          "C1": "1",
+          "limit": "3.2"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "C1"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "limit"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 1
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "body",
+        "cellset": "all_cells",
+        "material": "rubber",
+        "formulation": "u-p-J",
+        "bulk": "5000"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "loadcase.add",
+        "name": "tension",
+        "type": "uniaxial"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "step_1",
+        "ramp": {
+          "num": "5",
+          "items": [
+            {
+              "target": "tension",
+              "end": "1"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "rubber",
+        "model": "ExtendedTube",
+        "parameters": {
+          "Gc": "0.1867",
+          "delta": "0.09693",
+          "Ge": "0.2169",
+          "beta": "0.2"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "Gc"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "delta"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "Ge"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "beta"
+          ],
+          "integer": false,
+          "bounds": {
+            "maximum": 1,
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "rubber",
+        "model": "Ogden",
+        "parameters": {
+          "mu": [
+            "1",
+            "0.2"
+          ],
+          "alpha": [
+            "1.7",
+            "-1.5"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "mu",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "mu",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "alpha",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "alpha",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "rubber",
+        "model": "ThirdOrderDeformation",
+        "parameters": {
+          "C10": "0.5",
+          "C01": "0.1",
+          "C11": "0.01",
+          "C20": "-0.1",
+          "C30": "0.02"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "C10"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "C01"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "C11"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "C20"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "C30"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "rubber",
+        "model": "Yeoh",
+        "parameters": {
+          "C10": "0.5",
+          "C20": "-0.1",
+          "C30": "0.02"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "C10"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "C20"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "C30"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "model.settings",
+        "name": "settings",
+        "analysis": "axisymmetric"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.import",
+        "name": "plate",
+        "file": "plate.vtu"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "all_cells",
+        "mesh": "plate"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "end",
+        "select": {
+          "axis": "x",
+          "value": "3"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "rigid.add",
+        "name": "wall",
+        "coordinates": [
+          "3",
+          "2",
+          "0"
+        ],
+        "shape": {
+          "normal": [
+            "-1",
+            "0",
+            "0"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "coordinates",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "shape",
+            "normal",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "shape",
+            "normal",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "shape",
+            "normal",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "press",
+        "pointset": "wall",
+        "constrained": [
+          "x"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "guide",
+        "pointset": "wall",
+        "constrained": [
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "contact.add",
+        "name": "touch",
+        "points": "end",
+        "surface": "wall",
+        "multiplier": "1000"
+      },
+      "fields": [
+        {
+          "path": [
+            "multiplier"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "step_1",
+        "ramp": {
+          "num": "3",
+          "items": [
+            {
+              "target": "press",
+              "end": "-0.3"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "faceset.add",
+        "name": "end",
+        "section": "body",
+        "select": {
+          "axis": "x",
+          "value": "3"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "sym_x",
+        "pointset": "x_min",
+        "constrained": [
+          "x"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "sym_y",
+        "pointset": "y_min",
+        "constrained": [
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "step_1"
+        ],
+        "curve": "sym_x",
+        "tol": "1.49e-08"
+      },
+      "fields": [
+        {
+          "path": [
+            "tol"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "steel",
+        "model": "LinearElasticSmallStrain",
+        "parameters": {
+          "E": "210000",
+          "nu": "0.3"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "E"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "nu"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": -1,
+            "exclusiveMaximum": 0.5
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "body",
+        "cellset": "all_cells",
+        "material": "steel",
+        "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "loading",
+        "ramp": {
+          "num": "4",
+          "items": [
+            {
+              "target": "tension",
+              "end": "0.002"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "loading"
+        ],
+        "curve": "tension",
+        "tol": "1.49e-08"
+      },
+      "fields": [
+        {
+          "path": [
+            "tol"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "steel",
+        "model": "LinearElasticPlasticIsotropicHardening",
+        "framework": "small-strain",
+        "parameters": {
+          "E": "210000",
+          "nu": "0.3",
+          "sigma_y": "250",
+          "K": "1000"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "E"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "nu"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": -1,
+            "exclusiveMaximum": 0.5
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "sigma_y"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "K"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "loading",
+        "ramp": {
+          "num": "5",
+          "items": [
+            {
+              "target": "tension",
+              "end": "0.005"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "unloading",
+        "ramp": {
+          "num": "4",
+          "items": [
+            {
+              "target": "tension",
+              "start": "0.005",
+              "end": "0.0038"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "start"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "loading",
+          "unloading"
+        ],
+        "curve": "tension",
+        "tol": "1.49e-08"
+      },
+      "fields": [
+        {
+          "path": [
+            "tol"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "model.settings",
+        "name": "settings",
+        "analysis": "plane-strain"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "top",
+        "select": {
+          "axis": "y",
+          "value": "1"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "rigid.add",
+        "name": "roller",
+        "coordinates": [
+          "1.5",
+          "3",
+          "0"
+        ],
+        "shape": {
+          "radius": "2",
+          "axis": [
+            "0",
+            "0",
+            "1"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "coordinates",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "shape",
+            "radius"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "shape",
+            "axis",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "shape",
+            "axis",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "shape",
+            "axis",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "fixed",
+        "pointset": "y_min",
+        "constrained": [
+          "x",
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "press",
+        "pointset": "roller",
+        "constrained": [
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "guide",
+        "pointset": "roller",
+        "constrained": [
+          "x"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "step_1",
+        "ramp": {
+          "num": "4",
+          "items": [
+            {
+              "target": "press",
+              "end": "-0.2"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "point.add",
+        "name": "center",
+        "coordinates": [
+          "3.5",
+          "0.5",
+          "0"
+        ]
+      },
+      "fields": [
+        {
+          "path": [
+            "coordinates",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "point.add",
+        "name": "pivot",
+        "coordinates": [
+          "3.5",
+          "0.6",
+          "0"
+        ]
+      },
+      "fields": [
+        {
+          "path": [
+            "coordinates",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "fixed",
+        "pointset": "left",
+        "constrained": [
+          "x",
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "turn",
+        "pointset": "pivot",
+        "constrained": [
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mpc.add",
+        "name": "plate_end",
+        "points": "right",
+        "center": "center",
+        "constrained": [
+          "x",
+          "y"
+        ],
+        "rotation": "pivot",
+        "multiplier": "100000.0"
+      },
+      "fields": [
+        {
+          "path": [
+            "multiplier"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "step_1",
+        "ramp": {
+          "num": "5",
+          "items": [
+            {
+              "target": "turn",
+              "end": "0.1"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "step_1"
+        ],
+        "curve": "turn",
+        "tol": "1.49e-08"
+      },
+      "fields": [
+        {
+          "path": [
+            "tol"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "radius",
+        "value": "50",
+        "quantity": "length",
+        "min": "20",
+        "max": "100",
+        "step": "5",
+        "description": "Radius of the discs"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "layers",
+        "value": "3",
+        "min": "1",
+        "max": "6",
+        "integer": true,
+        "description": "Number of rubber layers"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "height",
+        "value": "8",
+        "quantity": "length",
+        "min": "2",
+        "max": "20",
+        "step": "1",
+        "description": "Height of a rubber layer"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "sheet",
+        "value": "2",
+        "quantity": "length",
+        "min": "1",
+        "max": "5",
+        "step": "0.5",
+        "description": "Thickness of a steel sheet"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "cells",
+        "value": "4",
+        "min": "2",
+        "max": "8",
+        "integer": true,
+        "description": "Fineness of the discs (n of fem.Circle)"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.script",
+        "name": "rubber_mesh",
+        "file": "sandwich_spring.py",
+        "item": "rubber"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.script",
+        "name": "metal_mesh",
+        "file": "sandwich_spring.py",
+        "item": "metal"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "rubber",
+        "model": "NeoHooke",
+        "parameters": {
+          "mu": "0.5"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "mu"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "rubber_layers",
+        "cellset": "rubber_cells",
+        "material": "rubber",
+        "formulation": "u-p-J",
+        "bulk": "1000"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "steel_sheets",
+        "cellset": "metal_cells",
+        "material": "steel",
+        "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "base",
+        "select": {
+          "bound": "min",
+          "axis": "z"
+        }
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "top",
+        "select": {
+          "bound": "max",
+          "axis": "z"
+        }
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "fixed",
+        "pointset": "base",
+        "constrained": [
+          "x",
+          "y",
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "shear",
+        "pointset": "top",
+        "constrained": [
+          "x"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "guide",
+        "pointset": "top",
+        "constrained": [
+          "y",
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "shearing",
+        "ramp": {
+          "num": "8",
+          "items": [
+            {
+              "target": "shear",
+              "end": "12"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job",
+        "steps": [
+          "shearing"
+        ],
+        "curve": "shear"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "layers",
+        "value": "5",
+        "min": "1",
+        "max": "6",
+        "integer": true,
+        "description": "Number of rubber layers"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "rubber_layers",
+        "cellset": "rubber_cells",
+        "material": "rubber",
+        "formulation": "u-p-J",
+        "bulk": "max(1000, 2 * radius)"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "top",
+        "select": {
+          "axis": "z",
+          "value": "sheet + layers * (height + sheet)"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "shearing",
+        "ramp": {
+          "num": "2 * cells",
+          "items": [
+            {
+              "target": "shear",
+              "end": "0.5 * layers * height"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "runout",
+        "value": "0.2",
+        "min": "0",
+        "max": "0.4",
+        "step": "0.05",
+        "description": "Runout of the free faces of the soft body"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "cells_axial",
+        "value": "5",
+        "min": "2",
+        "max": "20",
+        "integer": true,
+        "description": "Cells along the axis"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "cells_radial",
+        "value": "7",
+        "min": "2",
+        "max": "20",
+        "integer": true,
+        "description": "Cells through the soft body"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "cells_around",
+        "value": "18",
+        "min": "8",
+        "max": "72",
+        "integer": true,
+        "description": "Cells around the axis"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.script",
+        "name": "soft_mesh",
+        "file": "bushing.py",
+        "item": "soft"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "soft_cells",
+        "mesh": "soft_mesh"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "hyperelastic",
+        "model": "NeoHooke",
+        "parameters": {
+          "mu": "1"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "mu"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "soft_body",
+        "cellset": "soft_cells",
+        "material": "hyperelastic",
+        "formulation": "u-p-J",
+        "bulk": "5000"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "model.settings",
+        "name": "settings",
+        "analysis": "plane-strain",
+        "units": {
+          "length": "mm",
+          "force": "N"
+        }
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.import",
+        "name": "metal",
+        "file": "metal.vtu",
+        "tag": "part"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.import",
+        "name": "rubber",
+        "file": "rubber.vtu"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.import",
+        "name": "air",
+        "file": "air.vtu"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_tag",
+        "name": "inner_cells",
+        "mesh": "metal",
+        "value": "1"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_tag",
+        "name": "outer_cells",
+        "mesh": "metal",
+        "value": "2"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "rubber_cells",
+        "mesh": "rubber"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "air_cells",
+        "mesh": "air"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "rubber_material",
+        "model": "NeoHooke",
+        "parameters": {
+          "mu": "1"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "mu"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "air_material",
+        "model": "NeoHooke",
+        "parameters": {
+          "mu": "0.013333333333333334"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "mu"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "rubber_section",
+        "cellset": "rubber_cells",
+        "material": "rubber_material",
+        "formulation": "u-p-J",
+        "bulk": "100"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "air_section",
+        "cellset": "air_cells",
+        "material": "air_material",
+        "formulation": "u-isochoric"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "inner_metal",
+        "cellset": "inner_cells",
+        "material": "steel",
+        "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "outer_metal",
+        "cellset": "outer_cells",
+        "material": "steel",
+        "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "inner",
+        "select": {
+          "section": "inner_metal"
+        }
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "outer",
+        "select": {
+          "section": "outer_metal"
+        }
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "fixed",
+        "pointset": "outer",
+        "constrained": [
+          "x",
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "move_x",
+        "pointset": "inner",
+        "constrained": [
+          "x"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "move_y",
+        "pointset": "inner",
+        "constrained": [
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "up",
+        "ramp": {
+          "num": "3",
+          "items": [
+            {
+              "target": "move_y",
+              "start": "0",
+              "end": "3"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "start"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "there",
+        "ramp": {
+          "num": "8",
+          "items": [
+            {
+              "target": "move_x",
+              "start": "0",
+              "end": "8"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "start"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "back",
+        "ramp": {
+          "num": "16",
+          "items": [
+            {
+              "target": "move_x",
+              "start": "8",
+              "end": "-8"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "start"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "home",
+        "ramp": {
+          "num": "8",
+          "items": [
+            {
+              "target": "move_x",
+              "start": "-8",
+              "end": "0"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "start"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "vertical",
+        "steps": [
+          "up"
+        ],
+        "curve": "move_y"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "horizontal",
+        "steps": [
+          "there",
+          "back",
+          "home"
+        ],
+        "curve": "move_x"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "hyperelastic",
+        "model": "MooneyRivlin",
+        "parameters": {
+          "C10": "0.4",
+          "C01": "0.1"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "C10"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "C01"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "soft_block",
+        "cellset": "all_cells",
+        "material": "hyperelastic",
+        "formulation": "u-p-J",
+        "bulk": "2000"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "base",
+        "select": {
+          "axis": "z",
+          "value": "0"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "top",
+        "select": {
+          "axis": "z",
+          "value": "20"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "point.add",
+        "name": "plate",
+        "coordinates": [
+          "20",
+          "20",
+          "25"
+        ]
+      },
+      "fields": [
+        {
+          "path": [
+            "coordinates",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "point.add",
+        "name": "tilt",
+        "coordinates": [
+          "20",
+          "20",
+          "30"
+        ]
+      },
+      "fields": [
+        {
+          "path": [
+            "coordinates",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "shift",
+        "pointset": "plate",
+        "constrained": [
+          "x"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "hold",
+        "pointset": "plate",
+        "constrained": [
+          "y",
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "tilt_y",
+        "pointset": "tilt",
+        "constrained": [
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "tilt_lock",
+        "pointset": "tilt",
+        "constrained": [
+          "x",
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mpc.add",
+        "name": "glue",
+        "points": "top",
+        "center": "plate",
+        "constrained": [
+          "x",
+          "y",
+          "z"
+        ],
+        "rotation": "tilt"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "shift_and_tilt",
+        "ramp": {
+          "num": "8",
+          "items": [
+            {
+              "target": "shift",
+              "end": "8"
+            },
+            {
+              "target": "tilt_y",
+              "end": "0.1"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            1,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job",
+        "steps": [
+          "shift_and_tilt"
+        ],
+        "curve": "shift"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.import",
+        "name": "bar_hexahedron",
+        "file": "bar.msh",
+        "cell_type": "hexahedron"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.import",
+        "name": "bar_tetra",
+        "file": "bar.msh",
+        "cell_type": "tetra"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "hexahedrons",
+        "mesh": "bar_hexahedron"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "tetrahedrons",
+        "mesh": "bar_tetra"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "hex_part",
+        "cellset": "hexahedrons",
+        "material": "hyperelastic",
+        "formulation": "u-p-J",
+        "bulk": "5000"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "tet_part",
+        "cellset": "tetrahedrons",
+        "material": "hyperelastic",
+        "formulation": "u-p-J",
+        "bulk": "5000"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "right",
+        "select": {
+          "axis": "x",
+          "value": "30"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "pull",
+        "pointset": "right",
+        "constrained": [
+          "x"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "tension",
+        "ramp": {
+          "num": "5",
+          "items": [
+            {
+              "target": "pull",
+              "end": "15"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job",
+        "steps": [
+          "tension"
+        ],
+        "curve": "pull"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.import",
+        "name": "spring",
+        "file": "spring.vtu"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "all_cells",
+        "mesh": "spring"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "hyperelastic",
+        "model": "NeoHookeCompressible",
+        "parameters": {
+          "mu": "1",
+          "lmbda": "5"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "mu"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "lmbda"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "soft_spring",
+        "cellset": "all_cells",
+        "material": "hyperelastic",
+        "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "symmetry.add",
+        "name": "symmetry",
+        "axes": [
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "top",
+        "select": {
+          "axis": "z",
+          "value": "120"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "bottom",
+        "select": {
+          "axis": "z",
+          "value": "0"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "outer",
+        "select": {
+          "surface": true
+        }
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "rigid.add",
+        "name": "upper_plate",
+        "coordinates": [
+          "0",
+          "0",
+          "120.1"
+        ],
+        "shape": {
+          "normal": [
+            "0",
+            "0",
+            "-1"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "coordinates",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "shape",
+            "normal",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "shape",
+            "normal",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "shape",
+            "normal",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "rigid.add",
+        "name": "lower_plate",
+        "coordinates": [
+          "0",
+          "0",
+          "0"
+        ],
+        "shape": {
+          "normal": [
+            "0",
+            "0",
+            "1"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "coordinates",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "coordinates",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "shape",
+            "normal",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "shape",
+            "normal",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "shape",
+            "normal",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "fixed",
+        "pointset": "top",
+        "constrained": [
+          "x",
+          "y",
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "stop",
+        "pointset": "upper_plate",
+        "constrained": [
+          "x",
+          "y",
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "axial",
+        "pointset": "bottom",
+        "constrained": [
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "lateral",
+        "pointset": "bottom",
+        "constrained": [
+          "x"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "guide",
+        "pointset": "bottom",
+        "constrained": [
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "contact.add",
+        "name": "upper_stop",
+        "points": "outer",
+        "surface": "upper_plate",
+        "friction": "0.5"
+      },
+      "fields": [
+        {
+          "path": [
+            "friction"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "contact.add",
+        "name": "lower_stop",
+        "points": "outer",
+        "surface": "lower_plate",
+        "friction": "0.5"
+      },
+      "fields": [
+        {
+          "path": [
+            "friction"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "compression",
+        "ramp": {
+          "num": "4",
+          "items": [
+            {
+              "target": "axial",
+              "end": "40"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "shear",
+        "ramp": {
+          "num": "4",
+          "items": [
+            {
+              "target": "lateral",
+              "end": "40"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job",
+        "steps": [
+          "compression",
+          "shear"
+        ],
+        "curve": "axial"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "hyperelastic",
+        "model": "NeoHooke",
+        "parameters": {
+          "mu": "0.5"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "mu"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "specimen",
+        "cellset": "all_cells",
+        "material": "hyperelastic",
+        "formulation": "u-p-J",
+        "bulk": "5000"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "loadcase.add",
+        "name": "tension",
+        "type": "uniaxial",
+        "axis": "x"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "stretch",
+        "ramp": {
+          "num": "10",
+          "items": [
+            {
+              "target": "tension",
+              "end": "1"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job",
+        "steps": [
+          "stretch"
+        ],
+        "curve": "tension",
+        "tol": "1e-06"
+      },
+      "fields": [
+        {
+          "path": [
+            "tol"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "model.settings",
+        "name": "settings",
+        "analysis": "axisymmetric",
+        "units": {
+          "length": "mm",
+          "force": "N"
+        }
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "sheet",
+        "value": "0.5",
+        "quantity": "length",
+        "min": "0.3",
+        "max": "1",
+        "step": "0.1",
+        "description": "Thickness of the steel sheets"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "cells",
+        "value": "20",
+        "min": "8",
+        "max": "60",
+        "integer": true,
+        "description": "Cells along the layers"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "cells_layer",
+        "value": "10",
+        "min": "2",
+        "max": "30",
+        "integer": true,
+        "description": "Cells through a rubber layer"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.script",
+        "name": "rubber_mesh",
+        "file": "metacone.py",
+        "item": "rubber"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.script",
+        "name": "metal_mesh",
+        "file": "metacone.py",
+        "item": "metal"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "rubber_layers",
+        "cellset": "rubber_cells",
+        "material": "rubber",
+        "formulation": "u-p-J",
+        "bulk": "5000"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "loadcase.add",
+        "name": "push",
+        "type": "uniaxial",
+        "clamped": true,
+        "symmetry": false
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "pushing",
+        "ramp": {
+          "num": "5",
+          "items": [
+            {
+              "target": "push",
+              "end": "-1.5"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job",
+        "steps": [
+          "pushing"
+        ],
+        "curve": "push"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "radius",
+        "value": "10",
+        "quantity": "length",
+        "min": "2",
+        "max": "30",
+        "step": "1",
+        "description": "Radius of the hole"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "width",
+        "value": "40",
+        "quantity": "length",
+        "min": "35",
+        "max": "100",
+        "step": "5",
+        "description": "Half width of the plate"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "cells",
+        "value": "8",
+        "min": "3",
+        "max": "20",
+        "integer": true,
+        "description": "Number of cells along an edge"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.script",
+        "name": "plate_mesh",
+        "file": "plate_with_hole.py"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "plate_cells",
+        "mesh": "plate_mesh"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "steel",
+        "model": "LinearElasticPlasticIsotropicHardening",
+        "parameters": {
+          "E": "210000",
+          "nu": "0.3",
+          "sigma_y": "250",
+          "K": "1000"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "E"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "nu"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": -1,
+            "exclusiveMaximum": 0.5
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "sigma_y"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "K"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "plate",
+        "cellset": "plate_cells",
+        "material": "steel",
+        "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "symmetry.add",
+        "name": "quarter",
+        "axes": [
+          "x",
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "end",
+        "select": {
+          "bound": "max",
+          "axis": "x"
+        }
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "pull",
+        "pointset": "end",
+        "constrained": [
+          "x"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "loading",
+        "ramp": {
+          "num": "10",
+          "items": [
+            {
+              "target": "pull",
+              "end": "0.1"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "unloading",
+        "ramp": {
+          "num": "10",
+          "items": [
+            {
+              "target": "pull",
+              "start": "0.1",
+              "end": "0"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "start"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job",
+        "steps": [
+          "loading",
+          "unloading"
+        ],
+        "curve": "pull"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "plate",
+        "cellset": "plate_cells",
+        "material": "hyperelastic",
+        "formulation": "u-p-J",
+        "bulk": "1000"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "pulling",
+        "ramp": {
+          "num": "8",
+          "items": [
+            {
+              "target": "pull",
+              "end": "8"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job",
+        "steps": [
+          "pulling"
+        ],
+        "curve": "pull"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "layers",
+        "value": "3",
+        "min": "1",
+        "max": "6",
+        "integer": true,
+        "description": "Number of soft layers"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "height",
+        "value": "8",
+        "quantity": "length",
+        "min": "2",
+        "max": "20",
+        "step": "1",
+        "description": "Height of a soft layer"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "cells_height",
+        "value": "2",
+        "min": "1",
+        "max": "8",
+        "integer": true,
+        "description": "Number of cells through a soft layer"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.script",
+        "name": "soft_mesh",
+        "file": "sandwich_spring.py",
+        "item": "soft"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "soft_layers",
+        "cellset": "soft_cells",
+        "material": "hyperelastic",
+        "formulation": "u-p-J",
+        "bulk": "1000"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "guide_y",
+        "pointset": "top",
+        "constrained": [
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "guide_z",
+        "pointset": "top",
+        "constrained": [
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "cells",
+        "value": "10",
+        "min": "4",
+        "max": "30",
+        "integer": true,
+        "description": "Number of cells along the radius"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "cells_height",
+        "value": "4",
+        "min": "1",
+        "max": "12",
+        "integer": true,
+        "description": "Number of cells through a soft layer"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.script",
+        "name": "soft_mesh",
+        "file": "sandwich_spring_2d.py",
+        "item": "soft"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.script",
+        "name": "metal_mesh",
+        "file": "sandwich_spring_2d.py",
+        "item": "metal"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "first",
+        "select": {
+          "bound": "min",
+          "axis": "x"
+        }
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "last",
+        "select": {
+          "bound": "max",
+          "axis": "x"
+        }
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "symmetry.add",
+        "name": "axis",
+        "axes": [
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "fixed",
+        "pointset": "last",
+        "constrained": [
+          "x",
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "press",
+        "pointset": "first",
+        "constrained": [
+          "x"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "guide",
+        "pointset": "first",
+        "constrained": [
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "pressing",
+        "ramp": {
+          "num": "8",
+          "items": [
+            {
+              "target": "press",
+              "end": "4"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job",
+        "steps": [
+          "pressing"
+        ],
+        "curve": "press"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.import",
+        "name": "mount",
+        "file": "mount.vtu",
+        "tag": "part"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_tag",
+        "name": "bottom_plate",
+        "mesh": "mount",
+        "value": "1"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_tag",
+        "name": "soft_layer",
+        "mesh": "mount",
+        "value": "2"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_tag",
+        "name": "top_plate",
+        "mesh": "mount",
+        "value": "3"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "bottom",
+        "cellset": "bottom_plate",
+        "material": "steel",
+        "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "block",
+        "cellset": "soft_layer",
+        "material": "hyperelastic",
+        "formulation": "u-p-J",
+        "bulk": "2000"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "top",
+        "cellset": "top_plate",
+        "material": "steel",
+        "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "loadcase.add",
+        "name": "shear",
+        "type": "shear",
+        "axis": "x",
+        "normal": "z",
+        "symmetry": false
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "shearing",
+        "ramp": {
+          "num": "10",
+          "items": [
+            {
+              "target": "shear",
+              "end": "20"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "cellset.from_tag",
+        "name": "stiff",
+        "mesh": "bar",
+        "value": "1"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "plastic",
+        "model": "LinearElasticLargeStrain",
+        "parameters": {
+          "E": "100",
+          "nu": "0.3"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "E"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "nu"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": -1,
+            "exclusiveMaximum": 0.5
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "stiff_half",
+        "cellset": "stiff",
+        "material": "plastic",
+        "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "soft_half",
+        "cellset": "soft",
+        "material": "hyperelastic",
+        "formulation": "u-p-J",
+        "bulk": "5000"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "clamp",
+        "pointset": "right",
+        "constrained": [
+          "y",
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "tension",
+        "ramp": {
+          "num": "10",
+          "items": [
+            {
+              "target": "pull",
+              "end": "15"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    }
+  ]
+}

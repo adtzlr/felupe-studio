@@ -1,6 +1,6 @@
 // Point loads in the viewport (#100): an arrow at every point of the load, in the
 // direction of its force.
-import type { Command, LoadAdd } from "../core/commands";
+import type { Command, LoadAdd } from "../core/resolved";
 import { thinned } from "./boundaries";
 import { FORCE_COLOR } from "./palette";
 import { selectedPoints } from "./pointsets";

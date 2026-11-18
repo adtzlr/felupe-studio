@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { JobEvent, JobResult, ResultScene } from "../worker/protocol";
-import type { Command } from "./commands";
+import type { Command } from "./resolved";
 import {
   advance,
   exceptionOf,

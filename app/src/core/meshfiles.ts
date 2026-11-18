@@ -54,7 +54,8 @@ export type Maker = (
 /** A mesh object of the model: imported from a file or made by a script. */
 export type MeshCommand = MeshImport | MeshScript;
 
-export const isMesh = (c: Command): c is MeshCommand =>
+/** Whether a command is a mesh object, also with the values of expressions. */
+export const isMesh = <C extends Command>(c: C): c is Extract<C, MeshCommand> =>
   c.command === "mesh.import" || c.command === "mesh.script";
 
 /** A Python script of the project, by its name (#182). */

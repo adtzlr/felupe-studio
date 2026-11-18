@@ -7,17 +7,15 @@ import type {
   CellSetFromTag,
   Command,
   SectionAdd,
-} from "../core/commands";
-import {
-  isMesh,
-  type MeshCommand,
-  type MeshFiles,
-  meshStatus,
-} from "../core/meshfiles";
+} from "../core/resolved";
+import { isMesh, type MeshFiles, meshStatus } from "../core/meshfiles";
 import { solidOf } from "../core/meshinfo";
 import type { MeshSurface } from "../worker/protocol";
 import { categorical, UNASSIGNED } from "./palette";
 import type { CellGroup, LegendEntry, MeshLayer } from "./scene";
+
+/** A mesh object with the values of its expressions (#242). */
+type MeshCommand = Extract<Command, { command: "mesh.import" | "mesh.script" }>;
 
 export type ColorBy = "mesh" | "cellset" | "section";
 

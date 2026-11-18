@@ -104,6 +104,13 @@ def _type(node, command="", key=""):
         return _join([_code(v) for v in node["enum"]])
     kind = node.get("type")
     if isinstance(kind, list):
+        # a number or an expression of the parameters (#242, ADR 0013)
+        if "string" in kind and ("number" in kind or "integer" in kind):
+            kind = [k for k in kind if k != "string"]
+            text = _type(
+                {**node, "type": kind if len(kind) > 1 else kind[0]}, command, key
+            )
+            return f"{text} (or an expression)"
         # a value of more than one type, e.g. a number or one per component (#225)
         return _join([_type({**node, "type": k}, command, key) for k in kind])
     if kind == "array":
@@ -113,7 +120,7 @@ def _type(node, command="", key=""):
             item = f"names of {_kinds(command, key, plural=True)}"
         elif _resolve(items).get("type") == "object":
             item = "list of objects"
-        elif _resolve(items).get("type") == "number":
+        elif _resolve(items).get("type") in ("number", ["number", "string"]):
             item = "numbers"
         else:
             item = f"list of {item}"
@@ -311,6 +318,16 @@ def markdown():
         + "; names starting with "
         + ", ".join(f"`{p}`" for p in reserved["prefixes"])
         + "; and the keywords of Python.",
+        "## Expressions",
+        "A number of a command (*or an expression* below) may be an expression of "
+        'the parameters as a string, e.g. `"end": "0.25 * layers * height"` (#242, '
+        "[ADR 0013](adr/0013-expressions-of-parameters.md)): numbers, the names of "
+        "the parameters, `pi`, `+ - * / **`, parentheses and the functions `sqrt`, "
+        "`exp`, `log`, `sin`, `cos`, `tan`, `abs`, `min` and `max`. It is evaluated "
+        "with the values of the parameters, the script shows it as written. The "
+        "fields of `parameter.add`, the numbers that name things (a tag, ids) and "
+        "the decimals of `mesh.merge` are numbers. See [Expressions of "
+        "parameters](commands.md#expressions-of-parameters).",
         "## Commands",
         "\n".join(
             f"- [`{command}`](#{command.replace('.', '')}): "

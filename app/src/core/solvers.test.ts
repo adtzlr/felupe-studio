@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Command } from "./commands";
+import type { Command } from "./resolved";
 import { describeSolver, solverRtol } from "./solvers";
 
 type Job = Extract<Command, { command: "job.add" }>;
