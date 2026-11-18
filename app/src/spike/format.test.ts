@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SIZES, parseSizes, seconds, toMarkdown } from "./format";
+import {
+  DEFAULT_SIZES,
+  loadParts,
+  parseSizes,
+  seconds,
+  toMarkdown,
+} from "./format";
 
 describe("parseSizes", () => {
   it("parses the default sizes", () => {
@@ -65,5 +71,46 @@ describe("toMarkdown", () => {
 
   it("formats seconds", () => {
     expect(seconds(1.23456)).toBe("1.235");
+  });
+});
+
+describe("loadParts", () => {
+  const environment = { userAgent: "Test", cores: 8 };
+  const versions = {
+    pyodide: "314.0.7",
+    python: "3.14.2",
+    felupe: "12.1.0",
+    numpy: "2.4.6",
+    scipy: "1.18.0",
+  };
+
+  it("lists the parts of the FElupe step and the bytecode cache (#49)", () => {
+    const timings = {
+      pyodide: 1900,
+      packages: 2300,
+      felupe: 1800,
+      total: 6000,
+      wheels: 110,
+      numpy: 900,
+      importFelupe: 430,
+      meshio: 360,
+      cache: "hit" as const,
+    };
+    expect(loadParts(timings)).toEqual([
+      ["· wheels and sources", 110],
+      ["· import NumPy, SciPy", 900],
+      ["· import FElupe", 430],
+      ["· import meshio", 360],
+    ]);
+    const md = toMarkdown(environment, versions, timings, []);
+    expect(md).toContain("· **Bytecode cache:** hit");
+    expect(md).toContain("| · import FElupe | 0.430 |");
+  });
+
+  it("has no parts without them, e.g. of an older worker", () => {
+    const timings = { pyodide: 1, packages: 1, felupe: 1, total: 3 };
+    expect(loadParts(timings)).toEqual([]);
+    const md = toMarkdown(environment, versions, timings, []);
+    expect(md).not.toContain("Bytecode cache");
   });
 });

@@ -192,3 +192,21 @@ Android 17, Firefox 160 (mobile), 8 cores, Pyodide 314.0.7, Python 3.14.2, FElup
 The forces agree with the native reference in both precisions. As in CPython, the speedup grows with the size of the model, where the factorization dominates: 1.46 at 6,591 DOF on the phone, 1.51 in CPython.
 
 The load of the same run (warm): Pyodide 1.938 s, NumPy and SciPy 2.319 s, FElupe and meshio (the wheels of the app) 3.599 s, in total 7.856 s. The FElupe step is the measurement before #49 on this phone.
+
+## The bytecode cache of Pyodide (#49, ADR 0017)
+
+Neither the packages of Pyodide nor the wheels of PyPI have bytecode, and Pyodide does not write any: every start compiled the sources of about 740 modules. Since ADR 0017 the worker keeps the bytecode in IndexedDB. The first start of a version fills the cache, the next ones read it. `spike.html` lists the parts of the FElupe step and the state of the cache (*Bytecode cache: empty*, *hit* or *off*).
+
+**Chromium (headless, desktop container with 2 cores), Pyodide 314.0.7 served locally, no service worker,** three loads of `spike.html` in the same browser, times in seconds:
+
+| Part of the FElupe step       | First (cache empty) | Second (hit) | Third (hit) |
+| ----------------------------- | ------------------: | -----------: | ----------: |
+| wheels and sources            |               0.180 |        0.181 |       0.168 |
+| import NumPy, SciPy           |               1.914 |        0.875 |       0.772 |
+| import FElupe                 |               1.232 |        0.413 |       0.463 |
+| import meshio                 |               0.583 |        0.349 |       0.242 |
+| **FElupe, meshio (the step)** |           **3.909** |    **1.818** |   **1.645** |
+
+The app in the same browser: the start of *Mount in shear* took 10.7 s with an empty cache and 7.8 s with a hit (the status bar), and its solve 2.30 s and 2.03 s (tensortrax is compiled at the first solve, and cached too). The forces are the same.
+
+**Phone:** to be measured with `spike.html`, warm, three times: the first load fills the cache, the second and the third read it. Before (#296): the FElupe step took 3.599 s.

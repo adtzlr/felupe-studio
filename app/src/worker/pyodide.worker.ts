@@ -3,6 +3,15 @@ import type { PyodideInterface } from "pyodide";
 import type { PyProxy } from "pyodide/ffi";
 import { safeName } from "./files";
 import {
+  type CacheFS,
+  type CacheState,
+  REFIX_SOURCE,
+  cacheKey,
+  enableSource,
+  openCache,
+  persister,
+} from "./pycache";
+import {
   type RawResultSurface,
   type RawSurface,
   resultTransferables,
@@ -30,6 +39,9 @@ const ctx = self as unknown as DedicatedWorkerGlobalScope;
 let pyodide: PyodideInterface | undefined;
 /** Wheels that are loaded only when they are needed (e.g. tensortrax). */
 let lazyWheels: Record<string, string> = {};
+/** Writes the bytecode cache back to IndexedDB (ADR 0017), if it is enabled. */
+let persist: (() => Promise<void>) | undefined;
+let persistTimer: ReturnType<typeof setTimeout> | undefined;
 
 /**
  * The package felupe_studio, written into the file system of Pyodide, without its
@@ -70,8 +82,17 @@ async function init(
   const py = await loadPyodide({ indexURL });
 
   const t1 = performance.now();
+  // the bytecode cache (ADR 0017) is read from IndexedDB while the packages load
+  const fs = py.FS as unknown as CacheFS;
+  const key = cacheKey(
+    pyodideVersion,
+    [...wheels, ...Object.values(lazy)],
+    SOURCES,
+  );
+  const opened = openCache(fs, key);
   // rich is a dependency of meshio
   await py.loadPackage(["numpy", "scipy", "rich"]);
+  const cache: CacheState = await opened;
 
   // the pure-Python wheels (FElupe, meshio) are served by the app itself (#40)
   const t2 = performance.now();
@@ -82,10 +103,22 @@ async function init(
   }
   py.FS.mkdirTree(PROJECT);
   py.runPython(
-    `import os, sys\nsys.path.insert(0, "${HOME}")\nos.chdir("${PROJECT}")\nimport felupe, meshio`,
+    `import os, sys\nsys.path.insert(0, "${HOME}")\nos.chdir("${PROJECT}")`,
   );
+  if (cache !== "off") {
+    py.runPython(enableSource(HOME, key));
+    persist = persister(fs);
+  }
 
+  // the parts of the FElupe step (#49): the first imports compile the sources,
+  // without the bytecode of the cache
   const t3 = performance.now();
+  py.runPython("import numpy, scipy.sparse, scipy.sparse.linalg");
+  const t4 = performance.now();
+  py.runPython("import felupe");
+  const t5 = performance.now();
+  py.runPython("import meshio");
+  const t6 = performance.now();
   const versions = JSON.parse(
     py.runPython(
       "import json, sys, felupe, numpy, scipy\n" +
@@ -102,10 +135,26 @@ async function init(
     timings: {
       pyodide: t1 - t0,
       packages: t2 - t1,
-      felupe: t3 - t2,
-      total: t3 - t0,
+      felupe: t6 - t2,
+      total: t6 - t0,
+      wheels: t3 - t2,
+      numpy: t4 - t3,
+      importFelupe: t5 - t4,
+      meshio: t6 - t5,
+      cache,
     },
   });
+  schedulePersist();
+}
+
+/**
+ * Write the bytecode cache back to IndexedDB once the worker has been idle for a
+ * moment, e.g. after the start or the modules imported by the first job.
+ */
+function schedulePersist(delay = 2000) {
+  if (!persist) return;
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => void persist?.(), delay);
 }
 
 function writeFile(id: number, name: string, data: ArrayBuffer) {
@@ -165,6 +214,8 @@ async function run(id: number, document: string, live?: LiveSettings) {
   try {
     if (runner.uses_tensortrax(document) && lazyWheels.tensortrax) {
       await py.loadPackage([lazyWheels.tensortrax]);
+      // its bytecode in the cache too (ADR 0017)
+      py.runPython(REFIX_SOURCE);
     }
     const report = (text: string) =>
       post({ type: "job-progress", id, event: JSON.parse(text) as JobEvent });
@@ -404,5 +455,8 @@ ctx.onmessage = async (event: MessageEvent<ToWorker>) => {
       id,
       message: error instanceof Error ? error.message : String(error),
     });
+  } finally {
+    // the modules imported by a request, e.g. of a solve, into the cache
+    if (message.type !== "init") schedulePersist();
   }
 };
