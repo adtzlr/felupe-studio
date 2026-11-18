@@ -59,8 +59,23 @@ A number of a command may be an expression of the parameters as a string, e.g. `
 
 A mesh script (`mesh.script`) runs Python code with your rights; in the browser, Pyodide is a sandbox, here it is not. So the server runs a script only if it wrote it itself (`write_file`) or copied it from a sample, and the script has not changed since, or if it was started with `--allow-scripts`. Before you allow the scripts of a project from elsewhere, check them.
 
+## The open app: felupe-studio serve --agent
+
+With the bridge (ADR 0015), the agent works on the model that is open in the app, at the same time as you, instead of on a project folder:
+
+```bash
+pip install "felupe-studio[serve,mcp]"
+felupe-studio serve --agent
+```
+
+It prints the endpoint and the command that adds it to Claude Code, e.g. `claude mcp add --transport http felupe-studio http://127.0.0.1:8765/mcp --header "Authorization: Bearer <token>"` (a new token at every start). In the app, *Help ▸ Connect an agent* connects the tab; the status bar says *Agent connected*, and *Disconnect* ends it. One tab at a time: connecting another tab replaces it.
+
+- The tools have the names and answers above, on the open model: `list_commands`, `add_command`, `update_command`, `delete_command` (each change is an undo step that you see in the history), `samples` and `open_sample` (only without unsaved changes), `parameters` and `set_parameters` (one undo step), `write_file`, `check`, `script`, `solve` (in the app, with its live results and progress) and `results`.
+- Only with the bridge: `selection` (what you selected, and the view), `select`, `show` (the model, or the results of a job at a substep with a quantity) and `picture` (the view as an image).
+- **A mesh script of the agent runs only if you agree:** `write_file` of a `.py` asks in the app (*Show the script*, *Run it*, *Do not run it*); the tool waits for your answer. So an agent builds parametric models: it writes a script that makes `mesh` from parameters, then adds `parameter.add` and `mesh.script`, and the mesh follows `set_parameters`.
+
 ## Limits
 
 - One project at a time per server; the server keeps it in memory until it is saved.
 - A long job blocks the tools until it is done (no cancel yet).
-- The agent does not see the open app: it works on the project file. A bridge to the open app (commands into its history, pictures of the view, jobs in the browser) is a later step.
+- With the bridge: one tab at a time, the selection of one object, and the user saves the project.

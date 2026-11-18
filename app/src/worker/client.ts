@@ -4,6 +4,7 @@
 // building the model (#40). Python runs jobs synchronously: a running job is
 // cancelled by restarting the worker (or the connection, which ends the process of
 // the local runtime), which loads Python again and gets the files again.
+import type { CheckReport } from "../core/checks";
 import {
   type Channel,
   isLocal,
@@ -198,6 +199,18 @@ export class RuntimeClient {
       },
     );
     return (message as Extract<FromWorker, { type: "job-result" }>).results;
+  }
+
+  /**
+   * The checks of a command list with the mesh data (`felupe_studio.checks`): the
+   * cells in no or in two sections and the hanging points of interfaces. Only the
+   * local runtime has them (#258).
+   */
+  async check(document: string): Promise<CheckReport> {
+    const message = await this.request({ type: "check", document }, "text");
+    return JSON.parse(
+      (message as Extract<FromWorker, { type: "text" }>).text,
+    ) as CheckReport;
   }
 
   /** The FElupe script of a command list (JSON text). */

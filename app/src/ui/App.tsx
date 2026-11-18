@@ -72,6 +72,9 @@ import { ResultsControls } from "./ResultsControls";
 import { usePlayer } from "./usePlayer";
 import { ResultsView } from "./ResultsView";
 import { Ribbon, type Workspace } from "./Ribbon";
+import { hasAgent } from "../agent/connection";
+import { ScriptConsent } from "./ScriptConsent";
+import { useAgent } from "./useAgent";
 import { Sidebar } from "./Sidebar";
 import { Viewport } from "./Viewport";
 import { Welcome } from "./Welcome";
@@ -739,6 +742,58 @@ export function App({
     runtime: runtime.state,
   });
 
+  // the agent bridge of felupe-studio serve --agent (#258): an agent acts on the
+  // open model with the tools of the app
+  const [agentAvailable] = useState(() => Boolean(client?.local) && hasAgent());
+  const agent = useAgent({
+    store,
+    files,
+    client,
+    jobs,
+    notes: () =>
+      [...notes].flatMap(([name, messages]) =>
+        messages.map((message) => ({ name, message })),
+      ),
+    modified: () => modified,
+    openSample,
+    solveBlocker: () => blocker,
+    solve,
+    selection: () => ({
+      selected: selection ? [selection] : [],
+      workspace,
+      ...(workspace === "results" && resultView ? { view: resultView } : {}),
+    }),
+    select,
+    show: (target, view = {}) => {
+      if (target === "model") {
+        setWorkspace("model");
+        return { workspace: "model" };
+      }
+      if (!finished) return "No results yet: solve first.";
+      const job =
+        view.job ?? resultView?.job ?? Object.keys(finished.results)[0];
+      if (!finished.results[job]) return `No results of job '${job}'.`;
+      const last = substepsOf(finished, job);
+      const substep = view.substep ?? last;
+      if (!Number.isInteger(substep) || substep < 1 || substep > last)
+        return `Job '${job}' has the substeps 1 to ${last}.`;
+      const shown = {
+        ...viewOf(finished, resultView),
+        job,
+        substep,
+        ...(view.quantity ? { quantity: view.quantity } : {}),
+      };
+      setResultView(shown);
+      setWorkspace("results");
+      jobs?.dismiss();
+      return { workspace: "results", view: shown };
+    },
+    picture: async () => {
+      const results = workspace === "results" && resultView;
+      return (results ? captureResults : captureModel).current?.();
+    },
+  });
+
   /** Delete the selected object, unless other objects use it. */
   const removeSelected = (name: string) => {
     const dependents = store.dependents(name);
@@ -930,6 +985,15 @@ export function App({
         onRename={setFileName}
         onShortcuts={() => setHelp("shortcuts")}
         onAbout={() => setHelp("about")}
+        agent={
+          agentAvailable
+            ? {
+                connected: agent.state.state === "connected",
+                onConnect: agent.connect,
+                onDisconnect: agent.disconnect,
+              }
+            : undefined
+        }
         browserOpen={narrow && browserOpen}
         onBrowser={() => setBrowserOpen(!browserOpen)}
         exports={exports}
@@ -1208,6 +1272,11 @@ export function App({
         store={store}
         runtime={runtime}
         kept={kept}
+        agent={
+          agentAvailable
+            ? { state: agent.state, onDisconnect: agent.disconnect }
+            : undefined
+        }
         selected={selected}
         onSelect={select}
         onOpen={(type) =>
@@ -1296,6 +1365,7 @@ export function App({
           }}
         />
       )}
+      {agent.script && <ScriptConsent request={agent.script} />}
       {parametersShown && (
         <ParametersDialog
           store={store}

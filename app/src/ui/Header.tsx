@@ -23,6 +23,12 @@ interface Props {
   onRename: (fileName: string) => void;
   onShortcuts: () => void;
   onAbout: () => void;
+  /** The agent bridge of `felupe-studio serve --agent` (#258), if the page has it. */
+  agent?: {
+    connected: boolean;
+    onConnect: () => void;
+    onDisconnect: () => void;
+  };
   /** The browser is open as a drawer (narrow windows, #131), and its toggle. */
   browserOpen: boolean;
   onBrowser: () => void;
@@ -166,6 +172,7 @@ export function Header({
   onRename,
   onShortcuts,
   onAbout,
+  agent,
   browserOpen,
   onBrowser,
   exports,
@@ -270,6 +277,26 @@ export function Header({
                   },
                 ],
               },
+              // the agent bridge of felupe-studio serve --agent (#258)
+              ...(agent
+                ? [
+                    {
+                      items: [
+                        agent.connected
+                          ? {
+                              id: "agent",
+                              label: "Disconnect the agent",
+                              onSelect: agent.onDisconnect,
+                            }
+                          : {
+                              id: "agent",
+                              label: "Connect an agent",
+                              onSelect: agent.onConnect,
+                            },
+                      ],
+                    },
+                  ]
+                : []),
               {
                 items: [
                   {

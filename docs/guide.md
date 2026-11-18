@@ -222,6 +222,7 @@ It prints a link like `http://127.0.0.1:8765/?token=…` and opens it in your br
 - Only this computer reaches the server (`127.0.0.1`), and only with the token of the link; the tab keeps the token, so a reload works. A new start of `felupe-studio serve` has a new token: open its new link.
 - Projects are saved and opened through the browser, as in the web app. The session of the tab (the project and its mesh files) belongs to the address, e.g. `127.0.0.1:8765`, so it is not that of the web app on GitHub Pages.
 - From a clone of the repository: `pip install -e ".[serve]"`, `npm run build` in `app/`, then `felupe-studio serve`.
+- **An AI agent on the open model:** `felupe-studio serve --agent` (with `felupe-studio[serve,mcp]`) prints how to add it to an agent, e.g. Claude Code; *Help ▸ Connect an agent* connects the tab. The agent's changes are steps of the history that you can undo, it sees your selection and a picture of the view, and it solves with the live results of the app. A mesh script of the agent runs only after you agree (*Run it*). See [AI agents](agents.md#the-open-app-felupe-studio-serve---agent).
 
 ## Keyboard shortcuts
 

@@ -118,6 +118,10 @@ def test_the_requests_of_the_app(tmp_path, monkeypatch):
     # the message travels as a binary frame
     assert decode(encode(info))["surfaces"] == info["surfaces"]
 
+    [checked] = answers({"type": "check", "id": 12, "document": DOCUMENT})
+    report = json.loads(checked["text"])
+    assert report["ok"] and report["cells"]["total"] > 0
+
     [script] = answers({"type": "script", "id": 3, "document": DOCUMENT})
     assert "import felupe as fem" in script["text"]
     [view] = answers({"type": "script-view", "id": 4, "document": DOCUMENT})
