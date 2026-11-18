@@ -44,12 +44,13 @@ With real Pyodide, after the deployment of `main` has finished. Use the cases in
 ### Local checks
 
 - [ ] MCP server (CPython): `pip install -e ".[mcp]"` in a clone, and the wheel: `python -m build`, then `tests/check_wheel.py` with the Python of a fresh environment, from another folder (CI does both); `felupe-studio-mcp --help`; added to an agent (e.g. `claude mcp add felupe-studio -- felupe-studio-mcp`), it opens a sample, solves it and saves the project, which opens in the app.
+- [ ] Local runtime: `pip install "felupe-studio[serve]"` from the wheel (or `-e ".[serve]"` and `npm run build` in a clone), `felupe-studio serve` opens the app with *local Python* in the status bar; a sample with a mesh script shows the script first, solves and shows results; *Cancel* of a running job starts a new process; *About* lists the local versions.
 - [ ] Extra samples: `EXTRA_SAMPLES_DIR=<folder> npm run build` (and `npm run dev`) shows them under *More samples*; they open and solve.
 - [ ] Screenshots: `python docs/make_screenshots.py` (with the real Pyodide) makes the images of the guide and the README of this version.
 
 ### The release
 
 - [ ] Tag `main`: `git tag -a vX.Y.Z -m "FElupe Studio X.Y.Z"` and `git push origin vX.Y.Z`.
-- [ ] The workflow *Release* of the tag passes: the tag is the version, the wheel works outside of a clone, and the package is on PyPI (`pip install "felupe-studio[mcp]==X.Y.Z"` in a fresh environment).
+- [ ] The workflow *Release* of the tag passes: the tag is the version, the wheel (with the built app) works outside of a clone, also `felupe-studio serve`, and the package is on PyPI (`pip install "felupe-studio[mcp,serve]==X.Y.Z"` in a fresh environment).
 - [ ] GitHub release of the tag with the section of `CHANGELOG.md` as notes and the link to the app.
 - [ ] Set the date of the version in `CHANGELOG.md` (if it was not set before) and close the release issue.

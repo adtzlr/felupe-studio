@@ -207,6 +207,22 @@ The **Export** menu has
 - the **control points** (CSV): displacements and forces per substep,
 - a **picture of the view** (PNG).
 
+## Python on your computer
+
+The app on GitHub Pages runs Python in the browser (Pyodide). For large models, or for mesh scripts that need packages of your own (e.g. gmsh), the same app runs with the Python of your computer instead, with native NumPy and SciPy on several threads and the memory of the computer (#240):
+
+```bash
+pip install "felupe-studio[serve]"
+felupe-studio serve
+```
+
+It prints a link like `http://127.0.0.1:8765/?token=…` and opens it in your browser; `--port` takes another port, `--no-browser` only prints the link. The status bar says *FElupe … ready, local Python …*, and *Help ▸ About* lists the versions of the packages of your Python. Everything else works as in the browser: samples, projects, Solve with live results, *Cancel* (it starts a new Python process), the results and the exports. Ctrl+C in the terminal stops it.
+
+- **Mesh scripts run on your computer with your rights**, not in the sandbox of the browser. So a project with mesh scripts shows them before they run, also without parameters; *Show* reads a script. Only open projects you trust.
+- Only this computer reaches the server (`127.0.0.1`), and only with the token of the link; the tab keeps the token, so a reload works. A new start of `felupe-studio serve` has a new token: open its new link.
+- Projects are saved and opened through the browser, as in the web app. The session of the tab (the project and its mesh files) belongs to the address, e.g. `127.0.0.1:8765`, so it is not that of the web app on GitHub Pages.
+- From a clone of the repository: `pip install -e ".[serve]"`, `npm run build` in `app/`, then `felupe-studio serve`.
+
 ## Keyboard shortcuts
 
 **Help ▸ Keyboard shortcuts** (or `?`) lists them all; the menus and tooltips show them too. The most used:
@@ -258,4 +274,4 @@ The sample *Hyperelastic block with a rigid plate* glues the top face of a hyper
 
 ## Limits of version 0.5
 
-FElupe Studio has no meshing from CAD (meshes come from files or from Python scripts), no contact between two deformable bodies or of a body with itself (contacts are of points with rigid planes and cylinders) and no server: Python runs in the browser, and the MCP server for AI agents runs headless on your computer, without a connection to the open app. The boundaries of a model are the same in all steps; a step only ramps values. A parameter is a number, not an expression of other parameters. 2D models are plane strain or axisymmetric, not plane stress. The plasticity is von Mises plasticity with linear isotropic hardening; there are no user-defined materials yet. On a touch screen, single faces and further nodes need Shift (a keyboard). See the [roadmap](https://github.com/adtzlr/felupe-studio/issues/243).
+FElupe Studio has no meshing from CAD (meshes come from files or from Python scripts), no contact between two deformable bodies or of a body with itself (contacts are of points with rigid planes and cylinders) and no server: Python runs in the browser, or on your computer with `felupe-studio serve`, and the MCP server for AI agents runs headless on your computer, without a connection to the open app. The boundaries of a model are the same in all steps; a step only ramps values. A parameter is a number, not an expression of other parameters. 2D models are plane strain or axisymmetric, not plane stress. The plasticity is von Mises plasticity with linear isotropic hardening; there are no user-defined materials yet. On a touch screen, single faces and further nodes need Shift (a keyboard). See the [roadmap](https://github.com/adtzlr/felupe-studio/issues/243).

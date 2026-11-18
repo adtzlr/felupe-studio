@@ -1,15 +1,21 @@
 """Check an installed wheel of felupe-studio outside of a clone of the repository
 (#275): the MCP server starts, and it offers the samples and the documents of the
-package. Run it with the Python of a fresh environment, from another folder:
+package; felupe-studio serve serves the app of the package with its samples and a
+local runtime (#240). Run it with the Python of a fresh environment, from another
+folder:
 
-    python -m venv /tmp/wheel && /tmp/wheel/bin/pip install "dist/<wheel>[mcp]"
+    python -m venv /tmp/wheel && /tmp/wheel/bin/pip install "dist/<wheel>[mcp,serve]"
     cd /tmp && /tmp/wheel/bin/python <repository>/tests/check_wheel.py
 
 (Not a test of pytest: it checks the installed package, not the sources.)"""
 
+import json
+import re
 import subprocess
 import sys
 import tempfile
+import time
+import urllib.request
 from pathlib import Path
 
 import felupe_studio
@@ -41,3 +47,46 @@ subprocess.run(
     capture_output=True,
 )
 print(f"felupe-studio {felupe_studio.__version__}: {len(ids)} samples, the documents")
+
+# the app of the package with the local runtime (#240)
+from websockets.sync.client import connect  # noqa: E402
+
+from felupe_studio import serve  # noqa: E402
+
+app = data / "app"
+assert serve.find_app() == app, serve.find_app()
+assert serve.find_samples(app) == data / "samples", serve.find_samples(app)
+assert not (app / "wheels").exists() and not (app / "samples").exists()
+# the command of the package
+command = Path(sys.executable).parent / "felupe-studio"
+version = subprocess.run(
+    [command, "--version"], check=True, capture_output=True, text=True
+).stdout.strip()
+assert version == felupe_studio.__version__, version
+server = subprocess.Popen(
+    [command, "serve", "--no-browser", "--port", "8766"],
+    stdout=subprocess.PIPE,
+    stderr=subprocess.STDOUT,
+    text=True,
+)
+try:
+    line = server.stdout.readline()
+    url = re.search(r"http://\S+", line).group(0)
+    token = url.split("token=")[1]
+    base = "http://127.0.0.1:8766"
+    with urllib.request.urlopen(f"{base}/") as response:
+        assert serve.META in response.read().decode(), "the meta tag of the runtime"
+    with urllib.request.urlopen(f"{base}/samples/plate-with-hole/model.felupe.json"):
+        pass
+    start = time.perf_counter()
+    with connect(f"ws://127.0.0.1:8766/runtime?token={token}") as websocket:
+        ready = json.loads(websocket.recv())
+        assert ready["type"] == "ready", ready
+        assert ready["versions"]["felupe_studio"] == felupe_studio.__version__
+    print(
+        f"felupe-studio serve: {url.split('?')[0]}, ready in "
+        f"{time.perf_counter() - start:.1f} s"
+    )
+finally:
+    server.terminate()
+    server.wait()

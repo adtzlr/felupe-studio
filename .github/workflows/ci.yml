@@ -59,15 +59,47 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      # the built app is part of the wheel, for felupe-studio serve (#240)
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci && npm run build
+        working-directory: app
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - run: pip install build twine
       - run: python -m build
+        env:
+          FELUPE_STUDIO_REQUIRE_APP: "1"
       - run: twine check --strict dist/*
-      # the samples and the documents of the MCP server are in the wheel (#275)
+      # the samples and the documents of the MCP server are in the wheel (#275),
+      # and the app of felupe-studio serve (#240)
       - name: The wheel in a fresh environment
         run: |
           python -m venv /tmp/wheel
-          /tmp/wheel/bin/pip install "$(ls dist/*.whl)[mcp]" "felupe==${FELUPE_VERSION}"
+          /tmp/wheel/bin/pip install "$(ls dist/*.whl)[mcp,serve]" "felupe==${FELUPE_VERSION}"
           cd /tmp && /tmp/wheel/bin/python "$GITHUB_WORKSPACE/tests/check_wheel.py"
+
+  local:
+    name: Local runtime (app in a browser)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci && npm run build
+        working-directory: app
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -e ".[test,serve]" "felupe==${FELUPE_VERSION}" playwright
+      - run: playwright install --with-deps chromium
+      # a sample opened from felupe-studio serve, solved with CPython (#240)
+      - run: pytest -m e2e tests/e2e -v

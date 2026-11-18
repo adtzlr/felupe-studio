@@ -8,3 +8,6 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     config.addinivalue_line("markers", "golden: golden tests (tests/golden)")
+    config.addinivalue_line(
+        "markers", "e2e: the app in a browser with felupe-studio serve (tests/e2e)"
+    )
