@@ -495,6 +495,13 @@ describe("Viewport", () => {
       name: "node",
       select: { points: [[0, 0, 0]] },
     });
+    // a click on a picked node deselects it, also of several (#260)
+    await click(40, 60);
+    await click(83, 60, true);
+    await click(40, 60);
+    expect(panel().textContent).toContain("Node (1, 0, 0)");
+    await click(83, 60);
+    expect(screen.queryByRole("status", { name: "Picked nodes" })).toBeNull();
     // a click beside a node picks a face and clears the nodes
     await click(40, 60);
     await click(60, 45);
@@ -971,9 +978,12 @@ describe("Viewport", () => {
         (o) => o.type === "surface" && o.color === HIGHLIGHT,
       );
     expect(surfaces()).toHaveLength(1);
+    // Shift+click cycles a single face: picked, excluded, not picked (#260)
     await click(94, 50, true);
-    expect(panel().textContent).toContain("1 face of body");
+    expect(panel().textContent).toContain("1 excluded · 1 face of body");
     await click(94, 50, true);
+    await click(94, 50, true);
+    await click(50, 50, true);
     await click(50, 50, true);
     fireEvent.click(
       within(panel()).getByRole("button", { name: "Create face set" }),
@@ -1015,7 +1025,7 @@ describe("Viewport", () => {
     ).toBeTruthy();
   });
 
-  it("combines picked surfaces, deselects and excludes them (#195)", async () => {
+  it("combines picked surfaces, excludes and deselects them (#195, #260)", async () => {
     const { files } = meshFiles();
     await files.add("hex.vtu", new Uint8Array());
     const store = new ModelStore();
@@ -1083,42 +1093,56 @@ describe("Viewport", () => {
         )
         .map((o) => o.color);
 
-    // a left click picks the plane of both faces, a right click deselects it
+    // a click picks the plane of both faces, a right click deselects it at once
     await click(50, 50);
     expect(panel()!.textContent).toContain(
-      "Plane z = 0 (min) · 2 faces of body",
+      "Plane z = 0 (min) · 2 faces of body · 6 points · click again to exclude",
     );
     // a drag with the right button pans and does not pick
     await right(94, 50, false, 60);
     expect(panel()).not.toBeNull();
     await right(94, 50);
     expect(panel()).toBeNull();
-    // a second right click excludes it: no points to create
-    await right(94, 50);
+    // a click cycles the surface (#260): picked, excluded (on any of its faces), not
+    // picked; the same with a tap, without a right click
+    await click(50, 50);
+    await click(94, 50);
     expect(panel()!.textContent).toContain(
-      "0 patches · 1 excluded · 0 faces · 0 points",
+      "No faces picked · 0 patches · 1 excluded · 0 faces · 0 points · click again to deselect",
     );
     expect(colors()).toEqual(["#8b0000"]);
     const button = (name: string) =>
       within(panel()!).getByRole("button", { name }) as HTMLButtonElement;
     expect(button("Create point set").disabled).toBe(true);
     expect(button("Create face set").disabled).toBe(true);
-    // a left click selects it again
+    // no toggle *Exclude* for touch screens any more
+    expect(
+      within(panel()!).queryByRole("button", { name: "Exclude" }),
+    ).toBeNull();
+    await click(50, 50);
+    expect(panel()).toBeNull();
+    // a fourth click picks it again
     await click(50, 50);
     expect(panel()!.textContent).toContain(
       "Plane z = 0 (min) · 2 faces of body",
     );
     expect(colors()).toEqual([HIGHLIGHT]);
+    // a right click deselects an excluded surface at once too
+    await click(50, 50);
+    await right(94, 50);
+    expect(panel()).toBeNull();
     // Escape clears the picked faces
+    await click(50, 50);
     await act(async () => {
       fireEvent.keyDown(window, { key: "Escape" });
     });
     expect(panel()).toBeNull();
 
-    // single faces with Shift: one selected, the other excluded, which removes the
-    // points of the edge between them
+    // single faces with Shift: one picked, the other picked and excluded, which
+    // removes the points of the edge between them
     await click(50, 50, true);
-    await right(94, 50, true);
+    await click(94, 50, true);
+    await click(94, 50, true);
     expect(panel()!.textContent).toContain(
       "Part of the plane z = 0 · 1 patch · 1 excluded · 1 face of body · 2 points",
     );
@@ -1135,20 +1159,7 @@ describe("Viewport", () => {
     });
     expect(panel()).toBeNull();
 
-    // *Exclude* for touch screens: taps act as right clicks, the panel stays
     await click(50, 50);
-    fireEvent.click(button("Exclude"));
-    expect(button("Exclude").getAttribute("aria-pressed")).toBe("true");
-    await click(50, 50);
-    expect(panel()!.textContent).toContain("No faces picked · 0 faces");
-    await click(50, 50);
-    expect(panel()!.textContent).toContain("1 excluded");
-    expect(button("Exclude").getAttribute("aria-pressed")).toBe("true");
-    fireEvent.click(button("Exclude"));
-    await click(50, 50);
-    expect(panel()!.textContent).toContain(
-      "Plane z = 0 (min) · 2 faces of body",
-    );
     // the background keeps the picked faces
     await click(99, 99);
     expect(panel()).not.toBeNull();
