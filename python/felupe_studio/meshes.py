@@ -22,6 +22,16 @@ from .scene import surface
 # a cell data array with more distinct values is not offered as a tag
 MAX_TAG_VALUES = 64
 
+# the formats of an exported mesh (#230): the extension, the name and the writer of
+# meshio. XDMF needs h5py in meshio's writer of single meshes, which Pyodide lacks.
+EXPORT_FORMATS = {
+    "vtu": ("VTK unstructured grid", "vtu"),
+    "vtk": ("VTK legacy", "vtk"),
+    "msh": ("Gmsh", "gmsh"),
+    "inp": ("Abaqus", "abaqus"),
+    "bdf": ("Nastran", "nastran"),
+}
+
 
 def _labels(mesh):
     """Names of the physical groups of solid cells (Gmsh): {value: name}."""
@@ -202,3 +212,59 @@ def make_json(filename, parameters, item=None):
     return make(
         filename, json.loads(parameters), item if isinstance(item, str) else None
     )
+
+
+def export(
+    filename, format="vtu", parameters=None, item=None, cell_type=None, scale=None
+):
+    """Return a mesh of the project as the bytes of a file of a format of
+    :data:`EXPORT_FORMATS` (#230): the mesh file, or the mesh that a script makes
+    with the parameters (and its item), as the model uses it. The file has the solid
+    cells (of one cell type, if given) with their tags, and the points in 3D (z = 0
+    of a 2D mesh), multiplied by the scale of a mesh file."""
+    import tempfile
+
+    if format not in EXPORT_FORMATS:
+        raise ValueError(
+            f"Unknown format '{format}'; use one of {', '.join(EXPORT_FORMATS)}."
+        )
+    path = Path(filename)
+    if parameters is None:
+        mesh = meshio.read(path)
+    else:
+        mesh = script_mesh(path, parameters, item)
+    types = [
+        t
+        for t in solid_types(mesh)
+        if t in REGIONS and (cell_type is None or t == cell_type)
+    ]
+    if not types:
+        raise ValueError(f"The mesh of '{path.name}' has no solid cells to export.")
+    blocks = [i for i, b in enumerate(mesh.cells) if b.type in types]
+    sizes = np.cumsum([len(mesh.cells[i].data) for i in blocks])[:-1]
+    cell_data = {
+        name: np.split(values.astype(np.int32), sizes)
+        for name, values in _tag_arrays(mesh, blocks).items()
+    }
+    points = np.asarray(mesh.points, dtype=float)
+    points = np.pad(points, ((0, 0), (0, 3 - points.shape[1])))
+    if scale is not None:
+        points = points * scale
+    cells = [(mesh.cells[i].type, mesh.cells[i].data) for i in blocks]
+    solid = meshio.Mesh(points, cells, cell_data=cell_data)
+    with tempfile.TemporaryDirectory() as folder:
+        target = Path(folder) / f"mesh.{format}"
+        meshio.write(target, solid, file_format=EXPORT_FORMATS[format][1])
+        return target.read_bytes()
+
+
+def export_json(
+    filename, format, parameters=None, item=None, cell_type=None, scale=None
+):
+    """:func:`export` with the parameters of a script as JSON text, for the worker
+    (JavaScript's null or undefined as None: a mesh file)."""
+    parameters = json.loads(parameters) if isinstance(parameters, str) else None
+    item = item if isinstance(item, str) else None
+    cell_type = cell_type if isinstance(cell_type, str) else None
+    scale = scale if isinstance(scale, int | float) else None
+    return export(filename, format, parameters, item, cell_type, scale)

@@ -4,6 +4,10 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ## [Unreleased]
 
+### Added
+
+- *Export mesh…* in the menu of a mesh in the browser: the mesh as the model uses it, also the mesh of a script with the current parameters (and its item), as a file of another format: VTK unstructured grid (`.vtu`, the default), VTK legacy (`.vtk`), Gmsh (`.msh`), Abaqus (`.inp`) or Nastran (`.bdf`), written by meshio with the solid cells and their tags, the points in 3D and scaled like the model. A mesh with an error or without Python says why it cannot be exported (#230).
+
 ### Changed
 
 - The `u-p-J` formulation of linear hexahedrons and quads uses `fem.SolidBodyNearlyIncompressible` on the displacements only, which condenses the constant pressure and volume ratio of every cell, instead of the mixed fields `fem.FieldsMixed` with `fem.NearlyIncompressible`. The discretization is the same: converged results agree within 1e-9. The system has about a third fewer unknowns. At the default tolerance a job may take a few more Newton iterations but ends closer to the converged result (see `docs/benchmarks.md`). Other cells (tetrahedrons and triangles with the MINI element, quadratic cells) keep the mixed fields. The generated script has the helpers `mixed_field()` and `nearly_incompressible()` (only with a `u-p-J` section), so `mixed_field`, `nearly_incompressible` and the other names of the helpers are reserved (#226).

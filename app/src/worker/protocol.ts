@@ -272,6 +272,23 @@ export type ToWorker =
     }
   /** The ranges of a quantity of every substep of a job, as JSON text (#139). */
   | { type: "result-ranges"; id: number; job: string; quantity: Quantity }
+  /**
+   * A mesh of the project as a file of another format (#230): a mesh file, or the
+   * mesh of a script with parameters (and an item).
+   */
+  | {
+      type: "export-mesh";
+      id: number;
+      file: string;
+      format: MeshFormat;
+      /** The parameters of a script; none for a mesh file. */
+      parameters?: Record<string, number>;
+      item?: string;
+      /** One type of solid cells of a file with more of them. */
+      cellType?: string;
+      /** The factor of the points of a mesh file. */
+      scale?: number;
+    }
   | {
       type: "result";
       id: number;
@@ -298,3 +315,21 @@ export type FromWorker =
   | { type: "bytes"; id: number; data: ArrayBuffer }
   | { type: "done"; id: number }
   | { type: "error"; id?: number; message: string };
+
+/**
+ * The formats of an exported mesh (#230), by their extension: the writers of meshio
+ * of ``felupe_studio.meshes.EXPORT_FORMATS``.
+ */
+export const MESH_FORMATS = [
+  {
+    format: "vtu",
+    label: "VTK unstructured grid (.vtu)",
+    hint: "ParaView, PyVista",
+  },
+  { format: "vtk", label: "VTK legacy (.vtk)", hint: "older VTK readers" },
+  { format: "msh", label: "Gmsh (.msh)", hint: "Gmsh 4.1" },
+  { format: "inp", label: "Abaqus (.inp)", hint: "nodes and elements" },
+  { format: "bdf", label: "Nastran (.bdf)", hint: "GRID and element cards" },
+] as const;
+
+export type MeshFormat = (typeof MESH_FORMATS)[number]["format"];

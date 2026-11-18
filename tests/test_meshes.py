@@ -262,3 +262,72 @@ def test_2d_meshes(tmp_path):
     info = inspect(tmp_path / "cube.vtu")
     assert [s["cell_type"] for s in info["solids"]] == ["hexahedron"]
     assert info["ignored"] == ["quad"]
+
+
+@pytest.mark.parametrize("format", ["vtu", "vtk", "msh", "inp", "bdf"])
+def test_export_mesh_files(tmp_path, format):
+    # a mesh of the project as a file of another format (#230): the solid cells with
+    # their tags, without the faces of the file
+    from felupe_studio.meshes import EXPORT_FORMATS, export
+
+    data = export(GOLDEN / "bar_sections_tag" / "bar.vtu", format)
+    target = tmp_path / f"bar.{format}"
+    target.write_bytes(data)
+    mesh = meshio.read(target, file_format=EXPORT_FORMATS[format][1])
+    original = meshio.read(GOLDEN / "bar_sections_tag" / "bar.vtu")
+    np.testing.assert_allclose(mesh.points, original.points)
+    assert [(b.type, len(b.data)) for b in mesh.cells] == [("hexahedron", 192)]
+    np.testing.assert_array_equal(mesh.cells[0].data, original.cells[0].data)
+    if format in ["vtu", "vtk", "msh"]:
+        tags = np.ravel(original.cell_data["material"][0])
+        np.testing.assert_array_equal(np.ravel(mesh.cell_data["material"][0]), tags)
+
+    # of a file with two types of solid cells and faces: one type, if given
+    cell_types = GOLDEN / "bar_cell_types" / "bar.vtu"
+    mesh = meshio.read(io_bytes(export(cell_types, "vtu"), tmp_path))
+    assert [b.type for b in mesh.cells] == ["hexahedron", "tetra"]
+    mesh = meshio.read(io_bytes(export(cell_types, "vtu", cell_type="tetra"), tmp_path))
+    assert [b.type for b in mesh.cells] == ["tetra"]
+    # with the scale of the mesh, as the model uses it
+    mesh = meshio.read(io_bytes(export(cell_types, "vtu", scale=1000), tmp_path))
+    np.testing.assert_allclose(mesh.points.max(axis=0), [3000, 1000, 1000])
+
+
+def io_bytes(data, folder, name="mesh.vtu"):
+    """The bytes of an exported mesh as a file to read with meshio."""
+    (folder / name).write_bytes(data)
+    return folder / name
+
+
+def test_export_meshes_of_scripts(tmp_path, monkeypatch):
+    # the mesh that a script makes with the parameters, an item of a dict, a 2D mesh
+    # in 3D, and the parameters as JSON text of the worker (#230)
+    from felupe_studio.meshes import export, export_json
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "blocks.py").write_text(BLOCKS, encoding="utf-8")
+    data = export("blocks.py", "vtu", {"length": 2.0, "cells": 4}, "left")
+    mesh = meshio.read(io_bytes(data, tmp_path))
+    assert len(mesh.cells[0].data) == 4
+    np.testing.assert_allclose(mesh.points.max(axis=0), [2, 1, 1])
+    data = export_json(
+        "blocks.py", "msh", json.dumps({"length": 1, "cells": 1}), "right"
+    )
+    mesh = meshio.read(io_bytes(data, tmp_path, "mesh.msh"))
+    assert sum(len(b.data) for b in mesh.cells if b.type == "hexahedron") == 2
+
+    (tmp_path / "plate.py").write_text(
+        "import felupe as fem\nmesh = fem.Rectangle(b=(2, 1), n=3)\n", encoding="utf-8"
+    )
+    jsnull = type("JsNull", (), {"__bool__": lambda self: False})()
+    mesh = meshio.read(io_bytes(export_json("plate.py", "vtu", "{}", jsnull), tmp_path))
+    assert mesh.points.shape == (9, 3) and np.all(mesh.points[:, 2] == 0)
+    assert [b.type for b in mesh.cells] == ["quad"]
+
+    # errors: an unknown format, a mesh without solid cells
+    with pytest.raises(ValueError, match="Unknown format 'stl'"):
+        export("plate.py", "stl", {})
+    lines = "mesh = meshio.Mesh([[0, 0, 0], [1, 0, 0]], [('line', [[0, 1]])])"
+    (tmp_path / "lines.py").write_text(f"import meshio\n{lines}\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="no solid cells to export"):
+        export("lines.py", "vtu", {})

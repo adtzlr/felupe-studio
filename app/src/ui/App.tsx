@@ -15,6 +15,7 @@ import {
 import { JobRunner, solveBlocker } from "../core/jobs";
 import { liveResults, loadLiveOn, saveLiveOn } from "../core/live";
 import { type ResultView, substepsOf, viewOf } from "../core/results";
+import type { MeshFormat } from "../worker/protocol";
 import {
   ariaKeys,
   dialogOpen,
@@ -29,10 +30,13 @@ import type { Session, SessionStorage } from "../core/session";
 import {
   faceSetNotes,
   fileNotes,
+  isMesh,
   isScript,
   makeMeshes,
   MeshFiles,
   meshFileNames,
+  meshStatus,
+  scriptParameters,
 } from "../core/meshfiles";
 import { symmetryNotes } from "../core/symmetry";
 import { duplicateBlocker } from "../core/duplicate";
@@ -60,6 +64,7 @@ import { ParametersDialog, parametersOf } from "./ParametersDialog";
 import { NewProjectDialog } from "./NewProjectDialog";
 import { SamplesDialog } from "./SamplesDialog";
 import { SaveAsDialog } from "./SaveAsDialog";
+import { ExportMeshDialog, type MeshExport } from "./ExportMeshDialog";
 import { ScriptView } from "./ScriptView";
 import { ShortcutsDialog } from "./ShortcutsDialog";
 import { useSession } from "./useSession";
@@ -532,6 +537,9 @@ export function App({
   };
   const save = () => saveProject(fileName);
   const [savingAs, setSavingAs] = useState(false);
+  // a mesh to export, from the context menu of the browser, and the last format
+  const [exportingMesh, setExportingMesh] = useState<string>();
+  const [meshFormat, setMeshFormat] = useState<MeshFormat>("vtu");
 
   const captureModel = useRef<Capture>({}).current;
   const captureResults = useRef<Capture>({}).current;
@@ -540,6 +548,62 @@ export function App({
       title,
       lines: [reason instanceof Error ? reason.message : String(reason)],
     });
+
+  /**
+   * Export a mesh of the model as a file of another format (#230): the mesh file, or
+   * the mesh of a script with the values of the parameters.
+   */
+  const exportMesh = async (
+    name: string,
+    { name: file, format }: MeshExport,
+  ) => {
+    const mesh = store.get(name);
+    if (!client || !mesh || !isMesh(mesh)) return;
+    setMeshFormat(format);
+    const data = await client.exportMesh(mesh.file, format, {
+      ...(mesh.command === "mesh.script"
+        ? {
+            parameters: scriptParameters(mesh, store.commands),
+            ...(mesh.item ? { item: mesh.item } : {}),
+          }
+        : mesh.scale !== undefined && mesh.scale !== 1
+          ? { scale: mesh.scale }
+          : {}),
+      ...(mesh.cell_type ? { cellType: mesh.cell_type } : {}),
+    });
+    download(file, new Blob([data as BlobPart], { type: mediaType(file) }));
+  };
+
+  /** Where the mesh to export comes from, for the export dialog (#230). */
+  const meshSource = (name: string): string => {
+    const mesh = store.get(name);
+    if (!mesh || !isMesh(mesh)) return "";
+    if (mesh.command === "mesh.import")
+      return mesh.scale !== undefined && mesh.scale !== 1
+        ? `From ${mesh.file}, scaled by ${mesh.scale}`
+        : `From ${mesh.file}`;
+    const count = Object.keys(scriptParameters(mesh, store.commands)).length;
+    const item = mesh.item ? `, item ${mesh.item}` : "";
+    return `Made by ${mesh.file} with ${count} parameter${count === 1 ? "" : "s"}${item}`;
+  };
+
+  /** Why a mesh cannot be exported, if so (#230). */
+  const meshExportBlocker = (name: string): string | undefined => {
+    const mesh = store.get(name);
+    if (!mesh || !isMesh(mesh)) return "Not a mesh.";
+    if (!client) return "Python is not available.";
+    if (runtime.state === "loading") return "Python is still loading.";
+    if (runtime.state === "error") return "Python could not be loaded.";
+    const status = meshStatus(mesh, store.commands, files);
+    if (status?.state === "reading") return "The mesh is still being read.";
+    if (status?.state === "error")
+      return `The mesh has an error: ${status.message}`;
+    if (status?.state !== "ready")
+      return mesh.command === "mesh.script"
+        ? `Choose the script ${mesh.file} first.`
+        : `Choose the mesh file ${mesh.file} first.`;
+    return undefined;
+  };
 
   const exportScript = async () => {
     if (!client) return;
@@ -704,6 +768,19 @@ export function App({
         ...(blocker ? { blocker } : {}),
         onSelect: () => duplicateObject(name),
       },
+      ...(isMesh(command)
+        ? [
+            {
+              id: "export-mesh",
+              label: "Export mesh…",
+              hint: "As a VTU, VTK, Gmsh, Abaqus or Nastran file",
+              ...(meshExportBlocker(name)
+                ? { blocker: meshExportBlocker(name) }
+                : {}),
+              onSelect: () => setExportingMesh(name),
+            },
+          ]
+        : []),
       ...(command.command === "parameter.add"
         ? [
             {
@@ -1147,6 +1224,22 @@ export function App({
             void saveProject(name, script);
           }}
           onClose={() => setSavingAs(false)}
+        />
+      )}
+      {exportingMesh && (
+        <ExportMeshDialog
+          mesh={exportingMesh}
+          stem={`${stemOf(fileName) || "untitled"}-${exportingMesh}`}
+          format={meshFormat}
+          source={meshSource(exportingMesh)}
+          onExport={(choice) => {
+            const name = exportingMesh;
+            setExportingMesh(undefined);
+            void exportMesh(name, choice).catch(
+              failed("The mesh could not be exported."),
+            );
+          }}
+          onClose={() => setExportingMesh(undefined)}
         />
       )}
       {opening && (

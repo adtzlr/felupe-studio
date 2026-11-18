@@ -711,6 +711,134 @@ describe("solve", () => {
 
   const solveButton = () => screen.getByRole("button", { name: /Solve/ });
 
+  it("exports a mesh from the browser (#230)", async () => {
+    const exportMesh = vi.fn(async () => new Uint8Array([1, 2, 3]));
+    const download = vi.fn();
+    let resolve!: (ready: Ready) => void;
+    const ready = new Promise<Ready>((r) => (resolve = r));
+    render(
+      <App
+        store={new ModelStore(fixture as CommandList)}
+        files={await files()}
+        client={client(ready, { exportMesh })}
+        download={download}
+      />,
+    );
+    const tree = screen.getByRole("tree", { name: "Model" });
+    const openMenu = () =>
+      fireEvent.click(
+        within(tree).getByRole("button", { name: "Actions of specimen" }),
+      );
+    // not before Python is ready
+    openMenu();
+    const item = () => screen.getByRole("menuitem", { name: /Export mesh…/ });
+    expect(item().getAttribute("aria-disabled")).toBe("true");
+    expect(item().getAttribute("title")).toBe("Python is still loading.");
+    fireEvent.keyDown(item(), { key: "Escape" });
+    await act(async () => resolve(readyValue));
+
+    openMenu();
+    fireEvent.click(item());
+    const dialog = screen.getByRole("dialog", { name: "Export mesh specimen" });
+    expect(dialog.textContent).toContain("From specimen.vtu");
+    const name = within(dialog).getByRole("textbox", { name: "Name" });
+    expect((name as HTMLInputElement).value).toBe("untitled-specimen");
+    fireEvent.click(within(dialog).getByRole("radio", { name: /Gmsh/ }));
+    expect(dialog.textContent).toContain("Downloaded as untitled-specimen.msh");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Export" }));
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+    expect(exportMesh).toHaveBeenCalledWith("specimen.vtu", "msh", {});
+    expect(download.mock.calls[0][0]).toBe("untitled-specimen.msh");
+    expect(screen.queryByRole("dialog")).toBeNull();
+
+    // the dialog remembers the format of the last export
+    openMenu();
+    fireEvent.click(item());
+    expect(
+      (screen.getByRole("radio", { name: /Gmsh/ }) as HTMLInputElement).checked,
+    ).toBe(true);
+  });
+
+  it("exports the mesh of a script with the parameters (#230)", async () => {
+    const solid = {
+      cell_type: "quad",
+      cells: 4,
+      bounds: [
+        [0, 0, 0],
+        [1, 1, 0],
+      ] as [number[], number[]],
+      tags: [],
+    };
+    const make = vi.fn(async (file: string, _p: unknown, item?: string) => ({
+      info:
+        item === "broken"
+          ? { file, error: "NameError: name 'x' is not defined" }
+          : { file, points: 9, solids: [solid] },
+    }));
+    const files = new MeshFiles(undefined, { write: async () => {}, make });
+    await files.add("plate.py", new TextEncoder().encode("mesh = None\n"));
+    const exportMesh = vi.fn(async () => new Uint8Array([1]));
+    const download = vi.fn();
+    const store = new ModelStore({
+      schema_version: 3,
+      commands: [
+        { command: "parameter.add", name: "width", value: 2 },
+        { command: "parameter.add", name: "cells", value: 3, integer: true },
+        {
+          command: "mesh.script",
+          name: "plate",
+          file: "plate.py",
+          item: "rubber",
+          parameters: ["width"],
+        },
+        {
+          command: "mesh.script",
+          name: "other",
+          file: "plate.py",
+          item: "broken",
+        },
+      ],
+    } as CommandList);
+    render(
+      <App
+        store={store}
+        files={files}
+        client={client(Promise.resolve(readyValue), { exportMesh })}
+        download={download}
+      />,
+    );
+    await waitFor(() => expect(make).toHaveBeenCalledTimes(2));
+    const tree = screen.getByRole("tree", { name: "Model" });
+    const item = (mesh: string) => {
+      fireEvent.click(
+        within(tree).getByRole("button", { name: `Actions of ${mesh}` }),
+      );
+      return screen.getByRole("menuitem", { name: /Export mesh…/ });
+    };
+    // a mesh whose script fails cannot be exported
+    await waitFor(() =>
+      expect(item("other").getAttribute("title")).toBe(
+        "The mesh has an error: NameError: name 'x' is not defined",
+      ),
+    );
+    fireEvent.keyDown(screen.getByRole("menuitem", { name: /Export mesh…/ }), {
+      key: "Escape",
+    });
+
+    fireEvent.click(item("plate"));
+    const dialog = screen.getByRole("dialog", { name: "Export mesh plate" });
+    expect(dialog.textContent).toContain(
+      "Made by plate.py with 1 parameter, item rubber",
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Export" }));
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+    expect(exportMesh).toHaveBeenCalledWith("plate.py", "vtu", {
+      parameters: { width: 2 },
+      item: "rubber",
+    });
+    expect(download.mock.calls[0][0]).toBe("untitled-plate.vtu");
+  });
+
   it("runs the jobs with progress and shows the outcome", async () => {
     const store = new ModelStore(fixture as CommandList);
     const jobs = runner();

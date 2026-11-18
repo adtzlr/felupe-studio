@@ -16,6 +16,7 @@ import type {
   JobEvent,
   JobResult,
   LiveSettings,
+  MeshFormat,
   MeshInfo,
   Quantity,
   ResultScene,
@@ -253,6 +254,39 @@ function exportResults(
   }
 }
 
+/** A mesh of the project as a file of another format (#230). */
+function exportMesh(
+  id: number,
+  file: string,
+  format: MeshFormat,
+  parameters?: Record<string, number>,
+  item?: string,
+  cellType?: string,
+  scale?: number,
+) {
+  const meshes = python().pyimport("felupe_studio.meshes");
+  try {
+    // undefined, not null: Pyodide converts null to jsnull, which is not None
+    const proxy = meshes.export_json(
+      safeName(file),
+      format,
+      parameters ? JSON.stringify(parameters) : undefined,
+      item,
+      cellType,
+      scale,
+    );
+    const bytes = proxy.toJs() as Uint8Array;
+    proxy.destroy();
+    const data = bytes.buffer.slice(
+      bytes.byteOffset,
+      bytes.byteOffset + bytes.byteLength,
+    ) as ArrayBuffer;
+    post({ type: "bytes", id, data }, [data]);
+  } finally {
+    meshes.destroy();
+  }
+}
+
 function benchmark(id: number, sizes: number[]) {
   const module = python().pyimport("felupe_studio.benchmark");
   try {
@@ -317,6 +351,16 @@ ctx.onmessage = async (event: MessageEvent<ToWorker>) => {
         );
       case "result-ranges":
         return resultRanges(message.id, message.job, message.quantity);
+      case "export-mesh":
+        return exportMesh(
+          message.id,
+          message.file,
+          message.format,
+          message.parameters,
+          message.item,
+          message.cellType,
+          message.scale,
+        );
     }
   } catch (error) {
     post({
