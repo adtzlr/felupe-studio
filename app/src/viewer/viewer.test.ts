@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Scene, ViewerHandle } from "../vendor/felupe-viewer/viewer.js";
 import type { MeshSurface } from "../worker/protocol";
-import { type CreateViewer, HIGHLIGHT, Viewer } from "./viewer";
+import { type CreateViewer, HIGHLIGHT, LONG_PRESS, Viewer } from "./viewer";
 
 const surface: MeshSurface = {
   positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
@@ -200,6 +200,65 @@ describe("Viewer", () => {
     right([60, 70], [90, 70]);
     right([60, 70], [60, 70], 0);
     expect(picks).toHaveBeenCalledTimes(1);
+  });
+
+  it("picks like Shift+click on a long press, not after a drag (#273)", () => {
+    vi.useFakeTimers();
+    try {
+      const { handle, create } = fake();
+      const viewer = new Viewer(document.createElement("div"), create);
+      viewer.setMeshes([{ name: "bar", surface, color: "#3987e5" }]);
+      const picks = vi.fn();
+      viewer.onPick(picks);
+      const canvas = handle.root.querySelector("canvas")!;
+      const pointer = (type: string, x: number, y: number, primary = true) =>
+        canvas.dispatchEvent(
+          new PointerEvent(type, {
+            bubbles: true,
+            clientX: x,
+            clientY: y,
+            isPrimary: primary,
+          }),
+        );
+      const click = (x: number, y: number) =>
+        canvas.dispatchEvent(
+          new MouseEvent("click", { bubbles: true, clientX: x, clientY: y }),
+        );
+      // held still: one pick with Shift, a ring at the pointer, and the click
+      // that follows is dropped
+      pointer("pointerdown", 60, 70);
+      vi.advanceTimersByTime(LONG_PRESS - 1);
+      expect(picks).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+      expect(picks).toHaveBeenCalledTimes(1);
+      expect(picks.mock.lastCall![0]).toMatchObject({ mesh: "bar" });
+      expect(picks.mock.lastCall![1]).toEqual({ shift: true });
+      expect(handle.root.querySelector(".fv-press")).not.toBeNull();
+      pointer("pointerup", 60, 70);
+      click(60, 70);
+      expect(picks).toHaveBeenCalledTimes(1);
+      vi.advanceTimersByTime(400);
+      expect(handle.root.querySelector(".fv-press")).toBeNull();
+      // a short press is a click without Shift
+      pointer("pointerdown", 60, 70);
+      vi.advanceTimersByTime(100);
+      pointer("pointerup", 60, 70);
+      click(60, 70);
+      vi.advanceTimersByTime(LONG_PRESS);
+      expect(picks).toHaveBeenCalledTimes(2);
+      expect(picks.mock.lastCall![1]).toEqual({ shift: false });
+      // a drag (a rotation) and a second finger (a pinch) cancel it
+      pointer("pointerdown", 60, 70);
+      pointer("pointermove", 70, 70);
+      vi.advanceTimersByTime(LONG_PRESS);
+      pointer("pointerdown", 60, 70);
+      pointer("pointerdown", 80, 70, false);
+      vi.advanceTimersByTime(LONG_PRESS);
+      expect(picks).toHaveBeenCalledTimes(2);
+      viewer.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("picks a node near a click if the nodes are shown (#93)", () => {
