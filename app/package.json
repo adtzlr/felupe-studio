@@ -7,8 +7,8 @@
   "config": {
     "wheels": {
       "felupe": {
-        "version": "12.1.0",
-        "sha256": "f07b112b278f096b77ea295ae591842cefab802d75d28e035b03f5432a574850"
+        "version": "12.1.1",
+        "sha256": "28042406e2b3f467620c98296ccb0e98fd3c4b3e6c74f38421bcf33177a0938d"
       },
       "meshio": {
         "version": "5.3.5",

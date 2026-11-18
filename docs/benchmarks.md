@@ -246,3 +246,12 @@ They are not the same browser and versions, so they are not a strict before and 
 The FElupe step takes 1.62 s instead of 3.60 s (55 % less), the whole start 5.8 s instead of 7.9 s. That matches Chromium on the desktop (3.9 s → 1.6–1.8 s). The other two steps are unchanged; they download and unpack Pyodide and its packages from the service worker cache.
 
 The solve times of the same run (double precision, three runs of n = 9, 11, 13): 0.99 to 1.07 s, 2.92 to 3.18 s and 10.4 to 13.1 s. The forces are those of the native reference.
+
+**FElupe 12.1.1** imports `scipy.interpolate` and `scipy.special` only when they are used (adtzlr/felupe#1297). Pyodide 314.0.7 in Node (container with 2 cores), three runs each, times in seconds:
+
+| `import felupe`          | FElupe 12.1.0 | FElupe 12.1.1 |
+| ------------------------ | ------------: | ------------: |
+| without the bytecode     |    1.15–1.28 |    0.40–0.44 |
+| with the bytecode cache  |    0.39–0.55 |    0.12–0.19 |
+
+The FElupe step of the start without the cache takes 2.9–3.2 s instead of 3.7–3.9 s, and with the cache 1.2–1.4 s (imports) instead of 1.5–1.8 s.

@@ -11,7 +11,7 @@ concurrency:
 
 env:
   # FElupe version the golden tests and the browser runtime are pinned to
-  FELUPE_VERSION: "12.1.0"
+  FELUPE_VERSION: "12.1.1"
 
 jobs:
   app:
