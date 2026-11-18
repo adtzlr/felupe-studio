@@ -96,6 +96,16 @@ SAMPLES = [
         "topics": ["plane strain", "2D mesh script", "symmetry", "u-p-J"],
     },
     {
+        "id": "plastic-plate",
+        "title": "Elastic-plastic plate with a hole",
+        "description": "The quarter of the plate with a hole in steel, pulled beyond "
+        "its yield stress and back to the start. The stress at the hole yields first; "
+        "the curve unloads elastically, crosses zero force at the remaining "
+        "elongation and yields again in compression. The contour of the equivalent "
+        "plastic strain shows the plastic zone.",
+        "topics": ["plasticity", "unloading", "plane strain", "strain-based"],
+    },
+    {
         "id": "bushing",
         "title": "Bushing with steel sleeves (FElupe ex05)",
         "description": "A hyperelastic bushing between two steel sleeves, the inner "
@@ -974,6 +984,67 @@ def plate_with_hole():
         {"command": "job.add", "name": "job", "steps": ["pulling"], "curve": "pull"},
     ]
     write("plate-with-hole", commands, {"plate_with_hole.py": PLATE_WITH_HOLE})
+
+
+def plastic_plate():
+    """The plate with a hole in steel (#269): elastic-plastic with isotropic hardening
+    (strain-based, small strain), the end pulled by 0.1 mm beyond the yield stress and
+    back to the start. The stress at the hole yields first; the unloading is elastic,
+    crosses zero force at the remaining elongation and yields again in compression.
+    The force is per unit thickness."""
+    commands = [
+        c
+        for c in loads_project(HERE / "plate-with-hole")["commands"]
+        if c["command"]
+        in ("model.settings", "parameter.add", "mesh.script", "cellset.from_file")
+    ]
+    commands += [
+        {
+            "command": "material.add",
+            "name": "steel",
+            "model": "LinearElasticPlasticIsotropicHardening",
+            "parameters": {"E": 210000, "nu": 0.3, "sigma_y": 250, "K": 1000},
+        },
+        {
+            "command": "section.add",
+            "name": "plate",
+            "cellset": "plate_cells",
+            "material": "steel",
+            "formulation": "u",
+        },
+        {"command": "symmetry.add", "name": "quarter", "axes": ["x", "y"]},
+        {
+            "command": "pointset.add",
+            "name": "end",
+            "select": {"bound": "max", "axis": "x"},
+        },
+        {
+            "command": "boundary.add",
+            "name": "pull",
+            "pointset": "end",
+            "constrained": ["x"],
+        },
+        {
+            "command": "step.add",
+            "name": "loading",
+            "ramp": {"num": 10, "items": [{"target": "pull", "end": 0.1}]},
+        },
+        {
+            "command": "step.add",
+            "name": "unloading",
+            "ramp": {
+                "num": 10,
+                "items": [{"target": "pull", "start": 0.1, "end": 0}],
+            },
+        },
+        {
+            "command": "job.add",
+            "name": "job",
+            "steps": ["loading", "unloading"],
+            "curve": "pull",
+        },
+    ]
+    write("plastic-plate", commands, {"plate_with_hole.py": PLATE_WITH_HOLE})
 
 
 # the script of the mesh of the bushing (#185), like the example ex05 of FElupe
@@ -1856,6 +1927,7 @@ def main():
     sandwich_spring()
     sandwich_spring_axisymmetric()
     plate_with_hole()
+    plastic_plate()
     bushing()
     hyperelastic_spring()
     metacone()
