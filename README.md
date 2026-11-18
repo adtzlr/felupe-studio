@@ -16,9 +16,9 @@ Version 0.5 adds plasticity with the strain-based materials of FElupe 12.1 (line
 
 ![The results of the sample: the von Mises stress with its minimum and maximum and the force-displacement curve](docs/images/results.png)
 
-**AI agents:** an [MCP server](docs/agents.md) lets agents like Claude Code or GitHub Copilot build, check and solve models, headless with CPython on your computer (in a clone: `pip install -e ".[mcp]"`, then `felupe-studio-mcp`); you open the saved project in the app.
+**AI agents:** an [MCP server](docs/agents.md) lets agents like Claude Code or GitHub Copilot build, check and solve models, headless with CPython on your computer (`pip install "felupe-studio[mcp]"`, then `felupe-studio-mcp`); you open the saved project in the app.
 
-**Documentation:** the [user guide](docs/guide.md) with a tutorial, the [command reference](docs/reference.md), how the [commands](docs/commands.md) become a FElupe script, the [MCP server](docs/agents.md) for AI agents, the [architecture decision records](docs/adr/), the [changelog](CHANGELOG.md) and the [roadmap](https://github.com/adtzlr/felupe-studio/issues/243).
+**Documentation:** the [user guide](docs/guide.md) with a tutorial, the [command reference](docs/reference.md), how the [commands](docs/commands.md) become a FElupe script, the [MCP server](docs/agents.md) for AI agents, the [architecture decision records](docs/adr/), the [changelog](CHANGELOG.md) and the [roadmap](https://github.com/adtzlr/felupe-studio/issues/272).
 
 **Non-goals:** meshing from CAD, contact between deformable bodies (contacts are with rigid planes and cylinders), a server backend (the MCP server runs on your computer).
 

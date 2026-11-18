@@ -42,11 +42,19 @@ from .codegen import codegen, parameter_value
 from .commands import SCHEMA_VERSION
 from .project import ProjectError, dumps, loads
 
-# the samples and the documentation of a clone of the repository (or a folder of
-# samples: FELUPE_STUDIO_SAMPLES), which the package does not contain
+# the samples and the documentation of a clone of the repository, else of the
+# package (its data, #275), or a folder of samples: FELUPE_STUDIO_SAMPLES
 ROOT = Path(__file__).resolve().parents[2]
-DOCS = ROOT / "docs"
-INDEX = ROOT / "app" / "src" / "core" / "samples.json"
+DATA = Path(__file__).resolve().parent / "data"
+
+
+def _of_clone(path, data):
+    """A path of a clone of the repository if it exists, else one of the package."""
+    return path if path.exists() else data
+
+
+DOCS = _of_clone(ROOT / "docs", DATA / "docs")
+INDEX = _of_clone(ROOT / "app" / "src" / "core" / "samples.json", DATA / "samples.json")
 
 DOCUMENTS = {
     "guide": "The user guide",
@@ -71,7 +79,10 @@ units of model.settings."""
 def _samples_folder():
     """The folder of the samples, or None."""
     folder = os.environ.get("FELUPE_STUDIO_SAMPLES")
-    folder = Path(folder) if folder else ROOT / "app" / "public" / "samples"
+    if folder:
+        folder = Path(folder)
+    else:
+        folder = _of_clone(ROOT / "app" / "public" / "samples", DATA / "samples")
     return folder if folder.is_dir() else None
 
 
@@ -176,8 +187,8 @@ class Session:
             available = [s["id"] for s in self.samples()] if source else []
             raise ToolError(
                 f"No sample '{sample}'. Samples: {', '.join(available) or 'none'} "
-                "(the samples are in a clone of the repository of FElupe Studio, or "
-                "in the folder of FELUPE_STUDIO_SAMPLES)."
+                "(the samples of the package or of a clone of the repository of "
+                "FElupe Studio, or of the folder of FELUPE_STUDIO_SAMPLES)."
             )
         folder = Path(folder).expanduser().resolve()
         if folder.exists() and any(folder.iterdir()):
@@ -645,7 +656,7 @@ def server(session=None):
         (relative to the project folder)."""
         return session.export(job, format, path, substep, method)
 
-    # the documentation of a clone of the repository
+    # the documentation of a clone of the repository, or of the package (#275)
     def reader(path):
         return lambda: path.read_text(encoding="utf-8")
 
