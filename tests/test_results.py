@@ -77,6 +77,7 @@ def test_substeps_restore_the_fields(two_materials):
         assert meta == {
             "label": "Displacement x",
             "at": "point",
+            "shift": True,
             "range": [0.0, pytest.approx(moved)],
             "points": [],
         }
@@ -212,17 +213,26 @@ def test_every_cell_type_and_formulation(cell_type, formulation, tmp_path, monke
             command.update(formulation="u-p-J", bulk=5000.0)
     run(document)
 
-    for quantity in ["displacement", "stress_max"]:
-        meta, surfaces = results.scene("job_1", results.substeps("job_1"), quantity)
+    # the stresses at the cells and projected to the points (#231)
+    for quantity, method in [
+        ("displacement", "cells"),
+        ("stress_max", "cells"),
+        ("stress_max", "project"),
+    ]:
+        substep = results.substeps("job_1")
+        meta, surfaces = results.scene("job_1", substep, quantity, method)
         meta = json.loads(meta)
         assert meta["range"][1] > 0
+        cells = quantity != "displacement" and method == "cells"
+        assert meta["at"] == ("cell" if cells else "point")
+        assert meta["shift"] == (cell_type == "hexahedron")
         for surface in surfaces:
             data = arrays(surface)
             npoints = len(data["positions"]) // 3
             ntriangles = len(data["triangles"]) // 3
             assert len(data["displacement"]) == 3 * npoints
             assert data["triangles"].max() < npoints
-            expected = npoints if quantity == "displacement" else ntriangles
+            expected = npoints if meta["at"] == "point" else ntriangles
             assert len(data["values"]) == expected
             assert np.isfinite(data["values"]).all()
             # linear cells are shaded by faces, curved faces are subdivided
@@ -417,3 +427,142 @@ def test_units_of_the_control_points(monkeypatch):
     assert header[4] == "plate.F_x [N]"
     assert header[7] == "tilt.phi_x [rad]"
     assert header[10] == "tilt.M_x [N mm]"
+
+
+def homogeneous_meshes():
+    hexahedron = fem.Cube(b=(2, 1, 1), n=(3, 2, 2))
+    tetra = hexahedron.triangulate()
+    quad = fem.Rectangle(b=(2, 1), n=(4, 3))
+    triangle = quad.triangulate()
+    return {
+        "hexahedron": hexahedron,
+        "hexahedron20": fem.mesh.convert(hexahedron, order=2),
+        "hexahedron27": fem.mesh.convert(
+            hexahedron, order=2, calc_midfaces=True, calc_midvolumes=True
+        ),
+        "tetra": tetra,
+        "tetra10": fem.mesh.add_midpoints_edges(tetra, cell_type_new="tetra10"),
+        "quad": quad,
+        "quad8": fem.mesh.convert(quad, order=2),
+        "quad9": fem.mesh.convert(quad, order=2, calc_midfaces=True),
+        "triangle": triangle,
+        "triangle6": fem.mesh.add_midpoints_edges(triangle, cell_type_new="triangle6"),
+    }
+
+
+def deform(mesh, mixed=False):
+    """The results of one section of a mesh with a homogeneous deformation (with the
+    u-p-J formulation: the MINI elements of triangles and tetrahedrons)."""
+    from felupe_studio import _helpers
+
+    dim = mesh.dim
+    planar = {"planestrain": True} if dim == 2 else {}
+    umat = fem.NeoHooke(mu=1.0, bulk=5.0)
+    if mixed:
+        region = _helpers.mixed_region(mesh)
+        field = _helpers.mixed_field(region, **planar)
+        solid = fem.SolidBody(fem.NearlyIncompressible(umat, bulk=5.0), field)
+    else:
+        region = _helpers.REGIONS[mesh.cell_type](mesh)
+        Field = fem.FieldPlaneStrain if dim == 2 else fem.Field
+        field = fem.FieldContainer([Field(region, dim=dim)])
+        solid = fem.SolidBody(umat, field)
+    F = np.array([[1.2, 0.1, 0.0], [0.0, 0.9, 0.05], [0.0, 0.0, 0.95]])[:dim, :dim]
+    points = region.mesh.points
+    field[0].values[:] = points @ (F - np.eye(dim)).T
+    results.reset({"field": field, "field_s": field, "solid_s": solid}, ["s"])
+
+
+CASES = [(t, False) for t in homogeneous_meshes()] + [
+    ("tetra", True),
+    ("triangle", True),
+]
+
+
+@pytest.mark.parametrize(("cell_type", "mixed"), CASES)
+def test_values_at_the_points_of_a_homogeneous_deformation(cell_type, mixed):
+    # every method gives the values of the cells at the points (#231)
+    deform(homogeneous_meshes()[cell_type], mixed)
+    shift = cell_type in ("hexahedron", "hexahedron27", "quad", "quad9") and not mixed
+    assert results.shift() == shift
+    assert results.method_of("topoints") == ("topoints" if shift else "project")
+    nodes = np.unique(results._cells("s")[1])
+    for kind in ["strain", "stress", "mises"]:
+        cells = results._data(kind, "s")
+        np.testing.assert_allclose(cells, np.broadcast_to(cells[0], cells.shape))
+        for method in ["mean", "project", "topoints"][: 3 if shift else 2]:
+            data = results._data(kind, "s", method)[nodes]
+            np.testing.assert_allclose(
+                data, np.broadcast_to(cells[0], data.shape), rtol=1e-6, atol=1e-9
+            )
+
+
+def test_means_of_the_cells_at_the_points(two_materials):
+    # the means of the cells, averaged at the points of a section (#231)
+    for section in ["hard_body", "soft_body"]:
+        cells = results._cells(section)[1]
+        means = results._data("stress", section)
+        total = np.zeros((cells.max() + 1, 3))
+        count = np.zeros(cells.max() + 1)
+        for cell, values in zip(cells, means, strict=True):
+            total[cell] += values
+            count[cell] += 1
+        nodes = np.unique(cells)
+        expected = total[nodes] / count[nodes, None]
+        data = results._data("stress", section, "mean")[nodes]
+        # (sorted after the averaging: the same order here)
+        np.testing.assert_allclose(data, expected, rtol=1e-6, atol=1e-9)
+        # values of the points: at the points of the surface too
+        meta, surfaces = results.scene("job_1", 6, "stress_max", "mean")
+        assert json.loads(meta)["method"] == "mean"
+        surface = next(s for s in surfaces if s["name"] == section)
+        values = arrays(surface)["values"]
+        assert len(values) == len(arrays(surface)["positions"]) // 3
+
+
+def test_projected_peak_at_a_hole(monkeypatch):
+    # the plate with a hole: the projected stresses have a higher peak than the
+    # means of the cells, and the ranges of all substeps follow the method (#231)
+    from felupe_studio.project import loads
+
+    folder = Path(__file__).parents[1] / "app" / "public" / "samples"
+    monkeypatch.chdir(folder / "plate-with-hole")
+    run(loads(Path("model.felupe.json").read_text(encoding="utf-8")))
+    last = results.substeps("job")
+    peaks = {}
+    for method in results.METHODS:
+        meta = json.loads(results.scene("job", last, "stress_mises", method)[0])
+        peaks[method] = meta["range"][1]
+        ranges = json.loads(results.ranges("job", "stress_mises", method))
+        assert ranges[-1] == pytest.approx(meta["range"])
+        assert meta["extremes"]["max"]["at"] == meta["at"]
+    assert meta["method"] == "topoints" and meta["shift"]
+    assert peaks["project"] > peaks["topoints"] > peaks["cells"]
+    # the means of the cells at the points are within the range of the cells
+    assert peaks["mean"] <= peaks["cells"]
+    with pytest.raises(ValueError, match="Unknown method"):
+        results.scene("job", last, "stress_mises", "nodes")
+
+
+def test_export_values_at_the_points(two_materials, tmp_path):
+    # the stresses at the points, the means of the sections at common points (#231)
+    data = results.export("job_1", "vtu", method="project")
+    mesh = meshio.read(read(data, ".vtu", tmp_path))
+    stress = mesh.point_data["Principal Values of Cauchy Stress"]
+    assert stress.shape == (len(mesh.points), 3)
+    assert np.isfinite(stress).all()
+    # the cell data are kept
+    assert "Principal Values of Cauchy Stress" in mesh.cell_data
+    sections = ["hard_body", "soft_body"]
+    nodes = [np.unique(results._cells(s)[1]) for s in sections]
+    common = np.intersect1d(*nodes)
+    assert len(common)
+    both = [results._data("stress", s, "project")[common] for s in sections]
+    np.testing.assert_allclose(stress[common], (both[0] + both[1]) / 2, rtol=1e-5)
+    only = np.setdiff1d(nodes[0], nodes[1])
+    np.testing.assert_allclose(
+        stress[only], results._data("stress", "hard_body", "project")[only], rtol=1e-5
+    )
+    # without a point method, the strains and the stresses are cell data only
+    mesh = meshio.read(read(results.export("job_1", "vtu"), ".vtu", tmp_path))
+    assert set(mesh.point_data) == {"Displacement"}

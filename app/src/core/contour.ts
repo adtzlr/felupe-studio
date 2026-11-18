@@ -1,5 +1,7 @@
 // The settings of the contour of results (#139): the color map, the bands and the
-// range, and what the viewer draws from them (its lookup table, bands and range).
+// range, and what the viewer draws from them (its lookup table, bands and range),
+// and the values of the strains and the stresses at the cells or the points (#231).
+import type { Quantity, ValuesMethod } from "../worker/protocol";
 import {
   type ColorMapId,
   colorMap,
@@ -18,12 +20,15 @@ export interface ContourSettings {
   /** The limits of a manual range. */
   min?: number;
   max?: number;
+  /** The values of the strains and the stresses at the cells or the points (#231). */
+  values: ValuesMethod;
 }
 
 export const DEFAULT_CONTOUR: ContourSettings = {
   map: "turbo",
   bands: 0,
   range: "substep",
+  values: "cells",
 };
 
 /** The numbers of bands that can be chosen, besides continuous (0). */
@@ -34,6 +39,44 @@ export const RANGE_MODES: readonly { id: RangeMode; label: string }[] = [
   { id: "job", label: "All substeps" },
   { id: "manual", label: "Manual" },
 ];
+
+/** The methods of the values of the strains and the stresses (#231). */
+export const VALUES_METHODS: readonly {
+  id: ValuesMethod;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    id: "cells",
+    label: "Cells",
+    hint: "The mean of the quadrature points of every cell, constant in the cell.",
+  },
+  {
+    id: "mean",
+    label: "Points: means of the cells",
+    hint: "The means of the cells at a point, averaged.",
+  },
+  {
+    id: "project",
+    label: "Points: projected",
+    hint: "The values of the quadrature points projected to the points (L2 projection, fem.project): closer to the peaks, e.g. at a notch.",
+  },
+  {
+    id: "topoints",
+    label: "Points: shifted",
+    hint: "The values of the quadrature points shifted to the points (fem.topoints), averaged: for cells whose quadrature points are at their points, e.g. hexahedrons and quads.",
+  },
+];
+
+/**
+ * The method of the values of a quantity (#231): the displacements are values of
+ * the points (the scenes and their ranges do not depend on the method).
+ */
+export const methodOf = (
+  quantity: Quantity,
+  settings: ContourSettings,
+): ValuesMethod =>
+  quantity.startsWith("displacement") ? "cells" : settings.values;
 
 type Range = readonly [number, number];
 
@@ -146,6 +189,9 @@ export function loadContour(storage?: Storage): ContourSettings {
       range: RANGE_MODES.some((r) => r.id === value.range)
         ? (value.range as RangeMode)
         : DEFAULT_CONTOUR.range,
+      values: VALUES_METHODS.some((m) => m.id === value.values)
+        ? (value.values as ValuesMethod)
+        : DEFAULT_CONTOUR.values,
     };
     if (typeof value.min === "number") settings.min = value.min;
     if (typeof value.max === "number") settings.max = value.max;

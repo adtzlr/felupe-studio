@@ -154,6 +154,8 @@ export type JobEvent =
  */
 export interface LiveSettings {
   quantity: Quantity;
+  /** The method of the values of the strains and the stresses (#231). */
+  method?: ValuesMethod;
   interval?: number;
   budget?: number;
 }
@@ -180,6 +182,15 @@ export type Quantity =
   | "stress_min"
   | "stress_mises";
 
+/**
+ * The method of the values of the strains and the stresses (#231,
+ * `felupe_studio.results.METHODS`): the means of the quadrature points of every
+ * cell, or at the points: the means of the cells averaged at the points, an L2
+ * projection (`fem.project`) or the values of the quadrature points shifted to the
+ * points (`fem.topoints`).
+ */
+export type ValuesMethod = "cells" | "mean" | "project" | "topoints";
+
 /** The outer surface of a section with the result of a substep. */
 export interface ResultSurface {
   /** The name of the section. */
@@ -204,6 +215,13 @@ export interface ResultSurface {
 export interface ResultScene {
   label: string;
   at: "point" | "cell";
+  /**
+   * The method of the values of strains and stresses (#231), not of displacements:
+   * `project` instead of a wanted `topoints` without `shift`.
+   */
+  method?: ValuesMethod;
+  /** The values of the quadrature points can be shifted to the points (#231). */
+  shift?: boolean;
   /** The range of the values of all sections (null without finite values). */
   range: [number, number] | null;
   /** The minimum and the maximum of the values (#140). */
@@ -269,9 +287,17 @@ export type ToWorker =
       format: "vtu" | "xdmf" | "csv";
       /** The substep of a VTU file (the last one by default). */
       substep?: number;
+      /** The strains and stresses at the points, too (#231). */
+      method?: ValuesMethod;
     }
   /** The ranges of a quantity of every substep of a job, as JSON text (#139). */
-  | { type: "result-ranges"; id: number; job: string; quantity: Quantity }
+  | {
+      type: "result-ranges";
+      id: number;
+      job: string;
+      quantity: Quantity;
+      method?: ValuesMethod;
+    }
   /**
    * A mesh of the project as a file of another format (#230): a mesh file, or the
    * mesh of a script with parameters (and an item).
@@ -295,6 +321,7 @@ export type ToWorker =
       job: string;
       substep: number;
       quantity: Quantity;
+      method?: ValuesMethod;
     };
 
 export type FromWorker =

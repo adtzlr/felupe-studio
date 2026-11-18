@@ -20,6 +20,7 @@ import {
   contourLook,
   contourRange,
   DEFAULT_CONTOUR,
+  methodOf,
 } from "../core/contour";
 import { formatValue, type ResultView } from "../core/results";
 import { SceneCache } from "../core/scenecache";
@@ -47,6 +48,7 @@ import type {
   ResultExtreme,
   ResultPoint,
   ResultScene,
+  ValuesMethod,
 } from "../worker/protocol";
 
 /** Loads the result scenes of substeps (the worker client). */
@@ -55,11 +57,13 @@ export interface ResultSource {
     job: string,
     substep: number,
     quantity: Quantity,
+    method?: ValuesMethod,
   ): Promise<ResultScene>;
   /** The ranges of a quantity of every substep of a job (#139). */
   resultRanges?(
     job: string,
     quantity: Quantity,
+    method?: ValuesMethod,
   ): Promise<([number, number] | null)[]>;
 }
 
@@ -87,6 +91,8 @@ interface Props {
   contour?: ContourSettings;
   /** The range of the values of the shown substep, e.g. for a manual range. */
   onRange?: (range: readonly [number, number] | undefined) => void;
+  /** The values of the shown scene can be shifted to the points (#231). */
+  onShift?: (shift: boolean | undefined) => void;
   /** Substeps of the job to load ahead, e.g. while playing (#141). */
   ahead?: readonly number[];
   /** The scene of the view is shown, or it failed (e.g. to play on, #141). */
@@ -106,6 +112,7 @@ function useJobRange(
   key: string | undefined,
   job: string,
   quantity: Quantity,
+  method: ValuesMethod,
 ): readonly [number, number] | undefined {
   const [ranges, setRanges] = useState<{
     key: string;
@@ -114,7 +121,7 @@ function useJobRange(
   useEffect(() => {
     if (!key || !source?.resultRanges || ranges?.key === key) return;
     let alive = true;
-    source.resultRanges(job, quantity).then(
+    source.resultRanges(job, quantity, method).then(
       (list) => {
         const finite = list.filter((r): r is [number, number] => r !== null);
         const range: [number, number] | undefined = finite.length
@@ -324,6 +331,7 @@ interface Wanted {
   job: string;
   substep: number;
   quantity: Quantity;
+  method: ValuesMethod;
 }
 
 /**
@@ -373,6 +381,7 @@ function useResultScene(
         next.job,
         next.substep,
         next.quantity,
+        next.method,
       );
       if (next.key.startsWith(`${run.current}/`)) {
         cache.current.set(next.key, scene);
@@ -428,6 +437,7 @@ export function ResultsView({
   commands = NO_COMMANDS,
   contour = DEFAULT_CONTOUR,
   onRange,
+  onShift,
   ahead = NO_SUBSTEPS,
   onShown,
   live,
@@ -451,15 +461,25 @@ export function ResultsView({
     capture.current = async () => viewer.current?.snapshot();
   }
   const [available, setAvailable] = useState(true);
+  // the values of the strains and the stresses at the cells or the points (#231)
+  const method = view ? methodOf(view.quantity, contour) : "cells";
   const wantedOf = (substep: number): Wanted =>
     view && active && !running && !live
       ? {
-          key: `${generation}/${view.job}/${substep}/${view.quantity}`,
+          // (the quantity last, for its unit)
+          key: `${generation}/${view.job}/${substep}/${method}/${view.quantity}`,
           job: view.job,
           substep,
           quantity: view.quantity,
+          method,
         }
-      : { key: "", job: "", substep: 0, quantity: "displacement" };
+      : {
+          key: "",
+          job: "",
+          substep: 0,
+          quantity: "displacement",
+          method: "cells",
+        };
   const wanted = wantedOf(view?.substep ?? 0);
   const { loaded, loading } = useResultScene(
     source,
@@ -497,10 +517,11 @@ export function ResultsView({
   const jobRange = useJobRange(
     source,
     view && active && !running && !live && contour.range === "job"
-      ? `${generation}/${view.job}/${view.quantity}`
+      ? `${generation}/${view.job}/${method}/${view.quantity}`
       : undefined,
     view?.job ?? "",
     view?.quantity ?? "displacement",
+    method,
   );
   const values = scene?.range ?? undefined;
   const look = useMemo(() => {
@@ -513,6 +534,7 @@ export function ResultsView({
     );
   }, [scene, contour, jobRange?.[0], jobRange?.[1]]);
   useEffect(() => onRange?.(values ?? undefined), [values?.[0], values?.[1]]);
+  useEffect(() => onShift?.(scene?.shift), [scene?.shift]);
 
   // the viewer (and its WebGL context) is created when there is a scene to show
   useEffect(() => {

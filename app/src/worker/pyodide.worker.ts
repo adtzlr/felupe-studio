@@ -21,6 +21,7 @@ import type {
   Quantity,
   ResultScene,
   ToWorker,
+  ValuesMethod,
   Versions,
 } from "./protocol";
 
@@ -192,10 +193,16 @@ async function run(id: number, document: string, live?: LiveSettings) {
 }
 
 /** The result of a substep of a job of the last run, for the viewer. */
-function result(id: number, job: string, substep: number, quantity: Quantity) {
+function result(
+  id: number,
+  job: string,
+  substep: number,
+  quantity: Quantity,
+  method: ValuesMethod = "cells",
+) {
   const results = python().pyimport("felupe_studio.results");
   try {
-    const proxy = results.scene(job, substep, quantity);
+    const proxy = results.scene(job, substep, quantity, method);
     const [meta, raw] = proxy.toJs({ dict_converter: Object.fromEntries }) as [
       string,
       RawResultSurface[],
@@ -212,10 +219,16 @@ function result(id: number, job: string, substep: number, quantity: Quantity) {
 }
 
 /** The ranges of a quantity of every substep of a job of the last run (#139). */
-function resultRanges(id: number, job: string, quantity: Quantity) {
+function resultRanges(
+  id: number,
+  job: string,
+  quantity: Quantity,
+  method: ValuesMethod = "cells",
+) {
   const results = python().pyimport("felupe_studio.results");
   try {
-    post({ type: "text", id, text: results.ranges(job, quantity) as string });
+    const text = results.ranges(job, quantity, method) as string;
+    post({ type: "text", id, text });
   } finally {
     results.destroy();
   }
@@ -238,10 +251,11 @@ function exportResults(
   job: string,
   format: "vtu" | "xdmf" | "csv",
   substep?: number,
+  method: ValuesMethod = "cells",
 ) {
   const results = python().pyimport("felupe_studio.results");
   try {
-    const proxy = results.export(job, format, substep);
+    const proxy = results.export(job, format, substep, method);
     const bytes = proxy.toJs() as Uint8Array;
     proxy.destroy();
     const data = bytes.buffer.slice(
@@ -341,6 +355,7 @@ ctx.onmessage = async (event: MessageEvent<ToWorker>) => {
           message.job,
           message.format,
           message.substep,
+          message.method,
         );
       case "result":
         return result(
@@ -348,9 +363,15 @@ ctx.onmessage = async (event: MessageEvent<ToWorker>) => {
           message.job,
           message.substep,
           message.quantity,
+          message.method,
         );
       case "result-ranges":
-        return resultRanges(message.id, message.job, message.quantity);
+        return resultRanges(
+          message.id,
+          message.job,
+          message.quantity,
+          message.method,
+        );
       case "export-mesh":
         return exportMesh(
           message.id,
