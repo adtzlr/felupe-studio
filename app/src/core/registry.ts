@@ -724,6 +724,11 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         hint: "Of the iterative method",
         placeholder: "SciPy",
       },
+      "solver.precision": {
+        label: "Precision",
+        hint: "Single: the factorization in float32 needs half the memory; the results are those of double precision, with a few more iterations at tight tolerances",
+        placeholder: "double",
+      },
       cutback: {
         label: "Cutback",
         hint: "Retries a substep that does not converge with smaller increments",
@@ -749,6 +754,10 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         superlu: "SuperLU (FElupe)",
         spsolve: "spsolve (SciPy)",
         iterative: "Iterative (SciPy)",
+      },
+      "solver.precision": {
+        double: "Double (float64)",
+        single: "Single (float32)",
       },
       "solver.method": {
         minres: "minres (symmetric)",

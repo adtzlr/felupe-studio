@@ -152,3 +152,31 @@ Per Newton iteration, the assembly of the condensed system is about 20 % faster 
   - It is slower where it needs more (shear mount, glued plate).
 - It stops later at the same tolerance, but then it is often closer to the converged curve. The glued plate at the default tolerance is the extreme case: its moment deviates by 6 % with the mixed fields and by 4e-7 condensed.
 - The smaller system needs less memory, which matters in the browser. The times in Pyodide are still to be measured.
+
+## The linear equation system in single precision (ADR 0016)
+
+`solver.precision: "single"` of a job casts the matrix and the right-hand side to `float32`, factorizes them in `float32` and returns the increment in `float64`; the model, the residual forces and the convergence check stay in double precision. The page `spike.html` has *Linear equation system: Double precision / Single precision (float32)*; runs of both are listed one after another, with a column *Precision*.
+
+Container with 2 cores (x86_64), CPython 3.13, FElupe 12.1.0, SuperLU. Peak memory of a process (the resident set; Python with FElupe takes 84 MB).
+
+**The benchmark of the spike** (`felupe_studio.benchmark.benchmark(n, precision=...)`, best of two runs, times in seconds):
+
+|   n |   DOF | Cells | Solve, double | Solve, single | Speedup | Peak memory, double / single |  Force |
+| --: | ----: | ----: | ------------: | ------------: | ------: | ---------------------------: | -----: |
+|   9 |  2187 |   512 |         0.665 |         0.568 |    1.17 |                              | 1.7940 |
+|  13 |  6591 |  1728 |         6.063 |         4.027 |    1.51 |                              | 1.7925 |
+|  17 | 14739 |  4096 |        27.974 |        17.028 |    1.64 |              401 MB / 341 MB | 1.7919 |
+
+**A cube with u-p-J** (`fem.SolidBodyNearlyIncompressible`, `fem.NeoHooke(mu=1)`, K = 5000, n = 21: 27,783 DOF, uniaxial tension to a stretch of 1.2, tolerance 0.01), one run each:
+
+| Precision                                         | Time in s | Peak memory |
+| ------------------------------------------------- | --------: | ----------: |
+| double                                            |        45 |     1083 MB |
+| the linear equation system in `float32`           |        22 |      826 MB |
+| the model in `float32` (regions, fields, prototype) |        13 |      595 MB |
+
+**The samples and the golden cases** with the linear equation system in `float32` give the curves of double precision within 2e-5 of the largest force (the bar with cutbacks within 1.2e-4, at its tolerance of 0.01), with the same number of Newton iterations; at the tight tolerance 1.49e-8, the linear elastic and the plasticity cube take a few more. The samples are up to 1.4 times faster (the sandwich spring 2.0 s instead of 2.8 s). u-p-J fields of tetrahedrons (`fem.FieldsMixed`, an indefinite system) are slower: SuperLU of FElupe falls back to a factorization with pivoting in 11 of 16 solves (the hex-tet sample 2.3 s instead of 0.75 s).
+
+The model in `float32` (`model.settings`, regions and fields in single precision) needs adtzlr/felupe#1293 and #1294 first (ADR 0016).
+
+**Pyodide:** to be measured on the phone with `spike.html`, n = 9, 11 and 13 in both precisions.

@@ -30,6 +30,16 @@ describe("the linear solver of a job (#203)", () => {
     expect(describeSolver(job({ solver: { type: "spsolve" } }))).toBe(
       "spsolve",
     );
+    // the linear equation system in single precision (ADR 0016)
+    expect(
+      describeSolver(job({ solver: { type: "superlu", precision: "single" } })),
+    ).toBe("SuperLU, single precision");
+    expect(
+      describeSolver(job({ solver: { type: "spsolve", precision: "single" } })),
+    ).toBe("spsolve, single precision");
+    expect(
+      describeSolver(job({ solver: { type: "superlu", precision: "double" } })),
+    ).toBe("SuperLU");
     expect(
       describeSolver(
         job({

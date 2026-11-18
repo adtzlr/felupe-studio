@@ -38,6 +38,7 @@ describe("toMarkdown", () => {
           cells: 8,
           dofs: 81,
           increments: 5,
+          precision: "double",
           setup: 0.01,
           solve: 0.1,
           force: 1.8216,
@@ -48,6 +49,7 @@ describe("toMarkdown", () => {
           cells: 64,
           dofs: 375,
           increments: 5,
+          precision: "single",
           setup: 0.02,
           solve: 0.3,
           force: 1.8007,
@@ -55,8 +57,8 @@ describe("toMarkdown", () => {
       ],
     );
     expect(md).toContain("| **Total** | **5.000** |");
-    expect(md).toContain("| 3 | 81 | 8 | 0.010 | 0.100 | 1.8216 |");
-    expect(md).toContain("| 5 | 375 | 64 | 0.020 | 0.300 | 1.8007 |");
+    expect(md).toContain("| 3 | 81 | 8 | double | 0.010 | 0.100 | 1.8216 |");
+    expect(md).toContain("| 5 | 375 | 64 | single | 0.020 | 0.300 | 1.8007 |");
     expect(md).toContain("**Memory:** unknown");
     expect(md).toContain("**Service worker cache:** not active");
   });

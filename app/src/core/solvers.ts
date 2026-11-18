@@ -1,5 +1,6 @@
 // The linear solver of a job (#203): SuperLU of FElupe (the default), spsolve of
-// SciPy or an iterative method of SciPy, like felupe_studio.codegen.solver_source().
+// SciPy (both also in single precision, ADR 0016) or an iterative method of SciPy,
+// like felupe_studio.codegen.solver_source().
 import type { Command } from "./commands";
 import type { Command as ResolvedCommand } from "./resolved";
 
@@ -23,15 +24,18 @@ export function solverRtol(job: ResolvedJob): number {
 const exponential = (value: number) => value.toExponential().replace("e+", "e");
 
 /**
- * A short description of the linear solver of a job, e.g. `minres, rtol 1e-4`
+ * A short description of the linear solver of a job, e.g. `minres, rtol 1e-4` or
+ * `SuperLU, single precision`
  * (undefined without a solver: the default of FElupe); an expression of the
  * parameters as written (#242).
  */
 export function describeSolver(job: Job): string | undefined {
   const solver = job.solver;
   if (!solver) return undefined;
-  if (solver.type === "superlu") return "SuperLU";
-  if (solver.type === "spsolve") return "spsolve";
+  // the linear equation system in single precision (ADR 0016)
+  const single = solver.precision === "single" ? ", single precision" : "";
+  if (solver.type === "superlu") return `SuperLU${single}`;
+  if (solver.type === "spsolve") return `spsolve${single}`;
   const rtol =
     typeof solver.rtol === "string"
       ? solver.rtol

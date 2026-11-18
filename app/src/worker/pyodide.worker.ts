@@ -18,6 +18,7 @@ import type {
   LiveSettings,
   MeshFormat,
   MeshInfo,
+  Precision,
   Quantity,
   ResultScene,
   ToWorker,
@@ -306,12 +307,16 @@ function exportMesh(
   }
 }
 
-function benchmark(id: number, sizes: number[]) {
+function benchmark(
+  id: number,
+  sizes: number[],
+  precision: Precision = "double",
+) {
   const module = python().pyimport("felupe_studio.benchmark");
   try {
     for (const n of sizes) {
       post({ type: "progress", id, message: `Running n = ${n} …` });
-      const proxy = module.benchmark.callKwargs({ n, num: 5 });
+      const proxy = module.benchmark.callKwargs({ n, num: 5, precision });
       const result = proxy.toJs({
         dict_converter: Object.fromEntries,
       }) as BenchmarkResult;
@@ -336,7 +341,7 @@ ctx.onmessage = async (event: MessageEvent<ToWorker>) => {
           message.lazyWheels,
         );
       case "benchmark":
-        return benchmark(message.id, message.sizes);
+        return benchmark(message.id, message.sizes, message.precision);
       case "write-file":
         return writeFile(message.id, message.name, message.data);
       case "inspect-mesh":

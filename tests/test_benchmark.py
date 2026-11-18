@@ -20,3 +20,12 @@ def test_benchmark_force_similar_for_coarse_and_fine_mesh():
     coarse = benchmark(n=2, num=2)["force"]
     fine = benchmark(n=4, num=2)["force"]
     assert abs(fine - coarse) / coarse < 0.2
+
+
+def test_benchmark_in_single_precision():
+    # the linear equation system in float32 gives the force of double precision
+    # (ADR 0016)
+    double = benchmark(n=3, num=2)
+    single = benchmark(n=3, num=2, precision="single")
+    assert double["precision"] == "double" and single["precision"] == "single"
+    assert abs(single["force"] - double["force"]) < 1e-6 * double["force"]

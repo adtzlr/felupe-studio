@@ -22,6 +22,8 @@ import numpy as np
 import pytest
 
 from felupe_studio import codegen
+from felupe_studio.codegen import TOL
+from felupe_studio.expressions import resolve
 from felupe_studio.materials import material_call
 
 HERE = Path(__file__).parent
@@ -42,6 +44,18 @@ SAME_BODY = [
 MATERIALS = [case for case in CASES if case.startswith("cube_")]
 
 RTOL, ATOL = 1e-8, 1e-12
+
+
+def single_precision(document):
+    """Whether a job solves the linear equation system in single precision (ADR
+    0016). Its results depend on the round-off of the factorization in float32 of
+    the machine: they are compared with a looser relative tolerance."""
+    return any(
+        c.get("solver", {}).get("precision") == "single"
+        for c in document["commands"]
+        if c["command"] == "job.add"
+    )
+
 
 pytestmark = pytest.mark.golden
 
@@ -104,12 +118,13 @@ def test_results(case, tmp_path, monkeypatch, request):
 
     reference = json.loads(expected.read_text(encoding="utf-8"))
     assert results["jobs"].keys() == reference["jobs"].keys()
+    rtol = 1e-6 if single_precision(load(case)) else RTOL
     for name, curve in results["jobs"].items():
         for key in ("displacement", "force"):
             np.testing.assert_allclose(
                 curve[key],
                 reference["jobs"][name][key],
-                rtol=RTOL,
+                rtol=rtol,
                 atol=ATOL,
                 err_msg=f"{case}: {name} {key} (reference: FElupe "
                 f"{reference['felupe']})",
@@ -458,6 +473,47 @@ def test_axisymmetric_cylinder_like_the_analytical_solution(tmp_path, monkeypatc
     modulus = mu * (3 * lmbda + 2 * mu) / (lmbda + mu)
     expected = modulus * 3e-4 / 3 * np.pi * 1**2
     np.testing.assert_allclose(curve["force"][-1], expected, rtol=2e-4)
+
+
+# the cases with a direct linear solver (all but the iterative ones)
+DIRECT = [
+    case
+    for case in CASES
+    if all(
+        c.get("solver", {}).get("type") != "iterative"
+        for c in load(case)["commands"]
+        if c["command"] == "job.add"
+    )
+]
+
+
+@pytest.mark.parametrize("case", DIRECT)
+def test_single_precision_gives_the_curves_of_double_precision(
+    case, tmp_path, monkeypatch
+):
+    # the linear equation system in single precision, the model in double precision
+    # (ADR 0016): the curves of double precision within the tolerance of the job, at
+    # most 1e-3 and at least 1e-6 of the largest force (measured: 1.2e-4 for the
+    # cutback of bar_cutback with the tolerance 0.01, else below 2e-5)
+    document = load(case)
+    tolerances = {}
+    for cmd in resolve(document)[0]["commands"]:
+        if cmd["command"] == "job.add":
+            tolerances[cmd["name"]] = float(cmd.get("tol", TOL))
+    for cmd in document["commands"]:
+        if cmd["command"] == "job.add":
+            solver = cmd.get("solver", {"type": "superlu"})
+            cmd["solver"] = {**solver, "precision": "single"}
+    results = evaluate(case, tmp_path, monkeypatch, document)
+    text = (HERE / case / "results.json").read_text(encoding="utf-8")
+    reference = json.loads(text)["jobs"]
+    assert results["jobs"].keys() == reference.keys()
+    for name, curve in results["jobs"].items():
+        force = np.array(reference[name]["force"])
+        tol = max(min(tolerances[name], 1e-3), 1e-6)
+        np.testing.assert_allclose(
+            curve["force"], force, rtol=0, atol=tol * np.abs(force).max() + ATOL
+        )
 
 
 def test_iterative_solver_close_to_the_direct_one():

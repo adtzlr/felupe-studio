@@ -42,6 +42,9 @@ def main():
     write_vtu(HERE / "bar_volumetric_log" / "bar.vtu", mesh)
     write_vtu(HERE / "bar_sections_tag" / "bar.vtu", mesh, {"material": [tag]})
     write_vtu(HERE / "bar_two_materials" / "bar.vtu", mesh, {"material": [tag]})
+    # the same bar, the linear equation system in single precision (ADR 0016)
+    path = HERE / "bar_two_materials_single_precision" / "bar.vtu"
+    write_vtu(path, mesh, {"material": [tag]})
     write_vtu(HERE / "bar_cutback" / "bar.vtu", mesh, {"material": [tag]})
 
     # Gmsh: one block per physical group, tags in "gmsh:physical"
