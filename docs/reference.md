@@ -537,7 +537,7 @@ A job evaluating steps one after another (fem.Job). With a curve, the force-disp
 | `name` | name | yes | Name of the object. |
 | `steps` | names of steps (at least 1, unique) | yes | Steps evaluated one after another. |
 | `curve` | name of a boundary, load case or point load |  | The boundary, load case or point load of the force-displacement curve. |
-| `tol` | number > 0 |  | Tolerance of the Newton-Raphson method: the norm of the residual forces relative to the reaction forces (default 0.01, like commercial codes). |
+| `tol` | number > 0 |  | Tolerance of the Newton-Raphson method: the norm of the residual forces relative to a reference force, the reaction forces or the forces between the items (e.g. of a pressure on a solid body), if they are larger (default 0.01, like commercial codes). |
 | `maxiter` | integer ≥ 1 |  | The maximum number of Newton iterations of a substep (default 16). |
 | `solver` | object |  | The linear solver of the Newton iterations (Job.evaluate(solver=...)); without it, SuperLU of FElupe. |
 | `solver.type` | `superlu`, `spsolve` or `iterative` | yes | SuperLU of FElupe (fem.solve.SuperLUSolver, the default), spsolve of SciPy (the default of FElupe before v12) or an iterative method of SciPy. |

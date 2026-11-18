@@ -669,7 +669,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       },
       tol: {
         label: "Tolerance",
-        hint: "Of the Newton iterations: residual forces relative to the reaction forces, like commercial codes",
+        hint: "Of the Newton iterations: residual forces relative to the reaction forces (or the forces of pressures and contacts), like commercial codes",
         placeholder: "0.01",
       },
       maxiter: {
