@@ -212,3 +212,16 @@ def test_stdio():
             assert len(overview.structured_content["commands"]) > 20
 
     asyncio.run(main())
+
+
+def test_tool_cases_are_up_to_date():
+    # the answers of the tools that the agent bridge of the app gives too (#258)
+    sys.path.insert(0, str(Path(__file__).parent / "data"))
+    from make_tool_cases import CASES, case
+
+    stored = json.loads(
+        (Path(__file__).parent / "data" / "tool_cases.json").read_text("utf-8")
+    )
+    assert stored == [
+        {"name": name, "steps": case(steps)} for name, steps in CASES.items()
+    ], "Run python tests/data/make_tool_cases.py and commit the result."

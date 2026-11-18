@@ -84,7 +84,7 @@ jobs:
           cd /tmp && /tmp/wheel/bin/python "$GITHUB_WORKSPACE/tests/check_wheel.py"
 
   local:
-    name: Local runtime (app in a browser)
+    name: Local runtime and agent bridge (app in a browser)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -99,7 +99,8 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
-      - run: pip install -e ".[test,serve]" "felupe==${FELUPE_VERSION}" playwright
+      - run: pip install -e ".[test,serve,mcp]" "felupe==${FELUPE_VERSION}" playwright
       - run: playwright install --with-deps chromium
-      # a sample opened from felupe-studio serve, solved with CPython (#240)
+      # a sample opened from felupe-studio serve, solved with CPython (#240), and an
+      # agent on the open app (#258)
       - run: pytest -m e2e tests/e2e -v
