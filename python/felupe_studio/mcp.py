@@ -328,6 +328,11 @@ class Session:
         if not isinstance(command, dict) or "command" not in command:
             raise ToolError("A command is an object with 'command' and 'name'.")
         index = len(self.commands) if before is None else self.find(before)[0]
+        if any(c["name"] == command.get("name") for c in self.commands):
+            # like the agent bridge of the app (#258)
+            raise ToolError(
+                f"Not added: there is already an object '{command.get('name')}'."
+            )
         commands = [*self.commands[:index], command, *self.commands[index:]]
         document = {**self.document, "commands": commands}
         rejected = self._check(document, index)
@@ -342,6 +347,8 @@ class Session:
         command = {**old, **changes}
         command = {k: v for k, v in command.items() if v is not None}
         new = command.get("name", name)
+        if new != name and any(c["name"] == new for c in self.commands):
+            raise ToolError(f"Not changed: there is already an object '{new}'.")
         commands = list(self.commands)
         commands[index] = command
         if new != name:

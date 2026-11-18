@@ -1,0 +1,606 @@
+[
+  {
+    "name": "add a parameter and use it in an expression",
+    "steps": [
+      {
+        "tool": "add_command",
+        "arguments": {
+          "command": {
+            "command": "parameter.add",
+            "name": "h",
+            "value": 2
+          }
+        },
+        "answer": {
+          "added": "h",
+          "index": 13,
+          "errors": [],
+          "notes": [],
+          "commands": [
+            "specimen",
+            "hard",
+            "soft",
+            "umat_hard",
+            "umat_soft",
+            "section_hard",
+            "section_soft",
+            "left",
+            "right",
+            "fixed",
+            "move",
+            "step_1",
+            "job_1",
+            "h"
+          ]
+        }
+      },
+      {
+        "tool": "update_command",
+        "arguments": {
+          "name": "right",
+          "changes": {
+            "select": {
+              "axis": "x",
+              "value": "h + 1"
+            }
+          }
+        },
+        "answer": {
+          "updated": "right",
+          "index": 8,
+          "errors": [],
+          "notes": [],
+          "commands": [
+            "specimen",
+            "hard",
+            "soft",
+            "umat_hard",
+            "umat_soft",
+            "section_hard",
+            "section_soft",
+            "left",
+            "right",
+            "fixed",
+            "move",
+            "step_1",
+            "job_1",
+            "h"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "add a command before another one",
+    "steps": [
+      {
+        "tool": "add_command",
+        "arguments": {
+          "command": {
+            "command": "parameter.add",
+            "name": "h",
+            "value": 2
+          },
+          "before": "right"
+        },
+        "answer": {
+          "added": "h",
+          "index": 8,
+          "errors": [],
+          "notes": [],
+          "commands": [
+            "specimen",
+            "hard",
+            "soft",
+            "umat_hard",
+            "umat_soft",
+            "section_hard",
+            "section_soft",
+            "left",
+            "h",
+            "right",
+            "fixed",
+            "move",
+            "step_1",
+            "job_1"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "an unknown parameter in an expression",
+    "steps": [
+      {
+        "tool": "add_command",
+        "arguments": {
+          "command": {
+            "command": "parameter.add",
+            "name": "h",
+            "value": 2
+          }
+        },
+        "answer": {
+          "added": "h",
+          "index": 13,
+          "errors": [],
+          "notes": [],
+          "commands": [
+            "specimen",
+            "hard",
+            "soft",
+            "umat_hard",
+            "umat_soft",
+            "section_hard",
+            "section_soft",
+            "left",
+            "right",
+            "fixed",
+            "move",
+            "step_1",
+            "job_1",
+            "h"
+          ]
+        }
+      },
+      {
+        "tool": "update_command",
+        "arguments": {
+          "name": "right",
+          "changes": {
+            "select": {
+              "axis": "x",
+              "value": "2 * hh"
+            }
+          }
+        },
+        "answer": {
+          "updated": "right",
+          "index": 8,
+          "errors": [
+            "commands/8: 'select.value' of 'right': 'hh' is not a parameter in '2 * hh'."
+          ],
+          "notes": [],
+          "commands": [
+            "specimen",
+            "hard",
+            "soft",
+            "umat_hard",
+            "umat_soft",
+            "section_hard",
+            "section_soft",
+            "left",
+            "right",
+            "fixed",
+            "move",
+            "step_1",
+            "job_1",
+            "h"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "a renamed parameter in the expressions",
+    "steps": [
+      {
+        "tool": "add_command",
+        "arguments": {
+          "command": {
+            "command": "parameter.add",
+            "name": "h",
+            "value": 2
+          }
+        },
+        "answer": {
+          "added": "h",
+          "index": 13,
+          "errors": [],
+          "notes": [],
+          "commands": [
+            "specimen",
+            "hard",
+            "soft",
+            "umat_hard",
+            "umat_soft",
+            "section_hard",
+            "section_soft",
+            "left",
+            "right",
+            "fixed",
+            "move",
+            "step_1",
+            "job_1",
+            "h"
+          ]
+        }
+      },
+      {
+        "tool": "update_command",
+        "arguments": {
+          "name": "right",
+          "changes": {
+            "select": {
+              "axis": "x",
+              "value": "h"
+            }
+          }
+        },
+        "answer": {
+          "updated": "right",
+          "index": 8,
+          "errors": [],
+          "notes": [],
+          "commands": [
+            "specimen",
+            "hard",
+            "soft",
+            "umat_hard",
+            "umat_soft",
+            "section_hard",
+            "section_soft",
+            "left",
+            "right",
+            "fixed",
+            "move",
+            "step_1",
+            "job_1",
+            "h"
+          ]
+        }
+      },
+      {
+        "tool": "update_command",
+        "arguments": {
+          "name": "h",
+          "changes": {
+            "name": "height"
+          }
+        },
+        "answer": {
+          "updated": "height",
+          "index": 13,
+          "errors": [],
+          "notes": [],
+          "commands": [
+            "specimen",
+            "hard",
+            "soft",
+            "umat_hard",
+            "umat_soft",
+            "section_hard",
+            "section_soft",
+            "left",
+            "right",
+            "fixed",
+            "move",
+            "step_1",
+            "job_1",
+            "height"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "a renamed object in the references",
+    "steps": [
+      {
+        "tool": "update_command",
+        "arguments": {
+          "name": "right",
+          "changes": {
+            "name": "end"
+          }
+        },
+        "answer": {
+          "updated": "end",
+          "index": 8,
+          "errors": [],
+          "notes": [],
+          "commands": [
+            "specimen",
+            "hard",
+            "soft",
+            "umat_hard",
+            "umat_soft",
+            "section_hard",
+            "section_soft",
+            "left",
+            "end",
+            "fixed",
+            "move",
+            "step_1",
+            "job_1"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "a reference to a missing object",
+    "steps": [
+      {
+        "tool": "add_command",
+        "arguments": {
+          "command": {
+            "command": "boundary.add",
+            "name": "other",
+            "pointset": "nowhere",
+            "constrained": [
+              "x"
+            ]
+          }
+        },
+        "answer": {
+          "added": "other",
+          "index": 13,
+          "errors": [
+            "commands/13: boundary.add 'other' references unknown pointset or rigid surface 'nowhere' in 'pointset'."
+          ],
+          "notes": [],
+          "commands": [
+            "specimen",
+            "hard",
+            "soft",
+            "umat_hard",
+            "umat_soft",
+            "section_hard",
+            "section_soft",
+            "left",
+            "right",
+            "fixed",
+            "move",
+            "step_1",
+            "job_1",
+            "other"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "null removes a property",
+    "steps": [
+      {
+        "tool": "update_command",
+        "arguments": {
+          "name": "step_1",
+          "changes": {
+            "ramp": null
+          }
+        },
+        "answer": {
+          "updated": "step_1",
+          "index": 11,
+          "errors": [],
+          "notes": [],
+          "commands": [
+            "specimen",
+            "hard",
+            "soft",
+            "umat_hard",
+            "umat_soft",
+            "section_hard",
+            "section_soft",
+            "left",
+            "right",
+            "fixed",
+            "move",
+            "step_1",
+            "job_1"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "a symmetry plane of a load case",
+    "steps": [
+      {
+        "tool": "add_command",
+        "arguments": {
+          "command": {
+            "command": "symmetry.add",
+            "name": "half",
+            "axes": [
+              "x",
+              "z"
+            ]
+          },
+          "before": "step_1"
+        },
+        "answer": {
+          "added": "half",
+          "index": 11,
+          "errors": [],
+          "notes": [],
+          "commands": [
+            "specimen",
+            "hard",
+            "soft",
+            "umat_hard",
+            "umat_soft",
+            "section_hard",
+            "section_soft",
+            "left",
+            "right",
+            "fixed",
+            "move",
+            "half",
+            "step_1",
+            "job_1"
+          ]
+        }
+      },
+      {
+        "tool": "add_command",
+        "arguments": {
+          "command": {
+            "command": "loadcase.add",
+            "name": "test",
+            "type": "uniaxial"
+          },
+          "before": "step_1"
+        },
+        "answer": {
+          "added": "test",
+          "index": 12,
+          "errors": [],
+          "notes": [
+            "commands/11: the plane x = 0 of symmetry 'half' is already a symmetry plane of load case 'test'.",
+            "commands/11: the plane z = 0 of symmetry 'half' is already a symmetry plane of load case 'test'."
+          ],
+          "commands": [
+            "specimen",
+            "hard",
+            "soft",
+            "umat_hard",
+            "umat_soft",
+            "section_hard",
+            "section_soft",
+            "left",
+            "right",
+            "fixed",
+            "move",
+            "half",
+            "test",
+            "step_1",
+            "job_1"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "delete a command",
+    "steps": [
+      {
+        "tool": "delete_command",
+        "arguments": {
+          "name": "job_1"
+        },
+        "answer": {
+          "deleted": "job_1",
+          "errors": [],
+          "notes": [],
+          "commands": [
+            "specimen",
+            "hard",
+            "soft",
+            "umat_hard",
+            "umat_soft",
+            "section_hard",
+            "section_soft",
+            "left",
+            "right",
+            "fixed",
+            "move",
+            "step_1"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "name": "delete a used command",
+    "steps": [
+      {
+        "tool": "delete_command",
+        "arguments": {
+          "name": "right"
+        },
+        "answer": {
+          "refused": "'right' is used by move: change or delete them first."
+        }
+      }
+    ]
+  },
+  {
+    "name": "a command that does not exist",
+    "steps": [
+      {
+        "tool": "update_command",
+        "arguments": {
+          "name": "nothing",
+          "changes": {}
+        },
+        "answer": {
+          "refused": "No command named 'nothing'."
+        }
+      },
+      {
+        "tool": "delete_command",
+        "arguments": {
+          "name": "nothing"
+        },
+        "answer": {
+          "refused": "No command named 'nothing'."
+        }
+      }
+    ]
+  },
+  {
+    "name": "a name twice",
+    "steps": [
+      {
+        "tool": "add_command",
+        "arguments": {
+          "command": {
+            "command": "parameter.add",
+            "name": "right",
+            "value": 2
+          }
+        },
+        "answer": {
+          "refused": "Not added: there is already an object 'right'."
+        }
+      },
+      {
+        "tool": "update_command",
+        "arguments": {
+          "name": "left",
+          "changes": {
+            "name": "right"
+          }
+        },
+        "answer": {
+          "refused": "Not changed: there is already an object 'right'."
+        }
+      }
+    ]
+  },
+  {
+    "name": "a command against its schema",
+    "steps": [
+      {
+        "tool": "add_command",
+        "arguments": {
+          "command": {
+            "command": "material.add",
+            "name": "m",
+            "model": "NeoHooke"
+          }
+        },
+        "answer": {
+          "refused": "Not added: "
+        }
+      },
+      {
+        "tool": "update_command",
+        "arguments": {
+          "name": "step_1",
+          "changes": {
+            "ramp": {
+              "num": 0
+            }
+          }
+        },
+        "answer": {
+          "refused": "Not changed: "
+        }
+      }
+    ]
+  }
+]
