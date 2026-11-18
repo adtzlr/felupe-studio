@@ -37,7 +37,7 @@ let lazyWheels: Record<string, string> = {};
 const SOURCES = import.meta.glob(
   [
     "../../../python/felupe_studio/*.{py,json}",
-    "!../../../python/felupe_studio/{mcp,runtime,serve,cli,__main__}.py",
+    "!../../../python/felupe_studio/{mcp,runtime,serve,cli,__main__,bridge}.py",
   ],
   { query: "?raw", import: "default", eager: true },
 ) as Record<string, string>;

@@ -76,6 +76,51 @@ project; write mesh scripts with write_file. Save the project: the user opens th
 units of model.settings."""
 
 
+# the descriptions of the tools that the agent bridge of felupe-studio serve has
+# too, with the same names and answers (ADR 0015)
+DESCRIPTIONS = {
+    "schema": (
+        "Without a command: all commands with their descriptions. With a command (e.g. "
+        '"material.add"): its JSON schema with the definitions it references, to write '
+        "valid commands."
+    ),
+    "samples": ("The samples of FElupe Studio: id, title, description and topics."),
+    "list_commands": (
+        "The commands of the model in their order, with its errors and notes."
+    ),
+    "add_command": (
+        'Add a command (an object with "command" and "name" and the properties of its '
+        "schema), at the end or before the command of a name. A command that does not "
+        "fit its schema is not added. Returns the errors and notes of the model: "
+        "references must name earlier commands."
+    ),
+    "update_command": (
+        "Change properties of a command (null removes a property). A new "
+        '"name" renames it, and the references to it follow.'
+    ),
+    "delete_command": ("Delete a command that no other command references."),
+    "check": (
+        "The checks that need the mesh data: cells in no or in two sections, and "
+        "hanging points of interfaces."
+    ),
+    "script": ("The FElupe script of the model, as the app exports it."),
+    "solve": (
+        "Solve the jobs (up to and including `job`) with FElupe. Returns per job the "
+        "substeps, the time and the curve: displacements x and forces y (x, y, z each) "
+        "per substep. A failure returns the message and the traceback."
+    ),
+    "results": (
+        "The result of a quantity at a substep (the last one by default): its range, "
+        "the minimum and the maximum with their section, node or cell and position, "
+        "and the control points with their forces. Quantities: displacement, "
+        "displacement_x/y/z, strain_max/mid/min, stress_max/mid/min, stress_mises, "
+        "plastic_strain; methods: cells (the means of the cells) or mean, project, "
+        "topoints (at the points)."
+    ),
+}
+"""The descriptions of the tools shared with :mod:`felupe_studio.bridge`."""
+
+
 def _samples_folder():
     """The folder of the samples, or None."""
     folder = os.environ.get("FELUPE_STUDIO_SAMPLES")
@@ -519,16 +564,12 @@ def server(session=None):
     session = session or Session()
     mcp = MCPServer("felupe-studio", instructions=INSTRUCTIONS, version=__version__)
 
-    @mcp.tool(name="schema")
+    @mcp.tool(name="schema", description=DESCRIPTIONS["schema"])
     def schema_tool(command: str | None = None) -> dict[str, Any]:
-        """Without a command: all commands with their descriptions. With a command
-        (e.g. "material.add"): its JSON schema with the definitions it references,
-        to write valid commands."""
         return schema(command)
 
-    @mcp.tool()
+    @mcp.tool(description=DESCRIPTIONS["samples"])
     def samples() -> list[dict[str, Any]]:
-        """The samples of FElupe Studio: id, title, description and topics."""
         return session.samples()
 
     @mcp.tool()
@@ -556,30 +597,22 @@ def server(session=None):
         opens both."""
         return session.save_project(path, archive)
 
-    @mcp.tool()
+    @mcp.tool(description=DESCRIPTIONS["list_commands"])
     def list_commands() -> dict[str, Any]:
-        """The commands of the project in their order, with its errors and notes."""
         return {"commands": session.commands, **session.summary()}
 
-    @mcp.tool()
+    @mcp.tool(description=DESCRIPTIONS["add_command"])
     def add_command(
         command: dict[str, Any], before: str | None = None
     ) -> dict[str, Any]:
-        """Add a command (an object with "command" and "name" and the properties of
-        its schema), at the end or before the command of a name. A command that does
-        not fit its schema is not added. Returns the errors and notes of the
-        project: references must name earlier commands."""
         return session.add_command(command, before)
 
-    @mcp.tool()
+    @mcp.tool(description=DESCRIPTIONS["update_command"])
     def update_command(name: str, changes: dict[str, Any]) -> dict[str, Any]:
-        """Change properties of a command (null removes a property). A new "name"
-        renames it, and the references to it follow."""
         return session.update_command(name, changes)
 
-    @mcp.tool()
+    @mcp.tool(description=DESCRIPTIONS["delete_command"])
     def delete_command(name: str) -> dict[str, Any]:
-        """Delete a command that no other command references."""
         return session.delete_command(name)
 
     @mcp.tool()
@@ -598,22 +631,16 @@ def server(session=None):
         parameters of the model, changed by `parameters`)."""
         return session.inspect_mesh(file, item, parameters)
 
-    @mcp.tool()
+    @mcp.tool(description=DESCRIPTIONS["check"])
     def check() -> dict[str, Any]:
-        """The checks that need the mesh data: cells in no or in two sections, and
-        hanging points of interfaces."""
         return session.check()
 
-    @mcp.tool()
+    @mcp.tool(description=DESCRIPTIONS["script"])
     def script() -> str:
-        """The FElupe script of the project, as the app exports it."""
         return session.script()
 
-    @mcp.tool()
+    @mcp.tool(description=DESCRIPTIONS["solve"])
     async def solve(ctx: Context, job: str | None = None) -> dict[str, Any]:
-        """Solve the jobs (up to and including `job`) with FElupe. Returns per job
-        the substeps, the time and the curve: displacements x and forces y (x, y, z
-        each) per substep. A failure returns the message and the traceback."""
         state = {"done": 0, "total": None, "jobs": [], "finished": 0}
 
         def report(event):
@@ -633,19 +660,13 @@ def server(session=None):
 
         return await anyio.to_thread.run_sync(lambda: session.solve(job, report))
 
-    @mcp.tool()
+    @mcp.tool(description=DESCRIPTIONS["results"])
     def results(
         job: str,
         quantity: str = "stress_mises",
         substep: int | None = None,
         method: str = "cells",
     ) -> dict[str, Any]:
-        """The result of a quantity at a substep (the last one by default): its
-        range, the minimum and the maximum with their section, node or cell and
-        position, and the control points with their forces. Quantities:
-        displacement, displacement_x/y/z, strain_max/mid/min, stress_max/mid/min,
-        stress_mises, plastic_strain; methods: cells (the means of the cells) or
-        mean, project, topoints (at the points)."""
         return session.results(job, quantity, substep, method)
 
     @mcp.tool()
