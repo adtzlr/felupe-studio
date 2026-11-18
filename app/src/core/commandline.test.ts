@@ -91,8 +91,8 @@ describe("createCommand", () => {
     ],
     [
       "material.add",
-      { parameters: { mu: "1" } },
-      "parameters.mu: Enter a number",
+      { parameters: { mu: "2 * h" } },
+      "parameters.mu: 'h' is not a parameter in '2 * h'.",
     ],
     [
       "section.add",

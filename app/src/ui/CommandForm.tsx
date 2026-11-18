@@ -10,6 +10,7 @@ import {
   type Context,
   type Draft,
   draftErrors,
+  expressionValue,
   type FieldSpec,
   fieldSpecs,
   getValue,
@@ -28,6 +29,7 @@ import {
   withUnit,
 } from "../core/units";
 import type { CommandType } from "../core/validate";
+import { numberText as valueText } from "../core/resolve";
 
 interface Props {
   type: CommandType;
@@ -61,8 +63,48 @@ interface RawText {
 
 const fieldId = (key: string) => `field-${key.replace(/\./g, "-")}`;
 
-const parseNumber = (text: string) =>
-  text.trim() === "" ? undefined : Number(text.trim());
+const NUMBER = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i;
+
+/**
+ * A number, or an expression of the parameters as written (#242), without a leading
+ * `=` (like a spreadsheet); a field without expressions takes numbers only.
+ */
+const parseValue = (text: string, expressions = false): unknown => {
+  const trimmed = text.trim().replace(/^=\s*/, "");
+  if (trimmed === "") return undefined;
+  // a number with a decimal comma is not a number, nor an expression
+  const number = NUMBER.test(trimmed) || /^[+-]?\d*,\d+$/.test(trimmed);
+  return number || !expressions ? Number(trimmed) : trimmed;
+};
+
+/** The parts of a text between the commas outside of parentheses. */
+function splitCommas(text: string): string[] {
+  const parts = [""];
+  let depth = 0;
+  for (const char of text) {
+    if (char === "(") depth++;
+    if (char === ")") depth--;
+    if (char === "," && depth <= 0) parts.push("");
+    else parts[parts.length - 1] += char;
+  }
+  return parts;
+}
+
+/**
+ * Numbers separated by commas or spaces, or with expressions of the parameters
+ * separated by commas (#242), e.g. `0, 0, 2 * height`.
+ */
+const parseValues = (text: string, expressions = false): unknown[] =>
+  splitCommas(text).flatMap((part) => {
+    const words = part
+      .trim()
+      .split(/\s+/)
+      .filter((w) => w !== "");
+    if (!words.length) return [];
+    if (!expressions || words.every((w) => NUMBER.test(w)))
+      return words.map(Number);
+    return [parseValue(part, true)];
+  });
 
 const parseIntegers = (text: string) =>
   text
@@ -70,32 +112,35 @@ const parseIntegers = (text: string) =>
     .filter((part) => part !== "")
     .map(Number);
 
-const parseNumbers = (text: string) =>
-  text
-    .split(/[,\s]+/)
-    .filter((part) => part !== "")
-    .map(Number);
-
 /** Points, one per line (or separated by ;), three numbers each. */
-const parseCoordinates = (text: string) =>
+const parseCoordinates = (text: string, expressions = false) =>
   text
     .split(/[\n;]/)
     .map((line) => line.trim())
     .filter((line) => line !== "")
-    .map((line) =>
-      line
-        .split(/[,\s]+/)
-        .filter((part) => part !== "")
-        .map(Number),
-    );
+    .map((line) => parseValues(line, expressions));
+
+/** A number, or an expression as written. */
+const valueOf = (value: unknown) =>
+  typeof value === "string" ? value : String(value);
 
 const coordinatesText = (value: unknown) =>
   Array.isArray(value)
-    ? value.map((p) => (Array.isArray(p) ? p.join(", ") : String(p))).join("\n")
+    ? value
+        .map((p) => (Array.isArray(p) ? p.map(valueOf).join(", ") : valueOf(p)))
+        .join("\n")
     : "";
 
 const numberText = (value: unknown) =>
-  typeof value === "number" && Number.isFinite(value) ? String(value) : "";
+  typeof value === "string"
+    ? value
+    : typeof value === "number" && Number.isFinite(value)
+      ? String(value)
+      : "";
+
+/** The hint of a field that takes expressions of the parameters (#242). */
+const EXPRESSION_HINT =
+  "A number, or an expression of the parameters, e.g. 2 * height";
 
 /** Selected option of a variant field: a value, or the marker key of an object. */
 function currentVariant(spec: FieldSpec, value: unknown): string {
@@ -232,6 +277,58 @@ export function CommandForm({
     return unitOf(quantity, units);
   };
 
+  /**
+   * The value of the expressions of a field (#242), e.g. `= 12 mm` or
+   * `= (0, 0, 32) mm`, if it has expressions and they have values.
+   */
+  const valueHint = (spec: FieldSpec): string | undefined => {
+    const value = getValue(draft, spec.path);
+    const items = Array.isArray(value) ? value : [value];
+    if (
+      !["number", "numbers"].includes(spec.input.type) ||
+      !items.some((x) => typeof x === "string")
+    )
+      return undefined;
+    const values: string[] = [];
+    for (const x of items) {
+      if (typeof x !== "string") values.push(valueOf(x));
+      else {
+        const result = expressionValue(x, context);
+        if ("error" in result) return undefined;
+        values.push(valueText(result.value));
+      }
+    }
+    const text = Array.isArray(value) ? `(${values.join(", ")})` : values[0];
+    const suffix = unit(spec);
+    return `= ${text}${suffix ? ` ${suffix}` : ""}`;
+  };
+
+  // a field of a model with parameters takes text: an expression (#242)
+  const parametric = context.commands.some(
+    (c) => c.command === "parameter.add",
+  );
+  const mode = (expressions: boolean | undefined, decimal: string) =>
+    expressions && parametric ? "text" : decimal;
+
+  /**
+   * The class and the tooltip of a number field: an expression is left-aligned,
+   * and its tooltip has the whole expression with its value, e.g. in a narrow row.
+   */
+  const numberField = (spec: FieldSpec, expressions: boolean | undefined) => {
+    const value = getValue(draft, spec.path);
+    const items = Array.isArray(value) ? value : [value];
+    const expression = items.some((x) => typeof x === "string");
+    const hint = valueHint(spec);
+    return {
+      class: expression ? "number-field expression" : "number-field",
+      title: expression
+        ? `${items.map(valueOf).join(", ")}${hint ? ` ${hint}` : ""}`
+        : expressions && parametric
+          ? EXPRESSION_HINT
+          : undefined,
+    };
+  };
+
   const reset = () => {
     setDraft(start);
     setTexts({});
@@ -244,9 +341,11 @@ export function CommandForm({
     // Enter in an unchanged form of an object applies nothing
     if (requireChange && !changed) return;
     setSubmitted(true);
-    const invalid = specs.find((spec) => errors[spec.key]);
+    // a field or a cell of rows with an error, e.g. an expression (#242)
+    const invalid =
+      specs.find((spec) => errors[spec.key])?.key ?? Object.keys(errors)[0];
     if (invalid) {
-      document.getElementById(idOf(invalid.key))?.focus();
+      document.getElementById(idOf(invalid))?.focus();
       return;
     }
     onSubmit(toCommand(type, draft, context));
@@ -259,7 +358,11 @@ export function CommandForm({
     const error = errorOf(key);
     const issue = issueOf(spec);
     const describedBy =
-      [spec.hint && `${id}-hint`, (error || issue) && `${id}-error`]
+      [
+        spec.hint && `${id}-hint`,
+        (error || issue) && `${id}-error`,
+        !error && valueHint(spec) && `${id}-value`,
+      ]
         .filter(Boolean)
         .join(" ") || undefined;
     const common = {
@@ -287,21 +390,28 @@ export function CommandForm({
             }
           />
         );
-      case "number":
+      case "number": {
+        const parse = (text: string) => parseValue(text, input.expressions);
         return (
           <input
             {...common}
             type="text"
-            inputMode={input.integer ? "numeric" : "decimal"}
+            {...numberField(spec, input.expressions)}
+            inputMode={mode(
+              input.expressions,
+              input.integer ? "numeric" : "decimal",
+            )}
             value={texts[key]?.text ?? numberText(value)}
             placeholder={spec.placeholder}
             autocomplete="off"
+            spellcheck={false}
             onInput={(event) => {
               const text = event.currentTarget.value;
-              change(spec, parseNumber(text), { text, parse: parseNumber });
+              change(spec, parse(text), { text, parse });
             }}
           />
         );
+      }
       case "integers":
         return (
           <input
@@ -322,23 +432,23 @@ export function CommandForm({
       case "numbers": {
         // one number of a number or a list of numbers is a number (#225)
         const parse = (text: string) => {
-          const numbers = parseNumbers(text);
+          const numbers = parseValues(text, input.expressions);
           if (!input.collapse) return numbers;
           return numbers.length > 1 ? numbers : numbers[0];
         };
         const shown = Array.isArray(value)
-          ? value.join(", ")
-          : typeof value === "number"
-            ? String(value)
-            : "";
+          ? value.map(valueOf).join(", ")
+          : numberText(value);
         return (
           <input
             {...common}
             type="text"
-            inputMode="decimal"
+            {...numberField(spec, input.expressions)}
+            inputMode={mode(input.expressions, "decimal")}
             value={texts[key]?.text ?? shown}
             placeholder={spec.placeholder}
             autocomplete="off"
+            spellcheck={false}
             onInput={(event) => {
               const text = event.currentTarget.value;
               change(spec, parse(text), { text, parse });
@@ -358,10 +468,9 @@ export function CommandForm({
             spellcheck={false}
             onInput={(event) => {
               const text = event.currentTarget.value;
-              change(spec, parseCoordinates(text), {
-                text,
-                parse: parseCoordinates,
-              });
+              const parse = (text: string) =>
+                parseCoordinates(text, input.expressions);
+              change(spec, parse(text), { text, parse });
             }}
           />
         );
@@ -658,16 +767,29 @@ export function CommandForm({
                     </button>
                     {row.map((cell) => {
                       const message = errorOf(cell.key);
+                      // an issue of the stored command at the cell, e.g. of an
+                      // expression (#242)
+                      const issue = issueOf(cell);
+                      const shown = !message && valueHint(cell);
                       return (
-                        message && (
-                          <small
-                            key={`${cell.key}-error`}
-                            id={`${idOf(cell.key)}-error`}
-                            class="field-error rows-error"
-                          >
-                            {cell.label} {i + 1}: {message}
-                          </small>
-                        )
+                        <Fragment key={cell.key}>
+                          {(message || issue) && (
+                            <small
+                              id={`${idOf(cell.key)}-error`}
+                              class={`${message ? "field-error" : "field-issue"} rows-error`}
+                            >
+                              {cell.label} {i + 1}: {message ?? issue}
+                            </small>
+                          )}
+                          {shown && !issue && (
+                            <small
+                              id={`${idOf(cell.key)}-value`}
+                              class="muted rows-error"
+                            >
+                              {cell.label} {i + 1} {shown}
+                            </small>
+                          )}
+                        </Fragment>
                       );
                     })}
                   </Fragment>
@@ -714,6 +836,11 @@ export function CommandForm({
             )}
             <div class="form-control">
               {control(spec)}
+              {!error && valueHint(spec) && (
+                <small id={`${id}-value`} class="muted expression-value">
+                  {valueHint(spec)}
+                </small>
+              )}
               {spec.hint && (
                 <small id={`${id}-hint`} class="muted">
                   {spec.hint}

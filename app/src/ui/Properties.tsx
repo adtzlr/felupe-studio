@@ -26,7 +26,7 @@ export function Properties({ store, files, notes, selected, onSelect }: Props) {
   const fieldIssues: Record<string, string> = {};
   for (const issue of own) {
     if (issue.field && !(issue.field in fieldIssues))
-      fieldIssues[issue.field] = withoutIndex(issue.message);
+      fieldIssues[issue.field] = withoutField(withoutIndex(issue.message));
   }
   const issues = own.filter((i) => !i.field).map((i) => i.message);
   const reported =
@@ -139,6 +139,10 @@ export function Properties({ store, files, notes, selected, onSelect }: Props) {
 }
 
 /** A message without the index of its command, e.g. `commands/3: `. */
+/** A message at its field without the field, e.g. of an expression (#242). */
+const withoutField = (message: string) =>
+  message.replace(/^'[\w.]+' of '\w+': /, "");
+
 const withoutIndex = (message: string) =>
   message.replace(/^commands\/\d+: /, "");
 

@@ -2,11 +2,14 @@
 // from the menu of a parameter. One row per parameter with its description, its value
 // with its unit and, with a range, a slider. The changed values are one undo step,
 // and the meshes of scripts follow them. A project with scripts that make meshes
-// says so, and shows the scripts before they run.
+// says so, and shows the scripts before they run. A parameter shows the objects whose
+// expressions use it, and the problems of the expressions with the typed values
+// (#242).
 import { useState } from "preact/hooks";
 import type { Command } from "../core/commands";
 import { type MeshFiles, meshFileNames, isScript } from "../core/meshfiles";
 import { type Parameter, parameterProblems } from "../core/parameters";
+import { resolveCommands, usesName } from "../core/resolve";
 import type { ModelStore } from "../core/store";
 import { unitOf, unitsOf } from "../core/units";
 import { Dialog } from "./Dialog";
@@ -24,6 +27,12 @@ interface Props {
 /** The parameters of a model, in their order. */
 export const parametersOf = (commands: readonly Command[]): Parameter[] =>
   commands.filter((c): c is Parameter => c.command === "parameter.add");
+
+/** The problems of the expressions of changed commands that the others lack. */
+function newProblems(before: readonly Command[], after: readonly Command[]) {
+  const known = new Set(resolveCommands(before).problems.map((p) => p.message));
+  return resolveCommands(after).problems.filter((p) => !known.has(p.message));
+}
 
 /** The step of the field and the slider of a parameter. */
 function stepOf(p: Parameter): number | "any" {
@@ -60,6 +69,15 @@ export function ParametersDialog({
   });
   const invalid = rows.some((r) => r.problem);
   const changed = rows.filter((r) => !r.problem && r.value !== r.p.value);
+  // the objects whose expressions use a parameter, and the problems of the
+  // expressions with the typed values (#242)
+  const usedBy = (name: string) =>
+    store.commands.filter((c) => usesName(c, name)).map((c) => c.name);
+  const typed = store.commands.map((c) => {
+    const row = changed.find((r) => r.p.name === c.name);
+    return row ? { ...row.p, value: row.value } : c;
+  });
+  const expressions = changed.length ? newProblems(store.commands, typed) : [];
 
   const apply = (event: Event) => {
     event.preventDefault();
@@ -96,6 +114,7 @@ export function ParametersDialog({
             const unit = unitOf(p.quantity, units);
             const id = `parameter-${p.name}`;
             const ranged = p.min !== undefined && p.max !== undefined;
+            const used = usedBy(p.name);
             return (
               <div class="parameter-row" key={p.name}>
                 <label for={id} class="parameter-label">
@@ -143,16 +162,39 @@ export function ParametersDialog({
                   class={problem ? "field-error" : "muted"}
                 >
                   {problem ??
-                    (ranged
-                      ? `${p.min} to ${p.max}${unit ? ` ${unit}` : ""}${p.integer ? ", an integer" : ""}`
-                      : p.integer
-                        ? "An integer"
-                        : "")}
+                    [
+                      ranged
+                        ? `${p.min} to ${p.max}${unit ? ` ${unit}` : ""}${p.integer ? ", an integer" : ""}`
+                        : p.integer
+                          ? "An integer"
+                          : "",
+                      used.length ? `used by ${used.join(", ")}` : "",
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
                 </small>
               </div>
             );
           })}
         </div>
+        {expressions.length > 0 && (
+          <div
+            class="plan warning-plan"
+            role="note"
+            aria-label="Problems of the expressions"
+          >
+            <span>
+              With these values, expressions of the model have problems:
+            </span>
+            <ul>
+              {expressions.map((problem) => (
+                <li key={problem.message}>
+                  {problem.message.replace(/^commands\/\d+: /, "")}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {scripts.length > 0 && (
           <div class="plan" role="note" aria-label="Scripts of the project">
             <span>

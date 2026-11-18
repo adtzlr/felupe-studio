@@ -187,6 +187,7 @@ button {
     input[type="number"],
     input[inputmode="decimal"],
     input[inputmode="numeric"],
+    input.number-field,
     textarea
   ) {
   font-variant-numeric: tabular-nums;
@@ -884,9 +885,15 @@ button {
 
 /* numbers are right-aligned, with digits of equal width (#137) */
 .command-form input[inputmode="decimal"],
-.command-form input[inputmode="numeric"] {
+.command-form input[inputmode="numeric"],
+.command-form input.number-field {
   font-variant-numeric: tabular-nums;
   text-align: right;
+}
+
+/* an expression of the parameters reads from the left (#242) */
+.command-form input.number-field.expression {
+  text-align: left;
 }
 
 .checks {
@@ -1635,6 +1642,11 @@ button {
 .plan ul {
   margin: var(--space-4) 0 0;
   padding-left: var(--space-16);
+}
+
+/* problems of expressions with the typed values of parameters (#242) */
+.plan.warning-plan {
+  border-left-color: var(--color-warning);
 }
 
 /* the cell sets below their mesh */
