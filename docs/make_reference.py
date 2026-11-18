@@ -240,6 +240,11 @@ def _variants(name, node, command):
             out.append(
                 f"Framework (`framework`): {choices}, default `{framework['default']}`."
             )
+        exponent = resolved.get("properties", {}).get("strain_exponent")
+        if exponent:
+            out.append(
+                f"Strain exponent (`strain_exponent`): {exponent['description']}"
+            )
         params = resolved.get("properties", {}).get("parameters")
         if params:
             rows = []

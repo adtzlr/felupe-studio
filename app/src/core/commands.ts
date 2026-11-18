@@ -564,9 +564,13 @@ export interface MaterialLinearElastic {
   name: Name;
   model: "LinearElastic";
   /**
-   * The framework of the strain and the stress of the material (fem.MaterialStrain): small-strain (the symmetric part of the displacement gradient and the Cauchy stress) or total-lagrange (the Green-Lagrange strain and the second Piola-Kirchhoff stress, for large rotations with small strains).
+   * The framework of the strain and the stress of the material (fem.MaterialStrain): small-strain (the symmetric part of the displacement gradient and the Cauchy stress), total-lagrange (the Green-Lagrange strain and the second Piola-Kirchhoff stress, for large rotations with small strains), co-rotational (the Biot strain of the right stretch tensor and the Biot stress) or seth-hill (a Seth-Hill strain with the strain_exponent m, e.g. 0 for the logarithmic Hencky strain). The frameworks of large deformations have exact tangents.
    */
-  framework?: "small-strain" | "total-lagrange";
+  framework?: "small-strain" | "total-lagrange" | "co-rotational" | "seth-hill";
+  /**
+   * The strain exponent m of the Seth-Hill strain (only, and required, with the framework seth-hill): 0 for the logarithmic (Hencky) strain, 1 for the Biot strain (like co-rotational), 2 for the Green-Lagrange strain (like total-lagrange), -2 for the Euler-Almansi strain.
+   */
+  strain_exponent?: number;
   parameters: {
     /**
      * Young's modulus (converted with ν into the Lamé constants λ and μ)
@@ -589,9 +593,13 @@ export interface MaterialLinearElasticPlasticIsotropicHardening {
   name: Name;
   model: "LinearElasticPlasticIsotropicHardening";
   /**
-   * The framework of the strain and the stress of the material (fem.MaterialStrain): small-strain (the symmetric part of the displacement gradient and the Cauchy stress) or total-lagrange (the Green-Lagrange strain and the second Piola-Kirchhoff stress, for large rotations with small strains).
+   * The framework of the strain and the stress of the material (fem.MaterialStrain): small-strain (the symmetric part of the displacement gradient and the Cauchy stress), total-lagrange (the Green-Lagrange strain and the second Piola-Kirchhoff stress, for large rotations with small strains), co-rotational (the Biot strain of the right stretch tensor and the Biot stress) or seth-hill (a Seth-Hill strain with the strain_exponent m, e.g. 0 for the logarithmic Hencky strain). The frameworks of large deformations have exact tangents.
    */
-  framework?: "small-strain" | "total-lagrange";
+  framework?: "small-strain" | "total-lagrange" | "co-rotational" | "seth-hill";
+  /**
+   * The strain exponent m of the Seth-Hill strain (only, and required, with the framework seth-hill): 0 for the logarithmic (Hencky) strain, 1 for the Biot strain (like co-rotational), 2 for the Green-Lagrange strain (like total-lagrange), -2 for the Euler-Almansi strain.
+   */
+  strain_exponent?: number;
   parameters: {
     /**
      * Young's modulus (converted with ν into the Lamé constants λ and μ)

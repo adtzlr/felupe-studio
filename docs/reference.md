@@ -241,7 +241,9 @@ Linear-elastic material in terms of a strain (fem.MaterialStrain with fem.linear
 
 FElupe: `fem.MaterialStrain` of `fem.linear_elastic`
 
-Framework (`framework`): `small-strain`, `total-lagrange`, default `small-strain`.
+Framework (`framework`): `small-strain`, `total-lagrange`, `co-rotational`, `seth-hill`, default `small-strain`.
+
+Strain exponent (`strain_exponent`): The strain exponent m of the Seth-Hill strain (only, and required, with the framework seth-hill): 0 for the logarithmic (Hencky) strain, 1 for the Biot strain (like co-rotational), 2 for the Green-Lagrange strain (like total-lagrange), -2 for the Euler-Almansi strain.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -254,7 +256,9 @@ Linear-elastic-plastic material with linear isotropic hardening (fem.MaterialStr
 
 FElupe: `fem.MaterialStrain` of `fem.linear_elastic_plastic_isotropic_hardening`, state variables `(1, (3, 3))`
 
-Framework (`framework`): `small-strain`, `total-lagrange`, default `small-strain`.
+Framework (`framework`): `small-strain`, `total-lagrange`, `co-rotational`, `seth-hill`, default `small-strain`.
+
+Strain exponent (`strain_exponent`): The strain exponent m of the Seth-Hill strain (only, and required, with the framework seth-hill): 0 for the logarithmic (Hencky) strain, 1 for the Biot strain (like co-rotational), 2 for the Green-Lagrange strain (like total-lagrange), -2 for the Euler-Almansi strain.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |

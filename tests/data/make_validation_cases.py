@@ -191,6 +191,17 @@ CHANGES = {
         framework="total-lagrange",
         parameters={"E": 210000.0, "nu": 0.3, "sigma_y": 250.0, "K": 1000.0},
     ),
+    # the strain exponent of the Seth-Hill framework (FElupe 12.1)
+    "Seth-Hill framework with a strain exponent": lambda d: (
+        find(d, "umat_soft").update(
+            model="LinearElastic",
+            framework="seth-hill",
+            strain_exponent=0,
+            parameters={"E": 210000.0, "nu": 0.3},
+        ),
+        find(d, "section_soft").update(formulation="u"),
+        find(d, "section_soft").pop("bulk"),
+    ),
     "strain-based material with u": lambda d: (
         find(d, "umat_soft").update(
             model="LinearElastic", parameters={"E": 210000.0, "nu": 0.3}
