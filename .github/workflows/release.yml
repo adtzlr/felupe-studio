@@ -1,0 +1,55 @@
+name: Release
+
+# publish felupe-studio on PyPI when a tag v* is pushed (#275), with trusted
+# publishing: the environment "pypi" of the repository and a trusted publisher of
+# the project on PyPI (the owner adtzlr, the repository felupe-studio, the workflow
+# release.yml, the environment pypi), no token
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build the package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: pip install build twine
+      - name: The tag is the version of the package
+        run: |
+          version=$(python -c "import re; print(re.search(r'__version__ = \"(.+)\"', open('python/felupe_studio/__about__.py').read()).group(1))")
+          echo "tag ${GITHUB_REF_NAME}, version ${version}"
+          test "${GITHUB_REF_NAME}" = "v${version}"
+      - run: python -m build
+      - run: twine check --strict dist/*
+      - name: The wheel in a fresh environment
+        run: |
+          python -m venv /tmp/wheel
+          /tmp/wheel/bin/pip install "$(ls dist/*.whl)[mcp]"
+          cd /tmp && /tmp/wheel/bin/python "$GITHUB_WORKSPACE/tests/check_wheel.py"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    name: Publish on PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/felupe-studio
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

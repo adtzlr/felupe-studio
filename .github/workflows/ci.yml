@@ -53,3 +53,21 @@ jobs:
       - run: pytest -m "not golden"
       - name: Golden tests
         run: pytest -m golden -v
+
+  package:
+    name: Package (wheel outside of a clone)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: pip install build twine
+      - run: python -m build
+      - run: twine check --strict dist/*
+      # the samples and the documents of the MCP server are in the wheel (#275)
+      - name: The wheel in a fresh environment
+        run: |
+          python -m venv /tmp/wheel
+          /tmp/wheel/bin/pip install "$(ls dist/*.whl)[mcp]" "felupe==${FELUPE_VERSION}"
+          cd /tmp && /tmp/wheel/bin/python "$GITHUB_WORKSPACE/tests/check_wheel.py"

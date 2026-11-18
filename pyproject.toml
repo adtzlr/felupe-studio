@@ -1,16 +1,22 @@
 [build-system]
-requires = ["hatchling"]
+# the README of PyPI with absolute links (#275)
+requires = ["hatchling", "hatch-fancy-pypi-readme>=25"]
 build-backend = "hatchling.build"
 
 [project]
 name = "felupe-studio"
-description = "Command interpretation and code generation for FElupe Studio"
-readme = "README.md"
+description = "The Python side of FElupe Studio: the commands of a model, its FElupe script, its results and an MCP server for AI agents"
+keywords = ["felupe", "finite-element-method", "hyperelasticity", "mcp"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering",
+]
 license = "GPL-3.0-or-later"
 license-files = ["LICENSE"]
 authors = [{ name = "Andreas Dutzler" }]
 requires-python = ">=3.11"
-dynamic = ["version"]
+dynamic = ["version", "readme"]
 dependencies = ["felupe>=12.1.0", "meshio", "tensortrax>=0.30.0", "jsonschema>=4.18"]
 
 [project.optional-dependencies]
@@ -23,12 +29,51 @@ felupe-studio-mcp = "felupe_studio.mcp:main"
 
 [project.urls]
 Homepage = "https://github.com/adtzlr/felupe-studio"
+App = "https://adtzlr.github.io/felupe-studio/"
+Documentation = "https://github.com/adtzlr/felupe-studio/blob/main/docs/guide.md"
+Changelog = "https://github.com/adtzlr/felupe-studio/blob/main/CHANGELOG.md"
 
 [tool.hatch.version]
 path = "python/felupe_studio/__about__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["python/felupe_studio"]
+
+# the samples and the documents of the MCP server, outside of a clone (#275)
+[tool.hatch.build.targets.wheel.force-include]
+"app/public/samples" = "felupe_studio/data/samples"
+"app/src/core/samples.json" = "felupe_studio/data/samples.json"
+"docs/guide.md" = "felupe_studio/data/docs/guide.md"
+"docs/commands.md" = "felupe_studio/data/docs/commands.md"
+"docs/reference.md" = "felupe_studio/data/docs/reference.md"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "python/felupe_studio",
+  "app/public/samples",
+  "app/src/core/samples.json",
+  "docs/guide.md",
+  "docs/commands.md",
+  "docs/reference.md",
+  "/README.md",
+  "/CHANGELOG.md",
+]
+
+# the README on PyPI: the relative links and pictures of the repository point to
+# GitHub (#275)
+[tool.hatch.metadata.hooks.fancy-pypi-readme]
+content-type = "text/markdown"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "README.md"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '!\[(.*?)\]\((?!https?://)(.*?)\)'
+replacement = '![\1](https://raw.githubusercontent.com/adtzlr/felupe-studio/main/\2)'
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '\]\((?!https?://|#)(.*?)\)'
+replacement = '](https://github.com/adtzlr/felupe-studio/blob/main/\1)'
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

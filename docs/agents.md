@@ -7,11 +7,11 @@ FElupe Studio has an [MCP](https://modelcontextprotocol.io) server (#239, [ADR 0
 The server is an optional part of the Python package (it needs the Python SDK `mcp`):
 
 ```bash
-pip install -e ".[mcp]"    # in a clone of the repository
-felupe-studio-mcp --help   # or: python -m felupe_studio.mcp
+pip install "felupe-studio[mcp]"   # from PyPI
+felupe-studio-mcp --help           # or: python -m felupe_studio.mcp
 ```
 
-In a clone, the server also offers the samples and the documentation (the user guide, the commands and the command reference as resources). Elsewhere, set `FELUPE_STUDIO_SAMPLES` to a folder of samples (`app/public/samples`) for the samples.
+In a clone of the repository, `pip install -e ".[mcp]"` installs it from the sources. The server offers the samples and the documentation (the user guide, the commands and the command reference as resources): those of the package, or those of a clone (#275). `FELUPE_STUDIO_SAMPLES` sets another folder of samples (with the layout of `app/public/samples`).
 
 ## Add it to an agent
 
