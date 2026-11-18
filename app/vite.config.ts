@@ -1,5 +1,6 @@
 import { defineConfig } from "vitest/config";
 import pkg from "./package.json" with { type: "json" };
+import { extraSamples } from "./src/vite/extraSamples";
 
 // pure-Python wheels served from public/wheels (#40); the FElupe version must match
 // FELUPE_VERSION in .github/workflows/ci.yml
@@ -35,6 +36,8 @@ export default defineConfig({
     __BUILD_ID__: JSON.stringify(BUILD_ID),
   },
   plugins: [
+    // extra samples from a folder: EXTRA_SAMPLES_DIR=~/my-samples (#255)
+    extraSamples(),
     {
       name: "version-file",
       apply: "build",

@@ -1,7 +1,7 @@
 // The sample models (#32): a list of samples, each opened like a project file with
 // its mesh files.
 import { useState } from "preact/hooks";
-import { type Sample, SAMPLES } from "../core/samples";
+import { EXTRA_SAMPLES, type Sample, SAMPLES } from "../core/samples";
 import { Dialog } from "./Dialog";
 import { SampleCard } from "./SampleCard";
 
@@ -40,17 +40,36 @@ export function SamplesDialog({ modified, onOpen, onClose }: Props) {
           A sample replaces the current model, which has unsaved changes.
         </p>
       )}
-      <ul class="samples" aria-label="Samples">
-        {SAMPLES.map((sample) => (
-          <SampleCard
-            key={sample.id}
-            sample={sample}
-            opening={opening}
-            onOpen={open}
-            details
-          />
-        ))}
-      </ul>
+      <div class="samples-scroll">
+        <ul class="samples" aria-label="Samples">
+          {SAMPLES.map((sample) => (
+            <SampleCard
+              key={sample.id}
+              sample={sample}
+              opening={opening}
+              onOpen={open}
+              details
+            />
+          ))}
+        </ul>
+        {/* the samples of EXTRA_SAMPLES_DIR of the build (#255) */}
+        {EXTRA_SAMPLES.length > 0 && (
+          <>
+            <h3 class="welcome-heading samples-heading">More samples</h3>
+            <ul class="samples" aria-label="More samples">
+              {EXTRA_SAMPLES.map((sample) => (
+                <SampleCard
+                  key={sample.id}
+                  sample={sample}
+                  opening={opening}
+                  onOpen={open}
+                  details
+                />
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
     </Dialog>
   );
 }
