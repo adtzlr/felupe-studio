@@ -101,20 +101,29 @@ export function outerPoints(
 
 /**
  * The points of the nodes (three coordinates each, without duplicates) that a point
- * set selects; on the outer surface, the points of the surfaces (`outerPoints`).
- * Point ids refer to the merged mesh of the script and are not shown.
+ * set selects; on the outer surface, the points of the surfaces (`outerPoints`); of
+ * a section, its nodes (`ofSection`, #241). Point ids refer to the merged mesh of the
+ * script and are not shown.
  */
 export function selectedPoints(
   select: PointSetAdd["select"],
   nodes: readonly Float64Array[],
   surface: readonly Float64Array[] = [],
+  ofSection: (section: string) => Float64Array | undefined = () => undefined,
 ): Float64Array {
   if ("ids" in select) return new Float64Array();
-  const selects = "surface" in select ? () => true : selector(select, nodes);
+  const whole = "surface" in select || "section" in select;
+  const selects = whole ? () => true : selector(select, nodes);
   if (!selects) return new Float64Array();
+  const arrays =
+    "section" in select
+      ? [ofSection(select.section) ?? new Float64Array()]
+      : "surface" in select
+        ? surface
+        : nodes;
   const seen = new Set<string>();
   const result: number[] = [];
-  for (const array of "surface" in select ? surface : nodes) {
+  for (const array of arrays) {
     for (let p = 0; p < array.length; p += 3) {
       if (!selects(array, p)) continue;
       const key = `${array[p]} ${array[p + 1]} ${array[p + 2]}`;
@@ -130,7 +139,10 @@ export function selectedPoints(
 type Selector = (array: Float64Array, p: number) => boolean;
 
 function selector(
-  select: Exclude<PointSetAdd["select"], { ids: number[] } | { surface: true }>,
+  select: Exclude<
+    PointSetAdd["select"],
+    { ids: number[] } | { surface: true } | { section: string }
+  >,
   nodes: readonly Float64Array[],
 ): Selector | undefined {
   const atol = select.atol ?? ATOL;
@@ -171,6 +183,7 @@ export const selectsNothing = (
   !("ids" in select) &&
   !("points" in select) &&
   !("surface" in select) &&
+  !("section" in select) &&
   selectedPoints(select, nodes).length === 0;
 
 /**

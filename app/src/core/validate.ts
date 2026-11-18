@@ -30,13 +30,19 @@ const countOf = (count: number, word: string) =>
  * Whether a point set by a coordinate, on a cylinder or by nodes selects the
  * coordinates of a point, like the script: also a control point or the reference
  * point of a rigid surface, e.g. on the plane of a bonded face (#222). Point sets at
- * a bound, on the surface or by ids select no such point.
+ * a bound, on the surface, of a section or by ids select no such point.
  */
 function selectsPoint(
   select: PointSetAdd["select"],
   point: readonly number[],
 ): boolean {
-  if ("ids" in select || "surface" in select || "bound" in select) return false;
+  if (
+    "ids" in select ||
+    "surface" in select ||
+    "bound" in select ||
+    "section" in select
+  )
+    return false;
   const atol = select.atol ?? 1e-8;
   if ("points" in select)
     return select.points.some((node) =>
@@ -128,7 +134,10 @@ export type RefKind = Kind | readonly Kind[];
 export const kindsOf = (kind: RefKind): readonly Kind[] =>
   typeof kind === "string" ? [kind] : kind;
 
-/** References of a command: field → [kind or kinds, is a list]. */
+/**
+ * References of a command: field (or a path of fields, joined by dots) → [kind or
+ * kinds, is a list].
+ */
 export const REFERENCES: Partial<
   Record<CommandType, Record<string, [RefKind, boolean]>>
 > = {
@@ -137,6 +146,8 @@ export const REFERENCES: Partial<
   "cellset.from_file": { mesh: ["mesh", false] },
   "section.add": { cellset: ["cellset", false], material: ["material", false] },
   "faceset.add": { section: ["section", false] },
+  // the points of the cells of a section (#241), a path in the command
+  "pointset.add": { "select.section": ["section", false] },
   // the reference point of a rigid surface is moved by boundaries (#219)
   "boundary.add": { pointset: [["pointset", "rigid"], false] },
   "mpc.add": {
@@ -159,6 +170,17 @@ export const REFERENCES: Partial<
   "job.add": { steps: ["step", true], curve: [["boundary", "load"], false] },
 };
 
+/** The value of a field of a command, or of a path of fields joined by dots. */
+function valueAt(command: object, path: string): unknown {
+  let value: unknown = command;
+  for (const key of path.split(".")) {
+    if (typeof value !== "object" || value === null || !(key in value))
+      return undefined;
+    value = (value as Record<string, unknown>)[key];
+  }
+  return value;
+}
+
 export interface Issue {
   /** Index of the command in the command list. */
   index: number;
@@ -177,7 +199,7 @@ export function references(
   const fields = REFERENCES[command.command] ?? {};
   const result: { field: string; name: string }[] = [];
   for (const [field, [, isList]] of Object.entries(fields)) {
-    const value = (command as unknown as Record<string, unknown>)[field];
+    const value = valueAt(command, field);
     if (value === undefined) continue;
     const names = isList ? (value as string[]) : [value as string];
     result.push(...names.map((name) => ({ field, name })));
@@ -224,13 +246,20 @@ export function renameReferences(
   to: string,
 ): Command {
   const copy = structuredClone(command) as unknown as Record<string, unknown>;
-  for (const [field, [, isList]] of Object.entries(
+  for (const [path, [, isList]] of Object.entries(
     REFERENCES[command.command] ?? {},
   )) {
-    const value = copy[field];
+    // the object of the field of a path, e.g. `select` of `select.section`
+    const keys = path.split(".");
+    const field = keys.pop()!;
+    const parent = valueAt(copy, keys.join(".") || ".") as
+      Record<string, unknown> | undefined;
+    const owner = keys.length ? parent : copy;
+    if (typeof owner !== "object" || owner === null) continue;
+    const value = owner[field];
     if (isList && Array.isArray(value))
-      copy[field] = value.map((n) => (n === from ? to : n));
-    else if (value === from) copy[field] = to;
+      owner[field] = value.map((n) => (n === from ? to : n));
+    else if (value === from) owner[field] = to;
   }
   const ramp = copy.ramp as { items: { target: string }[] } | undefined;
   if (command.command === "step.add" && ramp) {
@@ -290,7 +319,7 @@ export function validate(commands: readonly Command[]): Issue[] {
     for (const [field, [refKind, isList]] of Object.entries(
       REFERENCES[cmd.command] ?? {},
     )) {
-      const value = (cmd as unknown as Record<string, unknown>)[field];
+      const value = valueAt(cmd, field);
       if (value === undefined) continue;
       const kinds = kindsOf(refKind);
       const text = kinds.map(kindName).join(" or ");
@@ -393,7 +422,20 @@ export function validate(commands: readonly Command[]): Issue[] {
       if (material?.command === "material.add" && needsBulk(material)) {
         add(
           `section '${name}' uses the displacement formulation with ${material.model} ` +
-            `'${material.name}' without a bulk modulus. Add 'bulk' to the material or use 'u-p-J'.`,
+            `'${material.name}' without a bulk modulus. Add 'bulk' to the material, use 'u-p-J', ` +
+            `or 'u-isochoric' for a material without a volumetric part, e.g. air as a third medium.`,
+          "formulation",
+        );
+      }
+    }
+
+    // the formulation without a volumetric part needs a material without one
+    if (cmd.command === "section.add" && cmd.formulation === "u-isochoric") {
+      const material = defined.get(cmd.material)?.[1];
+      if (material?.command === "material.add" && !needsBulk(material)) {
+        add(
+          `section '${name}' uses the formulation u-isochoric with ${material.model} ` +
+            `'${material.name}', which has a volumetric part. Use 'u'.`,
           "formulation",
         );
       }

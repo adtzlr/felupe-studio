@@ -322,6 +322,8 @@ export function Viewport({
   );
   const sectionsRef = useRef(sections);
   sectionsRef.current = sections;
+  // the nodes of a section, for point sets of a section (#241)
+  const ofSection = (name: string) => sections.get(name)?.nodes;
   // the faces of the picked patches: selected, and excluded (#195)
   const combined = useMemo(
     () => combine(patches, sections, angle),
@@ -442,7 +444,9 @@ export function Viewport({
     const others = sets.filter((c) => c.name !== selected);
     const chosen = sets.find((c) => c.name === selected);
     const points = (list: PointSetAdd[]) => {
-      const all = list.map((c) => selectedPoints(c.select, nodes, outer));
+      const all = list.map((c) =>
+        selectedPoints(c.select, nodes, outer, ofSection),
+      );
       return Float64Array.from(all.flatMap((p) => [...p]));
     };
     // the points of the selected contact (#220): of its point set or face set
@@ -523,9 +527,9 @@ export function Viewport({
   const selectedSet = useMemo(() => {
     const set = commands.find((c) => c.name === selected);
     if (!set || !isPointSet(set) || hidden.has(set.name)) return undefined;
-    const points = selectedPoints(set.select, nodes, outer);
+    const points = selectedPoints(set.select, nodes, outer, ofSection);
     return points.length ? { name: set.name, points } : undefined;
-  }, [commands, selected, hidden, nodes, outer]);
+  }, [commands, selected, hidden, nodes, outer, sections]);
   const controlAt = (points: ArrayLike<number>, of?: string) =>
     onCreateControlPoint?.({
       name: controlName(of, commands),

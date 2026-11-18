@@ -59,13 +59,16 @@ VERTICES = {"point.add": "control point", "rigid.add": "rigid surface"}
 # kinds of objects that a step can ramp (a load case is a boundary)
 RAMPED = ("boundary", "load", "pressure")
 
-# references of a command: field name -> (kind, is a list)
+# references of a command: field name (or a path of fields, joined by dots) -> (kind,
+# is a list)
 REFERENCES = {
     "mesh.script": {"parameters": ("parameter", True)},
     "cellset.from_tag": {"mesh": ("mesh", False)},
     "cellset.from_file": {"mesh": ("mesh", False)},
     "section.add": {"cellset": ("cellset", False), "material": ("material", False)},
     "faceset.add": {"section": ("section", False)},
+    # the points of the cells of a section (#241), a path in the command
+    "pointset.add": {"select.section": ("section", False)},
     # the reference point of a rigid surface is moved by boundaries (#219)
     "boundary.add": {"pointset": (("pointset", "rigid"), False)},
     "mpc.add": {
@@ -301,6 +304,25 @@ def selects_point(select, point):
     return False
 
 
+def value_at(command, path):
+    """Return the value of a field of a command, or of a path of fields joined by dots
+    (e.g. ``select.section``), or None.
+
+    Examples
+    --------
+    >>> value_at({"select": {"section": "metal"}}, "select.section")
+    'metal'
+    >>> value_at({"select": {"axis": "x"}}, "select.section") is None
+    True
+    """
+    value = command
+    for key in path.split("."):
+        if not isinstance(value, dict) or key not in value:
+            return None
+        value = value[key]
+    return value
+
+
 def _reference_errors(commands):
     # the registries read the schema of this module
     from .loadcases import problems as loadcase_problems
@@ -324,12 +346,13 @@ def _reference_errors(commands):
 
         # references must point to objects of the right kind, created before
         for field, (ref_kinds, is_list) in REFERENCES.get(cmd["command"], {}).items():
-            if field not in cmd:
+            value = value_at(cmd, field)
+            if value is None:
                 continue
             if isinstance(ref_kinds, str):
                 ref_kinds = (ref_kinds,)
             ref_kind = " or ".join(KIND_NAMES.get(k, k) for k in ref_kinds)
-            for ref in cmd[field] if is_list else [cmd[field]]:
+            for ref in value if is_list else [value]:
                 if ref not in defined:
                     messages.append(
                         f"commands/{i}: {cmd['command']} '{name}' references "
@@ -406,8 +429,19 @@ def _reference_errors(commands):
                 messages.append(
                     f"commands/{i}: section '{name}' uses the displacement "
                     f"formulation with {material['model']} '{material['name']}' "
-                    "without a bulk modulus. Add 'bulk' to the material or use "
-                    "'u-p-J'."
+                    "without a bulk modulus. Add 'bulk' to the material, use "
+                    "'u-p-J', or 'u-isochoric' for a material without a volumetric "
+                    "part, e.g. air as a third medium."
+                )
+
+        # the formulation without a volumetric part needs a material without one
+        if cmd["command"] == "section.add" and cmd["formulation"] == "u-isochoric":
+            material = defined.get(cmd["material"], (None, {}))[1]
+            if material.get("command") == "material.add" and not needs_bulk(material):
+                messages.append(
+                    f"commands/{i}: section '{name}' uses the formulation "
+                    f"u-isochoric with {material['model']} '{material['name']}', "
+                    "which has a volumetric part. Use 'u'."
                 )
 
         # a strain-based material has no strain energy for the u-p-J formulation

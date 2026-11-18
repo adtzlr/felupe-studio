@@ -55,6 +55,11 @@ export interface SectionFaces {
   size: number;
   /** The faces are the sides of the 2D cells of a 2D model (#175). */
   planar?: boolean;
+  /**
+   * The nodes of the cells of the section on the surface of its mesh, scaled (three
+   * coordinates each): of a 2D model all of them, for point sets of a section (#241).
+   */
+  nodes?: Float64Array;
 }
 
 // the faces of a surface and a mask of cells, created once per surface
@@ -64,6 +69,33 @@ const CACHE = new WeakMap<MeshSurface, Map<string, SectionFaces>>();
 const keyOf = (x: number, y: number, z: number) => `${x},${y},${z}`;
 
 /** The exact nodes of the points of a surface, by their float32 coordinates. */
+/** The nodes of the cells of a mask on the surface of a mesh, exact and scaled. */
+function cellNodes(
+  raw: MeshSurface,
+  mask: Uint8Array,
+  scale: number,
+): Float64Array {
+  const { triangles, owners, positions, isNode } = raw;
+  const exact = exactNodes(raw);
+  // (the points of the surface of a node may repeat, e.g. per face)
+  const seen = new Set<string>();
+  const result: number[] = [];
+  for (let t = 0; t < triangles.length / 3; t++) {
+    if (!mask[owners[t]]) continue;
+    for (let k = 0; k < 3; k++) {
+      const p = triangles[3 * t + k];
+      if (isNode && !isNode[p]) continue;
+      const at = positions.subarray(3 * p, 3 * p + 3);
+      const key = keyOf(at[0], at[1], at[2]);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const node = exact.get(key) ?? [...at];
+      result.push(node[0] * scale, node[1] * scale, node[2] * scale);
+    }
+  }
+  return Float64Array.from(result);
+}
+
 function exactNodes(raw: MeshSurface): Map<string, Vec3> {
   const exact = new Map<string, Vec3>();
   const nodes = raw.nodes ?? new Float64Array();
@@ -337,6 +369,7 @@ export function sectionFaces(
         mask,
         scale ?? 1,
       );
+      faces.nodes = cellNodes(raw, mask, scale ?? 1);
       cached.set(key, faces);
     }
     result.set(sec.name, faces);
