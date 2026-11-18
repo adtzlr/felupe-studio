@@ -32,12 +32,12 @@ let lazyWheels: Record<string, string> = {};
 
 /**
  * The package felupe_studio, written into the file system of Pyodide, without its
- * MCP server (#239), which needs a local process.
+ * MCP server (#239) and its local runtime (#240), which are local processes.
  */
 const SOURCES = import.meta.glob(
   [
     "../../../python/felupe_studio/*.{py,json}",
-    "!../../../python/felupe_studio/mcp.py",
+    "!../../../python/felupe_studio/{mcp,runtime,serve,cli,__main__}.py",
   ],
   { query: "?raw", import: "default", eager: true },
 ) as Record<string, string>;
