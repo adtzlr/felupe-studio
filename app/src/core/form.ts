@@ -150,9 +150,30 @@ const defs = (schema as unknown as { $defs: Record<string, Node> }).$defs;
 
 const refName = (node: Node) => node.$ref?.split("/").pop();
 
+/** The nodes of number fields without their expressions, by node. */
+const numbersOnly = new WeakMap<Node, Node>();
+
+/**
+ * A node with its reference resolved. A number field takes a number here: its
+ * expression of the parameters (#242, the type "string" of the schema) is not
+ * edited by the forms yet.
+ */
 function resolve(node: Node): Node {
   while (node.$ref) node = defs[refName(node)!];
-  return node;
+  const types = node.type;
+  if (
+    !Array.isArray(types) ||
+    !types.includes("string") ||
+    !(types.includes("number") || types.includes("integer"))
+  )
+    return node;
+  let result = numbersOnly.get(node);
+  if (!result) {
+    const rest = types.filter((t) => t !== "string");
+    result = { ...node, type: rest.length === 1 ? rest[0] : rest };
+    numbersOnly.set(node, result);
+  }
+  return result;
 }
 
 const isObject = (value: unknown): value is Draft =>

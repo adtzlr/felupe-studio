@@ -5,7 +5,7 @@
 // cylinder (a circle about z) a disc of a roller or a ring of a tube. In the
 // results, the surfaces are moved by the displacements of their reference points.
 import { analysisOf, is2d } from "../core/analysis";
-import type { Command, ContactAdd, RigidAdd } from "../core/commands";
+import type { Command, ContactAdd, RigidAdd } from "../core/resolved";
 import { bounds } from "./boundaries";
 import { type SectionFaces, selectedFaces } from "./facesets";
 import { selectedPoints } from "./pointsets";

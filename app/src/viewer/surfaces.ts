@@ -3,7 +3,7 @@
 // two neighbouring faces differ by at most a feature angle. A picked surface is
 // described by the simplest selection that fits it: a plane normal to an axis, a
 // cylinder about an axis parallel to x, y or z, or else its nodes and faces.
-import type { PointSetAdd } from "../core/commands";
+import type { PointSetAdd } from "../core/resolved";
 import { type Face, type SectionFaces, selectedFaces } from "./facesets";
 import {
   ATOL,

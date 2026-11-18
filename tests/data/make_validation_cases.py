@@ -23,6 +23,22 @@ def remove(document, name):
     document["commands"].remove(find(document, name))
 
 
+def parameters(document, **changes):
+    """The parameters length, stroke and cells (an integer) first, and changes of
+    the fields of commands (#242): a name with a dict of fields."""
+    document["commands"][:0] = [
+        {"command": "parameter.add", "name": "length", "value": 3},
+        {"command": "parameter.add", "name": "stroke", "value": 0.5},
+        {"command": "parameter.add", "name": "cells", "value": 5, "integer": True},
+    ]
+    for name, fields in changes.items():
+        find(document, name).update(fields)
+
+
+def ramp(end="stroke", num="cells"):
+    return {"num": num, "items": [{"target": "move", "start": 0, "end": end}]}
+
+
 CHANGES = {
     "valid": lambda d: None,
     "unknown mesh": lambda d: find(d, "hard").update(mesh="nomesh"),
@@ -949,6 +965,44 @@ CHANGES = {
     ),
     "ramp with too many values": lambda d: find(d, "step_1")["ramp"]["items"][0].update(
         end=[0.5, -0.1]
+    ),
+    "expressions of parameters": lambda d: parameters(
+        d,
+        right={"select": {"axis": "x", "value": "length"}},
+        step_1={"ramp": ramp(end="min(stroke, length / 4)", num="2 * cells")},
+        section_soft={"bulk": "1000 * cells"},
+    ),
+    "expression with an unknown parameter": lambda d: parameters(
+        d, step_1={"ramp": ramp(end="2 * strok")}
+    ),
+    "expression that is not valid": lambda d: parameters(
+        d, right={"select": {"axis": "x", "value": "length *"}}
+    ),
+    "expression with an unknown function": lambda d: parameters(
+        d, step_1={"ramp": ramp(end="sinh(stroke)")}
+    ),
+    "expression with too few arguments": lambda d: parameters(
+        d, step_1={"ramp": ramp(end="max(stroke)")}
+    ),
+    "expression without a finite value": lambda d: parameters(
+        d, step_1={"ramp": ramp(end="stroke / (cells - 5)")}
+    ),
+    "expression of an integer that is not an integer": lambda d: parameters(
+        d, step_1={"ramp": ramp(num="cells / 2")}
+    ),
+    "expression out of the bounds": lambda d: parameters(
+        d, section_soft={"bulk": "1 - cells"}
+    ),
+    "expressions with two problems": lambda d: parameters(
+        d,
+        right={"select": {"axis": "x", "value": "width"}},
+        step_1={"ramp": ramp(num="cells - 5")},
+    ),
+    "expression problems before references": lambda d: parameters(
+        d, hard={"mesh": "nomesh"}, step_1={"ramp": ramp(end="stroke * 1e308 * 10")}
+    ),
+    "expressions and a reference problem": lambda d: parameters(
+        d, hard={"mesh": "nomesh"}, step_1={"ramp": ramp()}
     ),
     "ramp of a load case with values": lambda d: (
         d["commands"].insert(

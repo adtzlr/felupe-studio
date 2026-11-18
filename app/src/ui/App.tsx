@@ -182,7 +182,7 @@ export function App({
   const meshNotes = fileNotes(store.commands, files);
   const faceNotes = faceSetNotes(store.commands, files);
   const notes = new Map([...meshNotes, ...faceNotes]);
-  for (const note of symmetryNotes(store.commands)) {
+  for (const note of symmetryNotes(store.resolved)) {
     notes.set(note.name, [...(notes.get(note.name) ?? []), note.message]);
   }
   const [workspace, setWorkspace] = useState<Workspace>("model");
@@ -479,8 +479,10 @@ export function App({
     const { serialize } = await import("../core/project");
     setLiveChoice(undefined);
     // the scenes of the running jobs show the quantity of the view (#207)
+    // the commands with the values of their expressions (#242), the document as
+    // written: the script shows the expressions
     await jobs.solve(
-      store.commands,
+      store.resolved,
       serialize(store.document),
       liveOn
         ? {
@@ -560,7 +562,8 @@ export function App({
     name: string,
     { name: file, format }: MeshExport,
   ) => {
-    const mesh = store.get(name);
+    // with the values of the expressions of its scale (#242)
+    const mesh = store.getResolved(name);
     if (!client || !mesh || !isMesh(mesh)) return;
     setMeshFormat(format);
     const data = await client.exportMesh(mesh.file, format, {

@@ -2,7 +2,7 @@
 import { cleanup, render, screen } from "@testing-library/preact";
 import { afterEach, describe, expect, it } from "vitest";
 import fixture from "../../../tests/data/two_sections.json";
-import type { Command, CommandList } from "../core/commands";
+import type { Command, CommandList } from "../core/resolved";
 import { type JobProgress, startProgress } from "../core/jobs";
 import { ModelStore } from "../core/store";
 import { JobPanel } from "./JobPanel";

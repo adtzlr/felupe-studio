@@ -3,9 +3,12 @@
 // Python: a plane that a load case or another symmetry object already has is a note.
 import type { Command } from "./commands";
 import { loadcasePlanes } from "./loadcases";
+import type { Command as ResolvedCommand } from "./resolved";
 import type { Issue } from "./validate";
 
-export type Symmetry = Extract<Command, { command: "symmetry.add" }>;
+/** A symmetry object with the values of its expressions (#242). */
+export type Symmetry = Extract<ResolvedCommand, { command: "symmetry.add" }>;
+type WrittenSymmetry = Extract<Command, { command: "symmetry.add" }>;
 
 const AXES = ["x", "y", "z"] as const;
 
@@ -24,8 +27,10 @@ export function symmetryPlanes(symmetry: Symmetry): Plane[] {
 }
 
 /** A short description of the planes, e.g. `x = 0, z = 12.5`. */
-export function describeSymmetry(symmetry: Symmetry, unit = ""): string {
-  return symmetryPlanes(symmetry)
+export function describeSymmetry(symmetry: WrittenSymmetry, unit = ""): string {
+  // an expression of the parameters as written (#242)
+  return AXES.filter((a) => symmetry.axes.includes(a))
+    .map((axis) => ({ axis, value: symmetry[axis] ?? 0 }))
     .map(
       (p) => `${p.axis} = ${p.value}${p.value !== 0 && unit ? ` ${unit}` : ""}`,
     )
@@ -37,7 +42,7 @@ export function describeSymmetry(symmetry: Symmetry, unit = ""): string {
  * object already has: the same degrees of freedom are prescribed twice, which does
  * no harm (messages like in Python).
  */
-export function symmetryNotes(commands: readonly Command[]): Issue[] {
+export function symmetryNotes(commands: readonly ResolvedCommand[]): Issue[] {
   const owners = new Map<string, string>();
   const key = (p: Plane) => `${p.axis}=${p.value}`;
   for (const cmd of commands) {

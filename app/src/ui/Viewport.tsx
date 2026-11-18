@@ -8,7 +8,7 @@ import type {
   PointAdd,
   RigidAdd,
   PointSetAdd,
-} from "../core/commands";
+} from "../core/resolved";
 import {
   constraintLines,
   constraintShapes,
@@ -312,7 +312,8 @@ export function Viewport({
   };
   // chosen by the user, else sections, cell sets or meshes, as the model has them
   const [chosen, setChosen] = useState<ColorBy | undefined>();
-  const commands = store.commands;
+  // with the values of the expressions of the parameters (#242)
+  const commands = store.resolved;
   const colorBy = chosen ?? defaultColorBy(commands);
   const revision = files.revision;
   const content = useMemo(

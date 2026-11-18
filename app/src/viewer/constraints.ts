@@ -1,7 +1,7 @@
 // Multi-point constraints in the viewport (#99): lines from the center point to the
 // connected points, in the model and displaced in the results, and the points of a
 // constraint that a boundary of the same components prescribes as well.
-import type { Command, MpcAdd } from "../core/commands";
+import type { Command, MpcAdd } from "../core/resolved";
 import type { ResultScene } from "../worker/protocol";
 import { type BoundarySymbol, thinned } from "./boundaries";
 import { CONTROL_COLOR } from "./palette";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Command } from "../core/commands";
+import type { Command } from "../core/resolved";
 import { contactPoints, extent, RIGID_COLOR, rigidShapes } from "./rigid";
 
 // the nodes of a unit cube

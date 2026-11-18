@@ -6,7 +6,7 @@ import {
   type JobProgress,
   type JobRun,
 } from "../core/jobs";
-import type { Command } from "../core/commands";
+import type { Command } from "../core/resolved";
 import { curvePoint, formatValue as format } from "../core/results";
 import type { ModelStore } from "../core/store";
 import { curveQuantities } from "../core/curve";
@@ -225,7 +225,7 @@ export function JobPanel({
             })}
           </ul>
           <Cutbacks progress={run.progress} />
-          {store.commands !== run.commands && (
+          {store.resolved !== run.commands && (
             <p class="muted">The model was changed after solving.</p>
           )}
           {onShowResults && (

@@ -105,7 +105,7 @@
       "minItems": 3,
       "maxItems": 3,
       "items": {
-        "type": "number"
+        "type": ["number", "string"]
       }
     },
     "Command": {
@@ -217,7 +217,7 @@
         },
         "scale": {
           "description": "Factor of the coordinates of the points, e.g. 1000 for a mesh in m of a model in mm. The points are multiplied after reading, before the cell sets; point sets and points are in the scaled coordinates.",
-          "type": "number",
+          "type": ["number", "string"],
           "exclusiveMinimum": 0,
           "default": 1
         }
@@ -483,7 +483,7 @@
               "x-label": "μ",
               "x-quantity": "stress",
               "description": "Shear modulus",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0,
               "default": 1
             },
@@ -491,7 +491,7 @@
               "x-label": "K",
               "x-quantity": "stress",
               "description": "Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0
             }
           }
@@ -525,7 +525,7 @@
               "x-label": "μ",
               "x-quantity": "stress",
               "description": "Shear modulus",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0,
               "default": 1
             },
@@ -533,7 +533,7 @@
               "x-label": "λ",
               "x-quantity": "stress",
               "description": "First Lamé parameter",
-              "type": "number",
+              "type": ["number", "string"],
               "minimum": 0,
               "default": 2
             }
@@ -568,7 +568,7 @@
               "x-label": "C₁₀",
               "x-quantity": "stress",
               "description": "Material parameter of the first invariant",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0,
               "default": 0.4
             },
@@ -576,14 +576,14 @@
               "x-label": "C₀₁",
               "x-quantity": "stress",
               "description": "Material parameter of the second invariant",
-              "type": "number",
+              "type": ["number", "string"],
               "default": 0.1
             },
             "bulk": {
               "x-label": "K",
               "x-quantity": "stress",
               "description": "Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0,
               "x-felupe": "volumetric"
             }
@@ -618,7 +618,7 @@
               "x-label": "C₁₀",
               "x-quantity": "stress",
               "description": "Material parameter of the linear term of the first invariant",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0,
               "default": 0.5
             },
@@ -626,21 +626,21 @@
               "x-label": "C₂₀",
               "x-quantity": "stress",
               "description": "Material parameter of the quadratic term of the first invariant",
-              "type": "number",
+              "type": ["number", "string"],
               "default": -0.1
             },
             "C30": {
               "x-label": "C₃₀",
               "x-quantity": "stress",
               "description": "Material parameter of the cubic term of the first invariant",
-              "type": "number",
+              "type": ["number", "string"],
               "default": 0.02
             },
             "bulk": {
               "x-label": "K",
               "x-quantity": "stress",
               "description": "Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0,
               "x-felupe": "volumetric"
             }
@@ -675,7 +675,7 @@
               "x-label": "C₁₀",
               "x-quantity": "stress",
               "description": "Material parameter of the linear term of the first invariant",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0,
               "default": 0.5
             },
@@ -683,35 +683,35 @@
               "x-label": "C₀₁",
               "x-quantity": "stress",
               "description": "Material parameter of the linear term of the second invariant",
-              "type": "number",
+              "type": ["number", "string"],
               "default": 0.1
             },
             "C11": {
               "x-label": "C₁₁",
               "x-quantity": "stress",
               "description": "Material parameter of the mixed term of the first and second invariant",
-              "type": "number",
+              "type": ["number", "string"],
               "default": 0.01
             },
             "C20": {
               "x-label": "C₂₀",
               "x-quantity": "stress",
               "description": "Material parameter of the quadratic term of the first invariant",
-              "type": "number",
+              "type": ["number", "string"],
               "default": -0.1
             },
             "C30": {
               "x-label": "C₃₀",
               "x-quantity": "stress",
               "description": "Material parameter of the cubic term of the first invariant",
-              "type": "number",
+              "type": ["number", "string"],
               "default": 0.02
             },
             "bulk": {
               "x-label": "K",
               "x-quantity": "stress",
               "description": "Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0,
               "x-felupe": "volumetric"
             }
@@ -748,7 +748,7 @@
               "x-quantity": "stress",
               "description": "Moduli of the terms, one to three, as many as exponents",
               "type": "array",
-              "items": { "type": "number" },
+              "items": { "type": ["number", "string"] },
               "minItems": 1,
               "maxItems": 3,
               "default": [1.0, 0.2]
@@ -757,7 +757,7 @@
               "x-label": "αᵢ",
               "description": "Stretch exponents of the terms, one per modulus, not zero",
               "type": "array",
-              "items": { "type": "number", "not": { "const": 0 } },
+              "items": { "type": ["number", "string"], "not": { "const": 0 } },
               "minItems": 1,
               "maxItems": 3,
               "default": [1.7, -1.5]
@@ -766,7 +766,7 @@
               "x-label": "K",
               "x-quantity": "stress",
               "description": "Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0,
               "x-felupe": "volumetric"
             }
@@ -801,14 +801,14 @@
               "x-label": "C₁",
               "x-quantity": "stress",
               "description": "Shear modulus of the chain network (the initial shear modulus for a large limiting stretch)",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0,
               "default": 1.0
             },
             "limit": {
               "x-label": "λₘ",
               "description": "Limiting stretch at which the chains are locked",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 1,
               "default": 3.2
             },
@@ -816,7 +816,7 @@
               "x-label": "K",
               "x-quantity": "stress",
               "description": "Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0,
               "x-felupe": "volumetric"
             }
@@ -851,14 +851,14 @@
               "x-label": "Gc",
               "x-quantity": "stress",
               "description": "Cross-link modulus",
-              "type": "number",
+              "type": ["number", "string"],
               "minimum": 0,
               "default": 0.1867
             },
             "delta": {
               "x-label": "δ",
               "description": "Finite extensibility of the chains",
-              "type": "number",
+              "type": ["number", "string"],
               "minimum": 0,
               "default": 0.09693
             },
@@ -866,14 +866,14 @@
               "x-label": "Ge",
               "x-quantity": "stress",
               "description": "Constraint (tube) modulus",
-              "type": "number",
+              "type": ["number", "string"],
               "minimum": 0,
               "default": 0.2169
             },
             "beta": {
               "x-label": "β",
               "description": "Exponent of the tube constraint",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0,
               "maximum": 1,
               "default": 0.2
@@ -882,7 +882,7 @@
               "x-label": "K",
               "x-quantity": "stress",
               "description": "Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0,
               "x-felupe": "volumetric"
             }
@@ -917,14 +917,14 @@
               "x-label": "E",
               "x-quantity": "stress",
               "description": "Young's modulus",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0,
               "default": 1
             },
             "nu": {
               "x-label": "ν",
               "description": "Poisson's ratio",
-              "type": "number",
+              "type": ["number", "string"],
               "minimum": -1,
               "exclusiveMaximum": 0.5,
               "default": 0.3
@@ -960,14 +960,14 @@
               "x-label": "E",
               "x-quantity": "stress",
               "description": "Young's modulus",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0,
               "default": 1
             },
             "nu": {
               "x-label": "ν",
               "description": "Poisson's ratio",
-              "type": "number",
+              "type": ["number", "string"],
               "minimum": -1,
               "exclusiveMaximum": 0.5,
               "default": 0.3
@@ -1024,7 +1024,7 @@
         },
         "strain_exponent": {
           "description": "The strain exponent m of the Seth-Hill strain (only, and required, with the framework seth-hill): 0 for the logarithmic (Hencky) strain, 1 for the Biot strain (like co-rotational), 2 for the Green-Lagrange strain (like total-lagrange), -2 for the Euler-Almansi strain.",
-          "type": "number",
+          "type": ["number", "string"],
           "default": 0
         },
         "parameters": {
@@ -1037,7 +1037,7 @@
               "x-quantity": "stress",
               "x-felupe": "lame",
               "description": "Young's modulus (converted with ν into the Lamé constants λ and μ)",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0,
               "default": 210000
             },
@@ -1045,7 +1045,7 @@
               "x-label": "ν",
               "x-felupe": "lame",
               "description": "Poisson's ratio",
-              "type": "number",
+              "type": ["number", "string"],
               "minimum": -1,
               "exclusiveMaximum": 0.5,
               "default": 0.3
@@ -1103,7 +1103,7 @@
         },
         "strain_exponent": {
           "description": "The strain exponent m of the Seth-Hill strain (only, and required, with the framework seth-hill): 0 for the logarithmic (Hencky) strain, 1 for the Biot strain (like co-rotational), 2 for the Green-Lagrange strain (like total-lagrange), -2 for the Euler-Almansi strain.",
-          "type": "number",
+          "type": ["number", "string"],
           "default": 0
         },
         "parameters": {
@@ -1116,7 +1116,7 @@
               "x-quantity": "stress",
               "x-felupe": "lame",
               "description": "Young's modulus (converted with ν into the Lamé constants λ and μ)",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0,
               "default": 210000
             },
@@ -1124,7 +1124,7 @@
               "x-label": "ν",
               "x-felupe": "lame",
               "description": "Poisson's ratio",
-              "type": "number",
+              "type": ["number", "string"],
               "minimum": -1,
               "exclusiveMaximum": 0.5,
               "default": 0.3
@@ -1134,7 +1134,7 @@
               "x-quantity": "stress",
               "x-argument": "σy",
               "description": "Initial yield stress (uniaxial)",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0,
               "default": 250
             },
@@ -1142,7 +1142,7 @@
               "x-label": "K",
               "x-quantity": "stress",
               "description": "Isotropic hardening modulus: the yield stress grows by K times the equivalent plastic strain",
-              "type": "number",
+              "type": ["number", "string"],
               "minimum": 0,
               "default": 1000
             }
@@ -1174,7 +1174,7 @@
         },
         "bulk": {
           "description": "Bulk modulus of the nearly incompressible formulation (required for u-p-J).",
-          "type": "number",
+          "type": ["number", "string"],
           "exclusiveMinimum": 0,
           "x-quantity": "stress"
         },
@@ -1232,12 +1232,12 @@
                 },
                 "value": {
                   "x-quantity": "length",
-                  "type": "number"
+                  "type": ["number", "string"]
                 },
                 "atol": {
                   "x-quantity": "length",
                   "description": "Absolute tolerance (default 1e-8).",
-                  "type": "number",
+                  "type": ["number", "string"],
                   "exclusiveMinimum": 0
                 }
               }
@@ -1258,7 +1258,7 @@
                 "atol": {
                   "x-quantity": "length",
                   "description": "Absolute tolerance (default 1e-8).",
-                  "type": "number",
+                  "type": ["number", "string"],
                   "exclusiveMinimum": 0
                 }
               }
@@ -1272,7 +1272,7 @@
                 "radius": {
                   "x-quantity": "length",
                   "description": "The radius of the cylinder.",
-                  "type": "number",
+                  "type": ["number", "string"],
                   "exclusiveMinimum": 0
                 },
                 "axis": {
@@ -1287,7 +1287,7 @@
                 "atol": {
                   "x-quantity": "length",
                   "description": "Absolute tolerance (default 1e-8).",
-                  "type": "number",
+                  "type": ["number", "string"],
                   "exclusiveMinimum": 0
                 }
               }
@@ -1320,7 +1320,7 @@
                 "atol": {
                   "x-quantity": "length",
                   "description": "Absolute tolerance (default 1e-8).",
-                  "type": "number",
+                  "type": ["number", "string"],
                   "exclusiveMinimum": 0
                 }
               }
@@ -1415,7 +1415,7 @@
                 "radius": {
                   "description": "The radius of the cylinder.",
                   "x-quantity": "length",
-                  "type": "number",
+                  "type": ["number", "string"],
                   "exclusiveMinimum": 0
                 },
                 "axis": {
@@ -1461,12 +1461,12 @@
                 },
                 "value": {
                   "x-quantity": "length",
-                  "type": "number"
+                  "type": ["number", "string"]
                 },
                 "atol": {
                   "x-quantity": "length",
                   "description": "Absolute tolerance of the coordinates of the points (default 1e-8).",
-                  "type": "number",
+                  "type": ["number", "string"],
                   "exclusiveMinimum": 0
                 }
               }
@@ -1488,7 +1488,7 @@
                 "atol": {
                   "x-quantity": "length",
                   "description": "Absolute tolerance of the centers (default 1e-6 of the size of the section).",
-                  "type": "number",
+                  "type": ["number", "string"],
                   "exclusiveMinimum": 0
                 }
               }
@@ -1524,11 +1524,11 @@
         "value": {
           "x-quantity": "displacement",
           "description": "Prescribed displacement of the constrained components (default 0): one number for all of them, or one number per constrained component in the order x, y, z (e.g. a point set that moves diagonally); a rotation in rad at a rotation point.",
-          "type": ["number", "array"],
+          "type": ["number", "string", "array"],
           "minItems": 1,
           "maxItems": 3,
           "items": {
-            "type": "number"
+            "type": ["number", "string"]
           }
         }
       }
@@ -1685,7 +1685,7 @@
         "compression": {
           "x-quantity": "displacement",
           "description": "Displacement of the moving face along the normal, held during the shear (default 0).",
-          "type": "number"
+          "type": ["number", "string"]
         },
         "symmetry": {
           "description": "Symmetry plane normal to the third axis at its zero coordinate.",
@@ -1722,19 +1722,19 @@
           "x-quantity": "length",
           "x-if-axis": "axes",
           "description": "Coordinate of the plane normal to x (default 0), only with x in axes.",
-          "type": "number"
+          "type": ["number", "string"]
         },
         "y": {
           "x-quantity": "length",
           "x-if-axis": "axes",
           "description": "Coordinate of the plane normal to y (default 0), only with y in axes.",
-          "type": "number"
+          "type": ["number", "string"]
         },
         "z": {
           "x-quantity": "length",
           "x-if-axis": "axes",
           "description": "Coordinate of the plane normal to z (default 0), only with z in axes.",
-          "type": "number"
+          "type": ["number", "string"]
         }
       }
     },
@@ -1769,7 +1769,7 @@
         },
         "multiplier": {
           "description": "The penalty of the relative displacements (default 1000).",
-          "type": "number",
+          "type": ["number", "string"],
           "exclusiveMinimum": 0
         },
         "rotation": {
@@ -1800,18 +1800,18 @@
         },
         "friction": {
           "description": "The Coulomb friction coefficient (default 0, without friction).",
-          "type": "number",
+          "type": ["number", "string"],
           "minimum": 0
         },
         "multiplier": {
           "description": "The factor of the penalty of the contact, times the mean stiffness of the solid bodies at the points (default 1).",
-          "type": "number",
+          "type": ["number", "string"],
           "exclusiveMinimum": 0
         },
         "elastic_slip": {
           "description": "The allowable elastic slip of sticking points (default none: a constant tangential penalty), e.g. 0.5 % to 1 % of the size of a cell.",
           "x-quantity": "length",
-          "type": "number",
+          "type": ["number", "string"],
           "exclusiveMinimum": 0
         }
       }
@@ -1835,7 +1835,7 @@
         "pressure": {
           "x-quantity": "stress",
           "description": "The pressure; positive pushes onto the faces.",
-          "type": "number"
+          "type": ["number", "string"]
         }
       }
     },
@@ -1909,7 +1909,7 @@
           "properties": {
             "num": {
               "description": "Increments of the step.",
-              "type": "integer",
+              "type": ["integer", "string"],
               "minimum": 1
             },
             "items": {
@@ -1937,21 +1937,21 @@
         "start": {
           "x-quantity": "ramped",
           "description": "Value at the start of the step (default 0); of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z.",
-          "type": ["number", "array"],
+          "type": ["number", "string", "array"],
           "minItems": 1,
           "maxItems": 3,
           "items": {
-            "type": "number"
+            "type": ["number", "string"]
           }
         },
         "end": {
           "x-quantity": "ramped",
           "description": "Value at the end of the step; of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z.",
-          "type": ["number", "array"],
+          "type": ["number", "string", "array"],
           "minItems": 1,
           "maxItems": 3,
           "items": {
-            "type": "number"
+            "type": ["number", "string"]
           }
         }
       }
@@ -1983,12 +1983,12 @@
         },
         "tol": {
           "description": "Tolerance of the Newton-Raphson method: the norm of the residual forces relative to a reference force, the reaction forces or the forces between the items (e.g. of a pressure on a solid body), if they are larger (default 0.01, like commercial codes).",
-          "type": "number",
+          "type": ["number", "string"],
           "exclusiveMinimum": 0
         },
         "maxiter": {
           "description": "The maximum number of Newton iterations of a substep (default 16).",
-          "type": "integer",
+          "type": ["integer", "string"],
           "minimum": 1
         },
         "solver": {
@@ -2007,13 +2007,13 @@
             },
             "rtol": {
               "description": "Relative tolerance of the iterative method, relative to the norm of the residual forces (default: the tolerance of the job / 100).",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0,
               "exclusiveMaximum": 1
             },
             "maxiter": {
               "description": "The maximum number of iterations of the iterative method (default of SciPy).",
-              "type": "integer",
+              "type": ["integer", "string"],
               "minimum": 1
             }
           },
@@ -2050,18 +2050,18 @@
           "properties": {
             "factor": {
               "description": "The factor by which the increment is reduced after a failed attempt (default 0.5).",
-              "type": "number",
+              "type": ["number", "string"],
               "exclusiveMinimum": 0,
               "exclusiveMaximum": 1
             },
             "max_cutbacks": {
               "description": "The maximum number of successive cutbacks of the increment (default 10): the smallest increment of a substep is factor ** max_cutbacks.",
-              "type": "integer",
+              "type": ["integer", "string"],
               "minimum": 1
             },
             "growth": {
               "description": "The factor by which the increment is increased after a converged increment (default 2.0); 1 keeps the increment.",
-              "type": "number",
+              "type": ["number", "string"],
               "minimum": 1
             }
           }

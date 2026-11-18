@@ -22,6 +22,7 @@ from textwrap import dedent
 
 from .__about__ import __version__
 from .commands import SCHEMA_VERSION, ValidationError, validate
+from .expressions import resolve
 from .loadcases import loadcase_call, moving, symmetry_call
 from .materials import lame_call, material_call
 
@@ -417,7 +418,8 @@ def codegen(document, evaluate=True, check_schema=True):
         The FElupe script.
     """
     validate(document, check_schema)
-    commands = document["commands"]
+    # the values of the expressions of the parameters (#242), shown as written
+    commands = resolve(document)[0]["commands"]
 
     def get(command):
         return [c for c in commands if c["command"] == command]

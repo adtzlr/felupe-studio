@@ -4,12 +4,15 @@
 // (`symmetry`, `uniaxial`, `biaxial`, `shear`) on the nodes of the drawn meshes; a
 // test compares them with FElupe (`boundaries.fixture.json`).
 import { analysisOf, is2d } from "../core/analysis";
-import type { Command } from "../core/commands";
-import { type Loadcase, LOADCASE_DEFAULTS } from "../core/loadcases";
+import type { Command } from "../core/resolved";
+import { LOADCASE_DEFAULTS } from "../core/loadcases";
 import { type Symmetry, symmetryPlanes } from "../core/symmetry";
 import { MARKER_COLOR } from "./palette";
 import { AXES, selectedPoints } from "./pointsets";
 import { arrowSegments, type Lines } from "./scene";
+
+/** A load case with the values of its expressions (#242). */
+type Loadcase = Extract<Command, { command: "loadcase.add" }>;
 
 /** A boundary of the script: the points of the nodes and its components. */
 export interface BoundarySymbol {

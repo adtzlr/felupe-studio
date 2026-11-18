@@ -27,6 +27,7 @@ from .codegen import (
     object_lines,
     solver_source,
 )
+from .expressions import resolve
 from .materials import models
 
 # the namespace of the last run, e.g. its field for results
@@ -291,6 +292,9 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
     # the app validated the command list against the schema with Ajv: no jsonschema
     # in the worker, the references are checked here
     script = codegen(document, evaluate=False, check_schema=False)
+    # the values of the expressions of the parameters (#242), which the script shows
+    # as written
+    document = resolve(document)[0]
     namespace = {"__name__": "felupe_studio_model"}
     exec(compile(script, "model.py", "exec"), namespace)
     LAST.clear()

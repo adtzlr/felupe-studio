@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Command } from "../core/commands";
+import type { Command } from "../core/resolved";
 import { MeshFiles } from "../core/meshfiles";
 import type { MeshSurface } from "../worker/protocol";
 import {

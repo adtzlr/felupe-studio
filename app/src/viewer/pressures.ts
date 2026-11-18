@@ -1,7 +1,7 @@
 // Pressures in the viewport (#105): an arrow at the center of every face of the face
 // set, normal to the face: onto the face for a positive pressure, away from it for a
 // negative one (a pull).
-import type { Command, PressureAdd } from "../core/commands";
+import type { Command, PressureAdd } from "../core/resolved";
 import { type SectionFaces, selectedFaces } from "./facesets";
 import { FORCE_COLOR } from "./palette";
 import { arrowSegments, type Lines } from "./scene";

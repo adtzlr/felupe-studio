@@ -1,7 +1,7 @@
 // The force-displacement curve of a job with a curve boundary (#29): the quantities of
 // its axes (#197), the scales and ticks of the chart and the values as CSV.
 import type { JobResult } from "../worker/protocol";
-import type { Command } from "./commands";
+import type { Command } from "./resolved";
 import { type Finished, largestAxis, stepOf } from "./results";
 import { rotationPoints, unitOf, unitsOf, withUnit } from "./units";
 

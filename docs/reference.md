@@ -13,6 +13,10 @@ Name of an object, unique within the command list. Used as a Python identifier i
 
 A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `DIMENSIONS`, `EDGES`, `REGIONS`, `SimpleNamespace`, `boundaries`, `boundary_faces`, `control_points`, `fem`, `field`, `iterative_solver`, `meshio`, `mixed_field`, `mixed_region`, `nearly_incompressible`, `np`, `points`, `points_at`, `run_mesh_script`, `script_mesh`, `single_point`, `solid_points`, `solid_types`, `spsolve`, `surface_points`, `vertex_region`, `volume_cells`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
 
+## Expressions
+
+A number of a command (*or an expression* below) may be an expression of the parameters as a string, e.g. `"end": "0.25 * layers * height"` (#242, [ADR 0013](adr/0013-expressions-of-parameters.md)): numbers, the names of the parameters, `pi`, `+ - * / **`, parentheses and the functions `sqrt`, `exp`, `log`, `sin`, `cos`, `tan`, `abs`, `min` and `max`. It is evaluated with the values of the parameters, the script shows it as written. The fields of `parameter.add`, the numbers that name things (a tag, ids) and the decimals of `mesh.merge` are numbers. See [Expressions of parameters](commands.md#expressions-of-parameters).
+
 ## Commands
 
 - [`model.settings`](#modelsettings): The settings of the model, at most once.
@@ -75,7 +79,7 @@ Import a mesh file (read with meshio).
 | `file` | string | yes | File name of the mesh, e.g. specimen.vtu. |
 | `tag` | string |  | Name of an integer cell data array used to split the mesh into cell sets, e.g. material or gmsh:physical. |
 | `cell_type` | `tetra`, `tetra10`, `hexahedron`, `hexahedron20`, `hexahedron27`, `triangle`, `triangle6`, `quad`, `quad8` or `quad9` |  | Type of the solid cells to import, if the file has more than one (one mesh per cell type). |
-| `scale` | number > 0 |  | Factor of the coordinates of the points, e.g. 1000 for a mesh in m of a model in mm. The points are multiplied after reading, before the cell sets; point sets and points are in the scaled coordinates. Default `1`. |
+| `scale` | number > 0 (or an expression) |  | Factor of the coordinates of the points, e.g. 1000 for a mesh in m of a model in mm. The points are multiplied after reading, before the cell sets; point sets and points are in the scaled coordinates. Default `1`. |
 
 ### `mesh.script`
 
@@ -288,7 +292,7 @@ Assign a material and a formulation to a cell set. Each section becomes a solid 
 | `cellset` | name of a cell set | yes |  |
 | `material` | name of a material | yes |  |
 | `formulation` | `u`, `u-p-J` or `u-isochoric` | yes | u: displacement field only. u-p-J: mixed fields (fem.FieldsMixed) for nearly incompressible materials. u-isochoric: displacement field only, with a material without a bulk modulus whose strain energy has no volumetric part, e.g. air as a third medium between the parts of a model that come into contact. |
-| `bulk` | number > 0 | if `formulation` is `u-p-J` | Bulk modulus of the nearly incompressible formulation (required for u-p-J). |
+| `bulk` | number > 0 (or an expression) | if `formulation` is `u-p-J` | Bulk modulus of the nearly incompressible formulation (required for u-p-J). |
 | `volumetric` | `volume-ratio`, `stretch` or `log` |  | The volumetric part U(J) of the strain energy of the u-p-J formulation with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)². Default `volume-ratio`. |
 
 ### `pointset.add`
@@ -309,8 +313,8 @@ Points with the given coordinate, e.g. x == 0.
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `select.axis` | axis: `x`, `y` or `z` | yes |  |
-| `select.value` | number | yes |  |
-| `select.atol` | number > 0 |  | Absolute tolerance (default 1e-8). |
+| `select.value` | number (or an expression) | yes |  |
+| `select.atol` | number > 0 (or an expression) |  | Absolute tolerance (default 1e-8). |
 
 #### At a bound
 
@@ -320,7 +324,7 @@ Points at the smallest or largest coordinate of the meshes of the sections, e.g.
 | --- | --- | --- | --- |
 | `select.bound` | `min` or `max` | yes | The smallest (min) or the largest (max) coordinate. |
 | `select.axis` | axis: `x`, `y` or `z` | yes |  |
-| `select.atol` | number > 0 |  | Absolute tolerance (default 1e-8). |
+| `select.atol` | number > 0 (or an expression) |  | Absolute tolerance (default 1e-8). |
 
 #### On a cylinder
 
@@ -328,10 +332,10 @@ Points on a cylinder: at the distance radius from the line through the center pa
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `select.radius` | number > 0 | yes | The radius of the cylinder. |
+| `select.radius` | number > 0 (or an expression) | yes | The radius of the cylinder. |
 | `select.axis` | axis: `x`, `y` or `z` | yes | The direction of the axis of the cylinder. |
 | `select.center` | three numbers `[x, y, z]` |  | A point on the axis of the cylinder (default: the origin). |
-| `select.atol` | number > 0 |  | Absolute tolerance (default 1e-8). |
+| `select.atol` | number > 0 (or an expression) |  | Absolute tolerance (default 1e-8). |
 
 #### `surface` (`surface: true`)
 
@@ -348,7 +352,7 @@ The points at the given coordinates, one point each, e.g. picked nodes. A coordi
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `select.points` | list of three numbers `[x, y, z]` (at least 1) | yes |  |
-| `select.atol` | number > 0 |  | Absolute tolerance (default 1e-8). |
+| `select.atol` | number > 0 (or an expression) |  | Absolute tolerance (default 1e-8). |
 
 #### `section`
 
@@ -401,7 +405,7 @@ A cylinder whose axis goes through the reference point.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `shape.radius` | number > 0 | yes | The radius of the cylinder. |
+| `shape.radius` | number > 0 (or an expression) | yes | The radius of the cylinder. |
 | `shape.axis` | three numbers `[x, y, z]` | yes | The direction of the axis of the cylinder. |
 | `shape.inside` | boolean |  | The points are inside the cylinder (a tube around them), else outside (a roller). |
 
@@ -424,8 +428,8 @@ The faces of the boundary on a plane with the given coordinate, e.g. z == 20.
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `select.axis` | axis: `x`, `y` or `z` | yes |  |
-| `select.value` | number | yes |  |
-| `select.atol` | number > 0 |  | Absolute tolerance of the coordinates of the points (default 1e-8). |
+| `select.value` | number (or an expression) | yes |  |
+| `select.atol` | number > 0 (or an expression) |  | Absolute tolerance of the coordinates of the points (default 1e-8). |
 
 #### By centers
 
@@ -434,7 +438,7 @@ The faces of the boundary with the given centers (the mean of the points of a fa
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `select.centers` | list of three numbers `[x, y, z]` (at least 1) | yes |  |
-| `select.atol` | number > 0 |  | Absolute tolerance of the centers (default 1e-6 of the size of the section). |
+| `select.atol` | number > 0 (or an expression) |  | Absolute tolerance of the centers (default 1e-6 of the size of the section). |
 
 ### `boundary.add`
 
@@ -445,7 +449,7 @@ Prescribe displacement components of a point set (fem.Boundary).
 | `name` | name | yes | Name of the object. |
 | `pointset` | name of a point set, control point or rigid surface | yes |  |
 | `constrained` | list of axis: `x`, `y` or `z` (at least 1, unique) | yes | Constrained displacement components; all others are free. |
-| `value` | number or list of 1 to 3 numbers |  | Prescribed displacement of the constrained components (default 0): one number for all of them, or one number per constrained component in the order x, y, z (e.g. a point set that moves diagonally); a rotation in rad at a rotation point. |
+| `value` | number or list of 1 to 3 numbers (or an expression) |  | Prescribed displacement of the constrained components (default 0): one number for all of them, or one number per constrained component in the order x, y, z (e.g. a point set that moves diagonally); a rotation in rad at a rotation point. |
 
 ### `loadcase.add`
 
@@ -501,7 +505,7 @@ FElupe: `fem.dof.shear`
 | --- | --- | --- | --- |
 | `axis` | axis: `x`, `y` or `z` |  | Direction of the shear (default x). |
 | `normal` | axis: `x`, `y` or `z` |  | Normal of the sheared end faces (default y). |
-| `compression` | number |  | Displacement of the moving face along the normal, held during the shear (default 0). |
+| `compression` | number (or an expression) |  | Displacement of the moving face along the normal, held during the shear (default 0). |
 | `symmetry` | boolean |  | Symmetry plane normal to the third axis at its zero coordinate. Default `true`. |
 
 ### `symmetry.add`
@@ -512,9 +516,9 @@ Symmetry planes normal to x, y or z (fem.dof.symmetry): on a plane, the displace
 | --- | --- | --- | --- |
 | `name` | name | yes | Name of the object. |
 | `axes` | list of axis: `x`, `y` or `z` (at least 1, unique) | yes | The normals of the symmetry planes. |
-| `x` | number |  | Coordinate of the plane normal to x (default 0), only with x in axes. |
-| `y` | number |  | Coordinate of the plane normal to y (default 0), only with y in axes. |
-| `z` | number |  | Coordinate of the plane normal to z (default 0), only with z in axes. |
+| `x` | number (or an expression) |  | Coordinate of the plane normal to x (default 0), only with x in axes. |
+| `y` | number (or an expression) |  | Coordinate of the plane normal to y (default 0), only with y in axes. |
+| `z` | number (or an expression) |  | Coordinate of the plane normal to z (default 0), only with z in axes. |
 
 ### `mpc.add`
 
@@ -526,7 +530,7 @@ A multi-point constraint (fem.MultiPointConstraint): the points of a point set f
 | `points` | name of a point set or control point | yes | The point set of the connected points. |
 | `center` | name of a point set or control point | yes | The center point: a control point or a point set of one point. |
 | `constrained` | list of axis: `x`, `y` or `z` (at least 1, unique) | yes | The connected components (skip the others). All of them with a rotation point. |
-| `multiplier` | number > 0 |  | The penalty of the relative displacements (default 1000). |
+| `multiplier` | number > 0 (or an expression) |  | The penalty of the relative displacements (default 1000). |
 | `rotation` | name of a point set or control point |  | The rotation point: a control point or a point set of one point, whose values are the rotations about the center point in rad (its coordinates are not used). |
 
 ### `contact.add`
@@ -538,9 +542,9 @@ A contact of points with a rigid surface (#220): fem.ContactRigidPlane or fem.Co
 | `name` | name | yes | Name of the object. |
 | `points` | name of a point set, control point or face set | yes | The points that may touch the surface: a point set, or the points of a face set. |
 | `surface` | name of a rigid surface | yes | The rigid surface. |
-| `friction` | number ≥ 0 |  | The Coulomb friction coefficient (default 0, without friction). |
-| `multiplier` | number > 0 |  | The factor of the penalty of the contact, times the mean stiffness of the solid bodies at the points (default 1). |
-| `elastic_slip` | number > 0 |  | The allowable elastic slip of sticking points (default none: a constant tangential penalty), e.g. 0.5 % to 1 % of the size of a cell. |
+| `friction` | number ≥ 0 (or an expression) |  | The Coulomb friction coefficient (default 0, without friction). |
+| `multiplier` | number > 0 (or an expression) |  | The factor of the penalty of the contact, times the mean stiffness of the solid bodies at the points (default 1). |
+| `elastic_slip` | number > 0 (or an expression) |  | The allowable elastic slip of sticking points (default none: a constant tangential penalty), e.g. 0.5 % to 1 % of the size of a cell. |
 
 ### `load.add`
 
@@ -560,7 +564,7 @@ A pressure on the faces of a face set (fem.SolidBodyPressure), an item of the st
 | --- | --- | --- | --- |
 | `name` | name | yes | Name of the object. |
 | `faces` | name of a face set | yes | The face set of the pressure. |
-| `pressure` | number | yes | The pressure; positive pushes onto the faces. |
+| `pressure` | number (or an expression) | yes | The pressure; positive pushes onto the faces. |
 
 ### `step.add`
 
@@ -573,11 +577,11 @@ A step with all boundaries, optionally ramping items, each with its own values (
 | `constraints` | names of multi-point constraints or contacts (at least 1, unique) |  | Multi-point constraints that are items of the step (default: all). |
 | `loads` | names of point loads or pressures (at least 1, unique) |  | Point loads and pressures that are items of the step (default: all). |
 | `ramp` | object |  | Ramp the values of items with fem.math.linsteps([start, end], num), with the same number of increments for all items. |
-| `ramp.num` | integer ≥ 1 | yes | Increments of the step. |
+| `ramp.num` | integer ≥ 1 (or an expression) | yes | Increments of the step. |
 | `ramp.items` | list of objects (at least 1) | yes | The ramped items, each with its own values. |
 | `ramp.items[].target` | name of a boundary, load case, point load or pressure | yes | The ramped boundary, load case, point load or pressure. |
-| `ramp.items[].start` | number or list of 1 to 3 numbers |  | Value at the start of the step (default 0); of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z. |
-| `ramp.items[].end` | number or list of 1 to 3 numbers | yes | Value at the end of the step; of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z. |
+| `ramp.items[].start` | number or list of 1 to 3 numbers (or an expression) |  | Value at the start of the step (default 0); of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z. |
+| `ramp.items[].end` | number or list of 1 to 3 numbers (or an expression) | yes | Value at the end of the step; of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z. |
 
 ### `job.add`
 
@@ -588,14 +592,14 @@ A job evaluating steps one after another (fem.Job). With a curve, the force-disp
 | `name` | name | yes | Name of the object. |
 | `steps` | names of steps (at least 1, unique) | yes | Steps evaluated one after another. |
 | `curve` | name of a boundary, load case or point load |  | The boundary, load case or point load of the force-displacement curve. |
-| `tol` | number > 0 |  | Tolerance of the Newton-Raphson method: the norm of the residual forces relative to a reference force, the reaction forces or the forces between the items (e.g. of a pressure on a solid body), if they are larger (default 0.01, like commercial codes). |
-| `maxiter` | integer ≥ 1 |  | The maximum number of Newton iterations of a substep (default 16). |
+| `tol` | number > 0 (or an expression) |  | Tolerance of the Newton-Raphson method: the norm of the residual forces relative to a reference force, the reaction forces or the forces between the items (e.g. of a pressure on a solid body), if they are larger (default 0.01, like commercial codes). |
+| `maxiter` | integer ≥ 1 (or an expression) |  | The maximum number of Newton iterations of a substep (default 16). |
 | `solver` | object |  | The linear solver of the Newton iterations (Job.evaluate(solver=...)); without it, SuperLU of FElupe. |
 | `solver.type` | `superlu`, `spsolve` or `iterative` | yes | SuperLU of FElupe (fem.solve.SuperLUSolver, the default), spsolve of SciPy (the default of FElupe before v12) or an iterative method of SciPy. |
 | `solver.method` | `minres`, `cg`, `gmres` or `bicgstab` | if `type` is `iterative` | The iterative method of scipy.sparse.linalg: minres (symmetric, also indefinite), cg (symmetric positive definite), gmres or bicgstab. |
-| `solver.rtol` | number > 0, < 1 |  | Relative tolerance of the iterative method, relative to the norm of the residual forces (default: the tolerance of the job / 100). |
-| `solver.maxiter` | integer ≥ 1 |  | The maximum number of iterations of the iterative method (default of SciPy). |
+| `solver.rtol` | number > 0, < 1 (or an expression) |  | Relative tolerance of the iterative method, relative to the norm of the residual forces (default: the tolerance of the job / 100). |
+| `solver.maxiter` | integer ≥ 1 (or an expression) |  | The maximum number of iterations of the iterative method (default of SciPy). |
 | `cutback` | object |  | Retry a substep that does not converge with smaller increments (fem.CutbackPlugin); without a value, a parameter has the default of FElupe. |
-| `cutback.factor` | number > 0, < 1 |  | The factor by which the increment is reduced after a failed attempt (default 0.5). |
-| `cutback.max_cutbacks` | integer ≥ 1 |  | The maximum number of successive cutbacks of the increment (default 10): the smallest increment of a substep is factor ** max_cutbacks. |
-| `cutback.growth` | number ≥ 1 |  | The factor by which the increment is increased after a converged increment (default 2.0); 1 keeps the increment. |
+| `cutback.factor` | number > 0, < 1 (or an expression) |  | The factor by which the increment is reduced after a failed attempt (default 0.5). |
+| `cutback.max_cutbacks` | integer ≥ 1 (or an expression) |  | The maximum number of successive cutbacks of the increment (default 10): the smallest increment of a substep is factor ** max_cutbacks. |
+| `cutback.growth` | number ≥ 1 (or an expression) |  | The factor by which the increment is increased after a converged increment (default 2.0); 1 keeps the increment. |

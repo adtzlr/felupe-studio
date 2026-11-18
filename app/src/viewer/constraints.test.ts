@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Command, MpcAdd } from "../core/commands";
+import type { Command, MpcAdd } from "../core/resolved";
 import type { ResultScene } from "../worker/protocol";
 import { boundarySymbols } from "./boundaries";
 import {

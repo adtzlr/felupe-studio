@@ -12,7 +12,7 @@ import {
   constraintShapes,
   resultPlacement,
 } from "../viewer/constraints";
-import type { Command } from "../core/commands";
+import type { Command } from "../core/resolved";
 
 const NO_COMMANDS: readonly Command[] = [];
 import {

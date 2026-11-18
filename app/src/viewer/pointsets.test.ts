@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Command, PointSetAdd } from "../core/commands";
+import type { Command, PointSetAdd } from "../core/resolved";
 import type { MeshSurface } from "../worker/protocol";
 import {
   boundOf,

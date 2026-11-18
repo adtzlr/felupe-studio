@@ -11,20 +11,18 @@ import type {
   CellSetFromTag,
   Command,
   FaceSetAdd,
-} from "../core/commands";
+} from "../core/resolved";
 import { CELLS_2D } from "../core/analysis";
 import { toName } from "../core/importmesh";
-import {
-  isMesh,
-  type MeshCommand,
-  type MeshFiles,
-  meshStatus,
-} from "../core/meshfiles";
+import { isMesh, type MeshFiles, meshStatus } from "../core/meshfiles";
 import { solidOf } from "../core/meshinfo";
 import type { MeshSurface } from "../worker/protocol";
 import { cellMask } from "./layers";
 import type { Vec3 } from "./picking";
 import { ATOL, AXES, isClose } from "./pointsets";
+
+/** A mesh object with the values of its expressions (#242). */
+type MeshCommand = Extract<Command, { command: "mesh.import" | "mesh.script" }>;
 
 export interface Face {
   /** The triangles of the face in the surface of its mesh (none of a side). */

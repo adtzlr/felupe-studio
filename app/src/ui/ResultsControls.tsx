@@ -306,7 +306,7 @@ export function ResultsControls({
         </label>
       )}
       {liveSwitch}
-      {!live && store.commands !== run.commands && (
+      {!live && store.resolved !== run.commands && (
         <span class="warning" role="note">
           The model was changed after solving.
         </span>

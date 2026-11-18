@@ -8,7 +8,7 @@ import {
   within,
 } from "@testing-library/preact";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Command } from "../core/commands";
+import type { Command } from "../core/resolved";
 import { type Inspection, MeshFiles } from "../core/meshfiles";
 import { ModelStore } from "../core/store";
 import type { Scene, ViewerHandle } from "../vendor/felupe-viewer/viewer.js";

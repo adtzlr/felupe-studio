@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Command } from "../core/commands";
-import type { Loadcase } from "../core/loadcases";
+import type { Command } from "../core/resolved";
 import type { Symmetry } from "../core/symmetry";
 import {
   AXIS_COLORS,
@@ -40,7 +39,7 @@ describe("boundaries of load cases like fem.dof", () => {
           command: "loadcase.add",
           name: "lc",
           ...loadcase,
-        } as unknown as Loadcase;
+        } as unknown as Extract<Command, { command: "loadcase.add" }>;
         const symbols = boundarySymbols([command], nodes);
         const byName = new Map(symbols.map((s) => [s.name, s]));
         for (const [key, expected] of Object.entries(boundaries)) {

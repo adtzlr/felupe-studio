@@ -361,7 +361,10 @@ def rename_references(command, old, new):
         for item in copy["ramp"]["items"]:
             if item["target"] == old:
                 item["target"] = new
-    return copy
+    # a renamed parameter in the expressions (#242)
+    from .expressions import rename_parameter
+
+    return rename_parameter(copy, old, new)
 
 
 def _reference_errors(commands):
@@ -652,8 +655,11 @@ def notes(commands):
     >>> note.removeprefix("commands/1: ")
     "the plane x = 0 of symmetry 'h' is already a symmetry plane of load case 't'."
     """
+    from .expressions import resolve
     from .loadcases import symmetry_planes
 
+    # with the values of the expressions of the parameters (#242)
+    commands = resolve({"commands": commands})[0]["commands"]
     owners = {}  # (axis, coordinate) -> the first object with the plane
     for cmd in commands:
         if cmd["command"] == "loadcase.add":
@@ -666,7 +672,10 @@ def notes(commands):
         for axis in AXES:
             if axis not in cmd["axes"]:
                 continue
-            plane = (axis, float(cmd.get(axis, 0)))
+            coordinate = cmd.get(axis, 0)
+            if isinstance(coordinate, str):
+                continue  # an expression with a problem
+            plane = (axis, float(coordinate))
             if plane in owners:
                 messages.append(
                     f"commands/{i}: the plane {axis} = {_number(plane[1])} of "
@@ -685,10 +694,17 @@ def errors(document, check_schema=True):
     (without the package ``jsonschema``), for a command list that was validated
     against the same schema before, e.g. by the app with Ajv.
     """
+    from .expressions import resolve
+
     messages = schema_errors(document) if check_schema else []
     if messages:
         return messages
-    return _reference_errors(document["commands"])
+    # the expressions of the parameters (#242): their problems first, then the
+    # rules on their values
+    resolved, problems = resolve(document)
+    if problems:
+        return problems
+    return _reference_errors(resolved["commands"])
 
 
 def validate(document, check_schema=True):
