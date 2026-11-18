@@ -12,7 +12,11 @@ plate*, solves it with Python in the browser (the first start downloads Pyodide)
 writes small PNGs to ``docs/images``: the model, the results and a pressure on a face
 set. Then it opens three samples of version 0.4: the parameters of the sandwich
 spring (the dialog when it is opened), the results of the plate with a hole (a 2D
-model) and of the spring with end stops (contact).
+model) and of the spring with end stops (contact), and one of version 0.5: the engine
+mount (FElupe ex07, air as a third medium) with the stresses at the points.
+
+The app loads Pyodide and its packages from the CDN (cdn.jsdelivr.net): the script
+needs it, a stub of the runtime would not show the real versions and load times.
 """
 
 import argparse
@@ -109,17 +113,29 @@ def capture(context, url, out):
         if confirm.is_visible():
             confirm.get_by_role("button", name="Open", exact=True).click()
 
-    def solve(substep=None, quantity=None):
-        """Solve the model and show the results of a substep (default the last)."""
+    def solve(substep=None, quantity=None, job=None):
+        """Solve the model and show the results of a substep (default the last) of a
+        job (default the one that is shown first)."""
         # from the Model workspace, whose job panel offers the results
         page.get_by_role("button", name="Model", exact=True).click()
         page.get_by_role("button", name="Solve").first.click()
         page.get_by_role("button", name="Show results").click(timeout=300_000)
         page.wait_for_timeout(1500)
+        controls = page.locator(".results-controls")
+
+        def field(name):
+            """The select of a field of the results, by its label."""
+            label = controls.locator("label.field")
+            return label.filter(has=page.get_by_text(name, exact=True)).locator(
+                "select"
+            )
+
+        if job:
+            field("Job").select_option(job)
         if quantity:
-            page.locator(".results-controls select").first.select_option(quantity)
+            field("Contour").select_option(quantity)
         if substep:
-            page.locator(".results-controls .substep input").fill(str(substep))
+            controls.locator(".substep input").fill(str(substep))
         page.wait_for_timeout(1500)
 
     # the parameters of the sandwich spring when it is opened, then its model
@@ -151,6 +167,20 @@ def capture(context, url, out):
     if extremes.get_attribute("aria-pressed") == "true":
         extremes.click()  # the plates in the middle without labels
     shot("contact")
+
+    # v0.5: the engine mount (ex07) in plane strain, with air as a third medium in
+    # its cavities, at the end of the horizontal shift; the von Mises stress
+    # projected to the points (a smooth contour)
+    open_sample("Engine mount (FElupe ex07)", "engine-mount.felupe.zip")
+    page.wait_for_selector("text=engine-mount.felupe.zip")
+    solve(substep=8, quantity="stress_mises", job="horizontal")
+    page.get_by_role("button", name="Contour settings").click()
+    page.get_by_role("dialog", name="Contour settings").get_by_label(
+        "Values at"
+    ).select_option("project")
+    page.keyboard.press("Escape")
+    page.get_by_label("Curve", exact=True).set_checked(True)
+    shot("engine-mount")
 
     if errors:
         raise RuntimeError(f"Errors of the page: {errors}")
