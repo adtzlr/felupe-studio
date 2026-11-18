@@ -42,6 +42,8 @@ export type Name = string;
  * via the `definition` "MaterialAdd".
  */
 export type MaterialAdd =
+  | MaterialLinearElasticSmallStrain
+  | MaterialLinearElasticLargeStrain
   | MaterialNeoHooke
   | MaterialNeoHookeCompressible
   | MaterialMooneyRivlin
@@ -50,7 +52,6 @@ export type MaterialAdd =
   | MaterialOgden
   | MaterialArrudaBoyce
   | MaterialExtendedTube
-  | MaterialLinearElasticLargeStrain
   | MaterialLinearElastic
   | MaterialLinearElasticPlasticIsotropicHardening;
 /**
@@ -311,6 +312,48 @@ export interface CellSetFromFile {
   mesh: Name;
 }
 /**
+ * Linear-elastic material for small strains and small rotations (fem.LinearElastic): the stress of the symmetric part of the displacement gradient. Not for large rotations or large strains.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MaterialLinearElasticSmallStrain".
+ */
+export interface MaterialLinearElasticSmallStrain {
+  command: "material.add";
+  name: Name;
+  model: "LinearElasticSmallStrain";
+  parameters: {
+    /**
+     * Young's modulus
+     */
+    E: number;
+    /**
+     * Poisson's ratio
+     */
+    nu: number;
+  };
+}
+/**
+ * Linear-elastic material formulated for large deformations (fem.LinearElasticLargeStrain).
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MaterialLinearElasticLargeStrain".
+ */
+export interface MaterialLinearElasticLargeStrain {
+  command: "material.add";
+  name: Name;
+  model: "LinearElasticLargeStrain";
+  parameters: {
+    /**
+     * Young's modulus
+     */
+    E: number;
+    /**
+     * Poisson's ratio
+     */
+    nu: number;
+  };
+}
+/**
  * Isotropic hyperelastic Neo-Hookean material (fem.NeoHooke). Without a bulk modulus it needs the u-p-J formulation.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
@@ -353,7 +396,7 @@ export interface MaterialNeoHookeCompressible {
   };
 }
 /**
- * Isotropic hyperelastic Mooney-Rivlin material (fem.Hyperelastic with fem.mooney_rivlin, needs tensortrax). The shear modulus is 2 (C10 + C01). Without a bulk modulus it needs the u-p-J formulation.
+ * Isotropic hyperelastic Mooney-Rivlin material (fem.Hyperelastic with fem.mooney_rivlin). The shear modulus is 2 (C10 + C01). Without a bulk modulus it needs the u-p-J formulation.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "MaterialMooneyRivlin".
@@ -378,7 +421,7 @@ export interface MaterialMooneyRivlin {
   };
 }
 /**
- * Isotropic hyperelastic Yeoh material (fem.Hyperelastic with fem.yeoh, needs tensortrax): a cubic polynomial of the first invariant. The shear modulus is 2 C10. Without a bulk modulus it needs the u-p-J formulation.
+ * Isotropic hyperelastic Yeoh material (fem.Hyperelastic with fem.yeoh): a cubic polynomial of the first invariant. The shear modulus is 2 C10. Without a bulk modulus it needs the u-p-J formulation.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "MaterialYeoh".
@@ -407,7 +450,7 @@ export interface MaterialYeoh {
   };
 }
 /**
- * Isotropic hyperelastic third-order deformation material (fem.Hyperelastic with fem.third_order_deformation, needs tensortrax): terms of the first and second invariant up to the third order. The shear modulus is 2 (C10 + C01). Without a bulk modulus it needs the u-p-J formulation.
+ * Isotropic hyperelastic third-order deformation material (fem.Hyperelastic with fem.third_order_deformation): terms of the first and second invariant up to the third order. The shear modulus is 2 (C10 + C01). Without a bulk modulus it needs the u-p-J formulation.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "MaterialThirdOrderDeformation".
@@ -444,7 +487,7 @@ export interface MaterialThirdOrderDeformation {
   };
 }
 /**
- * Isotropic hyperelastic Ogden material (fem.Hyperelastic with fem.ogden, needs tensortrax): up to three terms of the principal stretches, each with a modulus μi and an exponent αi. The shear modulus is the sum of the moduli. Without a bulk modulus it needs the u-p-J formulation.
+ * Isotropic hyperelastic Ogden material (fem.Hyperelastic with fem.ogden): up to three terms of the principal stretches, each with a modulus μi and an exponent αi. The shear modulus is the sum of the moduli. Without a bulk modulus it needs the u-p-J formulation.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "MaterialOgden".
@@ -475,7 +518,7 @@ export interface MaterialOgden {
   };
 }
 /**
- * Isotropic hyperelastic Arruda-Boyce material, the eight-chain model (fem.Hyperelastic with fem.arruda_boyce, needs tensortrax). The chains lock at the limiting stretch. Without a bulk modulus it needs the u-p-J formulation.
+ * Isotropic hyperelastic Arruda-Boyce material, the eight-chain model (fem.Hyperelastic with fem.arruda_boyce). The chains lock at the limiting stretch. Without a bulk modulus it needs the u-p-J formulation.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "MaterialArrudaBoyce".
@@ -500,7 +543,7 @@ export interface MaterialArrudaBoyce {
   };
 }
 /**
- * Isotropic hyperelastic extended tube material of Kaliske and Heinrich (fem.Hyperelastic with fem.extended_tube, needs tensortrax): a cross-link and a tube constraint contribution. The shear modulus is Gc + Ge. Without a bulk modulus it needs the u-p-J formulation.
+ * Isotropic hyperelastic extended tube material of Kaliske and Heinrich (fem.Hyperelastic with fem.extended_tube): a cross-link and a tube constraint contribution. The shear modulus is Gc + Ge. Without a bulk modulus it needs the u-p-J formulation.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "MaterialExtendedTube".
@@ -530,27 +573,6 @@ export interface MaterialExtendedTube {
      * Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.
      */
     bulk?: number;
-  };
-}
-/**
- * Linear-elastic material formulated for large deformations (fem.LinearElasticLargeStrain).
- *
- * This interface was referenced by `CommandList`'s JSON-Schema
- * via the `definition` "MaterialLinearElasticLargeStrain".
- */
-export interface MaterialLinearElasticLargeStrain {
-  command: "material.add";
-  name: Name;
-  model: "LinearElasticLargeStrain";
-  parameters: {
-    /**
-     * Young's modulus
-     */
-    E: number;
-    /**
-     * Poisson's ratio
-     */
-    nu: number;
   };
 }
 /**

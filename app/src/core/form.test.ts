@@ -230,32 +230,55 @@ describe("fieldSpecs", () => {
     });
     const model = specs.find((s) => s.key === "model")!;
     expect(model.input).toMatchObject({
+      // the groups of the menus of the ribbon (#259)
       options: [
-        { value: "NeoHooke", label: "Neo-Hooke" },
-        { value: "NeoHookeCompressible", label: "Neo-Hooke (compressible)" },
-        { value: "MooneyRivlin", label: "Mooney-Rivlin", group: "Polynomial" },
-        { value: "Yeoh", label: "Yeoh", group: "Polynomial" },
         {
-          value: "ThirdOrderDeformation",
-          label: "Third-order deformation",
-          group: "Polynomial",
+          value: "LinearElasticSmallStrain",
+          label: "Linear elastic (small strain)",
+          group: "Linear elasticity",
         },
-        { value: "Ogden", label: "Ogden" },
-        { value: "ArrudaBoyce", label: "Arruda-Boyce" },
-        { value: "ExtendedTube", label: "Extended tube" },
         {
           value: "LinearElasticLargeStrain",
           label: "Linear elastic (large strain)",
+          group: "Linear elasticity",
+        },
+        { value: "NeoHooke", label: "Neo-Hooke", group: "Hyperelasticity" },
+        {
+          value: "NeoHookeCompressible",
+          label: "Neo-Hooke (compressible)",
+          group: "Hyperelasticity",
+        },
+        {
+          value: "MooneyRivlin",
+          label: "Mooney-Rivlin",
+          group: "Hyperelasticity",
+        },
+        { value: "Yeoh", label: "Yeoh", group: "Hyperelasticity" },
+        {
+          value: "ThirdOrderDeformation",
+          label: "Third-order deformation",
+          group: "Hyperelasticity",
+        },
+        { value: "Ogden", label: "Ogden", group: "Hyperelasticity" },
+        {
+          value: "ArrudaBoyce",
+          label: "Arruda-Boyce",
+          group: "Hyperelasticity",
+        },
+        {
+          value: "ExtendedTube",
+          label: "Extended tube",
+          group: "Hyperelasticity",
         },
         {
           value: "LinearElastic",
           label: "Linear elastic",
-          group: "Strain-based",
+          group: "Strain-based elasticity",
         },
         {
           value: "LinearElasticPlasticIsotropicHardening",
           label: "Elastic-plastic, isotropic hardening",
-          group: "Strain-based",
+          group: "Strain-based elasticity",
         },
       ],
     });

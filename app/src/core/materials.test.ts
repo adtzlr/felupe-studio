@@ -8,6 +8,8 @@ describe("material registry", () => {
     expect(
       MATERIAL_MODELS.map((m) => [m.name, m.label, m.optionalBulk]),
     ).toEqual([
+      ["LinearElasticSmallStrain", "Linear elastic (small strain)", false],
+      ["LinearElasticLargeStrain", "Linear elastic (large strain)", false],
       ["NeoHooke", "Neo-Hooke", true],
       ["NeoHookeCompressible", "Neo-Hooke (compressible)", false],
       ["MooneyRivlin", "Mooney-Rivlin", true],
@@ -16,7 +18,6 @@ describe("material registry", () => {
       ["Ogden", "Ogden", true],
       ["ArrudaBoyce", "Arruda-Boyce", true],
       ["ExtendedTube", "Extended tube", true],
-      ["LinearElasticLargeStrain", "Linear elastic (large strain)", false],
       ["LinearElastic", "Linear elastic", false],
       [
         "LinearElasticPlasticIsotropicHardening",
@@ -24,19 +25,11 @@ describe("material registry", () => {
         false,
       ],
     ]);
-    // the menus of the ribbon (#136)
+    // the menus of the ribbon (#136), by the kind of material (#259)
     expect(MATERIAL_MODELS.map((m) => m.group)).toEqual([
-      "Neo-Hooke",
-      "Neo-Hooke",
-      "Polynomial",
-      "Polynomial",
-      "Polynomial",
-      undefined,
-      "Micromechanical",
-      "Micromechanical",
-      undefined,
-      "Strain-based",
-      "Strain-based",
+      ...Array(2).fill("Linear elasticity"),
+      ...Array(8).fill("Hyperelasticity"),
+      ...Array(2).fill("Strain-based elasticity"),
     ]);
     // strain-based models (#191), the elastic-plastic one with state variables
     expect(
@@ -45,7 +38,7 @@ describe("material registry", () => {
       ["LinearElastic", false],
       ["LinearElasticPlasticIsotropicHardening", true],
     ]);
-    const mooney = MATERIAL_MODELS[2];
+    const mooney = MATERIAL_MODELS.find((m) => m.name === "MooneyRivlin")!;
     expect(mooney.parameters).toMatchObject([
       { key: "C10", label: "C₁₀", required: true, default: 0.4 },
       { key: "C01", label: "C₀₁", required: true, default: 0.1 },

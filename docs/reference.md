@@ -124,6 +124,28 @@ Add a material to the material library. Every model is a definition below (the m
 
 Every variant has a `name`, the name of the object.
 
+#### Linear elastic (small strain) (`model: "LinearElasticSmallStrain"`)
+
+Linear-elastic material for small strains and small rotations (fem.LinearElastic): the stress of the symmetric part of the displacement gradient. Not for large rotations or large strains.
+
+FElupe: `fem.LinearElastic`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `E` (E) | number > 0 | yes | Young's modulus. Default `1`. |
+| `nu` (ν) | number ≥ -1, < 0.5 | yes | Poisson's ratio. Default `0.3`. |
+
+#### Linear elastic (large strain) (`model: "LinearElasticLargeStrain"`)
+
+Linear-elastic material formulated for large deformations (fem.LinearElasticLargeStrain).
+
+FElupe: `fem.LinearElasticLargeStrain`
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `E` (E) | number > 0 | yes | Young's modulus. Default `1`. |
+| `nu` (ν) | number ≥ -1, < 0.5 | yes | Poisson's ratio. Default `0.3`. |
+
 #### Neo-Hooke (`model: "NeoHooke"`)
 
 Isotropic hyperelastic Neo-Hookean material (fem.NeoHooke). Without a bulk modulus it needs the u-p-J formulation.
@@ -148,7 +170,7 @@ FElupe: `fem.NeoHookeCompressible`
 
 #### Mooney-Rivlin (`model: "MooneyRivlin"`)
 
-Isotropic hyperelastic Mooney-Rivlin material (fem.Hyperelastic with fem.mooney_rivlin, needs tensortrax). The shear modulus is 2 (C10 + C01). Without a bulk modulus it needs the u-p-J formulation.
+Isotropic hyperelastic Mooney-Rivlin material (fem.Hyperelastic with fem.mooney_rivlin). The shear modulus is 2 (C10 + C01). Without a bulk modulus it needs the u-p-J formulation.
 
 FElupe: `fem.mooney_rivlin`
 
@@ -160,7 +182,7 @@ FElupe: `fem.mooney_rivlin`
 
 #### Yeoh (`model: "Yeoh"`)
 
-Isotropic hyperelastic Yeoh material (fem.Hyperelastic with fem.yeoh, needs tensortrax): a cubic polynomial of the first invariant. The shear modulus is 2 C10. Without a bulk modulus it needs the u-p-J formulation.
+Isotropic hyperelastic Yeoh material (fem.Hyperelastic with fem.yeoh): a cubic polynomial of the first invariant. The shear modulus is 2 C10. Without a bulk modulus it needs the u-p-J formulation.
 
 FElupe: `fem.yeoh`
 
@@ -173,7 +195,7 @@ FElupe: `fem.yeoh`
 
 #### Third-order deformation (`model: "ThirdOrderDeformation"`)
 
-Isotropic hyperelastic third-order deformation material (fem.Hyperelastic with fem.third_order_deformation, needs tensortrax): terms of the first and second invariant up to the third order. The shear modulus is 2 (C10 + C01). Without a bulk modulus it needs the u-p-J formulation.
+Isotropic hyperelastic third-order deformation material (fem.Hyperelastic with fem.third_order_deformation): terms of the first and second invariant up to the third order. The shear modulus is 2 (C10 + C01). Without a bulk modulus it needs the u-p-J formulation.
 
 FElupe: `fem.third_order_deformation`
 
@@ -188,7 +210,7 @@ FElupe: `fem.third_order_deformation`
 
 #### Ogden (`model: "Ogden"`)
 
-Isotropic hyperelastic Ogden material (fem.Hyperelastic with fem.ogden, needs tensortrax): up to three terms of the principal stretches, each with a modulus μi and an exponent αi. The shear modulus is the sum of the moduli. Without a bulk modulus it needs the u-p-J formulation.
+Isotropic hyperelastic Ogden material (fem.Hyperelastic with fem.ogden): up to three terms of the principal stretches, each with a modulus μi and an exponent αi. The shear modulus is the sum of the moduli. Without a bulk modulus it needs the u-p-J formulation.
 
 FElupe: `fem.ogden`
 
@@ -200,7 +222,7 @@ FElupe: `fem.ogden`
 
 #### Arruda-Boyce (`model: "ArrudaBoyce"`)
 
-Isotropic hyperelastic Arruda-Boyce material, the eight-chain model (fem.Hyperelastic with fem.arruda_boyce, needs tensortrax). The chains lock at the limiting stretch. Without a bulk modulus it needs the u-p-J formulation.
+Isotropic hyperelastic Arruda-Boyce material, the eight-chain model (fem.Hyperelastic with fem.arruda_boyce). The chains lock at the limiting stretch. Without a bulk modulus it needs the u-p-J formulation.
 
 FElupe: `fem.arruda_boyce`
 
@@ -212,7 +234,7 @@ FElupe: `fem.arruda_boyce`
 
 #### Extended tube (`model: "ExtendedTube"`)
 
-Isotropic hyperelastic extended tube material of Kaliske and Heinrich (fem.Hyperelastic with fem.extended_tube, needs tensortrax): a cross-link and a tube constraint contribution. The shear modulus is Gc + Ge. Without a bulk modulus it needs the u-p-J formulation.
+Isotropic hyperelastic extended tube material of Kaliske and Heinrich (fem.Hyperelastic with fem.extended_tube): a cross-link and a tube constraint contribution. The shear modulus is Gc + Ge. Without a bulk modulus it needs the u-p-J formulation.
 
 FElupe: `fem.extended_tube`
 
@@ -223,17 +245,6 @@ FElupe: `fem.extended_tube`
 | `Ge` (Ge) | number ≥ 0 | yes | Constraint (tube) modulus. Default `0.2169`. |
 | `beta` (β) | number > 0, ≤ 1 | yes | Exponent of the tube constraint. Default `0.2`. |
 | `bulk` (K) | number > 0 |  | Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation. |
-
-#### Linear elastic (large strain) (`model: "LinearElasticLargeStrain"`)
-
-Linear-elastic material formulated for large deformations (fem.LinearElasticLargeStrain).
-
-FElupe: `fem.LinearElasticLargeStrain`
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `E` (E) | number > 0 | yes | Young's modulus. Default `1`. |
-| `nu` (ν) | number ≥ -1, < 0.5 | yes | Poisson's ratio. Default `0.3`. |
 
 #### Linear elastic (`model: "LinearElastic"`)
 

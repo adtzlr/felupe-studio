@@ -217,7 +217,10 @@ describe("complete", () => {
 
   it("offers templates with the defaults, one per material model", () => {
     const items = complete("material.add ", commands).items;
+    // in the order of the menus of the ribbon (#259)
     expect(items.map((i) => i.detail)).toEqual([
+      "Linear elastic (small strain)",
+      "Linear elastic (large strain)",
       "Neo-Hooke",
       "Neo-Hooke (compressible)",
       "Mooney-Rivlin",
@@ -226,16 +229,18 @@ describe("complete", () => {
       "Ogden",
       "Arruda-Boyce",
       "Extended tube",
-      "Linear elastic (large strain)",
       "Linear elastic",
       "Elastic-plastic, isotropic hardening",
     ]);
     // lists of values in the template of Ogden (#136)
-    expect(items[5].value).toBe(
+    expect(items[7].value).toBe(
       '{"name":"material_1","model":"Ogden","parameters":{"mu":[1,0.2],"alpha":[1.7,-1.5]}}',
     );
-    expect(items[0].value).toBe(
+    expect(items[2].value).toBe(
       '{"name":"material_1","model":"NeoHooke","parameters":{"mu":1}}',
+    );
+    expect(items[0].value).toBe(
+      '{"name":"material_1","model":"LinearElasticSmallStrain","parameters":{"E":1,"nu":0.3}}',
     );
     expect(labels("job.add ")).toEqual([
       '{"name":"job_1","steps":["step_1"]}'.replace("job_1", "job_2"),
@@ -251,7 +256,7 @@ describe("complete", () => {
     );
     expect(line).toBe("material.add ");
     const completion = complete(line, commands);
-    line = accept(line, completion, completion.items[8]);
+    line = accept(line, completion, completion.items[1]);
     expect(line).toBe(
       'material.add {"name":"material_1","model":"LinearElasticLargeStrain","parameters":{"E":1,"nu":0.3}}',
     );

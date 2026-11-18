@@ -118,6 +118,18 @@ function currentVariant(spec: FieldSpec, value: unknown): string {
     .value;
 }
 
+/** Consecutive options of the same group, e.g. the kinds of materials (#259). */
+function optionGroups<T extends { group?: string }>(options: readonly T[]) {
+  const groups: { group?: string; options: T[] }[] = [];
+  for (const option of options) {
+    const last = groups.at(-1);
+    if (last && option.group && last.group === option.group)
+      last.options.push(option);
+    else groups.push({ group: option.group, options: [option] });
+  }
+  return groups;
+}
+
 /** The tooltip of a label: the key of a symbol (e.g. C10 of C₁₀), or the schema. */
 const tooltip = (spec: FieldSpec) =>
   spec.symbolOf
@@ -382,11 +394,21 @@ export function CommandForm({
               change(spec, input.seeds[event.currentTarget.value])
             }
           >
-            {input.options.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
+            {optionGroups(input.options).map(({ group, options }) => {
+              const items = options.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ));
+              // the groups of the menus of the ribbon, e.g. of the materials (#259)
+              return group ? (
+                <optgroup key={`group-${group}`} label={group}>
+                  {items}
+                </optgroup>
+              ) : (
+                items
+              );
+            })}
           </select>
         );
       case "multichoice": {

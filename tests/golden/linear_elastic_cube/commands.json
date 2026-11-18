@@ -1,0 +1,66 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "model.settings",
+      "name": "settings",
+      "units": {
+        "length": "mm",
+        "force": "N"
+      }
+    },
+    {
+      "command": "mesh.import",
+      "name": "cube",
+      "file": "cube.vtu"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "all_cells",
+      "mesh": "cube"
+    },
+    {
+      "command": "material.add",
+      "name": "steel",
+      "model": "LinearElasticSmallStrain",
+      "parameters": {
+        "E": 210000,
+        "nu": 0.3
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "body",
+      "cellset": "all_cells",
+      "material": "steel",
+      "formulation": "u"
+    },
+    {
+      "command": "loadcase.add",
+      "name": "tension",
+      "type": "uniaxial"
+    },
+    {
+      "command": "step.add",
+      "name": "loading",
+      "ramp": {
+        "num": 4,
+        "items": [
+          {
+            "target": "tension",
+            "end": 0.002
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "loading"
+      ],
+      "curve": "tension",
+      "tol": 1.49e-08
+    }
+  ]
+}

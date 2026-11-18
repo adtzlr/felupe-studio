@@ -517,6 +517,25 @@ def test_plasticity_like_linear_hardening(tmp_path, monkeypatch):
     np.testing.assert_allclose(statevars[0], remaining, rtol=1e-10)
 
 
+def test_linear_elastic_small_strain_like_hooke(tmp_path, monkeypatch):
+    # the linear elastic material of small strains (fem.LinearElastic, #259) under
+    # uniaxial tension: the stress E u, and the curve of the strain-based linear
+    # elastic material in the framework of small strains
+    E = 210000.0
+    curve = json.loads(
+        (HERE / "linear_elastic_cube" / "results.json").read_text(encoding="utf-8")
+    )["jobs"]["job_1"]
+    u, force = np.array(curve["displacement"]), np.array(curve["force"])
+    np.testing.assert_allclose(force, E * u, rtol=1e-10)
+
+    document = load("linear_elastic_cube")
+    for cmd in document["commands"]:
+        if cmd["command"] == "material.add":
+            cmd.update(model="LinearElastic", framework="small-strain")
+    strain = evaluate("linear_elastic_cube", tmp_path, monkeypatch, document)
+    np.testing.assert_allclose(strain["jobs"]["job_1"]["force"], force, rtol=1e-10)
+
+
 @pytest.mark.parametrize(
     "framework",
     [
