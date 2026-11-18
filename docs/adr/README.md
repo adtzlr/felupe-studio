@@ -17,5 +17,6 @@ Short records of decisions that shape felupe-studio. A record is changed by a ne
 | [0011](0011-rigid-surfaces-and-contacts.md) | Rigid surfaces and contacts    | Accepted |
 | [0012](0012-mcp-server.md)                  | An MCP server for AI agents    | Accepted |
 | [0013](0013-expressions-of-parameters.md)   | Expressions of parameters      | Accepted |
+| [0014](0014-local-python-runtime.md)        | A local Python runtime         | Accepted |
 
 Template: Context, Decision, Consequences, Alternatives.
