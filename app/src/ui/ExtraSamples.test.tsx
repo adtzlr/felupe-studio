@@ -13,6 +13,7 @@ import { Welcome } from "./Welcome";
 
 // the samples of EXTRA_SAMPLES_DIR of a build (#255)
 vi.mock("virtual:extra-samples", () => ({
+  builtIn: true,
   default: [
     {
       id: "seal-ring",

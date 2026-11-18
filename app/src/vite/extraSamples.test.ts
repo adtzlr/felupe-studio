@@ -1,13 +1,30 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  builtInSamples,
+  ExtraSamplesError,
   extraSamples,
   PLACEHOLDER,
   readExtraSamples,
   titleOf,
 } from "./extraSamples";
+
+/** The list and the flag of the built-in samples of the virtual module. */
+function virtual(module: string) {
+  const [list, flag] = module.split("\n");
+  return {
+    list: JSON.parse(list.replace("export default ", "").slice(0, -1)),
+    builtIn: flag === "export const builtIn = true;",
+  };
+}
 
 const samples = join(__dirname, "../../public/samples");
 
@@ -126,8 +143,8 @@ describe("extra samples (#255)", () => {
       (hook as (...a: unknown[]) => unknown).call(context, ...args);
     call(plugin.buildStart);
     const resolved = call(plugin.resolveId, "virtual:extra-samples") as string;
-    const module = call(plugin.load, resolved) as string;
-    const list = JSON.parse(module.replace("export default ", "").slice(0, -1));
+    const { list, builtIn } = virtual(call(plugin.load, resolved) as string);
+    expect(builtIn).toBe(true);
     expect(list.map((s: { id: string }) => s.id)).toEqual([
       "my-plate",
       "seal_ring",
@@ -147,6 +164,100 @@ describe("extra samples (#255)", () => {
     // without a folder, no extra samples
     const none = extraSamples(undefined);
     call(none.buildStart);
-    expect(call(none.load, resolved)).toBe("export default [];");
+    expect(virtual(call(none.load, resolved) as string).list).toEqual([]);
+  });
+});
+
+describe("a build without the built-in samples (#279)", () => {
+  it("reads BUILT_IN_SAMPLES", () => {
+    for (const value of [undefined, "", "true", "1", "YES"])
+      expect(builtInSamples(value)).toBe(true);
+    for (const value of ["false", "0", "no", " False "])
+      expect(builtInSamples(value)).toBe(false);
+    expect(() => builtInSamples("off")).toThrow(ExtraSamplesError);
+    expect(() => builtInSamples("off")).toThrow(
+      "BUILT_IN_SAMPLES: 'off' is not one of true, false, 1, 0, yes or no.",
+    );
+  });
+
+  it("has only the extra samples, in the module, the build and in dev", () => {
+    // an extra sample may take the id of a built-in one without them
+    const extra = folder();
+    mkdirSync(join(extra, "bushing"));
+    for (const file of ["model.felupe.json", "block.vtu"])
+      writeFileSync(
+        join(extra, "bushing", file),
+        readFileSync(join(extra, "my-plate", file)),
+      );
+    expect(() => readExtraSamples(extra)).toThrow("taken by a built-in");
+    const plugin = extraSamples(extra, "false");
+    const context = {
+      error: (message: string) => {
+        throw new Error(message);
+      },
+      emitFile: () => "",
+    };
+    const call = (hook: unknown, ...args: unknown[]) =>
+      (hook as (...a: unknown[]) => unknown).call(context, ...args);
+    // public/ with a built-in sample, another folder and a file of the app
+    const root = mkdtempSync(join(tmpdir(), "app-"));
+    const publicDir = join(root, "public");
+    mkdirSync(join(publicDir, "samples", "glued-plate"), { recursive: true });
+    mkdirSync(join(publicDir, "samples", "notes"), { recursive: true });
+    writeFileSync(join(publicDir, "samples", "glued-plate", "block.vtu"), "");
+    writeFileSync(join(publicDir, "samples", "notes", "a.txt"), "");
+    writeFileSync(join(publicDir, "sw.js"), "public");
+    // a file of the bundle, which public/ does not overwrite
+    mkdirSync(join(root, "dist"));
+    writeFileSync(join(root, "dist", "sw.js"), "bundle");
+    expect(call(plugin.config)).toEqual({ build: { copyPublicDir: false } });
+    call(plugin.configResolved, { publicDir, root, build: { outDir: "dist" } });
+    call(plugin.buildStart);
+    const resolved = call(plugin.resolveId, "virtual:extra-samples") as string;
+    const { list, builtIn } = virtual(call(plugin.load, resolved) as string);
+    expect(builtIn).toBe(false);
+    expect(list.map((s: { id: string }) => s.id)).toEqual([
+      "bushing",
+      "my-plate",
+      "seal_ring",
+    ]);
+    call(plugin.writeBundle);
+    const dist = join(root, "dist");
+    expect(existsSync(join(dist, "samples", "glued-plate"))).toBe(false);
+    expect(existsSync(join(dist, "samples", "notes", "a.txt"))).toBe(true);
+    expect(readFileSync(join(dist, "sw.js"), "utf-8")).toBe("bundle");
+    // the development server does not serve the built-in samples
+    let middleware: (
+      request: { url: string },
+      response: {
+        statusCode: number;
+        setHeader: () => void;
+        end: (body?: unknown) => void;
+      },
+      next: () => void,
+    ) => void = () => {};
+    call(plugin.configureServer, {
+      middlewares: { use: (m: typeof middleware) => (middleware = m) },
+    });
+    const get = (url: string) => {
+      const response = {
+        statusCode: 200,
+        body: undefined as unknown,
+        setHeader: () => {},
+        end: (body?: unknown) => (response.body = body),
+      };
+      let passed = false;
+      middleware({ url }, response, () => (passed = true));
+      return { status: response.statusCode, passed, body: response.body };
+    };
+    expect(get("/samples/glued-plate/block.vtu")).toMatchObject({
+      status: 404,
+      passed: false,
+    });
+    expect(get("/samples/bushing/block.vtu")).toMatchObject({ status: 200 });
+    expect(get("/index.html")).toMatchObject({ passed: true });
+    // with them (the default), public/ is copied by Vite as before
+    const plain = extraSamples(undefined, undefined);
+    expect(call(plain.config)).toBeUndefined();
   });
 });

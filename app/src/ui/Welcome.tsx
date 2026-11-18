@@ -1,7 +1,7 @@
 // The welcome panel of an empty model (#127): how to start, and the samples with
 // their pictures.
 import { APP_NAME, LINKS } from "../app";
-import { EXTRA_SAMPLES, type Sample, SAMPLES } from "../core/samples";
+import { type Sample, sampleSections } from "../core/samples";
 import { Icon } from "./icons";
 import { SampleCard } from "./SampleCard";
 import { useOpening } from "./SamplesDialog";
@@ -14,6 +14,7 @@ interface Props {
 
 export function Welcome({ onImportMesh, onOpen, onOpenSample }: Props) {
   const { opening, open } = useOpening(onOpenSample);
+  const { samples, more } = sampleSections();
   return (
     <section class="welcome" aria-labelledby="welcome-title">
       <h2 id="welcome-title">Welcome to {APP_NAME}</h2>
@@ -32,22 +33,27 @@ export function Welcome({ onImportMesh, onOpen, onOpenSample }: Props) {
         </button>
         <span class="muted">or drop mesh files or a project file here</span>
       </div>
-      <h3 class="welcome-heading">Start from a sample</h3>
-      <ul class="sample-grid" aria-label="Samples">
-        {SAMPLES.map((sample) => (
-          <SampleCard
-            key={sample.id}
-            sample={sample}
-            opening={opening}
-            onOpen={open}
-          />
-        ))}
-      </ul>
-      {EXTRA_SAMPLES.length > 0 && (
+      {/* without samples in the build, no section (#279) */}
+      {samples.length > 0 && (
+        <>
+          <h3 class="welcome-heading">Start from a sample</h3>
+          <ul class="sample-grid" aria-label="Samples">
+            {samples.map((sample) => (
+              <SampleCard
+                key={sample.id}
+                sample={sample}
+                opening={opening}
+                onOpen={open}
+              />
+            ))}
+          </ul>
+        </>
+      )}
+      {more.length > 0 && (
         <>
           <h3 class="welcome-heading samples-heading">More samples</h3>
           <ul class="sample-grid" aria-label="More samples">
-            {EXTRA_SAMPLES.map((sample) => (
+            {more.map((sample) => (
               <SampleCard
                 key={sample.id}
                 sample={sample}

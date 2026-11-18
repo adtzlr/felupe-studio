@@ -10,9 +10,20 @@
 // The plugin copies the files to `samples/<id>/` of the build (and serves them in
 // dev), and the virtual module `virtual:extra-samples` lists them. This module runs
 // in Node (the config of Vite), not in the app.
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+//
+// `BUILT_IN_SAMPLES=false` builds the app without the built-in samples (#279), e.g.
+// with only the private samples of EXTRA_SAMPLES_DIR: the virtual module says so
+// (`builtIn`), the build leaves out their folders of public/samples and the
+// development server does not serve them.
+import {
+  cpSync,
+  existsSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+} from "node:fs";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import type { Plugin } from "vite";
 import { parse, ProjectError } from "../core/project";
 import type { Sample } from "../core/samples";
@@ -36,6 +47,22 @@ export class ExtraSamplesError extends Error {}
 const fail = (message: string): never => {
   throw new ExtraSamplesError(`EXTRA_SAMPLES_DIR: ${message}`);
 };
+
+/**
+ * Whether the build has the built-in samples (#279): yes by default, no with
+ * `BUILT_IN_SAMPLES` false, 0 or no. Throws an `ExtraSamplesError` for another value.
+ */
+export function builtInSamples(value: string | undefined): boolean {
+  const text = (value ?? "").trim().toLowerCase();
+  if (["", "true", "1", "yes"].includes(text)) return true;
+  if (["false", "0", "no"].includes(text)) return false;
+  throw new ExtraSamplesError(
+    `BUILT_IN_SAMPLES: '${value}' is not one of true, false, 1, 0, yes or no.`,
+  );
+}
+
+/** The ids of the built-in samples. */
+export const BUILT_IN_IDS: readonly string[] = builtIn.map((s) => s.id);
 
 /** The title of a sample from its id, e.g. "Engine mount" of "engine-mount". */
 export function titleOf(id: string): string {
@@ -90,7 +117,7 @@ function filesOf(id: string, folder: string): string[] {
  */
 export function readExtraSamples(
   dir: string,
-  taken: readonly string[] = builtIn.map((s) => s.id),
+  taken: readonly string[] = BUILT_IN_IDS,
 ): ExtraSample[] {
   const root = resolve(dir.replace(/^~(?=$|[\\/])/, homedir()));
   if (!existsSync(root) || !statSync(root).isDirectory())
@@ -143,16 +170,39 @@ function content(sample: ExtraSample, file: string): string | Buffer {
 /** The files of a sample that the app loads. */
 const served = (sample: ExtraSample) => [PROJECT, THUMBNAIL, ...sample.files];
 
-/** The plugin of Vite: the virtual module, the files in the build and in dev. */
+/**
+ * The plugin of Vite: the virtual module, the files in the build and in dev. With
+ * `builtIns` false (`BUILT_IN_SAMPLES=false`, #279), without the built-in samples.
+ */
 export function extraSamples(
   dir: string | undefined = process.env.EXTRA_SAMPLES_DIR,
+  builtIns: string | undefined = process.env.BUILT_IN_SAMPLES,
 ): Plugin {
   let samples: ExtraSample[] = [];
+  let withBuiltIn = true;
+  let publicDir = "";
+  let outDir = "";
+  /** A path of a built-in sample of public/samples, left out without them. */
+  const builtInPath = (path: string) => {
+    const [folder, id] = relative(publicDir, path).split(sep);
+    return folder === "samples" && BUILT_IN_IDS.includes(id);
+  };
   return {
     name: "extra-samples",
+    config() {
+      withBuiltIn = builtInSamples(builtIns);
+      // without the built-in samples, the plugin copies public/ itself (#279)
+      return withBuiltIn ? undefined : { build: { copyPublicDir: false } };
+    },
+    configResolved(config) {
+      publicDir = config.publicDir;
+      outDir = resolve(config.root, config.build.outDir);
+    },
     buildStart() {
       try {
-        samples = dir ? readExtraSamples(dir) : [];
+        samples = dir
+          ? readExtraSamples(dir, withBuiltIn ? BUILT_IN_IDS : [])
+          : [];
       } catch (error) {
         this.error((error as Error).message);
       }
@@ -167,7 +217,19 @@ export function extraSamples(
         topics: s.topics,
         files: s.files,
       }));
-      return `export default ${JSON.stringify(list)};`;
+      return (
+        `export default ${JSON.stringify(list)};\n` +
+        `export const builtIn = ${withBuiltIn};`
+      );
+    },
+    writeBundle() {
+      // public/ without the built-in samples; the files of the bundle stay (#279)
+      if (withBuiltIn || !publicDir || !existsSync(publicDir)) return;
+      cpSync(publicDir, outDir, {
+        recursive: true,
+        force: false,
+        filter: (path) => !builtInPath(path),
+      });
     },
     generateBundle() {
       for (const sample of samples)
@@ -183,6 +245,16 @@ export function extraSamples(
         const path = decodeURIComponent((request.url ?? "").split("?")[0]);
         const match = /\/samples\/([^/]+)\/(.+)$/.exec(path);
         const sample = samples.find((s) => s.id === match?.[1]);
+        if (
+          match &&
+          !sample &&
+          !withBuiltIn &&
+          BUILT_IN_IDS.includes(match[1])
+        ) {
+          // the built-in samples are left out (#279)
+          response.statusCode = 404;
+          return response.end();
+        }
         if (!match || !sample || !served(sample).includes(match[2]))
           return next();
         const type = match[2].endsWith(".svg") ? "image/svg+xml" : undefined;

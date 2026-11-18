@@ -6,6 +6,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Added
 
+- A build without the built-in samples: `BUILT_IN_SAMPLES=false` (with `EXTRA_SAMPLES_DIR`, e.g. for a deployment with only private samples) leaves them out of the app and of the build output; the extra samples are then the samples, without the section *More samples*. Without any samples, the welcome panel has no samples and *File ▸ Samples…* is gone. Without the parameter, the build is unchanged (#279).
 - A long press picks like Shift+click: hold the pointer still for half a second to cycle a single face or to add a node, also on a touch screen without Shift. A ring at the pointer shows it; a drag (a rotation) or a second finger cancels it. On a touch screen the hints speak of taps and long presses, e.g. *Long-press single faces* and *tap again to exclude* (#273).
 
 ### Changed

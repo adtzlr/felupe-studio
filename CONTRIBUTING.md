@@ -56,6 +56,13 @@ my-samples/
 - *File ▸ Samples…* and the welcome panel show the extra samples in their own section *More samples*, after the built-in ones. They open like the built-in samples. The build copies them to `samples/<id>/` of `dist`; the development server serves them.
 - Errors fail the build with a message that starts with `EXTRA_SAMPLES_DIR:`: the folder does not exist, a sample has no `model.felupe.json` or an invalid one, a mesh file or script is missing, an entry of `samples.json` has no folder, or an id is taken by a built-in sample.
 - Without `EXTRA_SAMPLES_DIR` the build is unchanged. The tests check the built-in samples only.
+- **Without the built-in samples** (#279): `BUILT_IN_SAMPLES=false` (or `0`, `no`) leaves them out of the build, e.g. for a deployment with only its own samples:
+
+  ```bash
+  cd app && BUILT_IN_SAMPLES=false EXTRA_SAMPLES_DIR=~/my-samples npm run build
+  ```
+
+  The extra samples are then the samples: the welcome panel and *File ▸ Samples…* show them without the section *More samples*, and an extra sample may take the id of a built-in one. The build leaves out the folders of the built-in samples of `public/samples`, and the development server does not serve them. Without any samples, the welcome panel has no samples and *File ▸ Samples…* is gone. Another value of `BUILT_IN_SAMPLES` fails the build.
 
 The extra samples are part of the build output: deploy a private build privately. The GitHub Pages of a private repository are public unless access control is used.
 
