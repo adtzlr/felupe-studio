@@ -47,7 +47,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - run: pip install -e ".[test]" "felupe==${FELUPE_VERSION}"
+      - run: pip install -e ".[test,mcp]" "felupe==${FELUPE_VERSION}"
       - run: ruff check .
       - run: ruff format --check .
       - run: pytest -m "not golden"

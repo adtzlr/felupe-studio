@@ -30,12 +30,17 @@ let pyodide: PyodideInterface | undefined;
 /** Wheels that are loaded only when they are needed (e.g. tensortrax). */
 let lazyWheels: Record<string, string> = {};
 
-/** The package felupe_studio, written into the file system of Pyodide. */
-const SOURCES = import.meta.glob("../../../python/felupe_studio/*.{py,json}", {
-  query: "?raw",
-  import: "default",
-  eager: true,
-}) as Record<string, string>;
+/**
+ * The package felupe_studio, written into the file system of Pyodide, without its
+ * MCP server (#239), which needs a local process.
+ */
+const SOURCES = import.meta.glob(
+  [
+    "../../../python/felupe_studio/*.{py,json}",
+    "!../../../python/felupe_studio/mcp.py",
+  ],
+  { query: "?raw", import: "default", eager: true },
+) as Record<string, string>;
 
 const HOME = "/home/pyodide";
 /** Working directory of Python: the mesh files of the project. */
