@@ -23,8 +23,11 @@ dependencies = ["felupe>=12.1.0", "meshio", "tensortrax>=0.30.0", "jsonschema>=4
 test = ["pytest", "ruff"]
 # the MCP server for AI agents (#239)
 mcp = ["mcp>=2.3"]
+# the app with a local Python runtime: felupe-studio serve (#240)
+serve = ["starlette>=0.40", "uvicorn>=0.30", "websockets>=13"]
 
 [project.scripts]
+felupe-studio = "felupe_studio.cli:main"
 felupe-studio-mcp = "felupe_studio.mcp:main"
 
 [project.urls]

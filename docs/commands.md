@@ -359,6 +359,15 @@ The app keeps the current project in the browser, so that a reload (or a crash o
 - On start, the last session is restored if the model is still empty; the mesh files are written into the worker and inspected again.
 - **File ▸ New project** starts an empty project and clears the kept session; with unsaved changes it asks first. The data stays in this browser only: save the project (file or archive) to keep it elsewhere. The file name of the session also keeps the format of the project (#150).
 
+## Local Python runtime
+
+`felupe-studio serve` (#240, ADR 0014, `pip install "felupe-studio[serve]"`) serves the built app on `127.0.0.1` (port 8765, `--port`; `--no-browser`; `--app <dist>`, default the app of the package or `app/dist` of a clone) and runs the Python side with CPython. It prints the URL with a token and opens it.
+
+- `felupe_studio.serve` is a Starlette app: `/` and `/index.html` with `<meta name="felupe-studio-runtime" content="python" />`, the files of the app, and the WebSocket `/runtime`. Only the hosts `127.0.0.1` and `localhost` are accepted (`TrustedHostMiddleware`, against DNS rebinding); the WebSocket needs `?token=` and, if it has an `Origin`, the own origin (else it is closed before it is accepted: HTTP 403). uvicorn takes frames up to 2 GiB, uncompressed.
+- Every connection starts a process (`multiprocessing`, spawn) with a temporary folder: `felupe_studio.runtime.session()` imports FElupe, sends `ready` with the versions (`runtime: "python"`, `felupe_studio`) and answers the requests with `handle()`: the messages of `app/src/worker/protocol.ts` and the functions that the worker calls (`meshes.load`, `make_json`, `export_json`, `runner.run_json` with its reports, `script`, `script_view`, `results.scene`, `ranges`, `export`, `benchmark`). An error is an `error` with the traceback. A closed connection ends the process, also a running job, and removes its folder.
+- Frames (`encode()`, `decode()`): a message without bytes is JSON text; with bytes a binary frame: the length of the header (4 bytes, little-endian), the header `{"message": …, "buffers": [[offset, length], …]}` with `{"$bytes": i}` in place of the i-th buffer, padded with spaces, then the buffers, each padded to 8 bytes.
+- The Pyodide worker leaves `runtime.py`, `serve.py`, `cli.py` and `__main__.py` out, like `mcp.py`.
+
 ## Samples (app)
 
 **File ▸ Samples…** and the welcome panel of an empty model (#127) list finished models with a picture; **Open** loads one like a project file with its mesh files, as a project archive `<id>.felupe.zip` (#150; a sample replaces the current model; the dialog warns about unsaved changes).
