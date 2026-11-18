@@ -4,7 +4,7 @@
 import type { Command, PointSetAdd } from "./commands";
 import { analysisOf, analysisProblems, is2d } from "./analysis";
 import { loadcaseFieldErrors, loadcaseProblems } from "./loadcases";
-import { materialProblems, needsBulk } from "./materials";
+import { materialProblems, needsBulk, strainBased } from "./materials";
 import { parameterProblems } from "./parameters";
 import {
   NAME_MAX_LENGTH,
@@ -394,6 +394,18 @@ export function validate(commands: readonly Command[]): Issue[] {
         add(
           `section '${name}' uses the displacement formulation with ${material.model} ` +
             `'${material.name}' without a bulk modulus. Add 'bulk' to the material or use 'u-p-J'.`,
+          "formulation",
+        );
+      }
+    }
+
+    // a strain-based material has no strain energy for the u-p-J formulation
+    if (cmd.command === "section.add" && cmd.formulation === "u-p-J") {
+      const material = defined.get(cmd.material)?.[1];
+      if (material?.command === "material.add" && strainBased(material)) {
+        add(
+          `section '${name}' uses the u-p-J formulation with the strain-based ` +
+            `${material.model} '${material.name}'. Use the displacement formulation 'u'.`,
           "formulation",
         );
       }

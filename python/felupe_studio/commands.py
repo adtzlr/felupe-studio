@@ -304,7 +304,7 @@ def selects_point(select, point):
 def _reference_errors(commands):
     # the registries read the schema of this module
     from .loadcases import problems as loadcase_problems
-    from .materials import needs_bulk
+    from .materials import needs_bulk, strain_based
     from .materials import problems as material_problems
 
     keywords, reserved_names, reserved_prefixes = reserved()
@@ -408,6 +408,16 @@ def _reference_errors(commands):
                     f"formulation with {material['model']} '{material['name']}' "
                     "without a bulk modulus. Add 'bulk' to the material or use "
                     "'u-p-J'."
+                )
+
+        # a strain-based material has no strain energy for the u-p-J formulation
+        if cmd["command"] == "section.add" and cmd["formulation"] == "u-p-J":
+            material = defined.get(cmd["material"], (None, {}))[1]
+            if material.get("command") == "material.add" and strain_based(material):
+                messages.append(
+                    f"commands/{i}: section '{name}' uses the u-p-J formulation with "
+                    f"the strain-based {material['model']} '{material['name']}'. "
+                    "Use the displacement formulation 'u'."
                 )
 
         if cmd["command"] == "loadcase.add":

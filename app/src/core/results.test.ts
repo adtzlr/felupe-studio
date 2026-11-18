@@ -154,4 +154,16 @@ describe("quantities of the contour", () => {
       ids([]).filter((id) => id !== "displacement_z"),
     );
   });
+
+  it("has the equivalent plastic strain with plasticity (#191)", () => {
+    const material = (model: string) =>
+      [
+        { command: "material.add", name: "m", model, parameters: {} },
+      ] as unknown as Command[];
+    expect(ids([])).not.toContain("plastic_strain");
+    expect(ids(material("LinearElastic"))).not.toContain("plastic_strain");
+    expect(ids(material("LinearElasticPlasticIsotropicHardening")).at(-1)).toBe(
+      "plastic_strain",
+    );
+  });
 });

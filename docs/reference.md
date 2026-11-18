@@ -235,6 +235,34 @@ FElupe: `fem.LinearElasticLargeStrain`
 | `E` (E) | number > 0 | yes | Young's modulus. Default `1`. |
 | `nu` (ν) | number ≥ -1, < 0.5 | yes | Poisson's ratio. Default `0.3`. |
 
+#### Linear elastic (`model: "LinearElastic"`)
+
+Linear-elastic material in terms of a strain (fem.MaterialStrain with fem.linear_elastic) in a framework: small strain or Total Lagrange. It needs the displacement formulation u.
+
+FElupe: `fem.MaterialStrain` of `fem.linear_elastic`
+
+Framework (`framework`): `small-strain`, `total-lagrange`, default `small-strain`.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `E` (E) | number > 0 | yes | Young's modulus (converted with ν into the Lamé constants λ and μ). Default `210000`. |
+| `nu` (ν) | number ≥ -1, < 0.5 | yes | Poisson's ratio. Default `0.3`. |
+
+#### Elastic-plastic, isotropic hardening (`model: "LinearElasticPlasticIsotropicHardening"`)
+
+Linear-elastic-plastic material with linear isotropic hardening (fem.MaterialStrain with fem.linear_elastic_plastic_isotropic_hardening, the return mapping algorithm of von Mises plasticity) in a framework: small strain or Total Lagrange. Its state variables are the equivalent plastic strain and the plastic strain tensor. It needs the displacement formulation u.
+
+FElupe: `fem.MaterialStrain` of `fem.linear_elastic_plastic_isotropic_hardening`, state variables `(1, (3, 3))`
+
+Framework (`framework`): `small-strain`, `total-lagrange`, default `small-strain`.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `E` (E) | number > 0 | yes | Young's modulus (converted with ν into the Lamé constants λ and μ). Default `210000`. |
+| `nu` (ν) | number ≥ -1, < 0.5 | yes | Poisson's ratio. Default `0.3`. |
+| `sigma_y` (σy) | number > 0 | yes | Initial yield stress (uniaxial). Default `250`. |
+| `K` (K) | number ≥ 0 | yes | Isotropic hardening modulus: the yield stress grows by K times the equivalent plastic strain. Default `1000`. |
+
 ### `section.add`
 
 Assign a material and a formulation to a cell set. Each section becomes a solid body.

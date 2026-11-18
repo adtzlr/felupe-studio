@@ -180,7 +180,9 @@ export type Quantity =
   | "stress_max"
   | "stress_mid"
   | "stress_min"
-  | "stress_mises";
+  | "stress_mises"
+  /** The equivalent plastic strain of an elastic-plastic material (#191). */
+  | "plastic_strain";
 
 /**
  * The method of the values of the strains and the stresses (#231,

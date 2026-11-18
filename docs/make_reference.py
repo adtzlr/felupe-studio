@@ -224,9 +224,22 @@ def _variants(name, node, command):
         if description:
             out.append(description)
         felupe = resolved.get("x-felupe")
-        if isinstance(felupe, dict) and felupe:
+        if isinstance(felupe, dict) and "strain" in felupe:
+            # a strain-based material (#191): fem.MaterialStrain of a function
+            statevars = felupe.get("statevars")
+            out.append(
+                f"FElupe: `fem.MaterialStrain` of `{felupe['strain']}`"
+                + (f", state variables `{statevars}`" if statevars else "")
+            )
+        elif isinstance(felupe, dict) and felupe:
             functions = [f"`{v}`" for v in felupe.values() if isinstance(v, str)]
             out.append("FElupe: " + ", ".join(functions))
+        framework = resolved.get("properties", {}).get("framework")
+        if framework:
+            choices = ", ".join(f"`{v}`" for v in framework["enum"])
+            out.append(
+                f"Framework (`framework`): {choices}, default `{framework['default']}`."
+            )
         params = resolved.get("properties", {}).get("parameters")
         if params:
             rows = []

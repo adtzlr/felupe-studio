@@ -50,7 +50,9 @@ export type MaterialAdd =
   | MaterialOgden
   | MaterialArrudaBoyce
   | MaterialExtendedTube
-  | MaterialLinearElasticLargeStrain;
+  | MaterialLinearElasticLargeStrain
+  | MaterialLinearElastic
+  | MaterialLinearElasticPlasticIsotropicHardening;
 /**
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "Axis".
@@ -549,6 +551,64 @@ export interface MaterialLinearElasticLargeStrain {
      * Poisson's ratio
      */
     nu: number;
+  };
+}
+/**
+ * Linear-elastic material in terms of a strain (fem.MaterialStrain with fem.linear_elastic) in a framework: small strain or Total Lagrange. It needs the displacement formulation u.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MaterialLinearElastic".
+ */
+export interface MaterialLinearElastic {
+  command: "material.add";
+  name: Name;
+  model: "LinearElastic";
+  /**
+   * The framework of the strain and the stress of the material (fem.MaterialStrain): small-strain (the symmetric part of the displacement gradient and the Cauchy stress) or total-lagrange (the Green-Lagrange strain and the second Piola-Kirchhoff stress, for large rotations with small strains).
+   */
+  framework?: "small-strain" | "total-lagrange";
+  parameters: {
+    /**
+     * Young's modulus (converted with ν into the Lamé constants λ and μ)
+     */
+    E: number;
+    /**
+     * Poisson's ratio
+     */
+    nu: number;
+  };
+}
+/**
+ * Linear-elastic-plastic material with linear isotropic hardening (fem.MaterialStrain with fem.linear_elastic_plastic_isotropic_hardening, the return mapping algorithm of von Mises plasticity) in a framework: small strain or Total Lagrange. Its state variables are the equivalent plastic strain and the plastic strain tensor. It needs the displacement formulation u.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MaterialLinearElasticPlasticIsotropicHardening".
+ */
+export interface MaterialLinearElasticPlasticIsotropicHardening {
+  command: "material.add";
+  name: Name;
+  model: "LinearElasticPlasticIsotropicHardening";
+  /**
+   * The framework of the strain and the stress of the material (fem.MaterialStrain): small-strain (the symmetric part of the displacement gradient and the Cauchy stress) or total-lagrange (the Green-Lagrange strain and the second Piola-Kirchhoff stress, for large rotations with small strains).
+   */
+  framework?: "small-strain" | "total-lagrange";
+  parameters: {
+    /**
+     * Young's modulus (converted with ν into the Lamé constants λ and μ)
+     */
+    E: number;
+    /**
+     * Poisson's ratio
+     */
+    nu: number;
+    /**
+     * Initial yield stress (uniaxial)
+     */
+    sigma_y: number;
+    /**
+     * Isotropic hardening modulus: the yield stress grows by K times the equivalent plastic strain
+     */
+    K: number;
   };
 }
 /**

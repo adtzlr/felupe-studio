@@ -5,20 +5,35 @@ import felupe as fem
 import numpy as np
 import pytest
 
-from felupe_studio.materials import material_call, models, needs_bulk, problems
+from felupe_studio.materials import (
+    lame_call,
+    material_call,
+    models,
+    needs_bulk,
+    problems,
+    strain_based,
+)
 
 DOCS = Path(__file__).parents[1] / "docs" / "commands.md"
 MODELS = list(models())
 
 
-def create(model, **changes):
+def create(model, framework=None, **changes):
     """The material of a model with its defaults (and a bulk modulus if optional)."""
     parameters = {p.key: p.default for p in models()[model].parameters if p.default}
     if models()[model].optional_bulk:
         parameters["bulk"] = 5000.0
     parameters.update(changes)
-    func, args, volumetric = material_call({"model": model, "parameters": parameters})
-    umat = eval(f"{func}({', '.join(args)})", {"fem": fem})
+    material = {"model": model, "parameters": parameters}
+    if framework:
+        material["framework"] = framework
+    func, args, volumetric = material_call(material)
+    namespace = {"fem": fem}
+    lame = lame_call(material)
+    if lame is not None:
+        # the Lamé constants λ and μ of a strain-based material (#191)
+        exec(f"λ, μ = fem.constitution.lame_converter({', '.join(lame)})", namespace)
+    umat = eval(f"{func}({', '.join(args)})", namespace)
     if volumetric:
         umat = umat & eval(f"fem.Volumetric({', '.join(volumetric)})", {"fem": fem})
     return umat
@@ -35,6 +50,8 @@ def test_models():
         "ArrudaBoyce",
         "ExtendedTube",
         "LinearElasticLargeStrain",
+        "LinearElastic",
+        "LinearElasticPlasticIsotropicHardening",
     ]
 
 
@@ -45,15 +62,29 @@ def test_parameters_of_felupe(name):
     keys = set(inspect.signature(call).parameters)
     for p in model.parameters:
         assert p.label and p.description
-        assert p.volumetric or p.key in keys, f"{name}: {p.key} not in {keys}"
+        key = p.argument or p.key
+        assert p.volumetric or p.lame or key in keys, f"{name}: {key} not in {keys}"
         assert p.required == (p.default is not None)
+    # the Young's modulus and the Poisson's ratio of a strain-based model are its
+    # Lamé constants (#191)
+    if model.strain:
+        assert {"λ", "μ"} <= keys
+        assert [p.key for p in model.parameters if p.lame] == ["E", "nu"]
+
+
+def state(umat):
+    """The state variables of a material at a point (none of most models)."""
+    statevars = getattr(umat, "x", [None, None])[1]
+    if statevars is None:
+        return None
+    return np.zeros((*np.shape(statevars), 1, 1))
 
 
 @pytest.mark.parametrize("name", MODELS)
 def test_defaults_are_stress_free_and_stable(name):
     umat = create(name)
     identity = np.eye(3).reshape(3, 3, 1, 1)
-    (stress,) = umat.gradient([identity, None])[:1]
+    (stress,) = umat.gradient([identity, state(umat)])[:1]
     # the models of the principal stretches perturb equal stretches (tensortrax)
     np.testing.assert_allclose(stress, 0, atol=1e-7)
 
@@ -61,8 +92,53 @@ def test_defaults_are_stress_free_and_stable(name):
     gamma = 1e-6
     sheared = identity.copy()
     sheared[0, 1] = gamma
-    (stress,) = umat.gradient([sheared, None])[:1]
+    (stress,) = umat.gradient([sheared, state(umat)])[:1]
     assert stress[0, 1, 0, 0] / gamma > 0
+
+
+@pytest.mark.parametrize("framework", ["small-strain", "total-lagrange"])
+def test_strain_based_materials(framework):
+    # fem.MaterialStrain with the Lamé constants of E and ν, in a framework (#191)
+    parameters = {"E": 210000.0, "nu": 0.3, "sigma_y": 250.0, "K": 1000.0}
+    material = {
+        "model": "LinearElasticPlasticIsotropicHardening",
+        "framework": framework,
+        "parameters": parameters,
+    }
+    assert strain_based(material) and not needs_bulk(material)
+    assert lame_call(material) == ["E=210000.0", "nu=0.3"]
+    assert material_call(material) == (
+        "fem.MaterialStrain",
+        [
+            "fem.linear_elastic_plastic_isotropic_hardening",
+            "statevars=(1, (3, 3))",
+            f'framework="{framework}"',
+            "λ=λ",
+            "μ=μ",
+            "σy=250.0",
+            "K=1000.0",
+        ],
+        [],
+    )
+    umat = create(material["model"], framework, **parameters)
+    assert umat.framework == framework
+    lmbda, mu = fem.constitution.lame_converter(E=210000.0, nu=0.3)
+    assert umat.kwargs == {"λ": lmbda, "μ": mu, "σy": 250.0, "K": 1000.0}
+    # a uniaxial strain beyond the yield stress: the equivalent plastic strain (the
+    # first state variable) grows
+    F = np.eye(3).reshape(3, 3, 1, 1).copy()
+    F[0, 0] += 0.01
+    _, statevars = umat.gradient([F, state(umat)])
+    assert statevars[0, 0, 0] > 0
+    # the linear elastic model has no state variables of its own
+    linear = {"model": "LinearElastic", "parameters": {"E": 1.0, "nu": 0.0}}
+    assert material_call(linear)[1] == [
+        "fem.linear_elastic",
+        'framework="small-strain"',
+        "λ=λ",
+        "μ=μ",
+    ]
+    assert not strain_based({"model": "NeoHooke", "parameters": {"mu": 1.0}})
 
 
 def test_mooney_rivlin_with_c01_zero_is_neo_hooke():
