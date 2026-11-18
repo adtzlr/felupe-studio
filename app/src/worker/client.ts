@@ -9,6 +9,7 @@ import type {
   JobResult,
   LiveSettings,
   LoadTimings,
+  MeshFormat,
   MeshInfo,
   MeshSurface,
   Quantity,
@@ -193,6 +194,29 @@ export class PyodideClient {
   ): Promise<Uint8Array> {
     const message = await this.request(
       { type: "export-results", job, format, substep },
+      "bytes",
+    );
+    return new Uint8Array(
+      (message as Extract<FromWorker, { type: "bytes" }>).data,
+    );
+  }
+
+  /**
+   * A mesh of the project as a file of another format (#230): a mesh file, or the
+   * mesh of a script with its parameters (and an item).
+   */
+  async exportMesh(
+    file: string,
+    format: MeshFormat,
+    options: {
+      parameters?: Record<string, number>;
+      item?: string;
+      cellType?: string;
+      scale?: number;
+    } = {},
+  ): Promise<Uint8Array> {
+    const message = await this.request(
+      { type: "export-mesh", file, format, ...options },
       "bytes",
     );
     return new Uint8Array(
