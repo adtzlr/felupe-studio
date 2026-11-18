@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Command } from "./resolved";
-import { describeSolver, solverRtol } from "./solvers";
+import { describeSolver, roundoffNote, solverRtol } from "./solvers";
 
 type Job = Extract<Command, { command: "job.add" }>;
 
@@ -48,5 +48,34 @@ describe("the linear solver of a job (#203)", () => {
         }),
       ),
     ).toBe("gmres, rtol 1.49e-10, maxiter 200");
+  });
+});
+
+describe("roundoffNote", () => {
+  it("is none of a model in double precision", () => {
+    expect(roundoffNote(undefined)).toBeUndefined();
+  });
+
+  it("says the estimate of a model in single precision (#297)", () => {
+    expect(roundoffNote(null)).toEqual({
+      text: "Single precision (no reaction forces)",
+      warning: false,
+    });
+    expect(roundoffNote(0.0065043)).toEqual({
+      text: "Single precision: round-off 0.65 % of the reaction forces",
+      warning: false,
+    });
+    expect(roundoffNote(1e-7)?.text).toBe(
+      "Single precision: round-off < 0.01 % of the reaction forces",
+    );
+  });
+
+  it("warns from 1e-2 on, e.g. steel bonded to rubber", () => {
+    expect(roundoffNote(0.4267)).toEqual({
+      text:
+        "Single precision: the round-off of the forces may be 43 % of the " +
+        "reaction forces. Check the results in double precision (Model settings).",
+      warning: true,
+    });
   });
 });

@@ -188,6 +188,11 @@ export interface JobResult {
   time: number;
   x?: (number | null)[][];
   y?: (number | null)[][];
+  /**
+   * Of a model in single precision (#297): the estimate of the round-off of the
+   * forces relative to the reaction forces, null without reaction forces.
+   */
+  roundoff?: number | null;
 }
 
 /** A quantity of the results (`felupe_studio.results.QUANTITIES`). */

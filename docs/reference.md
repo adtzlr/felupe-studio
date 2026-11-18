@@ -50,6 +50,7 @@ The settings of the model, at most once. The units say what the numbers mean: FE
 | --- | --- | --- | --- |
 | `name` | name | yes | Name of the object. |
 | `analysis` | `3d`, `plane-strain` or `axisymmetric` |  | The type of the model: 3D (the default) or 2D, as plane strain (fem.FieldPlaneStrain, the forces per unit thickness) or axisymmetric (fem.FieldAxisymmetric: x is the axis of rotation, y the radius, the forces are the totals over the circumference). A 2D model has 2D cells (triangles and quads) and the components x and y. |
+| `precision` | `double` or `single` |  | The precision of the model (ADR 0016): double (float64, the default) or single (float32: the regions, the fields, the stresses and the linear equation system in half the memory). The accuracy of single precision depends on the model: the results of a job have an estimate of the round-off of the forces relative to the reaction forces; stiff parts bonded to soft ones, e.g. steel to rubber, need double precision. |
 | `units` | object |  | The units of lengths and forces, which give the units of the stresses (e.g. mm and N give MPa). Without units, the numbers have none. |
 | `units.length` | `mm` or `m` | yes | Unit of the coordinates and the displacements. |
 | `units.force` | `N` or `kN` | yes | Unit of the forces. |

@@ -18,6 +18,7 @@ import sys
 import time
 
 import felupe as fem
+import numpy as np
 
 from . import results as results_
 from .codegen import (
@@ -110,6 +111,30 @@ class Progress(fem.Plugin):
                 "increments": len(state.load_factors or [1]),
             }
         )
+
+
+class RoundOff(fem.Plugin):
+    """A plugin that estimates the round-off of the forces of a model in single
+    precision (ADR 0016, #297), relative to the reaction forces: the largest absolute
+    tolerance of the Newton-Raphson method (FElupe's estimate of the round-off of the
+    residual forces) over the largest norm of the reaction forces, of the converged
+    iterations of a job. It is an upper estimate: the curves of the golden cases and
+    the samples deviate from double precision by about a tenth of it, e.g. 4e-2 of the
+    sandwich spring (steel bonded to rubber) with an estimate of 0.43."""
+
+    def __init__(self):
+        self.atol = 0.0
+        self.reaction = 0.0
+
+    def after_iteration(self, context, state):
+        if state.success and state.atol is not None and context.dof0 is not None:
+            self.atol = max(self.atol, float(state.atol))
+            reaction = np.linalg.norm(np.ravel(state.fun)[context.dof0])
+            self.reaction = max(self.reaction, float(reaction))
+
+    def estimate(self):
+        """The round-off relative to the reaction forces, or None without them."""
+        return self.atol / self.reaction if self.reaction > 0 else None
 
 
 class Live(fem.Plugin):
@@ -282,7 +307,9 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
     dict
         The results by job: the number of substeps, the time and, for a
         characteristic curve, the displacements ``x`` and forces ``y`` of its
-        boundary (three components per substep).
+        boundary (three components per substep). A model in single precision has
+        ``roundoff``, the estimate of :class:`RoundOff` (None without reaction
+        forces).
     """
     if isinstance(document, str):
         document = json.loads(document)
@@ -310,6 +337,7 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
     ]
     settings = [c for c in document["commands"] if c["command"] == "model.settings"]
     units = settings[0].get("units") if settings else None
+    single = bool(settings) and settings[0].get("precision") == "single"
     results_.reset(namespace, sections, points, units)
 
     commands = {c["name"]: c for c in document["commands"] if c["command"] == "job.add"}
@@ -324,6 +352,9 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
         job = namespace[name]
         job.dispatcher.add_plugin(Progress(report, name, substeps[name]))
         job.dispatcher.add_plugin(results_.Recorder(name, namespace["field"]))
+        roundoff = RoundOff() if single else None
+        if roundoff:
+            job.dispatcher.add_plugin(roundoff)
         curve = job if isinstance(job, fem.CharacteristicCurve) else None
         rotation = name in rotations
         job.dispatcher.add_plugin(
@@ -351,6 +382,8 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
         if isinstance(job, fem.CharacteristicCurve):
             result["x"] = [curve_row(x, rotation) for x in job.x]
             result["y"] = [curve_row(y, rotation) for y in job.y]
+        if roundoff:
+            result["roundoff"] = _number(roundoff.estimate())
         results[name] = result
         report({"event": "finished", "job": name, "time": result["time"]})
     return results

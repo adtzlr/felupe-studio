@@ -145,6 +145,10 @@ export interface ModelSettings {
    */
   analysis?: "3d" | "plane-strain" | "axisymmetric";
   /**
+   * The precision of the model (ADR 0016): double (float64, the default) or single (float32: the regions, the fields, the stresses and the linear equation system in half the memory). The accuracy of single precision depends on the model: the results of a job have an estimate of the round-off of the forces relative to the reaction forces; stiff parts bonded to soft ones, e.g. steel to rubber, need double precision.
+   */
+  precision?: "double" | "single";
+  /**
    * The units of lengths and forces, which give the units of the stresses (e.g. mm and N give MPa). Without units, the numbers have none.
    */
   units?: {
