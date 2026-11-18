@@ -8,6 +8,10 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 - A long press picks like Shift+click: hold the pointer still for half a second to cycle a single face or to add a node, also on a touch screen without Shift. A ring at the pointer shows it; a drag (a rotation) or a second finger cancels it. On a touch screen the hints speak of taps and long presses, e.g. *Long-press single faces* and *tap again to exclude* (#273).
 
+### Changed
+
+- Values at the points: the strain and the stress tensors are moved to the points, and their principal values and the von Mises stress are evaluated there, instead of moving the invariants of the quadrature points. So the von Mises stress is never negative, e.g. next to the air of the engine mount (it was down to -0.27 MPa projected), and the principal values are those of the tensor at a point. The equivalent plastic strain is clipped at zero. The values at the cells are unchanged (#274).
+
 ## [0.5.0] - 2026-11-18
 
 Plasticity, results at the points, samples and an agent interface: the strain-based materials of FElupe 12.1 (`fem.MaterialStrain`) bring linear elasticity and von Mises plasticity with isotropic hardening, in small strain or in a framework of large deformations, with the state variables of every substep in the results (the sample *Elastic-plastic plate with a hole*). The strains and the stresses are shown at the cells or smooth at the points of the meshes, also in the exports. Two samples come from the FElupe examples: the engine mount ex07 with air as a third medium (`u-isochoric`) and the metacone ex15. An MCP server lets AI agents build, check and solve models headless in CPython (ADR 0012). The material models are in three menus by their kind, and surfaces are picked by clicks and taps without a right click. The schema version stays 3: projects of v0.3 and v0.4 open unchanged, and the new commands and options are additive (the strain-based models with `framework` and `strain_exponent`, `LinearElasticSmallStrain`, the formulation `u-isochoric`, point sets of a section, a value per component of a boundary). FElupe 12.1.0.

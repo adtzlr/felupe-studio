@@ -356,16 +356,58 @@ def _quadrature_data(kind, section):
             return namespace[f"solid_{section}"].results.statevars[:1]
         region = field[0].region
         return np.zeros((1, region.quadrature.npoints, region.mesh.ncells))
-    stress = _cauchy_stress(namespace[f"solid_{section}"], field)
+    return _invariants(kind, _quadrature_tensor(kind, section))
+
+
+def _quadrature_tensor(kind, section):
+    """Return the logarithmic strain or the Cauchy stress tensor of a section at the
+    quadrature points of the current values of the fields."""
+    namespace = _state["namespace"]
+    field = namespace[f"field_{section}"]
+    if kind == "strain":
+        return field.evaluate.strain(tensor=True)
+    return _cauchy_stress(namespace[f"solid_{section}"], field)
+
+
+def _invariants(kind, tensor):
+    """Return the von Mises equivalent or the principal values of tensors (with the
+    two axes of a tensor first)."""
     if kind == "mises":
-        return equivalent_von_mises(stress)[None]
-    return eigvalsh(stress)
+        return equivalent_von_mises(tensor)[None]
+    return eigvalsh(tensor)
+
+
+# the upper triangle of a symmetric tensor, its six independent components
+UPPER = np.triu_indices(3)
+
+
+def _point_data(kind, section, method):
+    """Return the strains, the stresses or the equivalent plastic strain of a section
+    at its points (#231): the tensors are moved to the points, then their invariants
+    are evaluated there (#274), so the von Mises stress is never negative and the
+    principal values are those of the tensor at a point. The invariants of the
+    quadrature points would overshoot and undershoot by a projection, e.g. a negative
+    von Mises stress next to a soft region. The equivalent plastic strain, a state
+    variable, is moved itself and clipped at zero."""
+    if kind == "plastic":
+        return np.maximum(_reduce(_quadrature_data(kind, section), section, method), 0)
+    tensor = _quadrature_tensor(kind, section)
+    data = _at(tensor[UPPER], section, method)
+    tensors = np.empty((3, 3, len(data)))
+    tensors[UPPER] = tensors[UPPER[::-1]] = data.T
+    return -np.sort(-_invariants(kind, tensors).T, axis=1)
 
 
 def _reduce(values, section, method):
     """Return the values of the quadrature points of a section at its cells (their
     means) or at its points (#231), with a component per column, the principal values
     from the largest to the smallest one."""
+    return -np.sort(-_at(values, section, method), axis=1)
+
+
+def _at(values, section, method):
+    """Return the values of the quadrature points of a section at its cells (their
+    means) or at its points (#231), with a component per column."""
     if method == "cells":
         data = values.mean(-2).T
     else:
@@ -382,7 +424,7 @@ def _reduce(values, section, method):
             cells = region.mesh.cells
             full = _state["namespace"][f"field_{section}"][0].region.mesh.cells
             data[full] = np.einsum("ij,cjk->cik", functions, data[cells])
-    return -np.sort(-data, axis=1)
+    return data
 
 
 def _data(kind, section, method="cells"):
@@ -391,6 +433,8 @@ def _data(kind, section, method="cells"):
     cells (the means of the quadrature points)."""
     if kind == "displacement":
         return _state["namespace"][f"field_{section}"][0].values
+    if method != "cells":
+        return _point_data(kind, section, method)
     return _reduce(_quadrature_data(kind, section), section, method)
 
 
@@ -670,7 +714,7 @@ def _export_data(used, method="cells"):
             cell_data[name].append(_reduce(values, section, "cells"))
             if method != "cells":
                 data = np.zeros((len(count), len(values)))
-                data[nodes] = _reduce(values, section, method)[nodes]
+                data[nodes] = _point_data(kind, section, method)[nodes]
                 sums[name] = sums[name] + data
     if method != "cells":
         for name in exported:

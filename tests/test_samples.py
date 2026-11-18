@@ -213,6 +213,9 @@ def test_plastic_plate_unloads_elastically(monkeypatch):
     u, force = np.array(result["x"])[:, 0], np.array(result["y"])[:, 0]
     meta, _ = results.scene("job", results.substeps("job"), "plastic_strain")
     extremes = json.loads(meta)["extremes"]
+    # projected to the points, it is clipped at zero (#274)
+    meta, _ = results.scene("job", results.substeps("job"), "plastic_strain", "project")
+    projected = json.loads(meta)["extremes"]
 
     for c in document["commands"]:
         if c["command"] == "material.add":
@@ -233,6 +236,8 @@ def test_plastic_plate_unloads_elastically(monkeypatch):
     # yields again in compression before the end: softer than at the start
     assert slope[-1] < 0.5 * stiffness
     assert extremes["min"]["value"] == 0  # elastic far from the hole
+    assert projected["min"]["value"] == 0
+    assert projected["max"]["value"] > extremes["max"]["value"]
     top = extremes["max"]
     assert top["value"] > 0.005
     assert top["position"][0] == pytest.approx(0, abs=2)

@@ -498,19 +498,20 @@ def test_values_at_the_points_of_a_homogeneous_deformation(cell_type, mixed):
 
 
 def test_means_of_the_cells_at_the_points(two_materials):
-    # the means of the cells, averaged at the points of a section (#231)
+    # the means of the cells, averaged at the points of a section (#231): of the
+    # stress tensors, then their principal values (#274)
     for section in ["hard_body", "soft_body"]:
         cells = results._cells(section)[1]
-        means = results._data("stress", section)
-        total = np.zeros((cells.max() + 1, 3))
+        means = results._quadrature_tensor("stress", section).mean(-2)
+        total = np.zeros((cells.max() + 1, 3, 3))
         count = np.zeros(cells.max() + 1)
-        for cell, values in zip(cells, means, strict=True):
+        for cell, values in zip(cells, means.transpose(2, 0, 1), strict=True):
             total[cell] += values
             count[cell] += 1
         nodes = np.unique(cells)
-        expected = total[nodes] / count[nodes, None]
+        tensors = (total[nodes] / count[nodes, None, None]).transpose(1, 2, 0)
+        expected = -np.sort(-fem.math.eigvalsh(tensors).T, axis=1)
         data = results._data("stress", section, "mean")[nodes]
-        # (sorted after the averaging: the same order here)
         np.testing.assert_allclose(data, expected, rtol=1e-6, atol=1e-9)
         # values of the points: at the points of the surface too
         meta, surfaces = results.scene("job_1", 6, "stress_max", "mean")
@@ -518,6 +519,49 @@ def test_means_of_the_cells_at_the_points(two_materials):
         surface = next(s for s in surfaces if s["name"] == section)
         values = arrays(surface)["values"]
         assert len(values) == len(arrays(surface)["positions"]) // 3
+
+
+def test_invariants_of_the_tensors_at_the_points(monkeypatch):
+    # the engine mount (ex07) after its vertical job: at the points, the tensors are
+    # moved and their invariants are evaluated there (#274), so the von Mises
+    # stress is never negative; the projection of the von Mises stress of the
+    # quadrature points undershoots beside the soft air
+    from felupe_studio.project import loads
+
+    folder = Path(__file__).parents[1] / "app" / "public" / "samples"
+    monkeypatch.chdir(folder / "engine-mount")
+    document = loads(Path("model.felupe.json").read_text(encoding="utf-8"))
+    document["commands"] = [
+        c
+        for c in document["commands"]
+        if not (c["command"] == "job.add" and c["name"] == "horizontal")
+    ]
+    run(document)
+    for section in results._state["sections"]:
+        for method in ["mean", "project", "topoints"]:
+            method = results.method_of(method)
+            for kind in ["strain", "stress"]:
+                tensor = results._quadrature_tensor(kind, section)
+                moved = results._at(tensor[results.UPPER], section, method)
+                tensors = np.empty((3, 3, len(moved)))
+                tensors[results.UPPER] = tensors[results.UPPER[::-1]] = moved.T
+                if kind == "stress":
+                    mises = results._data("mises", section, method)
+                    expected = fem.math.equivalent_von_mises(tensors)
+                    np.testing.assert_allclose(mises[:, 0], expected, atol=1e-12)
+                    assert mises.min() >= 0
+                principal = results._data(kind, section, method)
+                expected = -np.sort(-fem.math.eigvalsh(tensors).T, axis=1)
+                np.testing.assert_allclose(principal, expected, atol=1e-12)
+    old = results._reduce(
+        results._quadrature_data("mises", "air_section"), "air_section", "project"
+    )
+    assert old.min() < 0
+    # at the cells as before: the means of the invariants of the quadrature points
+    cells = results._data("mises", "air_section")
+    np.testing.assert_allclose(
+        cells[:, 0], results._quadrature_data("mises", "air_section")[0].mean(0)
+    )
 
 
 def test_projected_peak_at_a_hole(monkeypatch):

@@ -54,12 +54,12 @@ export const VALUES_METHODS: readonly {
   {
     id: "mean",
     label: "Points: means of the cells",
-    hint: "The means of the cells at a point, averaged.",
+    hint: "The means of the cells at a point, averaged (of the tensors; the principal values and von Mises at the point).",
   },
   {
     id: "project",
     label: "Points: projected",
-    hint: "The values of the quadrature points projected to the points (L2 projection, fem.project): closer to the peaks, e.g. at a notch.",
+    hint: "The tensors of the quadrature points projected to the points (L2 projection, fem.project), then the principal values and von Mises at the point: closer to the peaks, e.g. at a notch.",
   },
   {
     id: "topoints",
