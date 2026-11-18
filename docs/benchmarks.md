@@ -209,4 +209,40 @@ Neither the packages of Pyodide nor the wheels of PyPI have bytecode, and Pyodid
 
 The app in the same browser: the start of *Mount in shear* took 10.7 s with an empty cache and 7.8 s with a hit (the status bar), and its solve 2.30 s and 2.03 s (tensortrax is compiled at the first solve, and cached too). The forces are the same.
 
-**Phone:** to be measured with `spike.html`, warm, three times: the first load fills the cache, the second and the third read it. Before (#296): the FElupe step took 3.599 s.
+### Phone
+
+Android 10, Chrome 157 (mobile), 10 cores, 8 GB (the phone of #40), Pyodide 314.0.7, FElupe 12.1.0, warm (service worker cache active), bytecode cache *hit*. Times in seconds.
+
+| Load step                          | Time in s |
+| ---------------------------------- | --------: |
+| Pyodide                            |     1.315 |
+| NumPy, SciPy                       |     1.480 |
+| FElupe, meshio (wheels of the app) |     1.302 |
+| · wheels and sources               |     0.118 |
+| · import NumPy, SciPy              |     0.655 |
+| · import FElupe                    |     0.302 |
+| · import meshio                    |     0.227 |
+| **Total**                          | **4.096** |
+
+The FElupe step takes 1.30 s. The earlier warm measurements of this step on phones:
+- 2.52 s on this phone (#40, FElupe 12.0, an older Pyodide);
+- 3.60 s on the Firefox phone of #296 (Pyodide 314.0.7, without the bytecode cache).
+
+They are not the same browser and versions, so they are not a strict before and after. The parts with the cache are in the proportions of Chromium on the desktop: NumPy and SciPy take half of the step, then FElupe, then meshio. The whole start takes 4.1 s instead of 5.8 s (#40).
+
+**Before and after on the same phone:** Android 17, Firefox 160 (mobile), 8 cores, Pyodide 314.0.7, FElupe 12.1.0, warm (service worker cache active). Before is the measurement of #296, without the bytecode cache; after is with a hit. Times in seconds.
+
+| Load step                          |    Before |     After |
+| ---------------------------------- | --------: | --------: |
+| Pyodide                            |     1.938 |     1.944 |
+| NumPy, SciPy                       |     2.319 |     2.275 |
+| FElupe, meshio (wheels of the app) |     3.599 |     1.620 |
+| · wheels and sources               |           |     0.208 |
+| · import NumPy, SciPy              |           |     0.802 |
+| · import FElupe                    |           |     0.336 |
+| · import meshio                    |           |     0.274 |
+| **Total**                          | **7.856** | **5.839** |
+
+The FElupe step takes 1.62 s instead of 3.60 s (55 % less), the whole start 5.8 s instead of 7.9 s. That matches Chromium on the desktop (3.9 s → 1.6–1.8 s). The other two steps are unchanged; they download and unpack Pyodide and its packages from the service worker cache.
+
+The solve times of the same run (double precision, three runs of n = 9, 11, 13): 0.99 to 1.07 s, 2.92 to 3.18 s and 10.4 to 13.1 s. The forces are those of the native reference.
