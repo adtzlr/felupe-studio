@@ -17,9 +17,9 @@ import { CommandForm } from "./CommandForm";
 
 afterEach(cleanup);
 
-/** The app with the fixture, one object selected in the browser. */
-function edit(name: string) {
-  const store = new ModelStore(fixture as CommandList);
+/** The app with the fixture (or another model), one object selected. */
+function edit(name: string, document = fixture as CommandList) {
+  const store = new ModelStore(document);
   render(<App store={store} />);
   const tree = screen.getByRole("tree", { name: "Model" });
   fireEvent.click(within(tree).getByRole("treeitem", { name }));
@@ -564,5 +564,135 @@ describe("load cases", () => {
     expect(
       within(tree).getByRole("treeitem", { name: /loadcase_1/ }).textContent,
     ).toContain("planar x, y · clamped · no symmetry");
+  });
+});
+
+/** The fixture with units and the parameters length, stroke and cells first. */
+function parametric(changes: Record<string, object> = {}): CommandList {
+  const list = structuredClone(fixture) as CommandList;
+  for (const [name, fields] of Object.entries(changes))
+    Object.assign(
+      list.commands.find((c) => c.name === name)!,
+      fields,
+    );
+  return {
+    ...list,
+    commands: [
+      {
+        command: "model.settings",
+        name: "settings",
+        units: { length: "mm", force: "N" },
+      },
+      { command: "parameter.add", name: "length", value: 3 },
+      { command: "parameter.add", name: "stroke", value: 0.5 },
+      { command: "parameter.add", name: "cells", value: 5, integer: true },
+      ...list.commands,
+    ] as Command[],
+  };
+}
+
+describe("expressions of parameters (#242)", () => {
+  it("are typed in number fields, with their values", () => {
+    const { store, properties, field, button, type } = edit(
+      "right",
+      parametric(),
+    );
+    expect(field("Coordinate [mm]").getAttribute("inputmode")).toBe("text");
+    type("Coordinate [mm]", "length");
+    expect(properties.textContent).toContain("= 3 mm");
+    type("Coordinate [mm]", "= length / 2 + 1.5");
+    expect(properties.textContent).toContain("= 3 mm");
+    fireEvent.click(button("Apply"));
+    expect(store.get("right")).toMatchObject({
+      select: { axis: "x", value: "length / 2 + 1.5" },
+    });
+    // the field shows the expression as written, with its value
+    expect(field("Coordinate [mm]").value).toBe("length / 2 + 1.5");
+    expect(properties.textContent).toContain("= 3 mm");
+    // a number is a number
+    type("Coordinate [mm]", "2.5");
+    fireEvent.click(button("Apply"));
+    expect(store.get("right")).toMatchObject({ select: { value: 2.5 } });
+  });
+
+  it("are checked in the form", () => {
+    const { store, properties, button, type } = edit("right", parametric());
+    type("Coordinate [mm]", "2 * lenght");
+    fireEvent.click(button("Apply"));
+    expect(properties.textContent).toContain(
+      "'lenght' is not a parameter in '2 * lenght'.",
+    );
+    expect(store.get("right")).toMatchObject({ select: { value: 3 } });
+    type("Coordinate [mm]", "0,5");
+    expect(properties.textContent).toContain(
+      "Enter a number, with a point as decimal separator.",
+    );
+    cleanup();
+
+    const material = edit("umat_soft", parametric());
+    material.type("μ [MPa]", "stroke - 1");
+    fireEvent.click(material.button("Apply"));
+    expect(material.properties.textContent).toContain(
+      "'stroke - 1' is -0.5. Must be greater than 0.",
+    );
+  });
+
+  it("are values of rows and of lists", () => {
+    const step = edit("step_1", parametric());
+    step.type("Increments", "2 * cells");
+    step.type("End 1", "stroke");
+    expect(step.properties.textContent).toContain("End 1 = 0.5 mm");
+    fireEvent.click(step.button("Apply"));
+    expect(step.store.get("step_1")).toMatchObject({
+      ramp: { num: "2 * cells", items: [{ target: "move", end: "stroke" }] },
+    });
+    step.type("Increments", "cells / 2");
+    fireEvent.click(step.button("Apply"));
+    expect(step.properties.textContent).toContain(
+      "'cells / 2' is 2.5. Enter a whole number.",
+    );
+    // an error in a row keeps the form from being applied
+    step.type("Increments", "cells");
+    step.type("End 1", "stroke * x");
+    fireEvent.click(step.button("Apply"));
+    expect(step.properties.textContent).toContain(
+      "End 1: 'x' is not a parameter in 'stroke * x'.",
+    );
+    expect(step.store.get("step_1")).toMatchObject({
+      ramp: { num: "2 * cells", items: [{ end: "stroke" }] },
+    });
+    cleanup();
+
+    const boundary = edit("fixed", parametric());
+    fireEvent.click(boundary.field("y"));
+    boundary.type("Value [mm]", "min(stroke, 1), -stroke / 5");
+    expect(boundary.properties.textContent).toContain("= (0.5, -0.1) mm");
+    fireEvent.click(boundary.button("Apply"));
+    expect(boundary.store.get("fixed")).toMatchObject({
+      value: ["min(stroke, 1)", "-stroke / 5"],
+    });
+  });
+
+  it("show an issue of a stored expression at its cell", () => {
+    const end = { target: "move", start: 0, end: "0.5 * strok" };
+    const { properties } = edit(
+      "step_1",
+      parametric({ step_1: { ramp: { num: 5, items: [end] } } }),
+    );
+    expect(properties.textContent).toContain(
+      "End 1: 'strok' is not a parameter in '0.5 * strok'.",
+    );
+  });
+
+  it("are numbers without parameters, and not in a parameter", () => {
+    const { field } = edit("right");
+    expect(field("Coordinate").getAttribute("inputmode")).toBe("decimal");
+    cleanup();
+    const parameter = edit("stroke", parametric());
+    parameter.type("Value", "length / 2");
+    fireEvent.click(parameter.button("Apply"));
+    expect(parameter.properties.textContent).toContain(
+      "Enter a number, with a point as decimal separator.",
+    );
   });
 });

@@ -5,9 +5,11 @@
 // definition only.
 import type { Quantity } from "./units";
 import type { Command } from "./commands";
+import { ExpressionError, evaluate } from "./expressions";
 import { type Loadcase, loadcaseFieldErrors } from "./loadcases";
 import { MATERIAL_MODELS } from "./materials";
 import { KIND_LABELS, REGISTRY } from "./registry";
+import { numberText, parameterValues } from "./resolve";
 import { schema } from "./schema";
 import {
   type CommandType,
@@ -39,6 +41,8 @@ export type Input =
       max?: number;
       exclusiveMin?: number;
       exclusiveMax?: number;
+      /** The value may be an expression of the parameters (#242). */
+      expressions?: boolean;
     }
   | { type: "choice"; options: Option[] }
   /** Switches the fields below it; `seeds` holds the value to set per option. */
@@ -46,7 +50,7 @@ export type Input =
   | { type: "multichoice"; options: Option[]; minItems: number }
   | { type: "integers"; minItems: number; min?: number }
   /** Points, one per line: three coordinates each. */
-  | { type: "coordinates"; minItems: number }
+  | { type: "coordinates"; minItems: number; expressions?: boolean }
   /** A list of numbers, e.g. the coordinates x, y, z of a point. */
   | {
       type: "numbers";
@@ -59,6 +63,8 @@ export type Input =
        * of a boundary or one per component (#225).
        */
       collapse?: boolean;
+      /** A value may be an expression of the parameters (#242). */
+      expressions?: boolean;
     }
   | {
       type: "reference";
@@ -128,6 +134,8 @@ interface Node {
   default?: unknown;
   /** Short label of a definition or a property, e.g. `Mooney-Rivlin` or `μ`. */
   "x-label"?: string;
+  /** A number of the schema that may be an expression (types with "string"). */
+  "x-expressions"?: boolean;
   /** The physical quantity of a value, e.g. `stress` (#132). */
   "x-quantity"?: Quantity;
   /** A group of the definitions of a variant, e.g. `Polynomial` (#136). */
@@ -150,13 +158,13 @@ const defs = (schema as unknown as { $defs: Record<string, Node> }).$defs;
 
 const refName = (node: Node) => node.$ref?.split("/").pop();
 
-/** The nodes of number fields without their expressions, by node. */
+/** The nodes of number fields without the type of their expressions, by node. */
 const numbersOnly = new WeakMap<Node, Node>();
 
 /**
- * A node with its reference resolved. A number field takes a number here: its
- * expression of the parameters (#242, the type "string" of the schema) is not
- * edited by the forms yet.
+ * A node with its reference resolved. A number field that may hold an expression
+ * of the parameters (#242, the types ["number", "string"]) is a number field with
+ * `x-expressions`.
  */
 function resolve(node: Node): Node {
   while (node.$ref) node = defs[refName(node)!];
@@ -170,11 +178,19 @@ function resolve(node: Node): Node {
   let result = numbersOnly.get(node);
   if (!result) {
     const rest = types.filter((t) => t !== "string");
-    result = { ...node, type: rest.length === 1 ? rest[0] : rest };
+    result = {
+      ...node,
+      type: rest.length === 1 ? rest[0] : rest,
+      "x-expressions": true,
+    };
     numbersOnly.set(node, result);
   }
   return result;
 }
+
+/** The flag of a number field that may hold an expression (#242). */
+const expressions = (node: Node) =>
+  node["x-expressions"] ? { expressions: true } : {};
 
 const isObject = (value: unknown): value is Draft =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -381,6 +397,7 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
             minItems: property.minItems ?? 1,
             maxItems: property.maxItems,
             collapse: true,
+            ...expressions(property),
           },
           raw.description,
           raw,
@@ -405,6 +422,7 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
             max: property.maximum,
             exclusiveMin: property.exclusiveMinimum,
             exclusiveMax: property.exclusiveMaximum,
+            ...expressions(property),
           },
           raw.description,
           raw,
@@ -434,6 +452,7 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
               minItems,
               maxItems: property.maxItems,
               ...(resolve(items).not?.const === 0 ? { nonzero: true } : {}),
+              ...expressions(resolve(items)),
             },
             raw.description,
             raw,
@@ -442,7 +461,11 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
           push(
             path,
             isRequired,
-            { type: "coordinates", minItems },
+            {
+              type: "coordinates",
+              minItems,
+              ...expressions(resolve(resolve(items).items!)),
+            },
             raw.description,
             raw,
           );
@@ -772,6 +795,42 @@ function assign(draft: Draft, path: string[], value: unknown) {
 
 const article = (word: string) => (/^[aeiou]/i.test(word) ? "an" : "a");
 
+/**
+ * The value of an expression of the parameters (#242) in a field, with the values
+ * of the parameters of the model, or the message of its problem.
+ */
+export function expressionValue(
+  text: string,
+  context: Context,
+): { value: number } | { error: string } {
+  try {
+    return { value: evaluate(text, parameterValues(context.commands)) };
+  } catch (error) {
+    if (error instanceof ExpressionError) return { error: error.message };
+    throw error;
+  }
+}
+
+const NOT_A_NUMBER = "Enter a number, with a point as decimal separator.";
+
+/**
+ * The problem of a value of a field that may be an expression: of the expression,
+ * or of its value, e.g. `'1 - cells' is -3. Must be at least 1.`
+ */
+function valueError(
+  value: unknown,
+  expressions: boolean | undefined,
+  context: Context,
+  check: (value: number) => string | undefined,
+): string | undefined {
+  if (typeof value !== "string") return check(value as number);
+  if (!expressions) return NOT_A_NUMBER;
+  const result = expressionValue(value, context);
+  if ("error" in result) return result.error;
+  const problem = check(result.value);
+  return problem && `'${value}' is ${numberText(result.value)}. ${problem}`;
+}
+
 function numberError(input: Extract<Input, { type: "number" }>, value: number) {
   if (!Number.isFinite(value))
     return "Enter a number, with a point as decimal separator.";
@@ -811,7 +870,9 @@ function fieldError(
       return missing && required ? "Required." : undefined;
     case "number":
       if (missing) return required ? "Required." : undefined;
-      return numberError(input, value as number);
+      return valueError(value, input.expressions, context, (v) =>
+        numberError(input, v),
+      );
     case "choice":
       if (missing) return required ? "Required." : undefined;
       return input.options.some((o) => o.value === value)
@@ -881,10 +942,13 @@ function fieldError(
         (value === undefined || (Array.isArray(value) && !value.length))
       )
         return required ? "Required." : undefined;
-      if (input.collapse && typeof value === "number")
-        return Number.isFinite(value)
-          ? undefined
-          : "Enter a number, with a point as decimal separator.";
+      if (
+        input.collapse &&
+        (typeof value === "number" || typeof value === "string")
+      )
+        return valueError(value, input.expressions, context, (v) =>
+          Number.isFinite(v) ? undefined : NOT_A_NUMBER,
+        );
       const numbers = Array.isArray(value) ? (value as unknown[]) : [];
       if (!numbers.length && !required) return undefined;
       const count =
@@ -894,7 +958,11 @@ function fieldError(
       const ok =
         numbers.length >= input.minItems &&
         numbers.length <= (input.maxItems ?? Infinity) &&
-        numbers.every((x) => typeof x === "number" && Number.isFinite(x));
+        numbers.every(
+          (x) =>
+            (typeof x === "number" && Number.isFinite(x)) ||
+            (typeof x === "string" && input.expressions),
+        );
       if (!ok) {
         const range =
           input.maxItems !== undefined && input.maxItems !== input.minItems
@@ -902,9 +970,14 @@ function fieldError(
             : "";
         return `Enter${range} ${count}, separated by commas, with a point as decimal separator.`;
       }
-      return input.nonzero && numbers.includes(0)
-        ? "Enter numbers other than 0."
-        : undefined;
+      // the expressions, and the values that are zero
+      for (const x of numbers) {
+        const problem = valueError(x, input.expressions, context, (v) =>
+          input.nonzero && v === 0 ? "Enter numbers other than 0." : undefined,
+        );
+        if (problem) return problem;
+      }
+      return undefined;
     }
     case "coordinates": {
       const points = Array.isArray(value) ? (value as unknown[]) : [];
@@ -914,11 +987,22 @@ function fieldError(
         (p) =>
           !Array.isArray(p) ||
           p.length !== 3 ||
-          !p.every((x) => typeof x === "number" && Number.isFinite(x)),
+          !p.every(
+            (x) =>
+              (typeof x === "number" && Number.isFinite(x)) ||
+              (typeof x === "string" && input.expressions),
+          ),
       );
-      return bad < 0
-        ? undefined
-        : `Line ${bad + 1}: enter three numbers x, y, z, with a point as decimal separator.`;
+      if (bad >= 0)
+        return `Line ${bad + 1}: enter three numbers x, y, z, with a point as decimal separator.`;
+      // the expressions of the coordinates (#242)
+      for (const [line, point] of (points as unknown[][]).entries()) {
+        for (const x of point) {
+          const problem = valueError(x, true, context, () => undefined);
+          if (problem) return `Line ${line + 1}: ${problem}`;
+        }
+      }
+      return undefined;
     }
     case "rows": {
       const rows = Array.isArray(value) ? (value as Draft[]) : [];

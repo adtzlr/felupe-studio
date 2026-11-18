@@ -293,6 +293,7 @@ describe("fieldSpecs", () => {
       minItems: 1,
       maxItems: 3,
       nonzero: true,
+      expressions: true,
     });
     expect(
       draftErrors(
@@ -1158,5 +1159,67 @@ describe("renaming", () => {
       name: "loading",
     });
     expect(store.get("job_1")).toMatchObject({ steps: ["loading"] });
+  });
+});
+
+describe("expressions of parameters (#242)", () => {
+  const input = (type: CommandType, draft: Draft, key: string) =>
+    fieldSpecs(type, draft).find((s) => s.key === key)!.input;
+
+  it("are allowed in the number fields of the schema", () => {
+    const point = { name: "p", select: { axis: "x", value: 0 } };
+    expect(input("pointset.add", point, "select.value")).toMatchObject({
+      type: "number",
+      expressions: true,
+    });
+    const nodes = { name: "p", select: { points: [[0, 0, 0]] } };
+    expect(input("pointset.add", nodes, "select.points")).toMatchObject({
+      type: "coordinates",
+      expressions: true,
+    });
+    expect(input("point.add", { name: "c" }, "coordinates")).toMatchObject({
+      type: "numbers",
+      expressions: true,
+    });
+    // not in the fields of a parameter and the numbers that name things
+    for (const [type, draft, key] of [
+      ["parameter.add", { name: "p", value: 1 }, "value"],
+      ["mesh.merge", { name: "merge" }, "decimals"],
+      ["cellset.from_tag", { name: "c", value: 1 }, "value"],
+    ] as const)
+      expect(input(type, draft, key)).not.toHaveProperty("expressions");
+  });
+
+  it("are checked with the values of the parameters", () => {
+    const context = {
+      commands: [
+        { command: "parameter.add", name: "h", value: 4 },
+      ] as Command[],
+    };
+    const errors = (type: CommandType, draft: Draft) =>
+      draftErrors(type, { name: "x", ...draft }, context);
+    expect(
+      errors("point.add", { coordinates: ["h", "sqrt(h)", "-h / 2"] }),
+    ).toEqual({});
+    expect(
+      errors("pointset.add", {
+        select: {
+          points: [
+            [0, 0, "h"],
+            [0, 0, "2 * w"],
+          ],
+        },
+      }),
+    ).toEqual({
+      "select.points": "Line 2: 'w' is not a parameter in '2 * w'.",
+    });
+    expect(
+      errors("material.add", {
+        model: "Ogden",
+        parameters: { mu: [1], alpha: ["h - 4"] },
+      }),
+    ).toEqual({
+      "parameters.alpha": "'h - 4' is 0. Enter numbers other than 0.",
+    });
   });
 });

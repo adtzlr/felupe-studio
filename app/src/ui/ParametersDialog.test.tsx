@@ -42,8 +42,11 @@ const commands: Command[] = [
 
 afterEach(cleanup);
 
-async function setup(opening = true) {
-  const store = new ModelStore({ schema_version: 3, commands });
+async function setup(opening = true, more: Command[] = []) {
+  const store = new ModelStore({
+    schema_version: 3,
+    commands: [...commands, ...more],
+  });
   const files = new MeshFiles(undefined, { write: async () => {} });
   await files.add("spring.py", new TextEncoder().encode("mesh = None\n"));
   const onClose = vi.fn();
@@ -165,5 +168,57 @@ describe("the parameters of a project (#183)", () => {
     expect(note.querySelector("pre")!.textContent).toBe("mesh = None\n");
     expect(within(dialog).getByRole("button", { name: "Apply" })).toBeTruthy();
     expect(within(dialog).getByRole("button", { name: "Cancel" })).toBeTruthy();
+  });
+});
+
+describe("the parameters and the expressions (#242)", () => {
+  const more: Command[] = [
+    {
+      command: "pointset.add",
+      name: "top",
+      select: { axis: "z", value: "layers * 10" },
+    },
+    {
+      command: "boundary.add",
+      name: "move",
+      pointset: "top",
+      constrained: ["x"],
+    },
+    {
+      command: "step.add",
+      name: "step",
+      ramp: { num: "2 * layers - 4", items: [{ target: "move", end: 1 }] },
+    },
+  ];
+
+  it("show the objects that use a parameter", async () => {
+    const { dialog } = await setup(false, more);
+    expect(dialog.textContent).toContain(
+      "1 to 10, an integer · used by top, step",
+    );
+    expect(dialog.textContent).not.toContain("used by top, step, ");
+  });
+
+  it("show the problems of the expressions with the typed values", async () => {
+    const { store, dialog } = await setup(false, more);
+    const layers = within(dialog).getByRole("spinbutton", { name: /^layers/ });
+    fireEvent.input(layers, { target: { value: "2" } });
+    const note = within(dialog).getByRole("note", {
+      name: "Problems of the expressions",
+    });
+    expect(note.textContent).toContain(
+      "'ramp.num' of 'step': '2 * layers - 4' is 0, it must be at least 1.",
+    );
+    fireEvent.input(layers, { target: { value: "4" } });
+    expect(
+      within(dialog).queryByRole("note", {
+        name: "Problems of the expressions",
+      }),
+    ).toBeNull();
+    // the problems do not keep the values from being applied
+    fireEvent.input(layers, { target: { value: "2" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
+    expect(store.get("layers")).toMatchObject({ value: 2 });
+    expect(store.issues.map((i) => i.name)).toEqual(["step"]);
   });
 });
