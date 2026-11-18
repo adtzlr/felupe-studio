@@ -256,11 +256,18 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         hint: "The strain and the stress of a strain-based material, fem.MaterialStrain",
         placeholder: "small-strain",
       },
+      strain_exponent: {
+        label: "Strain exponent m",
+        hint: "Of the Seth-Hill strain: 0 logarithmic (Hencky), 1 Biot, 2 Green-Lagrange",
+        default: 0,
+      },
     },
     options: {
       framework: {
         "small-strain": "Small strain",
         "total-lagrange": "Total Lagrange (large rotations)",
+        "co-rotational": "Co-rotational (Biot strain)",
+        "seth-hill": "Seth-Hill (strain exponent m)",
       },
     },
   },

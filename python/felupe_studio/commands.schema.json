@@ -938,6 +938,22 @@
       "type": "object",
       "required": ["command", "name", "model", "parameters"],
       "additionalProperties": false,
+      "if": {
+        "required": ["framework"],
+        "properties": {
+          "framework": {
+            "const": "seth-hill"
+          }
+        }
+      },
+      "then": {
+        "required": ["strain_exponent"]
+      },
+      "else": {
+        "not": {
+          "required": ["strain_exponent"]
+        }
+      },
       "properties": {
         "command": {
           "const": "material.add"
@@ -949,9 +965,19 @@
           "const": "LinearElastic"
         },
         "framework": {
-          "description": "The framework of the strain and the stress of the material (fem.MaterialStrain): small-strain (the symmetric part of the displacement gradient and the Cauchy stress) or total-lagrange (the Green-Lagrange strain and the second Piola-Kirchhoff stress, for large rotations with small strains).",
-          "enum": ["small-strain", "total-lagrange"],
+          "description": "The framework of the strain and the stress of the material (fem.MaterialStrain): small-strain (the symmetric part of the displacement gradient and the Cauchy stress), total-lagrange (the Green-Lagrange strain and the second Piola-Kirchhoff stress, for large rotations with small strains), co-rotational (the Biot strain of the right stretch tensor and the Biot stress) or seth-hill (a Seth-Hill strain with the strain_exponent m, e.g. 0 for the logarithmic Hencky strain). The frameworks of large deformations have exact tangents.",
+          "enum": [
+            "small-strain",
+            "total-lagrange",
+            "co-rotational",
+            "seth-hill"
+          ],
           "default": "small-strain"
+        },
+        "strain_exponent": {
+          "description": "The strain exponent m of the Seth-Hill strain (only, and required, with the framework seth-hill): 0 for the logarithmic (Hencky) strain, 1 for the Biot strain (like co-rotational), 2 for the Green-Lagrange strain (like total-lagrange), -2 for the Euler-Almansi strain.",
+          "type": "number",
+          "default": 0
         },
         "parameters": {
           "type": "object",
@@ -991,6 +1017,22 @@
       "type": "object",
       "required": ["command", "name", "model", "parameters"],
       "additionalProperties": false,
+      "if": {
+        "required": ["framework"],
+        "properties": {
+          "framework": {
+            "const": "seth-hill"
+          }
+        }
+      },
+      "then": {
+        "required": ["strain_exponent"]
+      },
+      "else": {
+        "not": {
+          "required": ["strain_exponent"]
+        }
+      },
       "properties": {
         "command": {
           "const": "material.add"
@@ -1002,9 +1044,19 @@
           "const": "LinearElasticPlasticIsotropicHardening"
         },
         "framework": {
-          "description": "The framework of the strain and the stress of the material (fem.MaterialStrain): small-strain (the symmetric part of the displacement gradient and the Cauchy stress) or total-lagrange (the Green-Lagrange strain and the second Piola-Kirchhoff stress, for large rotations with small strains).",
-          "enum": ["small-strain", "total-lagrange"],
+          "description": "The framework of the strain and the stress of the material (fem.MaterialStrain): small-strain (the symmetric part of the displacement gradient and the Cauchy stress), total-lagrange (the Green-Lagrange strain and the second Piola-Kirchhoff stress, for large rotations with small strains), co-rotational (the Biot strain of the right stretch tensor and the Biot stress) or seth-hill (a Seth-Hill strain with the strain_exponent m, e.g. 0 for the logarithmic Hencky strain). The frameworks of large deformations have exact tangents.",
+          "enum": [
+            "small-strain",
+            "total-lagrange",
+            "co-rotational",
+            "seth-hill"
+          ],
           "default": "small-strain"
+        },
+        "strain_exponent": {
+          "description": "The strain exponent m of the Seth-Hill strain (only, and required, with the framework seth-hill): 0 for the logarithmic (Hencky) strain, 1 for the Biot strain (like co-rotational), 2 for the Green-Lagrange strain (like total-lagrange), -2 for the Euler-Almansi strain.",
+          "type": "number",
+          "default": 0
         },
         "parameters": {
           "type": "object",

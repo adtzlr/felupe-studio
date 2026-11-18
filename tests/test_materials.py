@@ -18,7 +18,7 @@ DOCS = Path(__file__).parents[1] / "docs" / "commands.md"
 MODELS = list(models())
 
 
-def create(model, framework=None, **changes):
+def create(model, framework=None, strain_exponent=None, **changes):
     """The material of a model with its defaults (and a bulk modulus if optional)."""
     parameters = {p.key: p.default for p in models()[model].parameters if p.default}
     if models()[model].optional_bulk:
@@ -27,6 +27,8 @@ def create(model, framework=None, **changes):
     material = {"model": model, "parameters": parameters}
     if framework:
         material["framework"] = framework
+    if strain_exponent is not None:
+        material["strain_exponent"] = strain_exponent
     func, args, volumetric = material_call(material)
     namespace = {"fem": fem}
     lame = lame_call(material)
@@ -96,15 +98,29 @@ def test_defaults_are_stress_free_and_stable(name):
     assert stress[0, 1, 0, 0] / gamma > 0
 
 
-@pytest.mark.parametrize("framework", ["small-strain", "total-lagrange"])
-def test_strain_based_materials(framework):
-    # fem.MaterialStrain with the Lamé constants of E and ν, in a framework (#191)
+FRAMEWORKS = [
+    ("small-strain", None),
+    ("total-lagrange", None),
+    ("co-rotational", None),
+    ("seth-hill", 0),
+    ("seth-hill", -2),
+]
+
+
+@pytest.mark.parametrize(("framework", "exponent"), FRAMEWORKS)
+def test_strain_based_materials(framework, exponent):
+    # fem.MaterialStrain with the Lamé constants of E and ν, in a framework (#191),
+    # of a Seth-Hill strain with its strain exponent (FElupe 12.1)
     parameters = {"E": 210000.0, "nu": 0.3, "sigma_y": 250.0, "K": 1000.0}
     material = {
         "model": "LinearElasticPlasticIsotropicHardening",
         "framework": framework,
         "parameters": parameters,
     }
+    options = []
+    if exponent is not None:
+        material["strain_exponent"] = exponent
+        options = [f"strain_exponent={exponent}"]
     assert strain_based(material) and not needs_bulk(material)
     assert lame_call(material) == ["E=210000.0", "nu=0.3"]
     assert material_call(material) == (
@@ -113,6 +129,7 @@ def test_strain_based_materials(framework):
             "fem.linear_elastic_plastic_isotropic_hardening",
             "statevars=(1, (3, 3))",
             f'framework="{framework}"',
+            *options,
             "λ=λ",
             "μ=μ",
             "σy=250.0",
@@ -120,8 +137,11 @@ def test_strain_based_materials(framework):
         ],
         [],
     )
-    umat = create(material["model"], framework, **parameters)
+    umat = create(material["model"], framework, exponent, **parameters)
     assert umat.framework == framework
+    # (FElupe's exponents of the Total Lagrange and the co-rotational frameworks)
+    implied = {"total-lagrange": 2, "co-rotational": 1}
+    assert umat.strain_exponent == implied.get(framework, exponent)
     lmbda, mu = fem.constitution.lame_converter(E=210000.0, nu=0.3)
     assert umat.kwargs == {"λ": lmbda, "μ": mu, "σy": 250.0, "K": 1000.0}
     # a uniaxial strain beyond the yield stress: the equivalent plastic strain (the
@@ -212,3 +232,27 @@ def test_models_are_documented():
     text = DOCS.read_text(encoding="utf-8")
     for name, model in models().items():
         assert f"`{name}`" in text and model.label in text
+
+
+def test_strain_exponent_only_with_seth_hill():
+    # required with the Seth-Hill framework and allowed only with it (FElupe 12.1)
+    from felupe_studio.commands import errors
+
+    def document(**material):
+        return {
+            "schema_version": 3,
+            "commands": [
+                {
+                    "command": "material.add",
+                    "name": "steel",
+                    "model": "LinearElastic",
+                    "parameters": {"E": 210000.0, "nu": 0.3},
+                    **material,
+                }
+            ],
+        }
+
+    assert errors(document(framework="seth-hill", strain_exponent=0)) == []
+    assert errors(document(framework="seth-hill"))
+    assert errors(document(framework="co-rotational", strain_exponent=1))
+    assert errors(document(strain_exponent=0))

@@ -517,13 +517,22 @@ def test_plasticity_like_linear_hardening(tmp_path, monkeypatch):
     np.testing.assert_allclose(statevars[0], remaining, rtol=1e-10)
 
 
-def test_total_lagrange_like_small_strain(tmp_path, monkeypatch):
-    # the Total Lagrange framework of the strain-based material (#191) gives about
-    # the curve of the small strains of 0.5 %
+@pytest.mark.parametrize(
+    "framework",
+    [
+        {"framework": "total-lagrange"},
+        {"framework": "co-rotational"},
+        {"framework": "seth-hill", "strain_exponent": 0},
+    ],
+)
+def test_frameworks_like_small_strain(tmp_path, monkeypatch, framework):
+    # the frameworks of large deformations of the strain-based material (#191): Total
+    # Lagrange, co-rotational and the Hencky strain of Seth-Hill (FElupe 12.1) give
+    # about the curve of the small strains of 0.5 %
     document = load("plasticity_cube")
     for cmd in document["commands"]:
         if cmd["command"] == "material.add":
-            cmd["framework"] = "total-lagrange"
+            cmd.update(framework)
     total = evaluate("plasticity_cube", tmp_path, monkeypatch, document)
     small = json.loads(
         (HERE / "plasticity_cube" / "results.json").read_text(encoding="utf-8")
@@ -531,4 +540,9 @@ def test_total_lagrange_like_small_strain(tmp_path, monkeypatch):
     force = np.array(total["jobs"]["job_1"]["force"])
     reference = np.array(small["jobs"]["job_1"]["force"])
     np.testing.assert_allclose(force, reference, rtol=0, atol=0.01 * reference.max())
-    assert not np.allclose(force, reference, rtol=1e-6)
+    if framework["framework"] == "co-rotational":
+        # a stretch without rotation: the Biot strain is the engineering strain and
+        # the first Piola-Kirchhoff stress the Biot stress, those of small strains
+        np.testing.assert_allclose(force, reference, rtol=1e-10)
+    else:
+        assert not np.allclose(force, reference, rtol=1e-6)

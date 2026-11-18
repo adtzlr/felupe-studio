@@ -656,8 +656,39 @@ describe("editing a draft", () => {
       empty: "Small strain (default)",
       options: [
         { value: "total-lagrange", label: "Total Lagrange (large rotations)" },
+        { value: "co-rotational", label: "Co-rotational (Biot strain)" },
+        { value: "seth-hill", label: "Seth-Hill (strain exponent m)" },
       ],
     });
+    // the strain exponent of the Seth-Hill framework, only with it (FElupe 12.1)
+    const exponent = (draft: typeof plastic) =>
+      fieldSpecs("material.add", draft).find(
+        (s) => s.key === "strain_exponent",
+      );
+    expect(exponent(plastic)).toBeUndefined();
+    const seth = setValue(
+      "material.add",
+      plastic,
+      ["framework"],
+      "seth-hill",
+      context,
+    );
+    expect(seth.strain_exponent).toBe(0);
+    expect(exponent(seth)).toMatchObject({
+      label: "Strain exponent m",
+      required: true,
+    });
+    expect(draftErrors("material.add", seth, context)).not.toHaveProperty(
+      "strain_exponent",
+    );
+    const corotational = setValue(
+      "material.add",
+      seth,
+      ["framework"],
+      "co-rotational",
+      context,
+    );
+    expect(corotational).not.toHaveProperty("strain_exponent");
     // another model has no framework
     const total = { ...plastic, framework: "total-lagrange" };
     expect(

@@ -14,7 +14,8 @@ needs the ``u-p-J`` formulation of a section. Parameters that are lists of value
 
 A strain-based model (#191, ``x-felupe``: a ``strain`` function like
 ``fem.linear_elastic`` and its ``statevars``) is a ``fem.MaterialStrain`` in a
-``framework`` (small strain or Total Lagrange). Its parameters marked
+``framework`` (small strain, Total Lagrange, co-rotational or Seth-Hill with a
+``strain_exponent``, FElupe 12.1). Its parameters marked
 ``"x-felupe": "lame"`` (Young's modulus and Poisson's ratio) are converted into the
 Lamé constants λ and μ of the function; ``x-argument`` is the name of a parameter of
 the function, e.g. ``σy``. A strain-based material needs the displacement
@@ -144,7 +145,10 @@ def material_call(material):
     if model.strain:
         framework = material.get("framework", "small-strain")
         statevars = [f"statevars={model.statevars}"] if model.statevars else []
-        options = [*statevars, f'framework="{framework}"', "λ=λ", "μ=μ"]
+        # the strain exponent of a Seth-Hill strain (FElupe 12.1)
+        exponent = material.get("strain_exponent")
+        exponent = [] if exponent is None else [f"strain_exponent={exponent!r}"]
+        options = [*statevars, f'framework="{framework}"', *exponent, "λ=λ", "μ=μ"]
         return "fem.MaterialStrain", [model.call, *options, *args], []
     if model.hyperelastic:
         return "fem.Hyperelastic", [model.call, *args], volumetric
