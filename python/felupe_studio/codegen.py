@@ -156,15 +156,23 @@ class _Call:
         self.args = list(args)
 
     def __str__(self):
-        return f"{self.func}({', '.join(self.args)})"
+        return f"{self.func}({', '.join(map(str, self.args))})"
 
     def exploded(self, level):
         pad = "    " * level
-        inner = f"{pad}    {', '.join(self.args)}"
+        inner = f"{pad}    {', '.join(map(str, self.args))}"
         if len(inner) <= LINE_LENGTH:
             return f"{self.func}(\n{inner}\n{pad})"
         args = "".join(f"{pad}    {arg},\n" for arg in self.args)
         return f"{self.func}(\n{args}{pad})"
+
+
+def _assign(target, expression):
+    """An assignment of an expression, wrapped like ruff format would wrap it."""
+    line = f"{target} = {expression}"
+    if len(line) <= LINE_LENGTH or not isinstance(expression, _Call):
+        return line
+    return f"{target} = {expression.exploded(0)}"
 
 
 def _explode(args, level=1):
@@ -311,6 +319,34 @@ def uses_solver_helpers(jobs):
     """Whether a linear solver of the jobs needs the helpers of the solvers."""
     return any(
         job.get("solver", {}).get("type") in ("spsolve", "iterative") for job in jobs
+    )
+
+
+def ramp_value(item, num):
+    """Return the values of a ramped item over the substeps of a step as an
+    expression: ``fem.math.linsteps([start, end], num)``, or of a boundary with one
+    value per constrained component ``np.linspace(start, end, num + 1)``, one row per
+    substep (#225).
+
+    Examples
+    --------
+    >>> str(ramp_value({"target": "move", "end": 0.5}, 5))
+    'fem.math.linsteps([0, 0.5], num=5)'
+    >>> str(ramp_value({"target": "move", "start": -0.5, "end": 0.5}, 2))
+    'fem.math.linsteps([-0.5, 0.5], num=2)'
+    >>> str(ramp_value({"target": "move", "end": [0.2, -0.1]}, 5))
+    'np.linspace([0, 0], [0.2, -0.1], 6)'
+    >>> str(ramp_value({"target": "move", "start": [0.1, 0], "end": 0.3}, 2))
+    'np.linspace([0.1, 0], [0.3, 0.3], 3)'
+    """
+    start, end = item.get("start", 0), item["end"]
+    if not isinstance(start, list) and not isinstance(end, list):
+        return _Call("fem.math.linsteps", [f"[{start!r}, {end!r}]", f"num={num!r}"])
+    # a number of a list ramp applies to all components
+    count = len(end) if isinstance(end, list) else len(start)
+    start, end = ([v] * count if not isinstance(v, list) else v for v in (start, end))
+    return _Call(
+        "np.linspace", [_List(map(repr, start)), _List(map(repr, end)), repr(num + 1)]
     )
 
 
@@ -676,8 +712,10 @@ def codegen(document, evaluate=True, check_schema=True):
             skip = tuple(0 if a in constrained else 1 for a in axes)
             if any(skip):
                 args.append(f"skip={skip!r}")
-            if bc.get("value", 0) != 0:
-                args.append(f"value={bc['value']!r}")
+            # one value for all constrained components, or one per component (#225)
+            value = bc.get("value", 0)
+            if any(value) if isinstance(value, list) else value != 0:
+                args.append(f"value={value!r}")
             head = f"{_str(bc['name'])}: fem.Boundary"
             out.append(_wrap(head, args, level=1, end=","))
         for name in [*loadcases, *(sym["name"] for sym in symmetries)]:
@@ -827,30 +865,29 @@ def codegen(document, evaluate=True, check_schema=True):
             if "ramp" in step:
                 r = step["ramp"]
                 ramp = f"ramp_{step['name']}"
-                num = f"num={r['num']!r}"
-
-                def linsteps(item):
-                    return f"[{item.get('start', 0)!r}, {item['end']!r}]"
-
-                if len({linsteps(item) for item in r["items"]}) == 1:
+                num = r["num"]
+                values = {item["target"]: ramp_value(item, num) for item in r["items"]}
+                if len({str(v) for v in values.values()}) == 1:
                     # the same values for all items: one array
-                    args = [linsteps(r["items"][0]), num]
-                    out.append(_call(ramp, "fem.math.linsteps", args))
-                    values = {item["target"]: ramp for item in r["items"]}
+                    out.append(_assign(ramp, values[r["items"][0]["target"]]))
+                    arrays = {target: ramp for target in values}
                 else:
                     # an array per item, in the order of the items
                     out.append(f"{ramp} = [")
                     for item in r["items"]:
-                        call = f"fem.math.linsteps({linsteps(item)}, {num})"
-                        out.append(f"    {call},  # {item['target']}")
+                        value = values[item["target"]]
+                        line = f"    {value},  # {item['target']}"
+                        if len(line) > LINE_LENGTH and isinstance(value, _Call):
+                            line = f"    {value.exploded(1)},  # {item['target']}"
+                        out.append(line)
                     out.append("]")
-                    values = {
+                    arrays = {
                         item["target"]: f"{ramp}[{i}]"
                         for i, item in enumerate(r["items"])
                     }
                 items = [
                     entry
-                    for target, value in values.items()
+                    for target, value in arrays.items()
                     for entry in ramped(target, value)
                 ]
                 lines.append(_Dict(items, prefix="ramp="))

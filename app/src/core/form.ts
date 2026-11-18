@@ -54,6 +54,11 @@ export type Input =
       maxItems?: number;
       /** No item may be zero, e.g. an exponent of Ogden (#136). */
       nonzero?: boolean;
+      /**
+       * One number is a number, more are a list, e.g. one value for all components
+       * of a boundary or one per component (#225).
+       */
+      collapse?: boolean;
     }
   | {
       type: "reference";
@@ -105,7 +110,8 @@ export interface Context {
 
 interface Node {
   $ref?: string;
-  type?: string;
+  /** A list of types, e.g. a number or a list of numbers (#225). */
+  type?: string | string[];
   const?: unknown;
   enum?: string[];
   oneOf?: Node[];
@@ -343,6 +349,21 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
       } else if (property.enum) {
         const options = property.enum.map((v) => option(type, key, v));
         push(path, isRequired, { type: "choice", options }, raw.description);
+      } else if (Array.isArray(property.type)) {
+        // a number or a list of numbers, e.g. one value per component of a
+        // boundary (#225): numbers separated by commas, one number is a number
+        push(
+          path,
+          isRequired,
+          {
+            type: "numbers",
+            minItems: property.minItems ?? 1,
+            maxItems: property.maxItems,
+            collapse: true,
+          },
+          raw.description,
+          raw,
+        );
       } else if (property.type === "string") {
         push(path, isRequired, { type: "text" }, raw.description);
       } else if (property.type === "boolean") {
@@ -833,6 +854,16 @@ function fieldError(
         : `There is no ${kind} '${String(value)}'.`;
     }
     case "numbers": {
+      // one number of a number or a list of numbers (#225)
+      if (
+        input.collapse &&
+        (value === undefined || (Array.isArray(value) && !value.length))
+      )
+        return required ? "Required." : undefined;
+      if (input.collapse && typeof value === "number")
+        return Number.isFinite(value)
+          ? undefined
+          : "Enter a number, with a point as decimal separator.";
       const numbers = Array.isArray(value) ? (value as unknown[]) : [];
       if (!numbers.length && !required) return undefined;
       const count =

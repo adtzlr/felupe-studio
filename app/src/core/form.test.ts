@@ -82,7 +82,7 @@ describe("fieldSpecs", () => {
       "name:name*",
       "pointset:reference*",
       "constrained:multichoice*",
-      "value:number",
+      "value:numbers",
     ]);
     expect(summary("mpc.add", {} as Draft)).toEqual([
       "name:name*",
@@ -292,8 +292,9 @@ describe("fieldSpecs", () => {
       columns.map((c) => [c.path.join("."), c.key, c.input.type, c.required]),
     ).toEqual([
       ["target", "ramp.items.target", "reference", true],
-      ["start", "ramp.items.start", "number", false],
-      ["end", "ramp.items.end", "number", true],
+      // a number or one per constrained component of a boundary (#225)
+      ["start", "ramp.items.start", "numbers", false],
+      ["end", "ramp.items.end", "numbers", true],
     ]);
     expect(columns[0]).toMatchObject({ unique: true, label: "Item" });
     expect(columns[0].input).toMatchObject({
@@ -821,6 +822,34 @@ describe("editing a draft", () => {
     const none = setValue("step.add", two, spec.path, [], context);
     expect(draftErrors("step.add", none, editing("step_1"))).toMatchObject({
       "ramp.items": "Add at least one row.",
+    });
+  });
+
+  it("takes one value or one per component of a boundary (#225)", () => {
+    const boundary = {
+      name: "diagonal",
+      pointset: "right",
+      constrained: ["x", "z"],
+    } as Draft;
+    const [, , , value] = fieldSpecs("boundary.add", boundary);
+    expect(value.input).toMatchObject({
+      type: "numbers",
+      minItems: 1,
+      maxItems: 3,
+      collapse: true,
+    });
+    const errors = (v: unknown) =>
+      draftErrors("boundary.add", { ...boundary, value: v }, context);
+    // empty is 0, one number for all components, one per component
+    expect(errors(undefined)).toEqual({});
+    expect(errors(0.5)).toEqual({});
+    expect(errors([0.5, -0.1])).toEqual({});
+    expect(errors(Number.NaN)).toEqual({
+      value: "Enter a number, with a point as decimal separator.",
+    });
+    expect(errors([0.5, 0.1, 0, 1])).toEqual({
+      value:
+        "Enter 1 to 3 numbers, separated by commas, with a point as decimal separator.",
     });
   });
 

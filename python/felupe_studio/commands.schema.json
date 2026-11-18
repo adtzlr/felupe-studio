@@ -1284,8 +1284,13 @@
         },
         "value": {
           "x-quantity": "displacement",
-          "description": "Prescribed displacement of the constrained components (default 0); a rotation in rad at a rotation point.",
-          "type": "number"
+          "description": "Prescribed displacement of the constrained components (default 0): one number for all of them, or one number per constrained component in the order x, y, z (e.g. a point set that moves diagonally); a rotation in rad at a rotation point.",
+          "type": ["number", "array"],
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "type": "number"
+          }
         }
       }
     },
@@ -1681,7 +1686,7 @@
       }
     },
     "RampItem": {
-      "description": "A ramped item: a boundary (its value, e.g. a displacement), a load case (the displacement of its moving faces), a point load (a factor of its force) or a pressure (a factor of its pressure).",
+      "description": "A ramped item: a boundary (its value, e.g. a displacement, or one value per constrained component), a load case (the displacement of its moving faces), a point load (a factor of its force) or a pressure (a factor of its pressure).",
       "type": "object",
       "required": ["target", "end"],
       "additionalProperties": false,
@@ -1692,13 +1697,23 @@
         },
         "start": {
           "x-quantity": "ramped",
-          "description": "Value at the start of the step (default 0).",
-          "type": "number"
+          "description": "Value at the start of the step (default 0); of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z.",
+          "type": ["number", "array"],
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "type": "number"
+          }
         },
         "end": {
           "x-quantity": "ramped",
-          "description": "Value at the end of the step.",
-          "type": "number"
+          "description": "Value at the end of the step; of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z.",
+          "type": ["number", "array"],
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "type": "number"
+          }
         }
       }
     },

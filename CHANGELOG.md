@@ -6,6 +6,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Added
 
+- A boundary prescribes one value for all of its constrained components or one per component, in the order x, y, z, e.g. `0.5, -0.1` for x and z: `fem.Boundary(..., value=[0.5, -0.1])`, so one boundary moves a point set diagonally. The start and end of its ramp in a step are one value or one per component too (`np.linspace(start, end, num + 1)` in the script). The form takes the values separated by commas; the validation checks their count against the constrained components; the viewport draws the arrow in their direction (#225).
 - *Export mesh…* in the menu of a mesh in the browser: the mesh as the model uses it, also the mesh of a script with the current parameters (and its item), as a file of another format: VTK unstructured grid (`.vtu`, the default), VTK legacy (`.vtk`), Gmsh (`.msh`), Abaqus (`.inp`) or Nastran (`.bdf`), written by meshio with the solid cells and their tags, the points in 3D and scaled like the model. A mesh with an error or without Python says why it cannot be exported (#230).
 
 ### Changed
