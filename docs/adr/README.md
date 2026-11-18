@@ -19,5 +19,6 @@ Short records of decisions that shape felupe-studio. A record is changed by a ne
 | [0013](0013-expressions-of-parameters.md)   | Expressions of parameters      | Accepted |
 | [0014](0014-local-python-runtime.md)        | A local Python runtime         | Accepted |
 | [0015](0015-agent-bridge.md)                | An agent bridge to the open app | Accepted |
+| [0016](0016-single-precision.md)            | Single precision               | Accepted |
 
 Template: Context, Decision, Consequences, Alternatives.
