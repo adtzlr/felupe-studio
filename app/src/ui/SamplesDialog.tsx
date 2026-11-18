@@ -1,7 +1,7 @@
 // The sample models (#32): a list of samples, each opened like a project file with
 // its mesh files.
 import { useState } from "preact/hooks";
-import { EXTRA_SAMPLES, type Sample, SAMPLES } from "../core/samples";
+import { type Sample, sampleSections } from "../core/samples";
 import { Dialog } from "./Dialog";
 import { SampleCard } from "./SampleCard";
 
@@ -28,6 +28,7 @@ export function useOpening(onOpen: (sample: Sample) => Promise<void>) {
 
 export function SamplesDialog({ modified, onOpen, onClose }: Props) {
   const { opening, open } = useOpening(onOpen);
+  const { samples, more } = sampleSections();
   return (
     <Dialog
       title="Samples"
@@ -42,7 +43,7 @@ export function SamplesDialog({ modified, onOpen, onClose }: Props) {
       )}
       <div class="samples-scroll">
         <ul class="samples" aria-label="Samples">
-          {SAMPLES.map((sample) => (
+          {samples.map((sample) => (
             <SampleCard
               key={sample.id}
               sample={sample}
@@ -52,12 +53,13 @@ export function SamplesDialog({ modified, onOpen, onClose }: Props) {
             />
           ))}
         </ul>
-        {/* the samples of EXTRA_SAMPLES_DIR of the build (#255) */}
-        {EXTRA_SAMPLES.length > 0 && (
+        {/* the samples of EXTRA_SAMPLES_DIR of the build (#255), after the
+            built-in ones; without them, they are the samples (#279) */}
+        {more.length > 0 && (
           <>
             <h3 class="welcome-heading samples-heading">More samples</h3>
             <ul class="samples" aria-label="More samples">
-              {EXTRA_SAMPLES.map((sample) => (
+              {more.map((sample) => (
                 <SampleCard
                   key={sample.id}
                   sample={sample}

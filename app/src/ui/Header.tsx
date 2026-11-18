@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { APP_NAME, formatVersion, LINKS } from "../app";
 import { projectNameProblem, stemOf, suffixOf } from "../core/files";
+import { HAS_SAMPLES } from "../core/samples";
 import { ariaKeys, hint, withHint } from "../core/shortcuts";
 import type { ModelStore } from "../core/store";
 import { Icon } from "./icons";
@@ -205,7 +206,16 @@ export function Header({
                     shortcut: { text: hint("open"), aria: ariaKeys("open") },
                     onSelect: onOpen,
                   },
-                  { id: "samples", label: "Samples…", onSelect: onSamples },
+                  // not in a build without samples (#279)
+                  ...(HAS_SAMPLES
+                    ? [
+                        {
+                          id: "samples",
+                          label: "Samples…",
+                          onSelect: onSamples,
+                        },
+                      ]
+                    : []),
                 ],
               },
               {

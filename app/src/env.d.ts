@@ -9,4 +9,6 @@ declare const __BUILD_ID__: string;
 declare module "virtual:extra-samples" {
   const samples: import("./core/samples").Sample[];
   export default samples;
+  /** The build has the built-in samples (#279). */
+  export const builtIn: boolean;
 }
