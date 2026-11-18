@@ -68,6 +68,12 @@ describe("ribbonGroups", () => {
         { model: "LinearElasticLargeStrain" },
         undefined,
       ],
+      ["Linear elastic", { model: "LinearElastic" }, "Strain-based"],
+      [
+        "Elastic-plastic, isotropic hardening",
+        { model: "LinearElasticPlasticIsotropicHardening" },
+        "Strain-based",
+      ],
     ]);
     expect(dialogTitle(materials[0])).toBe("New material");
   });
@@ -86,6 +92,7 @@ describe("ribbonGroups", () => {
       "Ogden",
       "Micromechanical: Arruda-Boyce, Extended tube",
       "Linear elastic (large strain)",
+      "Strain-based: Linear elastic, Elastic-plastic, isotropic hardening",
     ]);
     // a group of one item is a button
     const [one] = ribbonEntries([{ ...materials[0], group: "Solo" }]);

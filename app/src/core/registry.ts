@@ -251,6 +251,17 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     // material registry of the schema (x-label, description, default)
     fields: {
       model: { label: "Model", default: "NeoHooke" },
+      framework: {
+        label: "Framework",
+        hint: "The strain and the stress of a strain-based material, fem.MaterialStrain",
+        placeholder: "small-strain",
+      },
+    },
+    options: {
+      framework: {
+        "small-strain": "Small strain",
+        "total-lagrange": "Total Lagrange (large rotations)",
+      },
     },
   },
   "section.add": {

@@ -13,6 +13,8 @@ interface DefinitionNode {
   description: string;
   "x-label": string;
   "x-group"?: string;
+  /** How FElupe creates it: a strain-based model has a `strain` function (#191). */
+  "x-felupe": { strain?: string; statevars?: string };
   properties: {
     model: { const: string };
     parameters: {
@@ -43,6 +45,10 @@ export interface MaterialModel {
   optionalBulk: boolean;
   /** Lists of values that need the same number of values (`x-same-length`). */
   sameLength: string[];
+  /** Strain-based (`fem.MaterialStrain`, #191): needs the formulation u. */
+  strain: boolean;
+  /** With state variables, e.g. the equivalent plastic strain (#191). */
+  statevars: boolean;
 }
 
 const defs = schema.$defs as unknown as Record<string, DefinitionNode> & {
@@ -69,6 +75,8 @@ export const MATERIAL_MODELS: readonly MaterialModel[] =
       parameters,
       optionalBulk: parameters.some((p) => p.key === "bulk" && !p.required),
       sameLength: node.properties.parameters["x-same-length"] ?? [],
+      strain: node["x-felupe"].strain !== undefined,
+      statevars: node["x-felupe"].statevars !== undefined,
     };
   });
 
@@ -80,6 +88,21 @@ export function needsBulk(material: Material): boolean {
   const parameters = material.parameters as Record<string, unknown>;
   return !!model?.optionalBulk && parameters.bulk === undefined;
 }
+
+/** True if a material is strain-based (#191): it needs the formulation u. */
+export const strainBased = (material: Material): boolean =>
+  !!MATERIAL_MODELS.find((m) => m.name === material.model)?.strain;
+
+/**
+ * True if a command list has a material with state variables, e.g. the equivalent
+ * plastic strain of an elastic-plastic material (#191).
+ */
+export const hasStatevars = (commands: readonly Command[]): boolean =>
+  commands.some(
+    (c) =>
+      c.command === "material.add" &&
+      !!MATERIAL_MODELS.find((m) => m.name === c.model)?.statevars,
+  );
 
 /**
  * What is wrong with the parameters of a material beyond the schema, with the field:

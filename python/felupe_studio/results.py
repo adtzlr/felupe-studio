@@ -42,6 +42,7 @@ QUANTITIES = {
     "stress_mid": ("stress", 1, "Mid. principal Cauchy stress"),
     "stress_min": ("stress", 2, "Min. principal Cauchy stress"),
     "stress_mises": ("mises", 0, "Von Mises equivalent Cauchy stress"),
+    "plastic_strain": ("plastic", 0, "Equivalent plastic strain"),
 }
 
 # the methods of the values of the strains and the stresses (#231): the means of the
@@ -96,6 +97,7 @@ def reset(namespace, sections, points=(), units=None):
         points=list(points),
         units=units,
         records={},
+        statevars={},
         controls={},
         ranges={},
         regions={},
@@ -104,19 +106,37 @@ def reset(namespace, sections, points=(), units=None):
 
 
 class Recorder(fem.Plugin):
-    """A plugin that records the values of all fields after every substep, and the
-    displacements and forces of the control points (#101)."""
+    """A plugin that records the values of all fields after every substep, the state
+    variables of the materials with state variables of their own, e.g. the plastic
+    strains (#191), and the displacements and forces of the control points (#101)."""
 
     def __init__(self, job, field):
         self.job = job
         self.field = field
         _state["records"][job] = []
+        _state.setdefault("statevars", {})[job] = []
         _state.setdefault("controls", {})[job] = []
 
     def after_substep(self, context, state):
         values = [f.values.copy() for f in self.field.fields]
         _state["records"][self.job].append(values)
+        namespace = _state["namespace"]
+        solids = [s for s in _state["sections"] if _plastic(s)]
+        _state["statevars"][self.job].append(
+            {s: namespace[f"solid_{s}"].results.statevars.copy() for s in solids}
+        )
         _state["controls"][self.job].append(_control_values(self.field))
+
+
+def _plastic(section):
+    """True if the material of a section has state variables of its own (#191), e.g.
+    the equivalent plastic strain (the first one) and the plastic strain tensor of
+    ``fem.linear_elastic_plastic_isotropic_hardening``. ``fem.MaterialStrain`` adds
+    the strain and the stress of the last substep, which a linear-elastic material
+    does not need to evaluate the stress of a restored substep."""
+    solid = _state["namespace"][f"solid_{section}"]
+    umat = getattr(solid, "umat", None)
+    return isinstance(umat, fem.MaterialStrain) and umat.nstatevars > 0
 
 
 # the items of the steps whose forces act on the control points: the multi-point
@@ -236,6 +256,13 @@ def _restore(job, substep):
     field = _state["namespace"]["field"]
     for f, values in zip(field.fields, records[substep - 1], strict=True):
         f.values[:] = values
+    # the state variables of the substep (#191): with them, the stress of an
+    # elastic-plastic material is the one of the substep (no strain increment)
+    statevars = _state.get("statevars", {}).get(job, [])
+    if len(statevars) >= substep:
+        for section, values in statevars[substep - 1].items():
+            solid = _state["namespace"][f"solid_{section}"]
+            solid.results.statevars = values.copy()
 
 
 def _cauchy_stress(solid, field):
@@ -315,13 +342,20 @@ def shift():
 
 
 def _quadrature_data(kind, section):
-    """Return the strains or the stresses of a section of the current values of the
-    fields at the quadrature points: the components (the principal values, or the
-    von Mises equivalent), the quadrature points and the cells as axes."""
+    """Return the strains, the stresses or the equivalent plastic strain of a section
+    of the current values of the fields at the quadrature points: the components (the
+    principal values, or the von Mises equivalent), the quadrature points and the
+    cells as axes."""
     namespace = _state["namespace"]
     field = namespace[f"field_{section}"]
     if kind == "strain":
         return field.evaluate.strain(tensor=False)
+    if kind == "plastic":
+        # the equivalent plastic strain (#191), zero without plasticity
+        if _plastic(section):
+            return namespace[f"solid_{section}"].results.statevars[:1]
+        region = field[0].region
+        return np.zeros((1, region.quadrature.npoints, region.mesh.ncells))
     stress = _cauchy_stress(namespace[f"solid_{section}"], field)
     if kind == "mises":
         return equivalent_von_mises(stress)[None]
@@ -621,13 +655,17 @@ def _export_data(used, method="cells"):
     the means of the sections at their common points."""
     field = _state["namespace"]["field"]
     point_data = {"Displacement": _3d(field[0].values[used])}
-    cell_data = {name: [] for name in EXPORTED}
-    sums = {name: 0.0 for name in EXPORTED}
+    exported = dict(EXPORTED)
+    if any(_plastic(section) for section in _state["sections"]):
+        # the equivalent plastic strain (#191)
+        exported["Equivalent Plastic Strain"] = "plastic"
+    cell_data = {name: [] for name in exported}
+    sums = {name: 0.0 for name in exported}
     count = np.zeros(len(field[0].values))
     for section in _state["sections"]:
         nodes = np.unique(_cells(section)[1])
         count[nodes] += 1
-        for name, kind in EXPORTED.items():
+        for name, kind in exported.items():
             values = _quadrature_data(kind, section)
             cell_data[name].append(_reduce(values, section, "cells"))
             if method != "cells":
@@ -635,7 +673,7 @@ def _export_data(used, method="cells"):
                 data[nodes] = _reduce(values, section, method)[nodes]
                 sums[name] = sums[name] + data
     if method != "cells":
-        for name in EXPORTED:
+        for name in exported:
             point_data[name] = (sums[name] / count[:, None])[used]
     cell_data["Section"] = [
         np.full(len(_cells(section)[1]), i)
@@ -670,8 +708,9 @@ def export(job, file_format, substep=None, method="cells"):
     is the displacement, the cell data are the principal values of the logarithmic
     strain and of the Cauchy stress and the von Mises equivalent of the Cauchy
     stress (the means of the quadrature points of every cell, like
-    :class:`felupe.ViewSolid`) and the index of the section. With a method at the
-    points, the strains and the stresses are point data too.
+    :class:`felupe.ViewSolid`), the equivalent plastic strain of a model with
+    plasticity (#191) and the index of the section. With a method at the points,
+    the strains and the stresses are point data too.
     """
     import meshio
 

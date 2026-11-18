@@ -168,6 +168,19 @@ CHANGES = {
         find(d, "section_soft").update(formulation="u"),
         find(d, "section_soft").pop("bulk"),
     ),
+    # a strain-based material needs the displacement formulation (#191)
+    "strain-based material with u-p-J": lambda d: find(d, "umat_soft").update(
+        model="LinearElasticPlasticIsotropicHardening",
+        framework="total-lagrange",
+        parameters={"E": 210000.0, "nu": 0.3, "sigma_y": 250.0, "K": 1000.0},
+    ),
+    "strain-based material with u": lambda d: (
+        find(d, "umat_soft").update(
+            model="LinearElastic", parameters={"E": 210000.0, "nu": 0.3}
+        ),
+        find(d, "section_soft").update(formulation="u"),
+        find(d, "section_soft").pop("bulk"),
+    ),
     "load case ramped and recorded": lambda d: (
         d["commands"].insert(
             -2,

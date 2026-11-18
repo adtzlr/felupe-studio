@@ -247,6 +247,16 @@ describe("fieldSpecs", () => {
           value: "LinearElasticLargeStrain",
           label: "Linear elastic (large strain)",
         },
+        {
+          value: "LinearElastic",
+          label: "Linear elastic",
+          group: "Strain-based",
+        },
+        {
+          value: "LinearElasticPlasticIsotropicHardening",
+          label: "Elastic-plastic, isotropic hardening",
+          group: "Strain-based",
+        },
       ],
     });
     // the lists of Ogden (#136): one to three values, no exponent of zero
@@ -623,6 +633,36 @@ describe("editing a draft", () => {
       context,
     );
     expect(linear.parameters).toEqual({ E: 1, nu: 0.3 });
+    // a strain-based material (#191): its framework, small strain by default
+    const plastic = setValue(
+      "material.add",
+      linear,
+      ["model"],
+      "LinearElasticPlasticIsotropicHardening",
+      context,
+    );
+    // (E and ν kept)
+    expect(plastic.parameters).toEqual({
+      E: 1,
+      nu: 0.3,
+      sigma_y: 250,
+      K: 1000,
+    });
+    const framework = fieldSpecs("material.add", plastic).find(
+      (s) => s.key === "framework",
+    )!;
+    expect(framework).toMatchObject({ label: "Framework", required: false });
+    expect(choiceOptions(framework, undefined)).toEqual({
+      empty: "Small strain (default)",
+      options: [
+        { value: "total-lagrange", label: "Total Lagrange (large rotations)" },
+      ],
+    });
+    // another model has no framework
+    const total = { ...plastic, framework: "total-lagrange" };
+    expect(
+      setValue("material.add", total, ["model"], "NeoHooke", context),
+    ).not.toHaveProperty("framework");
   });
 
   it("adds and removes the bulk modulus with the formulation", () => {

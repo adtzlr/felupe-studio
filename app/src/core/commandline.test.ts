@@ -227,6 +227,8 @@ describe("complete", () => {
       "Arruda-Boyce",
       "Extended tube",
       "Linear elastic (large strain)",
+      "Linear elastic",
+      "Elastic-plastic, isotropic hardening",
     ]);
     // lists of values in the template of Ogden (#136)
     expect(items[5].value).toBe(

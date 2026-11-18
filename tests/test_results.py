@@ -566,3 +566,50 @@ def test_export_values_at_the_points(two_materials, tmp_path):
     # without a point method, the strains and the stresses are cell data only
     mesh = meshio.read(read(results.export("job_1", "vtu"), ".vtu", tmp_path))
     assert set(mesh.point_data) == {"Displacement"}
+
+
+@pytest.fixture
+def plastic(monkeypatch):
+    """The cube of steel pulled beyond its yield stress and unloaded (#191)."""
+    monkeypatch.chdir(GOLDEN / "plasticity_cube")
+    run(load("plasticity_cube"))
+    return LAST
+
+
+def test_plastic_strain_and_stress_of_every_substep(plastic, tmp_path):
+    # the state variables of every substep are restored with its fields (#191): the
+    # stress of a substep of the loading after the last substep (unloaded) is the
+    # one of the loading, not of the unloaded state
+    E, sy, K = 210000.0, 250.0, 1000.0
+    u = 0.002
+    ep = (u - sy / E) / (1 + K / E)
+    for substep in [11, 3, 11, 3]:
+        meta, surfaces = results.scene("job_1", substep, "stress_max")
+        low, high = json.loads(meta)["range"]
+        if substep == 3:
+            assert low == pytest.approx(sy + K * ep, rel=1e-2)
+        else:
+            assert abs(high) < 3
+    meta, surfaces = results.scene("job_1", 3, "plastic_strain")
+    meta = json.loads(meta)
+    assert meta["label"] == "Equivalent plastic strain"
+    assert meta["range"] == pytest.approx([ep, ep], rel=1e-10)
+    # the remaining plastic strain after the unloading, and none before yielding
+    end = json.loads(results.scene("job_1", 11, "plastic_strain", "project")[0])
+    assert end["range"][0] == pytest.approx(0.0037914691943128, rel=1e-8)
+    assert end["at"] == "point"
+    ranges = json.loads(results.ranges("job_1", "plastic_strain"))
+    assert ranges[1] == [0.0, 0.0]
+    assert ranges[2] == pytest.approx([ep, ep])
+    # the export has the equivalent plastic strain of the last substep
+    mesh = meshio.read(read(results.export("job_1", "vtu"), ".vtu", tmp_path))
+    data = np.concatenate(mesh.cell_data["Equivalent Plastic Strain"])
+    np.testing.assert_allclose(data, 0.0037914691943128, rtol=1e-8)
+
+
+def test_plastic_strain_of_a_model_without_plasticity(two_materials, tmp_path):
+    # zero, and no plastic strain in the export (#191)
+    meta = json.loads(results.scene("job_1", 6, "plastic_strain")[0])
+    assert meta["range"] == [0.0, 0.0]
+    mesh = meshio.read(read(results.export("job_1", "vtu"), ".vtu", tmp_path))
+    assert "Equivalent Plastic Strain" not in mesh.cell_data

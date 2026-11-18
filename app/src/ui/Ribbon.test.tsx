@@ -76,6 +76,7 @@ describe("ribbon commands", () => {
       "Ogden",
       "Micromechanical ▾",
       "Linear elastic (large strain)",
+      "Strain-based ▾",
     ]);
     const polynomial = command("Polynomial");
     expect(polynomial.getAttribute("aria-haspopup")).toBe("menu");

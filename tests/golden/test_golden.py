@@ -490,3 +490,45 @@ def test_default_tolerance(case, tmp_path, monkeypatch):
         force = np.array(reference["jobs"][name]["force"])
         deviation = np.abs(np.array(curve["force"]) - force).max() / force.max()
         assert 0 < deviation < 0.01, f"{case}: {deviation:.2%}"
+
+
+def test_plasticity_like_linear_hardening(tmp_path, monkeypatch):
+    # uniaxial tension of a unit cube of steel beyond its yield stress and unloaded
+    # (#191): von Mises plasticity with linear isotropic hardening K gives the stress
+    # sy + K ep at the plastic strain ep = (u - sy / E) / (1 + K / E), and an elastic
+    # unloading with E, which leaves the plastic strain as remaining strain
+    E, sy, K = 210000.0, 250.0, 1000.0
+    curve = json.loads(
+        (HERE / "plasticity_cube" / "results.json").read_text(encoding="utf-8")
+    )["jobs"]["job_1"]
+    u, force = np.array(curve["displacement"]), np.array(curve["force"])
+    loading, unloading = slice(0, 6), slice(6, None)
+    plastic = np.maximum((u[loading] - sy / E) / (1 + K / E), 0)
+    expected = np.where(plastic > 0, sy + K * plastic, E * u[loading])
+    np.testing.assert_allclose(force[loading], expected, rtol=1e-10)
+    remaining = plastic[-1]
+    np.testing.assert_allclose(force[unloading], E * (u[unloading] - remaining))
+    assert remaining == pytest.approx(0.0037914691943128)
+
+    # the state variable of the equivalent plastic strain of the solid body
+    document = load("plasticity_cube")
+    namespace = run_script(document, "plasticity_cube", tmp_path, monkeypatch)
+    statevars = namespace["solid_body"].results.statevars
+    np.testing.assert_allclose(statevars[0], remaining, rtol=1e-10)
+
+
+def test_total_lagrange_like_small_strain(tmp_path, monkeypatch):
+    # the Total Lagrange framework of the strain-based material (#191) gives about
+    # the curve of the small strains of 0.5 %
+    document = load("plasticity_cube")
+    for cmd in document["commands"]:
+        if cmd["command"] == "material.add":
+            cmd["framework"] = "total-lagrange"
+    total = evaluate("plasticity_cube", tmp_path, monkeypatch, document)
+    small = json.loads(
+        (HERE / "plasticity_cube" / "results.json").read_text(encoding="utf-8")
+    )
+    force = np.array(total["jobs"]["job_1"]["force"])
+    reference = np.array(small["jobs"]["job_1"]["force"])
+    np.testing.assert_allclose(force, reference, rtol=0, atol=0.01 * reference.max())
+    assert not np.allclose(force, reference, rtol=1e-6)
