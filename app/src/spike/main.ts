@@ -5,6 +5,7 @@ import { RuntimeClient } from "../worker/client";
 import type {
   BenchmarkResult,
   LoadTimings,
+  Precision,
   Versions,
 } from "../worker/protocol";
 import { DEFAULT_SIZES, parseSizes, seconds, toMarkdown } from "./format";
@@ -16,6 +17,7 @@ const status = $<HTMLParagraphElement>("#status");
 const loadTable = $<HTMLTableElement>("#load");
 const form = $<HTMLFormElement>("#form");
 const sizesInput = $<HTMLInputElement>("#sizes");
+const precisionInput = $<HTMLSelectElement>("#precision");
 const runButton = $<HTMLButtonElement>("#run");
 const errorBox = $<HTMLParagraphElement>("#error");
 const resultsTable = $<HTMLTableElement>("#results");
@@ -26,7 +28,7 @@ sizesInput.value = DEFAULT_SIZES;
 
 let versions: Versions | undefined;
 let timings: LoadTimings | undefined;
-let results: BenchmarkResult[] = [];
+const results: BenchmarkResult[] = [];
 
 const environment = {
   userAgent: navigator.userAgent,
@@ -91,8 +93,8 @@ form.addEventListener("submit", async (event) => {
     errorBox.textContent = (error as Error).message;
     return;
   }
-  results = [];
-  resultsTable.tBodies[0].replaceChildren();
+  // runs of both precisions are listed one after another (ADR 0016)
+  const precision = precisionInput.value as Precision;
   runButton.disabled = true;
   try {
     await client.benchmark(
@@ -103,6 +105,7 @@ form.addEventListener("submit", async (event) => {
           String(r.n),
           String(r.dofs),
           String(r.cells),
+          r.precision,
           seconds(r.setup),
           seconds(r.solve),
           r.force.toFixed(4),
@@ -111,6 +114,7 @@ form.addEventListener("submit", async (event) => {
         updateMarkdown();
       },
       (message) => (status.textContent = message),
+      precision,
     );
     status.textContent = "Done.";
   } catch (error) {

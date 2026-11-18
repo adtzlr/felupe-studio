@@ -173,6 +173,13 @@ def test_the_requests_of_the_app(tmp_path, monkeypatch):
     [unknown] = answers({"type": "init", "id": 11})
     assert "Unknown request 'init'." in unknown["message"]
 
+    # the benchmark of the spike, also in single precision (ADR 0016)
+    *progress, result, done = answers(
+        {"type": "benchmark", "id": 13, "sizes": [2], "precision": "single"}
+    )
+    assert progress[0]["type"] == "progress" and done == {"type": "done", "id": 13}
+    assert result["result"]["precision"] == "single" and result["result"]["dofs"] == 24
+
 
 def test_scripts_make_meshes(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)

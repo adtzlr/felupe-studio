@@ -1191,6 +1191,10 @@ export interface JobAdd {
      * The maximum number of iterations of the iterative method (default of SciPy).
      */
     maxiter?: number | string;
+    /**
+     * The precision of the linear equation system of a direct solver: double (float64, the default) or single (float32: the matrix, the right-hand side and the factorization, the increment back in double precision). The model, the residual forces and the results stay in double precision; the factorization needs half the memory, and the Newton-Raphson method a few more iterations at tight tolerances.
+     */
+    precision?: "double" | "single";
   };
   /**
    * Retry a substep that does not converge with smaller increments (fem.CutbackPlugin); without a value, a parameter has the default of FElupe.

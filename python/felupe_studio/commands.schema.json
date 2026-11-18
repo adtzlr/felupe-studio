@@ -85,6 +85,7 @@
           "run_mesh_script",
           "script_mesh",
           "single_point",
+          "single_precision",
           "solid_points",
           "solid_types",
           "spsolve",
@@ -2015,6 +2016,10 @@
               "description": "The maximum number of iterations of the iterative method (default of SciPy).",
               "type": ["integer", "string"],
               "minimum": 1
+            },
+            "precision": {
+              "description": "The precision of the linear equation system of a direct solver: double (float64, the default) or single (float32: the matrix, the right-hand side and the factorization, the increment back in double precision). The model, the residual forces and the results stay in double precision; the factorization needs half the memory, and the Newton-Raphson method a few more iterations at tight tolerances.",
+              "enum": ["double", "single"]
             }
           },
           "if": {
@@ -2025,7 +2030,10 @@
             }
           },
           "then": {
-            "required": ["method"]
+            "required": ["method"],
+            "not": {
+              "required": ["precision"]
+            }
           },
           "else": {
             "not": {

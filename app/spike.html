@@ -35,6 +35,11 @@
         <form id="form">
           <label for="sizes">Points per edge (comma-separated)</label>
           <input id="sizes" name="sizes" inputmode="numeric" />
+          <label for="precision">Linear equation system</label>
+          <select id="precision" name="precision">
+            <option value="double">Double precision</option>
+            <option value="single">Single precision (float32)</option>
+          </select>
           <button id="run" type="submit" disabled>Run benchmark</button>
         </form>
         <p id="error" role="alert"></p>
@@ -44,6 +49,7 @@
               <th scope="col">n</th>
               <th scope="col">DOF</th>
               <th scope="col">Cells</th>
+              <th scope="col">Precision</th>
               <th scope="col">Setup in s</th>
               <th scope="col">Solve in s</th>
               <th scope="col">Force</th>

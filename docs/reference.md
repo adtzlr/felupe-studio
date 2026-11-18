@@ -11,7 +11,7 @@ A project file is a JSON document `{"schema_version": 3, "commands": [...]}`. Ev
 
 Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
 
-A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `DIMENSIONS`, `EDGES`, `REGIONS`, `SimpleNamespace`, `boundaries`, `boundary_faces`, `control_points`, `fem`, `field`, `iterative_solver`, `meshio`, `mixed_field`, `mixed_region`, `nearly_incompressible`, `np`, `points`, `points_at`, `run_mesh_script`, `script_mesh`, `single_point`, `solid_points`, `solid_types`, `spsolve`, `surface_points`, `vertex_region`, `volume_cells`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
+A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `DIMENSIONS`, `EDGES`, `REGIONS`, `SimpleNamespace`, `boundaries`, `boundary_faces`, `control_points`, `fem`, `field`, `iterative_solver`, `meshio`, `mixed_field`, `mixed_region`, `nearly_incompressible`, `np`, `points`, `points_at`, `run_mesh_script`, `script_mesh`, `single_point`, `single_precision`, `solid_points`, `solid_types`, `spsolve`, `surface_points`, `vertex_region`, `volume_cells`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
 
 ## Expressions
 
@@ -599,6 +599,7 @@ A job evaluating steps one after another (fem.Job). With a curve, the force-disp
 | `solver.method` | `minres`, `cg`, `gmres` or `bicgstab` | if `type` is `iterative` | The iterative method of scipy.sparse.linalg: minres (symmetric, also indefinite), cg (symmetric positive definite), gmres or bicgstab. |
 | `solver.rtol` | number > 0, < 1 (or an expression) |  | Relative tolerance of the iterative method, relative to the norm of the residual forces (default: the tolerance of the job / 100). |
 | `solver.maxiter` | integer ≥ 1 (or an expression) |  | The maximum number of iterations of the iterative method (default of SciPy). |
+| `solver.precision` | `double` or `single` |  | The precision of the linear equation system of a direct solver: double (float64, the default) or single (float32: the matrix, the right-hand side and the factorization, the increment back in double precision). The model, the residual forces and the results stay in double precision; the factorization needs half the memory, and the Newton-Raphson method a few more iterations at tight tolerances. |
 | `cutback` | object |  | Retry a substep that does not converge with smaller increments (fem.CutbackPlugin); without a value, a parameter has the default of FElupe. |
 | `cutback.factor` | number > 0, < 1 (or an expression) |  | The factor by which the increment is reduced after a failed attempt (default 0.5). |
 | `cutback.max_cutbacks` | integer ≥ 1 (or an expression) |  | The maximum number of successive cutbacks of the increment (default 10): the smallest increment of a substep is factor ** max_cutbacks. |

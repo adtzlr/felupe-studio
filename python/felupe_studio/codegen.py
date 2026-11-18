@@ -44,7 +44,8 @@ HELPERS = HELPERS[HELPERS.index(MARKER) + len(MARKER) :]
 # the surface (#222) and of meshes made by scripts (#182), only in scripts with them
 SURFACES = "\n\n# --- embedded in generated scripts with surface point sets ---\n"
 SCRIPTS = "\n\n# --- embedded in generated scripts with meshes of scripts ---\n"
-# the linear solvers of jobs other than SuperLU (#203), only in scripts with them
+# the linear solvers of jobs other than SuperLU (#203) and in single precision (ADR
+# 0016), only in scripts with them
 SOLVERS = "\n\n# --- embedded in generated scripts with linear solvers ---\n"
 # the helpers of the u-p-J formulation (the MINI element, #226), only in scripts with it
 MIXED = "\n\n# --- embedded in generated scripts with u-p-J sections ---\n"
@@ -301,16 +302,21 @@ def solver_source(job):
     'spsolve'
     >>> solver_source({"solver": {"type": "iterative", "method": "cg", "maxiter": 500}})
     'iterative_solver("cg", rtol=0.0001, maxiter=500)'
+    >>> solver_source({"solver": {"type": "superlu", "precision": "single"}})
+    'single_precision(fem.solve.SuperLUSolver())'
     >>> solver_source({}) is None
     True
     """
     solver = job.get("solver")
     if solver is None:
         return None
-    if solver["type"] == "superlu":
-        return "fem.solve.SuperLUSolver()"
-    if solver["type"] == "spsolve":
-        return "spsolve"
+    if solver["type"] in ("superlu", "spsolve"):
+        source = {"superlu": "fem.solve.SuperLUSolver()", "spsolve": "spsolve"}
+        source = source[solver["type"]]
+        # the linear equation system in single precision (ADR 0016)
+        if solver.get("precision") == "single":
+            return f"single_precision({source})"
+        return source
     args = [_str(solver.get("method", "minres")), f"rtol={solver_rtol(job)!r}"]
     if "maxiter" in solver:
         args.append(f"maxiter={int(solver['maxiter'])}")
@@ -320,7 +326,9 @@ def solver_source(job):
 def uses_solver_helpers(jobs):
     """Whether a linear solver of the jobs needs the helpers of the solvers."""
     return any(
-        job.get("solver", {}).get("type") in ("spsolve", "iterative") for job in jobs
+        job.get("solver", {}).get("type") in ("spsolve", "iterative")
+        or job.get("solver", {}).get("precision") == "single"
+        for job in jobs
     )
 
 

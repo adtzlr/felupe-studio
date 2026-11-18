@@ -56,11 +56,11 @@ export function toMarkdown(
     `| FElupe, meshio (wheels of the app) | ${seconds(timings.felupe / 1000)} |`,
     `| **Total** | **${seconds(timings.total / 1000)}** |`,
     "",
-    "| n | DOF | Cells | Setup in s | Solve in s | Force |",
-    "| ---: | ---: | ---: | ---: | ---: | ---: |",
+    "| n | DOF | Cells | Precision | Setup in s | Solve in s | Force |",
+    "| ---: | ---: | ---: | --- | ---: | ---: | ---: |",
     ...results.map(
       (r) =>
-        `| ${r.n} | ${r.dofs} | ${r.cells} | ${seconds(r.setup)} | ${seconds(r.solve)} | ${r.force.toFixed(4)} |`,
+        `| ${r.n} | ${r.dofs} | ${r.cells} | ${r.precision} | ${seconds(r.setup)} | ${seconds(r.solve)} | ${r.force.toFixed(4)} |`,
     ),
   ];
   return lines.join("\n");

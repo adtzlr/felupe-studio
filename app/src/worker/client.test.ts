@@ -68,7 +68,12 @@ describe("RuntimeClient", () => {
     const onProgress = vi.fn();
     const run = client.benchmark([3, 5], onResult, onProgress);
     await vi.waitFor(() => expect(worker.sent).toHaveLength(2));
-    expect(worker.sent[1]).toEqual({ type: "benchmark", id: 1, sizes: [3, 5] });
+    expect(worker.sent[1]).toEqual({
+      type: "benchmark",
+      id: 1,
+      sizes: [3, 5],
+      precision: "double",
+    });
 
     const result = {
       n: 3,
@@ -76,6 +81,7 @@ describe("RuntimeClient", () => {
       cells: 8,
       dofs: 81,
       increments: 5,
+      precision: "double" as const,
       setup: 0,
       solve: 0,
       force: 1,

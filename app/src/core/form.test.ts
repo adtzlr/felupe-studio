@@ -163,7 +163,7 @@ describe("fieldSpecs", () => {
       fieldSpecs("job.add", draft)
         .map((spec) => spec.key)
         .filter((key) => key.startsWith("solver"));
-    expect(keys(on)).toEqual(["solver", "solver.type"]);
+    expect(keys(on)).toEqual(["solver", "solver.type", "solver.precision"]);
     const iterative = setValue(
       "job.add",
       on,
@@ -190,6 +190,47 @@ describe("fieldSpecs", () => {
     expect(direct.solver).toEqual({ type: "spsolve" });
     expect(schemaAccepts(direct)).toBe(true);
     expect(schemaAccepts(iterative)).toBe(true);
+  });
+
+  it("offers the precision only for a direct solver (ADR 0016)", () => {
+    const context = { commands: (fixture as CommandList).commands };
+    const on = setValue("job.add", find("job_1"), ["solver"], {}, context);
+    const single = setValue(
+      "job.add",
+      on,
+      ["solver", "precision"],
+      "single",
+      context,
+    );
+    expect(single.solver).toEqual({ type: "superlu", precision: "single" });
+    expect(schemaAccepts(single)).toBe(true);
+    const spec = fieldSpecs("job.add", single).find(
+      (s) => s.key === "solver.precision",
+    )!;
+    expect(choiceOptions(spec, "single")).toEqual({
+      empty: "Double (float64) (default)",
+      options: [{ value: "single", label: "Single (float32)" }],
+    });
+    // an iterative solver loses it
+    const iterative = setValue(
+      "job.add",
+      single,
+      ["solver", "type"],
+      "iterative",
+      context,
+    );
+    expect(iterative.solver).toEqual({ type: "iterative", method: "minres" });
+    expect(
+      fieldSpecs("job.add", iterative).some(
+        (s) => s.key === "solver.precision",
+      ),
+    ).toBe(false);
+    expect(
+      schemaAccepts({
+        ...iterative,
+        solver: { ...(iterative.solver as Draft), precision: "single" },
+      }),
+    ).toBe(false);
   });
 
   it("requires the bulk modulus only for the mixed formulation", () => {

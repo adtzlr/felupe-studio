@@ -22,6 +22,7 @@ import type {
   MeshFormat,
   MeshInfo,
   MeshSurface,
+  Precision,
   Quantity,
   ResultScene,
   ToWorker,
@@ -162,13 +163,18 @@ export class RuntimeClient {
     } satisfies ToWorker);
   }
 
-  /** Run the benchmark of the spike (#9) for the given mesh sizes. */
+  /**
+   * Run the benchmark of the spike (#9) for the given mesh sizes, with the linear
+   * equation system in double or single precision (ADR 0016).
+   */
   async benchmark(
     sizes: number[],
     onResult: (result: BenchmarkResult) => void,
     onProgress: (message: string) => void = () => {},
+    precision: Precision = "double",
   ): Promise<void> {
-    await this.request({ type: "benchmark", sizes }, "done", (message) => {
+    const request = { type: "benchmark", sizes, precision } as const;
+    await this.request(request, "done", (message) => {
       if (message.type === "progress") onProgress(message.message);
       if (message.type === "benchmark-result") onResult(message.result);
     });

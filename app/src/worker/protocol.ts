@@ -24,6 +24,9 @@ export interface LoadTimings {
   total: number;
 }
 
+/** The precision of the linear equation system of the benchmark (ADR 0016). */
+export type Precision = "double" | "single";
+
 /** Result of `felupe_studio.benchmark.benchmark()`, times in seconds. */
 export interface BenchmarkResult {
   n: number;
@@ -31,6 +34,8 @@ export interface BenchmarkResult {
   cells: number;
   dofs: number;
   increments: number;
+  /** The precision of the linear equation system (ADR 0016). */
+  precision: Precision;
   setup: number;
   solve: number;
   force: number;
@@ -272,7 +277,7 @@ export type ToWorker =
       /** Wheels loaded when they are needed, by name (e.g. tensortrax). */
       lazyWheels?: Record<string, string>;
     }
-  | { type: "benchmark"; id: number; sizes: number[] }
+  | { type: "benchmark"; id: number; sizes: number[]; precision?: Precision }
   | { type: "write-file"; id: number; name: string; data: ArrayBuffer }
   | { type: "inspect-mesh"; id: number; name: string }
   /** Run a script with parameters and inspect its mesh, or an item (#182). */

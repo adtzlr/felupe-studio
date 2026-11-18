@@ -242,13 +242,16 @@ function conditions(node: Node, value: Draft) {
     const matches = Object.entries(node.if.properties ?? {}).every(
       ([key, property]) => value[key] === property.const,
     );
-    if (matches) for (const key of node.then?.required ?? []) required.add(key);
-    else {
-      // properties that must not exist otherwise: not required, or not any of them
-      const not = node.else?.not;
+    // properties that must not exist: not required, or not any of them, e.g. the
+    // options of an iterative solver otherwise and its precision with it (#152)
+    const forbid = (not?: Node) => {
       for (const n of [not, ...(not?.anyOf ?? [])])
         for (const key of n?.required ?? []) hidden.add(key);
-    }
+    };
+    if (matches) {
+      for (const key of node.then?.required ?? []) required.add(key);
+      forbid(node.then?.not);
+    } else forbid(node.else?.not);
   }
   // coordinates of axes that are not chosen (#186)
   for (const [name, property] of Object.entries(node.properties ?? {})) {

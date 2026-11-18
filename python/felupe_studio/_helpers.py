@@ -342,3 +342,16 @@ def iterative_solver(method, rtol, maxiter=None):
         return x
 
     return solver
+
+
+def single_precision(solver):
+    """Return a linear solver ``solver(A, b)`` which solves in single precision
+    (``float32``): the matrix, the right-hand side and the factorization need half the
+    memory. The increment is returned in the precision of the right-hand side, so the
+    residual forces and the convergence check of the Newton iteration stay in double
+    precision (ADR 0016)."""
+
+    def solve(A, b):
+        return solver(A.astype(np.float32), b.astype(np.float32)).astype(b.dtype)
+
+    return solve
