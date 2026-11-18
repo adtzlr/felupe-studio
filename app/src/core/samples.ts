@@ -1,7 +1,9 @@
 // The sample models of the app (#32): project files with their mesh files in
-// public/samples, listed in samples.json (both made by scripts/make_samples.py).
-import index from "./samples.json";
+// public/samples, listed in samples.json (both made by scripts/make_samples.py), and
+// the extra samples of a folder at build time (EXTRA_SAMPLES_DIR, #255).
+import extra from "virtual:extra-samples";
 import { SUFFIX } from "./files";
+import index from "./samples.json";
 
 export interface Sample {
   id: string;
@@ -14,6 +16,9 @@ export interface Sample {
 }
 
 export const SAMPLES: readonly Sample[] = index;
+
+/** The samples of EXTRA_SAMPLES_DIR of the build (none by default, #255). */
+export const EXTRA_SAMPLES: readonly Sample[] = extra;
 
 /** The URL of a file of a sample. */
 export const sampleUrl = (sample: Sample, file: string, base: string) =>

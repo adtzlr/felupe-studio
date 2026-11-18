@@ -1,7 +1,7 @@
 // The welcome panel of an empty model (#127): how to start, and the samples with
 // their pictures.
 import { APP_NAME, LINKS } from "../app";
-import { type Sample, SAMPLES } from "../core/samples";
+import { EXTRA_SAMPLES, type Sample, SAMPLES } from "../core/samples";
 import { Icon } from "./icons";
 import { SampleCard } from "./SampleCard";
 import { useOpening } from "./SamplesDialog";
@@ -43,6 +43,21 @@ export function Welcome({ onImportMesh, onOpen, onOpenSample }: Props) {
           />
         ))}
       </ul>
+      {EXTRA_SAMPLES.length > 0 && (
+        <>
+          <h3 class="welcome-heading samples-heading">More samples</h3>
+          <ul class="sample-grid" aria-label="More samples">
+            {EXTRA_SAMPLES.map((sample) => (
+              <SampleCard
+                key={sample.id}
+                sample={sample}
+                opening={opening}
+                onOpen={open}
+              />
+            ))}
+          </ul>
+        </>
+      )}
       <p class="welcome-links">
         <a href={LINKS.guide} target="_blank" rel="noopener">
           User guide

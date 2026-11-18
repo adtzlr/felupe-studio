@@ -2607,8 +2607,17 @@ kbd {
 .samples {
   display: grid;
   gap: var(--space-8);
+}
+
+/* the built-in samples and the extra ones of the build (#255), scrolled together */
+.samples-scroll {
   max-height: min(70vh, 600px);
   overflow: auto;
+}
+
+/* the heading of the extra samples, below the built-in ones (#255) */
+.welcome-heading.samples-heading {
+  margin-top: var(--space-16);
 }
 
 .sample-grid {
