@@ -1,10 +1,10 @@
 # User guide
 
-FElupe Studio builds models of hyperelastic solids, in 3D or in 2D (plane strain and axisymmetric), from mesh files or from Python scripts with parameters, solves them with [FElupe](https://github.com/adtzlr/felupe) in the browser and shows the results. Nothing is installed and nothing is uploaded: Python runs in the browser with [Pyodide](https://pyodide.org).
+FElupe Studio builds models of solids, hyperelastic (e.g. rubber) or elastic-plastic (e.g. steel), in 3D or in 2D (plane strain and axisymmetric), from mesh files or from Python scripts with parameters, solves them with [FElupe](https://github.com/adtzlr/felupe) in the browser and shows the results. Nothing is installed and nothing is uploaded: Python runs in the browser with [Pyodide](https://pyodide.org).
 
 **Open the app:** <https://adtzlr.github.io/felupe-studio/>
 
-The first start downloads Python, NumPy, SciPy and FElupe; the browser keeps them for the next visits. The [command reference](reference.md) lists every property of every command, [commands.md](commands.md) explains how the commands become a FElupe script.
+The first start downloads Python, NumPy, SciPy and FElupe; the browser keeps them for the next visits. The [command reference](reference.md) lists every property of every command, [commands.md](commands.md) explains how the commands become a FElupe script. AI agents like Claude Code or GitHub Copilot build, check and solve models with the [MCP server](agents.md).
 
 ## The idea
 
@@ -54,11 +54,13 @@ An empty model shows a welcome panel with *Import mesh*, *Open project* and the 
 | Metacone (FElupe ex15) | an axisymmetric rubber-metal spring, its section made by a 2D mesh script with runouts, the clamped uniaxial load case |
 | Engine mount (FElupe ex07) | plane strain, air as a third medium (`u-isochoric`), rigid metal parts by point sets of sections, two jobs |
 
-Open a sample, press **Solve** and look at the results; then change a value in the properties and solve again.
+Open a sample, press **Solve** and look at the results; then change a value in the properties and solve again. A build of the app of your own can add samples from a folder, e.g. private ones, listed under *More samples* (`EXTRA_SAMPLES_DIR`, see [CONTRIBUTING.md](../CONTRIBUTING.md)).
 
 The **hyperelastic spring with end stops** is the example ex06 of FElupe: a half of a spring (the symmetry plane `y = 0`) bonded to two steel plates. The top face is fixed; the bottom face is compressed by 40 mm in z and then shifted by 40 mm in x. The plates are also end stops: two rigid planes, `upper_plate` and `lower_plate`, and the contacts `upper_stop` and `lower_stop` with a friction of 0.5 take the points of the point set `outer` (*On the outer surface*). The reference point of the lower plane is on the plane `z == 0` of the point set `bottom`, so the boundaries of the bottom face move the plane with it, and the curve is the force of the whole lower plate. It rises steeply once the bulging spring touches the upper plate; the card *Control points* shows the force of the end stop. The upper plane is 0.1 mm above the top face, like in ex06, and fixed by its own boundary.
 
 The **engine mount** is the example ex07 of FElupe in plane strain: rubber (`u-p-J`) between an inner and an outer metal part, with air in its cavities, on the meshes of ex07. The air is a Neo-Hooke material without a bulk modulus in the formulation `u-isochoric`: it has no volumetric part, so it is soft for any change of its volume, a third medium that only keeps the rubber from penetrating itself. The metal parts are rigid: the point sets `inner` and `outer` take all points of their sections (*Of a section*), and boundaries move all of them, so their stiffness does not matter. The job `vertical` moves the inner part by 3 mm in y, the job `horizontal` then by 8 mm in x, there and back (three steps); the second job starts from the state of the first. The forces are per unit thickness (ex07 plots them for a thickness of 100 mm).
+
+![The results of the sample "Engine mount (FElupe ex07)" at the end of the shift by 8 mm in x: the von Mises stress projected to the points, the air in the cavities of the rubber and the force-displacement curve of the job horizontal](images/engine-mount.png)
 
 The **metacone** is the example ex15 of FElupe, a conical rubber-metal spring as an axisymmetric model (x is the axis): two rubber layers (`u-p-J`) between three steel sheets. Its script `metacone.py` makes the section with the mesh tools of FElupe, like ex15: lines expanded and filled between, runouts at the free ends of the rubber layers, rotated by 15° to the cone. The clamped uniaxial load case `push` moves the end of the inner sleeve by -1.5 mm along the axis and holds the end of the outer sleeve; the force is the total over the circumference, about -517 N at the end. The parameters change the thickness of the sheets and the fineness.
 
@@ -246,6 +248,6 @@ The sample *Hyperelastic block with a rigid plate* glues the top face of a hyper
 
 **Solve** and open the results: the top face stays plane, moves with the plate and tilts with it. The curve is the force of the plate in x over its displacement; the control points show the reaction force at `plate` and the moment about y at `tilt`. Compare your model with the sample: the project files have the same commands. Finally, **File ▸ Save project as…** saves it as a *project archive* with its mesh file, e.g. `glued-plate.felupe.zip`, to open it again in one step.
 
-## Limits of version 0.4
+## Limits of version 0.5
 
-FElupe Studio has no meshing from CAD (meshes come from files or from Python scripts), no contact between two deformable bodies or of a body with itself (contacts are of points with rigid planes and cylinders) and no server. The boundaries of a model are the same in all steps; a step only ramps values. Parameters are values of the mesh scripts, not yet of other commands. 2D models are plane strain or axisymmetric, not plane stress. See the [roadmap](https://github.com/adtzlr/felupe-studio/issues/178).
+FElupe Studio has no meshing from CAD (meshes come from files or from Python scripts), no contact between two deformable bodies or of a body with itself (contacts are of points with rigid planes and cylinders) and no server: Python runs in the browser, and the MCP server for AI agents runs headless on your computer, without a connection to the open app. The boundaries of a model are the same in all steps; a step only ramps values. Parameters are values of the mesh scripts, not yet of other commands. 2D models are plane strain or axisymmetric, not plane stress. The plasticity is von Mises plasticity with linear isotropic hardening; there are no user-defined materials yet. On a touch screen, single faces and further nodes need Shift (a keyboard). See the [roadmap](https://github.com/adtzlr/felupe-studio/issues/243).

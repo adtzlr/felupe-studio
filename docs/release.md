@@ -29,11 +29,21 @@ With real Pyodide, after the deployment of `main` has finished. Use the cases in
 - [ ] Parameters and mesh scripts: *Sandwich spring with parameters* asks for its parameters when it opens; with 5 layers instead of 3 it opens with the higher stack and is softer; *Show* reads the script; *All parameters…* changes them later. An error in a mesh script (e.g. a wrong name) is an issue of the mesh with its traceback.
 - [ ] 2D models: *Axisymmetric sandwich spring* and *Plate with a hole in plane strain* open onto the xy-plane, solve, and show their results in 2D; the plate shows the concentration of the stress at the hole.
 - [ ] Contact: *Hyperelastic spring with end stops* solves; the point set `outer` highlights the surface, the contact `lower_stop` its points and its plane; in the results the plates move with their reference points and the force rises steeply at the end of the compression.
+- [ ] Strain-based materials: the Materials tab has the menus *Linear elasticity*, *Hyperelasticity* and *Strain-based elasticity*. The golden case `plasticity_cube` (steel pulled beyond its yield stress and unloaded) solves; its curve matches `results.json`, the force goes back to zero at a remaining strain, and the contour *Equivalent plastic strain* is above zero. With the framework *Seth-Hill* the form asks for the *Strain exponent m*.
+- [ ] Values at the points: on *Plate with a hole in plane strain*, the contour settings ▸ *Values at* ▸ *Points: projected* gives a smooth contour with a larger peak at the hole than *Cells*; the VTU of the substep has the stresses as point data.
+- [ ] Samples of v0.5: *Engine mount (FElupe ex07)* solves its two jobs; the curve of `horizontal` is Fx over ux, there and back. *Metacone (FElupe ex15)* asks for its parameters and solves; the force is about -517 N at the end.
+- [ ] Export mesh: the menu of a mesh in the browser ▸ *Export mesh…* writes a VTU that opens in ParaView, also of a mesh script with the current parameters.
 - [ ] Live results: *Show live results* during a run shows the growing curve and the scenes; *Live results* off shows the curve only.
 - [ ] Cancel a running job: Python loads again and Solve works again without opening the files again.
 - [ ] A failing job (a large ramp with few substeps) shows the traceback; with cutback it runs.
 - [ ] Exports: the Python script runs next to the mesh files with FElupe; the XDMF and the VTU open in ParaView; the PNG shows the view with its scalar bar.
 - [ ] Reload: Pyodide and the wheels come from the cache (faster start).
+
+### Local checks
+
+- [ ] MCP server (in a clone, CPython): `pip install -e ".[mcp]"` and `felupe-studio-mcp --help`; added to an agent (e.g. `claude mcp add felupe-studio -- felupe-studio-mcp`), it opens a sample, solves it and saves the project, which opens in the app.
+- [ ] Extra samples: `EXTRA_SAMPLES_DIR=<folder> npm run build` (and `npm run dev`) shows them under *More samples*; they open and solve.
+- [ ] Screenshots: `python docs/make_screenshots.py` (with the real Pyodide) makes the images of the guide and the README of this version.
 
 ### The release
 
