@@ -48,7 +48,14 @@ import {
   type SectionPick,
   type Surface,
 } from "../viewer/surfaces";
-import { combine, type Patch, patchCounts, pickPatch } from "../viewer/patches";
+import {
+  combine,
+  type FaceAt,
+  faceState,
+  type Patch,
+  patchCounts,
+  pickPatch,
+} from "../viewer/patches";
 import { analysisOf, is2d } from "../core/analysis";
 import { toName } from "../core/importmesh";
 import {
@@ -290,10 +297,9 @@ export function Viewport({
   // the picked surfaces: patches of connected faces, selected or excluded (#195)
   const [patches, setPatches] = useState<Patch[]>([]);
   const picking = patches.length > 0;
-  // taps deselect and exclude like right clicks, for touch screens (#195)
-  const [excluding, setExcluding] = useState(false);
-  const excludingRef = useRef(excluding);
-  excludingRef.current = excluding;
+  // the face of the last click on a surface: the panel names what the next click
+  // does (#260)
+  const [lastFace, setLastFace] = useState<FaceAt | undefined>();
   // the feature angle of a clicked surface (#189)
   const [angle, setAngle] = useState(storedAngle);
   const angleRef = useRef(angle);
@@ -329,6 +335,14 @@ export function Viewport({
     () => combine(patches, sections, angle),
     [patches, sections, angle],
   );
+  // what the next click on the last clicked surface does (#260)
+  const nextClick = useMemo(() => {
+    if (!lastFace) return undefined;
+    const state = faceState(combined, lastFace);
+    if (state === "selected") return "click again to exclude";
+    if (state === "excluded") return "click again to deselect";
+    return "click again to pick";
+  }, [combined, lastFace]);
   const faces = useMemo((): Highlight[] => {
     // the drawn triangles of faces (not of hidden cells)
     const highlight = (
@@ -419,14 +433,14 @@ export function Viewport({
   // the picked faces as a plane, a cylinder or a surface of nodes, and the points
   // of the point set it would create (#189), without the excluded points (#195)
   const surface = useMemo(() => {
-    if (!picking && !excluding) return undefined;
+    if (!picking) return undefined;
     const of = (map: Map<string, number[]>): SectionPick[] =>
       [...map].flatMap(([section, faces]) => {
         const at = sections.get(section);
         return at ? [{ of: at, faces }] : [];
       });
     return describeSurface(of(combined.faces), nodes, of(combined.excluded));
-  }, [picking, excluding, combined, sections, nodes]);
+  }, [picking, combined, sections, nodes]);
   const surfacePoints = useMemo(() => {
     if (!surface) return undefined;
     if (surface.kind === "plane" && surface.exactPoints)
@@ -634,8 +648,8 @@ export function Viewport({
       viewer.current = new Viewer(host.current, createViewer);
       viewer.current.onPick((pick, click) => {
         setCopied(false);
-        // a right click, or a tap with *Exclude* (#195)
-        const right = !!click.right || excludingRef.current;
+        // a right click deselects at once (#195), a click cycles (#260)
+        const right = !!click.right;
         if (click.target) {
           if (right) return;
           // a control point: select it (#95)
@@ -648,13 +662,14 @@ export function Viewport({
         if (click.node) {
           const node = exactNode(click.node, nodesRef.current);
           if (!right) {
-            // a node: Shift adds or removes it, else it replaces the picked ones
+            // a node: a click on a picked node deselects it (#260), Shift adds or
+            // removes it, else it replaces the picked ones
             setPicked(undefined);
             setPatches([]);
             setPickedNodes((nodes) => {
-              if (!click.shift) return [node];
               const others = nodes.filter((n) => !sameNode(n, node));
-              return others.length < nodes.length ? others : [...nodes, node];
+              if (others.length < nodes.length) return others;
+              return click.shift ? [...nodes, node] : [node];
             });
             hideTip();
             return;
@@ -665,13 +680,14 @@ export function Viewport({
             return;
           }
         }
-        // a face of a section: a left click adds its connected surface up to the
-        // feature angle (#189), a right click deselects or excludes it, Shift single
-        // faces (#195)
+        // a face of a section: a click cycles its connected surface up to the
+        // feature angle (#189) through picked, excluded and not picked (#260), a
+        // right click deselects it at once, Shift single faces (#195)
         const at = pick && faceAt(sectionsRef.current, pick);
         if (at) {
           setPicked(undefined);
           setPickedNodes([]);
+          setLastFace(at);
           setPatches((current) =>
             pickPatch(
               current,
@@ -723,13 +739,13 @@ export function Viewport({
   };
   const clearPatches = () => {
     setPatches([]);
-    setExcluding(false);
+    setLastFace(undefined);
   };
 
   // Escape clears a picked face or picked nodes, before the app clears the selection
   // (a listener of the capture phase)
   useEffect(() => {
-    if (!picked && !pickedNodes.length && !picking && !excluding) return;
+    if (!picked && !pickedNodes.length && !picking) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented) return;
       event.preventDefault();
@@ -739,7 +755,7 @@ export function Viewport({
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [picked, pickedNodes, picking, excluding]);
+  }, [picked, pickedNodes, picking]);
 
   // hidden nodes cannot stay picked
   useEffect(() => {
@@ -846,7 +862,6 @@ export function Viewport({
           !picked &&
           !pickedNodes.length &&
           !picking &&
-          !excluding &&
           onCreateControlPoint && (
             <div
               class="pick-panel"
@@ -875,13 +890,12 @@ export function Viewport({
           !picked &&
           !pickedNodes.length &&
           !picking &&
-          !excluding &&
           !(selectedSet && onCreateControlPoint) && (
             <div class="pick-panel tip" role="note" aria-label="Tip">
               <span class="muted">
                 {nodesShown
                   ? "Click a node to pick it, Shift+click for more."
-                  : "Click faces to pick their surfaces for a point set or a face set, right-click to deselect, twice to exclude, Shift+click single faces."}
+                  : "Click faces to pick their surfaces for a point set or a face set, again to exclude them and a third time to deselect them. Shift+click single faces."}
               </span>
               <button
                 type="button"
@@ -981,12 +995,13 @@ export function Viewport({
             </button>
           </div>
         )}
-        {/* the panel stays with *Exclude* pressed, for the next tap (#195) */}
         {shown && surface && (
           <div class="pick-panel" role="status" aria-label="Picked faces">
             <span>
               <strong>
-                {picking ? surfaceTitle(surface) : "No faces picked"}
+                {combined.faces.size
+                  ? surfaceTitle(surface)
+                  : "No faces picked"}
               </strong>
               {surface.kind === "plane" &&
                 surface.exactPoints &&
@@ -998,8 +1013,8 @@ export function Viewport({
                 })()}{" "}
               <span class="muted">
                 · {pickedSummary(patches, combined.faces)} ·{" "}
-                {(surfacePoints?.length ?? 0) / 3} points · right-click
-                deselects, twice excludes
+                {(surfacePoints?.length ?? 0) / 3} points
+                {nextClick && ` · ${nextClick}`}
               </span>
             </span>
             <label
@@ -1021,15 +1036,6 @@ export function Viewport({
                 ))}
               </select>
             </label>
-            <button
-              type="button"
-              class="button"
-              aria-pressed={excluding}
-              title="Clicks deselect and exclude surfaces, like right clicks (for touch screens)"
-              onClick={() => setExcluding((on) => !on)}
-            >
-              Exclude
-            </button>
             {onCreatePointSet && (
               <button
                 type="button"

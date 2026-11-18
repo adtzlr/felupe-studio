@@ -33,16 +33,14 @@ function clicks(
   return { click, patches: () => patches };
 }
 
-describe("patches of picked surfaces (#195)", () => {
+describe("patches of picked surfaces (#195, #260)", () => {
   const of = box();
   const sections = new Map([["body", of]]);
   const nodes = [Float64Array.from(of.faces.flatMap((f) => [...f.nodes]))];
 
-  it("are added by left clicks", () => {
+  it("are added by clicks", () => {
     const { click, patches } = clicks(sections);
     expect(click(1, LEFT).faces.get("body")).toEqual(TOP);
-    // a click on the same patch changes nothing
-    expect(click(5, LEFT).faces.get("body")).toEqual(TOP);
     expect(click(2, LEFT).faces.get("body")).toEqual([...FRONT, ...TOP].sort());
     expect(patchCounts(patches())).toEqual({ selected: 2, excluded: 0 });
     // the edge between the top and the front once: 6 + 6 - 3 nodes
@@ -55,16 +53,15 @@ describe("patches of picked surfaces (#195)", () => {
     expect(surface.nodes).toHaveLength(3 * 9);
   });
 
-  it("are deselected by a right click and excluded by a second one", () => {
+  it("cycle through picked, excluded and not picked by clicks (#260)", () => {
     const { click, patches } = clicks(sections);
     click(1, LEFT);
-    click(2, LEFT);
-    // deselected
-    let combined = click(6, RIGHT);
-    expect(combined.faces.get("body")).toEqual(TOP);
-    expect(combined.excluded.size).toBe(0);
-    // excluded: the top without the points of the edge, but with its faces
-    combined = click(6, RIGHT);
+    // picked
+    let combined = click(2, LEFT);
+    expect(combined.faces.get("body")).toEqual([...FRONT, ...TOP].sort());
+    // excluded by a second click, on any face of the surface: the top without the
+    // points of the edge, but with its faces
+    combined = click(6, LEFT);
     expect(combined.faces.get("body")).toEqual(TOP);
     expect(combined.excluded.get("body")).toEqual(FRONT);
     expect(faceState(combined, { section: "body", face: 2 })).toBe("excluded");
@@ -76,44 +73,85 @@ describe("patches of picked surfaces (#195)", () => {
     );
     expect(surface).toMatchObject({ kind: "plane", exactPoints: false });
     expect(surface.nodes).toHaveLength(3 * 3);
-    // a third right click removes the exclusion, a left click selects it again
-    expect(click(2, RIGHT).excluded.size).toBe(0);
-    click(2, RIGHT);
+    // not picked by a third click, picked again by a fourth one
     combined = click(2, LEFT);
     expect(combined.excluded.size).toBe(0);
+    expect(combined.faces.get("body")).toEqual(TOP);
+    expect(patchCounts(patches())).toEqual({ selected: 1, excluded: 0 });
+    combined = click(2, LEFT);
     expect(combined.faces.get("body")).toEqual([...FRONT, ...TOP].sort());
   });
 
-  it("exclude faces that are not selected", () => {
+  it("are deselected at once by a right click, picked or excluded", () => {
+    const { click, patches } = clicks(sections);
+    click(1, LEFT);
+    click(2, LEFT);
+    const combined = click(6, RIGHT);
+    expect(combined.faces.get("body")).toEqual(TOP);
+    expect(combined.excluded.size).toBe(0);
+    // a right click on a face that is not picked changes nothing
+    expect(click(6, RIGHT).faces.get("body")).toEqual(TOP);
+    expect(patches()).toHaveLength(1);
+    // excluded, then deselected at once
+    click(5, LEFT);
+    expect(click(5, RIGHT)).toEqual({ faces: new Map(), excluded: new Map() });
+    expect(patches()).toEqual([]);
+  });
+
+  it("exclude faces that are not picked by two clicks", () => {
     const { click } = clicks(sections);
-    const combined = click(2, RIGHT);
+    click(2, LEFT);
+    const combined = click(2, LEFT);
     expect(combined.faces.size).toBe(0);
     expect(combined.excluded.get("body")).toEqual(FRONT);
     // excluded patches have priority: the excluded front stays excluded
     expect(click(8, LEFT).excluded.get("body")).toEqual(FRONT);
   });
 
-  it("add, omit and exclude single faces with Shift", () => {
-    const { click } = clicks(sections);
-    // a single face, removed again
+  it("cycle single faces with Shift, and omit faces of picked surfaces", () => {
+    const { click, patches } = clicks(sections);
+    // a single face: picked, excluded, not picked
     expect(click(1, SHIFT).faces.get("body")).toEqual([1]);
-    expect(click(1, SHIFT).faces.size).toBe(0);
-    // a face of a selected patch is omitted, and back
+    let combined = click(1, SHIFT);
+    expect(combined.faces.size).toBe(0);
+    expect(combined.excluded.get("body")).toEqual([1]);
+    combined = click(1, SHIFT);
+    expect(combined.excluded.size).toBe(0);
+    expect(patches()).toEqual([]);
+    // a face of a picked surface is omitted, and back
     click(1, LEFT);
     expect(click(5, SHIFT).faces.get("body")).toEqual([1]);
     expect(click(5, SHIFT).faces.get("body")).toEqual(TOP);
-    // omitted, then selected again by a left click
+    // omitted, then picked again by a click
     click(5, SHIFT);
     expect(click(5, LEFT).faces.get("body")).toEqual(TOP);
-    // a single excluded face, removed with Shift+right-click
-    let combined = click(6, SHIFT_RIGHT);
-    expect(combined.excluded.get("body")).toEqual([6]);
-    combined = click(6, SHIFT_RIGHT);
-    expect(combined.excluded.size).toBe(0);
-    // a single face of a selected patch excluded: its points are removed
-    combined = click(5, SHIFT_RIGHT);
-    expect(combined.faces.get("body")).toEqual([1]);
-    expect(combined.excluded.get("body")).toEqual([5]);
+    // omitted, then the surface excluded: the omission is gone with it
+    click(5, SHIFT);
+    combined = click(1, LEFT);
+    expect(combined.excluded.get("body")).toEqual(TOP);
+    expect(patches()).toEqual([
+      { section: "body", seed: 1, state: "excluded" },
+    ]);
+    // a single excluded face of an excluded surface: Shift removes the surface's
+    // exclusion
+    expect(click(5, SHIFT).excluded.size).toBe(0);
+  });
+
+  it("deselect single faces with Shift+right-click", () => {
+    const { click } = clicks(sections);
+    click(6, SHIFT);
+    expect(click(6, SHIFT_RIGHT).faces.size).toBe(0);
+    // a face of a picked surface is omitted
+    click(1, LEFT);
+    expect(click(5, SHIFT_RIGHT).faces.get("body")).toEqual([1]);
+    expect(click(5, SHIFT_RIGHT).faces.get("body")).toEqual([1]);
+    // an excluded single face is removed, and only it
+    click(2, LEFT);
+    click(2, LEFT);
+    click(8, SHIFT);
+    click(8, SHIFT);
+    const combined = click(8, SHIFT_RIGHT);
+    expect(combined.excluded.get("body")).toEqual(FRONT);
   });
 
   it("follow the feature angle with their states", () => {
@@ -132,13 +170,15 @@ describe("patches of picked surfaces (#195)", () => {
       inner.slice(0, 2),
     );
     expect(combine(patches, tubes, 60).faces.get("body")).toEqual(inner);
-    patches = pickPatch(
-      patches,
-      { section: "body", face: inner[4] },
-      RIGHT,
-      tubes,
-      30,
-    );
+    // a strip picked and excluded at 30°
+    for (let i = 0; i < 2; i++)
+      patches = pickPatch(
+        patches,
+        { section: "body", face: inner[4] },
+        LEFT,
+        tubes,
+        30,
+      );
     // the excluded strip is a part of the selected surface at 60°: removed
     const combined = combine(patches, tubes, 60);
     expect(combined.excluded.get("body")).toEqual(inner);

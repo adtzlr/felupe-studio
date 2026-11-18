@@ -1,8 +1,9 @@
 // Picked surfaces as patches (#195), like `Mesh.select_surface_points()` of FElupe 12:
-// left clicks add the connected surfaces of clicked faces (#189), a right click
-// deselects a patch and a second one excludes it. The faces and points of excluded
-// patches are removed from the selection (they have priority), e.g. the points of an
-// edge that a selected patch shares with an excluded neighbour.
+// a click (or a tap) cycles the connected surface of a clicked face (#189) through
+// picked, excluded and not picked (#260); a right click deselects it at once. The
+// faces and points of excluded patches are removed from the selection (they have
+// priority), e.g. the points of an edge that a selected patch shares with an
+// excluded neighbour.
 import type { SectionFaces } from "./facesets";
 import { connectedFaces } from "./surfaces";
 
@@ -28,7 +29,7 @@ export interface FaceAt {
   face: number;
 }
 
-/** A click on a face: right (deselect or exclude) and with Shift (single faces). */
+/** A click on a face: right (deselects at once) and with Shift (single faces). */
 export interface PatchClick {
   right?: boolean;
   shift: boolean;
@@ -98,14 +99,18 @@ export function faceState(
 }
 
 /**
- * The patches after a click on a face:
+ * The patches after a click on a face (#260): a click (or a tap) cycles the state of
+ * the clicked surface, the same with a mouse, a pen and a touch screen:
  *
- * - a left click selects the patch of the face (added to the others), or an
- *   excluded patch again;
- * - a right click deselects the selected patches of the face; on a face that is not
- *   selected it excludes its patch, on an excluded face it removes the exclusion;
- * - with Shift the same for single faces: Shift+click adds or removes a face (or
- *   omits a face of a selected patch), Shift+right-click excludes a face.
+ * 1. pick: a surface that is not picked is added to the others (the connected
+ *    surface of the face up to the feature angle);
+ * 2. exclude: a picked surface is excluded;
+ * 3. deselect: an excluded surface is removed.
+ *
+ * Shift+click cycles a single face the same way; a face of a picked surface is
+ * omitted instead, and a second Shift+click takes it back. A right click deselects
+ * the clicked surface at once, picked or excluded (with Shift, the single face); it
+ * is a shortcut, not needed for any step.
  */
 export function pickPatch(
   patches: readonly Patch[],
@@ -129,47 +134,55 @@ export function pickPatch(
     ...(one ? { single: true } : {}),
   });
   const state = faceState(combine(patches, sections, angle), at);
-  const selectedHere = patches.some(
-    (p) => p.state === "selected" && contains(p),
-  );
+  const selected = patches.filter((p) => p.state === "selected" && contains(p));
+  // a face of a selected surface (not only single faces)
+  const ofSurface = selected.some((p) => !p.single);
   // the omitted faces at the clicked face are no longer omitted
   const rest = patches.filter((p) => !single(p, "omitted"));
+  const omitted = rest.length < patches.length;
 
-  if (click.right) {
-    if (state === "excluded") {
-      // Shift: only a single excluded face, if there is one
-      if (click.shift && patches.some((p) => single(p, "excluded")))
-        return patches.filter((p) => !single(p, "excluded"));
-      return patches.filter((p) => !(p.state === "excluded" && contains(p)));
-    }
-    if (selectedHere && !click.shift) {
-      return rest.filter((p) => !(p.state === "selected" && contains(p)));
-    }
-    return [...rest, added("excluded", click.shift)];
-  }
   if (state === "excluded") {
-    return patches.map((p) =>
-      p.state === "excluded" && contains(p) ? { ...p, state: "selected" } : p,
-    );
+    // excluded → not picked; Shift: only a single excluded face, if there is one
+    if (click.shift && patches.some((p) => single(p, "excluded")))
+      return patches.filter((p) => !single(p, "excluded"));
+    return patches.filter((p) => !(p.state === "excluded" && contains(p)));
+  }
+  if (click.right) {
+    if (!selected.length) return [...patches];
+    if (!click.shift) return rest.filter((p) => !selected.includes(p));
+    // Shift: a single face, or an omitted face of a picked surface
+    if (!ofSurface) return patches.filter((p) => !single(p, "selected"));
+    return omitted ? [...patches] : [...patches, added("omitted", true)];
   }
   if (click.shift) {
-    if (state === "selected") {
-      // a face added with Shift is removed, a face of a selected patch omitted
-      const singles = patches
-        .filter((p) => p.state === "selected" && contains(p))
-        .every((p) => single(p, "selected"));
-      return singles
-        ? patches.filter((p) => !single(p, "selected"))
-        : [...patches, added("omitted", true)];
-    }
-    return rest.length < patches.length
-      ? rest
-      : [...patches, added("selected", true)];
+    // a face of a picked surface: omitted, and taken back by a second click
+    if (ofSurface) return omitted ? rest : [...patches, added("omitted", true)];
+    // a single face: picked → excluded
+    if (state === "selected")
+      return patches.map((p) =>
+        single(p, "selected") ? { ...p, state: "excluded" } : p,
+      );
+    return [...patches, added("selected", true)];
   }
-  if (state === "selected") return [...patches];
-  return rest.some((p) => p.state === "selected" && !p.single && contains(p))
-    ? rest
-    : [...rest, added("selected", false)];
+  if (state === "selected") {
+    // picked → excluded: the picked surfaces (and single faces) of the face, without
+    // the faces omitted from them
+    const faces = new Set(
+      selected.flatMap((p) => patchFaces(p, sections.get(p.section), angle)),
+    );
+    return patches
+      .filter(
+        (p) =>
+          !(
+            p.state === "omitted" &&
+            p.section === at.section &&
+            faces.has(p.seed)
+          ),
+      )
+      .map((p) => (selected.includes(p) ? { ...p, state: "excluded" } : p));
+  }
+  // not picked → picked (an omitted face of a picked surface is taken back)
+  return ofSurface ? rest : [...rest, added("selected", false)];
 }
 
 /** The number of selected and of excluded patches. */
