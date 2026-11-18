@@ -196,3 +196,19 @@ def test_mooney_rivlin(monkeypatch):
     np.testing.assert_allclose(
         np.array(results["job_1"]["y"])[:, 0], expected["jobs"]["job_1"]["force"]
     )
+
+
+def test_round_off_of_a_model_in_single_precision(monkeypatch):
+    # the estimate of the round-off of the forces relative to the reaction forces
+    # (#297): only of a model in single precision; the curve of double precision
+    monkeypatch.chdir(GOLDEN / "bar_single_body")
+    document = load("bar_single_body")
+    double = run(document)["job_1"]
+    assert "roundoff" not in double
+    document["commands"].insert(
+        0, {"command": "model.settings", "name": "settings", "precision": "single"}
+    )
+    single = run(document)["job_1"]
+    assert 0 < single["roundoff"] < 1e-3
+    np.testing.assert_allclose(single["y"], double["y"], rtol=1e-4, atol=1e-6)
+    assert LAST["field"][0].values.dtype == np.float32

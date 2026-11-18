@@ -90,3 +90,48 @@ describe("the panel of a running job", () => {
     ]);
   });
 });
+
+describe("the panel of a finished job", () => {
+  /** The panel of a run of the jobs with these results. */
+  function finished(roundoff?: number | null) {
+    const run = {
+      state: "finished" as const,
+      progress: startProgress(),
+      commands,
+      results: {
+        job_1: {
+          substeps: 5,
+          time: 1.5,
+          ...(roundoff !== undefined && { roundoff }),
+        },
+      },
+      live: { jobs: {} },
+    };
+    render(
+      <JobPanel
+        run={run}
+        store={new ModelStore(fixture as CommandList)}
+        onDismiss={() => {}}
+      />,
+    );
+    return screen.getByRole("region", { name: "Job" });
+  }
+
+  it("has no note of the precision in double precision", () => {
+    expect(finished().textContent).not.toContain("precision");
+  });
+
+  it("estimates the round-off of a model in single precision (#297)", () => {
+    expect(finished(0.0065).textContent).toContain(
+      "Single precision: round-off 0.65 % of the reaction forces",
+    );
+    cleanup();
+    expect(screen.queryByRole("note")).toBeNull();
+    const panel = finished(0.43);
+    const note = screen.getByRole("note");
+    expect(panel.contains(note) && note.classList.contains("warning")).toBe(
+      true,
+    );
+    expect(note.textContent).toContain("may be 43 % of the reaction forces");
+  });
+});

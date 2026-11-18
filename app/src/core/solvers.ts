@@ -50,3 +50,34 @@ export function describeSolver(job: Job): string | undefined {
     .filter(Boolean)
     .join(", ");
 }
+
+/**
+ * The estimate of the round-off of the forces of a model in single precision
+ * (#297), relative to the reaction forces, of `felupe_studio.runner.RoundOff`: the
+ * curves deviate from double precision by about a tenth of it. From 1e-2 on, the
+ * job panel warns.
+ */
+export const ROUNDOFF_WARNING = 1e-2;
+
+/** The note of the round-off of a job of a model in single precision (#297). */
+export function roundoffNote(
+  estimate: number | null | undefined,
+): { text: string; warning: boolean } | undefined {
+  if (estimate === undefined) return undefined;
+  if (estimate === null)
+    return { text: "Single precision (no reaction forces)", warning: false };
+  const percent = estimate * 100;
+  const value =
+    percent < 0.01 ? "< 0.01" : Number(percent.toPrecision(2)).toString();
+  if (estimate < ROUNDOFF_WARNING)
+    return {
+      text: `Single precision: round-off ${value} % of the reaction forces`,
+      warning: false,
+    };
+  return {
+    text:
+      `Single precision: the round-off of the forces may be ${value} % of the ` +
+      "reaction forces. Check the results in double precision (Model settings).",
+    warning: true,
+  };
+}

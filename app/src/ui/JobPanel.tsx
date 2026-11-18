@@ -10,7 +10,7 @@ import type { Command } from "../core/resolved";
 import { curvePoint, formatValue as format } from "../core/results";
 import type { ModelStore } from "../core/store";
 import { curveQuantities } from "../core/curve";
-import { describeSolver } from "../core/solvers";
+import { describeSolver, roundoffNote } from "../core/solvers";
 import { valueWithUnit } from "../core/units";
 
 interface Props {
@@ -203,6 +203,7 @@ export function JobPanel({
             {Object.entries(run.results).map(([name, result]) => {
               const point = curvePoint(result);
               const q = curveQuantities(run.commands, name);
+              const roundoff = roundoffNote(result.roundoff);
               return (
                 <li key={name}>
                   <strong>{name}</strong>: {result.substeps}{" "}
@@ -217,6 +218,17 @@ export function JobPanel({
                         {valueWithUnit(format(point.u), q.uUnit)}, {q.f}
                         <sub>{point.axis}</sub> ={" "}
                         {valueWithUnit(format(point.f), q.fUnit)}
+                      </span>
+                    </>
+                  )}
+                  {roundoff && (
+                    <>
+                      <br />
+                      <span
+                        class={roundoff.warning ? "warning" : "muted"}
+                        role={roundoff.warning ? "note" : undefined}
+                      >
+                        {roundoff.text}
                       </span>
                     </>
                   )}

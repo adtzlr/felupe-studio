@@ -237,9 +237,9 @@ def _offset(expression, value):
     return f"{expression} {sign} {abs(value)!r}"
 
 
-def _call(target, func, args):
+def _call(target, func, args, end=""):
     """Assignment of a call, wrapped like ruff format would wrap it."""
-    return _wrap(f"{target} = {func}", args)
+    return _wrap(f"{target} = {func}", args, end=end)
 
 
 # the default tolerance of the Newton-Raphson method: the norm of the residual forces
@@ -449,6 +449,10 @@ def codegen(document, evaluate=True, check_schema=True):
     analysis = analysis_of(commands)
     field_class, dim, mixed_flag = FIELDS[analysis]
     axes = AXES[:dim]
+    # a model in single precision (ADR 0016, #297): the regions and the fields
+    single = bool(settings) and settings[0].get("precision") == "single"
+    astype = ".astype(DTYPE)" if single else ""
+    dtype = ["dtype=DTYPE"] if single else []
     if units:
         # FElupe has no units: the settings only say what the numbers mean (#132)
         stress = STRESS[units["length"], units["force"]]
@@ -464,6 +468,12 @@ def codegen(document, evaluate=True, check_schema=True):
     elif analysis == "plane-strain":
         out.append(
             "# plane strain in the xy-plane: the forces are per unit thickness in z\n"
+        )
+    if single:
+        out.append(
+            "# single precision: the regions, the fields and the linear equation "
+            "system in\n# float32, half the memory of double precision\n"
+            "DTYPE = np.float32\n"
         )
     # 0. the parameters of the model at the top, to be changed by hand (#180)
     parameters = get("parameter.add")
@@ -543,17 +553,18 @@ def codegen(document, evaluate=True, check_schema=True):
             # part, e.g. air as a third medium, #241)
             displacements = sec["formulation"] != "u-p-J"
             if displacements:
-                out.append(_call(region, f"REGIONS[{c}.cell_type]", [c]))
+                out.append(_call(region, f"REGIONS[{c}.cell_type]", [c], astype))
             else:
-                out.append(_call(region, "mixed_region", [c]))
+                out.append(_call(region, "mixed_region", [c], astype))
             if displacements:
-                fields = f"[{field_class}({region}, dim={dim})]"
+                fields = _wrap(field_class, [region, f"dim={dim}", *dtype])
+                fields = f"[{fields}]"
                 out.append(
                     _call(f"field_{sec['name']}", "fem.FieldContainer", [fields])
                 )
             else:
                 # the displacements only of linear hexahedrons and quads (#226)
-                args = [region, *([mixed_flag] if mixed_flag else [])]
+                args = [region, *([mixed_flag] if mixed_flag else []), *dtype]
                 out.append(_call(f"field_{sec['name']}", "mixed_field", args))
 
         controls = [c for c in commands if c["command"] in vertices]
@@ -574,9 +585,15 @@ def codegen(document, evaluate=True, check_schema=True):
                 f"[{', '.join(map(repr, p['coordinates'][:dim]))}]" for p in controls
             )
             out.append(
-                _call("region_control_points", "vertex_region", [_List(coordinates)])
+                _call(
+                    "region_control_points",
+                    "vertex_region",
+                    [_List(coordinates)],
+                    astype,
+                )
             )
-            fields = f"[{field_class}(region_control_points, dim={dim})]"
+            fields = _wrap(field_class, ["region_control_points", f"dim={dim}", *dtype])
+            fields = f"[{fields}]"
             out.append(_call("field_control_points", "fem.FieldContainer", [fields]))
 
         fields = _List(
@@ -694,8 +711,9 @@ def codegen(document, evaluate=True, check_schema=True):
                 args = [mesh, _List(centers, prefix="centers=")]
             if "atol" in sel:
                 args.append(f"atol={sel['atol']!r}")
-            out.append(_call(f"region_{fs['name']}", "boundary_faces", args))
-            fields = f"[{field_class}(region_{fs['name']}, dim={dim})]"
+            out.append(_call(f"region_{fs['name']}", "boundary_faces", args, astype))
+            fields = _wrap(field_class, [f"region_{fs['name']}", f"dim={dim}", *dtype])
+            fields = f"[{fields}]"
             out.append(_call(f"field_{fs['name']}", "fem.FieldContainer", [fields]))
             out.append(f"field_{fs['name']}.link(field)")
 

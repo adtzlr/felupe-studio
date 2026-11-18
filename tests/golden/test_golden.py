@@ -25,6 +25,7 @@ from felupe_studio import codegen
 from felupe_studio.codegen import TOL
 from felupe_studio.expressions import resolve
 from felupe_studio.materials import material_call
+from felupe_studio.runner import run
 
 HERE = Path(__file__).parent
 CASES = sorted(p.name for p in HERE.iterdir() if (p / "commands.json").exists())
@@ -54,6 +55,21 @@ def single_precision(document):
         c.get("solver", {}).get("precision") == "single"
         for c in document["commands"]
         if c["command"] == "job.add"
+    )
+
+
+def model_in_single_precision(document):
+    """Whether the model is in single precision (ADR 0016, #297). Its results depend
+    on the round-off of float32 of the machine, e.g. the order of the sums of BLAS:
+    at a tolerance below the round-off, the Newton iterations stop where the
+    round-off of the machine lets them (CI and a container differ by 7e-4 of the
+    largest force of bar_two_materials_float32, whose estimate is 6.5e-3). Each
+    machine agrees with double precision within 1e-3 of the largest force
+    (test_model_in_single_precision), so two machines within 2e-3."""
+    return any(
+        c.get("precision") == "single"
+        for c in document["commands"]
+        if c["command"] == "model.settings"
     )
 
 
@@ -118,14 +134,18 @@ def test_results(case, tmp_path, monkeypatch, request):
 
     reference = json.loads(expected.read_text(encoding="utf-8"))
     assert results["jobs"].keys() == reference["jobs"].keys()
-    rtol = 1e-6 if single_precision(load(case)) else RTOL
+    document = load(case)
+    rtol, atol = (1e-6 if single_precision(document) else RTOL), ATOL
     for name, curve in results["jobs"].items():
         for key in ("displacement", "force"):
+            if model_in_single_precision(document):
+                values = np.abs(reference["jobs"][name][key])
+                rtol, atol = 0, 2e-3 * values.max() + ATOL
             np.testing.assert_allclose(
                 curve[key],
                 reference["jobs"][name][key],
                 rtol=rtol,
-                atol=ATOL,
+                atol=atol,
                 err_msg=f"{case}: {name} {key} (reference: FElupe "
                 f"{reference['felupe']})",
             )
@@ -475,7 +495,8 @@ def test_axisymmetric_cylinder_like_the_analytical_solution(tmp_path, monkeypatc
     np.testing.assert_allclose(curve["force"][-1], expected, rtol=2e-4)
 
 
-# the cases with a direct linear solver (all but the iterative ones)
+# the cases of a model in double precision with a direct linear solver (all but the
+# iterative ones and the model in single precision)
 DIRECT = [
     case
     for case in CASES
@@ -484,6 +505,7 @@ DIRECT = [
         for c in load(case)["commands"]
         if c["command"] == "job.add"
     )
+    and not model_in_single_precision(load(case))
 ]
 
 
@@ -514,6 +536,62 @@ def test_single_precision_gives_the_curves_of_double_precision(
         np.testing.assert_allclose(
             curve["force"], force, rtol=0, atol=tol * np.abs(force).max() + ATOL
         )
+
+
+# the model in single precision (#297): cases whose round-off is too large for
+# float32, as the estimate of the job says, and one that does not converge
+LARGE_ROUNDOFF = {
+    # steel (E = 210000) bonded to rubber (mu = 0.5): the curves deviate by 4e-2 to
+    # 9e-2, with an estimate of 0.43 to 0.76
+    "sandwich_spring_3_layers",
+    "sandwich_spring_5_layers",
+    "sandwich_spring_expressions",
+    # the penalty of the multi-point constraint of the rotation point: 2e-3, with an
+    # estimate of 0.74
+    "plate_rotation_plane_strain",
+}
+NOT_CONVERGED = {"block_contact_friction"}
+
+
+@pytest.mark.parametrize("case", CASES)
+def test_model_in_single_precision(case, tmp_path, monkeypatch):
+    # regions and fields in float32 (ADR 0016, #297), run like the app: an estimate
+    # of the round-off below 1e-2 of the reaction forces, and the curves of double
+    # precision within 1e-3 of the largest force (or within the estimate, which bounds
+    # the deviation: the round-off of the machine varies, e.g. 8.4e-4 of the Extended
+    # Tube with an estimate of 6e-3); above 1e-2 for the cases of LARGE_ROUNDOFF,
+    # which the app reports (measured with FElupe 12.1.1: the deviations are about a
+    # tenth of the estimate)
+    document = load(case)
+    settings = [c for c in document["commands"] if c["command"] == "model.settings"]
+    if not settings:
+        settings = [{"command": "model.settings", "name": "settings"}]
+        document["commands"].insert(0, settings[0])
+    settings[0]["precision"] = "single"
+    for path in (HERE / case).iterdir():
+        if path.name not in ("commands.json", "script.py", "results.json"):
+            shutil.copy(path, tmp_path)
+    monkeypatch.chdir(tmp_path)
+    if case in NOT_CONVERGED:
+        with pytest.raises(fem.NewtonConvergenceError):
+            run(document)
+        return
+    results = run(document)
+    # the curves of the app in double precision, also of a rotation (the moments)
+    settings[0]["precision"] = "double"
+    reference = run(document)
+    for name, result in results.items():
+        if "y" not in result:
+            continue
+        force = np.array(reference[name]["y"], dtype=float)
+        scale = np.abs(force).max()
+        single = np.array(result["y"], dtype=float)
+        deviation = np.abs(single - force).max() / scale if scale > 1e-6 else 0.0
+        estimate = result["roundoff"]
+        if case in LARGE_ROUNDOFF:
+            assert estimate > 1e-2 and deviation < estimate
+        else:
+            assert deviation < max(1e-3, estimate) and estimate < 1e-2
 
 
 def test_iterative_solver_close_to_the_direct_one():

@@ -1154,6 +1154,14 @@
     },
     {
       "command": {
+        "command": "model.settings",
+        "name": "settings",
+        "precision": "single"
+      },
+      "fields": []
+    },
+    {
+      "command": {
         "command": "job.add",
         "name": "job_1",
         "steps": [

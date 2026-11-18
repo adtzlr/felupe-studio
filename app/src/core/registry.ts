@@ -486,12 +486,22 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       },
       "units.length": { label: "Length", default: "mm" },
       "units.force": { label: "Force", default: "N" },
+      // the model in single precision (ADR 0016, #297)
+      precision: {
+        label: "Precision",
+        hint: "Single: the regions, the fields and the linear system in float32, half the memory. The accuracy depends on the model; the job panel estimates it. Steel bonded to rubber needs double precision",
+        placeholder: "double",
+      },
     },
     options: {
       analysis: {
         "3d": "3D",
         "plane-strain": "Plane strain (2D)",
         axisymmetric: "Axisymmetric (2D)",
+      },
+      precision: {
+        double: "Double (float64)",
+        single: "Single (float32)",
       },
       "units.length": { mm: "mm", m: "m" },
       "units.force": { N: "N", kN: "kN" },

@@ -143,11 +143,15 @@ def mixed_field(region, **kwargs):
     ``fem.FieldsMixed`` (with ``planestrain=True`` or ``axisymmetric=True`` of 2D
     models)."""
     if region.mesh.cell_type in ("hexahedron", "quad"):
+        # the precision of a model in single precision (#297)
+        dtype = kwargs.get("dtype")
         if kwargs.get("axisymmetric"):
-            return fem.FieldContainer([fem.FieldAxisymmetric(region, dim=2)])
-        if kwargs.get("planestrain"):
-            return fem.FieldContainer([fem.FieldPlaneStrain(region, dim=2)])
-        return fem.FieldContainer([fem.Field(region, dim=3)])
+            field = fem.FieldAxisymmetric(region, dim=2, dtype=dtype)
+        elif kwargs.get("planestrain"):
+            field = fem.FieldPlaneStrain(region, dim=2, dtype=dtype)
+        else:
+            field = fem.Field(region, dim=3, dtype=dtype)
+        return fem.FieldContainer([field])
     return fem.FieldsMixed(region, n=3, **kwargs)
 
 
