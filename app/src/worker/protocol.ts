@@ -3,6 +3,8 @@
 // (`done`, `mesh-info`) or an `error`. `benchmark` is a spike-only message (#9).
 // The arrays of a surface are transferred, not copied.
 
+import type { CacheState } from "./pycache";
+
 export interface Versions {
   python: string;
   /** Not of the local runtime (#240). */
@@ -22,6 +24,16 @@ export interface LoadTimings {
   packages: number;
   felupe: number;
   total: number;
+  /** Parts of the FElupe step of the worker (#49): the wheels and the sources… */
+  wheels?: number;
+  /** …the first import of NumPy and SciPy (sparse, sparse.linalg)… */
+  numpy?: number;
+  /** …of FElupe… */
+  importFelupe?: number;
+  /** …and of meshio. */
+  meshio?: number;
+  /** The bytecode cache of the worker at the start (ADR 0017). */
+  cache?: CacheState;
 }
 
 /** The precision of the linear equation system of the benchmark (ADR 0016). */

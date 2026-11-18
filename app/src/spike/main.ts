@@ -8,7 +8,13 @@ import type {
   Precision,
   Versions,
 } from "../worker/protocol";
-import { DEFAULT_SIZES, parseSizes, seconds, toMarkdown } from "./format";
+import {
+  DEFAULT_SIZES,
+  loadParts,
+  parseSizes,
+  seconds,
+  toMarkdown,
+} from "./format";
 
 const $ = <T extends HTMLElement>(selector: string) =>
   document.querySelector<T>(selector)!;
@@ -65,13 +71,16 @@ client.ready.then(
       `FElupe ${versions.felupe}, NumPy ${versions.numpy}, SciPy ${versions.scipy}. ` +
       (environment.serviceWorker
         ? "Loaded through the service worker cache."
-        : "Service worker not active yet: reload to measure with the cache.");
+        : "Service worker not active yet: reload to measure with the cache.") +
+      (timings.cache ? ` Bytecode cache: ${timings.cache}.` : "");
     row(loadTable, ["Pyodide", seconds(timings.pyodide / 1000)]);
     row(loadTable, ["NumPy, SciPy", seconds(timings.packages / 1000)]);
     row(loadTable, [
       "FElupe, meshio (wheels of the app)",
       seconds(timings.felupe / 1000),
     ]);
+    for (const [label, ms] of loadParts(timings))
+      row(loadTable, [label, seconds(ms / 1000)]);
     row(loadTable, ["Total", seconds(timings.total / 1000)]);
     loadTable.hidden = false;
     runButton.disabled = false;
