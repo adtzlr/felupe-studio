@@ -96,6 +96,25 @@ def test_build_solve_and_save(tmp_path):
     assert (tmp_path / "unpacked" / "cube.vtu").is_file()
 
 
+def test_a_sample_of_an_installed_package(tmp_path, monkeypatch):
+    # pip compiles the mesh script of a sample in the package: its folder has a
+    # __pycache__, which is not copied (#275)
+    samples = tmp_path / "samples"
+    shutil.copytree(SAMPLES / "plate-with-hole", samples / "plate-with-hole")
+    (samples / "plate-with-hole" / "__pycache__").mkdir()
+    (samples / "plate-with-hole" / "__pycache__" / "plate_with_hole.pyc").write_bytes(
+        b""
+    )
+    monkeypatch.setenv("FELUPE_STUDIO_SAMPLES", str(samples))
+    session = Session()
+    session.open_sample("plate-with-hole", tmp_path / "plate")
+    assert sorted(p.name for p in (tmp_path / "plate").iterdir()) == [
+        "plate-with-hole.felupe.json",
+        "plate_with_hole.py",
+    ]
+    assert not session.issues()["errors"]
+
+
 def test_files_stay_in_the_project_folder(tmp_path):
     session = Session()
     session.new_project(tmp_path / "model")

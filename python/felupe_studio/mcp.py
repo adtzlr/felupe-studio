@@ -195,7 +195,12 @@ class Session:
             raise ToolError(f"The folder {folder} is not empty.")
         folder.mkdir(parents=True, exist_ok=True)
         for file in (source / sample).iterdir():
-            if file.name in ("model.felupe.json", "thumbnail.svg"):
+            # only files: e.g. not the __pycache__ of a mesh script, which pip
+            # compiles in an installed package (#275)
+            if not file.is_file() or file.name in (
+                "model.felupe.json",
+                "thumbnail.svg",
+            ):
                 continue
             shutil.copy(file, folder / file.name)
             if file.suffix == ".py":
