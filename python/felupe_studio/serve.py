@@ -7,9 +7,15 @@ temporary folder; a closed connection ends it, e.g. to cancel a job. The WebSock
 needs the token of the URL that the server prints; it accepts the hosts
 ``127.0.0.1`` and ``localhost`` only, and WebSockets of its own origin. Needs
 ``felupe-studio[serve]``.
+
+With ``agent=True`` (``--agent``, #258, ADR 0015) the server also offers an MCP
+endpoint at ``/mcp`` for AI agents (with the token as ``Authorization: Bearer``,
+without a browser origin) and the WebSocket ``/agent``, by which a tab of the app
+answers its tools (:mod:`felupe_studio.bridge`, needs ``felupe-studio[mcp]`` too).
 """
 
 import asyncio
+import contextlib
 import multiprocessing
 import secrets
 import shutil
@@ -19,7 +25,7 @@ from pathlib import Path
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.middleware.trustedhost import TrustedHostMiddleware
-from starlette.responses import HTMLResponse, PlainTextResponse
+from starlette.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.staticfiles import StaticFiles
 from starlette.websockets import WebSocket, WebSocketDisconnect
@@ -31,6 +37,9 @@ HOSTS = ["127.0.0.1", "localhost"]
 
 META = '<meta name="felupe-studio-runtime" content="python" />'
 """The tag of the served ``index.html`` that makes the app use the local runtime."""
+
+AGENT_META = '<meta name="felupe-studio-agent" content="on" />'
+"""The tag of the served ``index.html`` if the server has the agent bridge."""
 
 POLICY = 1008
 """The close code of a WebSocket without the token or of a foreign origin."""
@@ -117,21 +126,107 @@ async def _to_process(websocket, connection):
         await asyncio.to_thread(connection.send, request)
 
 
-def create_app(dist, token):
+def _allowed(websocket, token):
+    """A WebSocket with the token and without a foreign origin."""
+    given = websocket.query_params.get("token", "")
+    origin = websocket.headers.get("origin")
+    own = f"http://{websocket.headers.get('host', '')}"
+    return secrets.compare_digest(given, token) and origin in (None, own)
+
+
+class TokenGuard:
+    """The MCP endpoint for agents: with the token as ``Authorization: Bearer``,
+    and without the origin of a browser (no website reaches it)."""
+
+    def __init__(self, app, token):
+        self.app = app
+        self.expected = f"Bearer {token}".encode()
+
+    async def __call__(self, scope, receive, send):
+        headers = dict(scope.get("headers", []))
+        if b"origin" in headers:
+            response = PlainTextResponse("No browser origins.", status_code=403)
+        elif not secrets.compare_digest(
+            headers.get(b"authorization", b""), self.expected
+        ):
+            response = JSONResponse(
+                {"error": "The token of felupe-studio serve is missing or wrong."},
+                status_code=401,
+            )
+        else:
+            return await self.app(scope, receive, send)
+        await response(scope, receive, send)
+
+
+def _agent_routes(token):
+    """The MCP endpoint, the WebSocket of the tab and the lifespan of the bridge."""
+    from mcp.server.transport_security import TransportSecuritySettings
+
+    from .bridge import VERSION, Bridge, agent_server
+
+    bridge = Bridge()
+    server = agent_server(bridge)
+    security = TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=[f"{host}:*" for host in HOSTS] + HOSTS,
+        allowed_origins=[],
+    )
+    app = server.streamable_http_app(
+        streamable_http_path="/mcp", transport_security=security
+    )
+    endpoint = app.routes[0].endpoint
+
+    async def agent(websocket: WebSocket):
+        if not _allowed(websocket, token):
+            await websocket.close(code=POLICY)
+            return
+        await websocket.accept()
+        try:
+            hello = await websocket.receive_json()
+        except (WebSocketDisconnect, ValueError):
+            return
+        if hello.get("type") != "hello" or hello.get("version") != VERSION:
+            message = f"The bridge has version {VERSION}: reload the app."
+            await websocket.send_json({"type": "refused", "message": message})
+            await websocket.close(code=POLICY)
+            return
+        await bridge.attach(websocket)
+        await websocket.send_json({"type": "welcome", "version": VERSION})
+        try:
+            while True:
+                await bridge.answer(websocket, await websocket.receive_json())
+        except (WebSocketDisconnect, RuntimeError):
+            pass
+        finally:
+            bridge.detach(websocket)
+
+    @contextlib.asynccontextmanager
+    async def lifespan(app):
+        async with server.session_manager.run():
+            yield
+
+    routes = [
+        Route("/mcp", endpoint=TokenGuard(endpoint, token)),
+        WebSocketRoute("/agent", agent),
+    ]
+    return routes, lifespan, bridge
+
+
+def create_app(dist, token, agent=False):
     """The Starlette app of the server: the built app in ``dist`` and the runtime
-    with the ``token``."""
+    with the ``token``, and with ``agent`` the bridge of the agents (the bridge is
+    ``app.state.bridge``)."""
     dist = Path(dist)
+    agent_routes, lifespan, bridge = _agent_routes(token) if agent else ([], None, None)
+    metas = META + (f"\n    {AGENT_META}" if agent else "")
 
     async def index(request):
         html = (dist / "index.html").read_text(encoding="utf-8")
-        html = html.replace("</head>", f"    {META}\n  </head>", 1)
+        html = html.replace("</head>", f"    {metas}\n  </head>", 1)
         return HTMLResponse(html, headers={"Cache-Control": "no-store"})
 
     async def runtime(websocket: WebSocket):
-        given = websocket.query_params.get("token", "")
-        origin = websocket.headers.get("origin")
-        own = f"http://{websocket.headers.get('host', '')}"
-        if not secrets.compare_digest(given, token) or origin not in (None, own):
+        if not _allowed(websocket, token):
             await websocket.close(code=POLICY)
             return
         await websocket.accept()
@@ -159,21 +254,26 @@ def create_app(dist, token):
         return PlainTextResponse("Not found.", status_code=404)
 
     samples = find_samples(dist)
-    return Starlette(
+    app = Starlette(
         routes=[
             Route("/", index),
             Route("/index.html", index),
             WebSocketRoute("/runtime", runtime),
+            *agent_routes,
             *([Mount("/samples", StaticFiles(directory=samples))] if samples else []),
             Mount("/", StaticFiles(directory=dist)),
         ],
         middleware=[Middleware(TrustedHostMiddleware, allowed_hosts=HOSTS)],
         exception_handlers={404: not_found},
+        lifespan=lifespan,
     )
+    app.state.bridge = bridge
+    return app
 
 
-def serve(port=8765, app=None, browser=True, token=None):
-    """Serve the app with the local runtime on ``127.0.0.1`` until Ctrl+C."""
+def serve(port=8765, app=None, browser=True, token=None, agent=False):
+    """Serve the app with the local runtime on ``127.0.0.1`` until Ctrl+C; with
+    ``agent`` also the MCP endpoint of the agent bridge."""
     import threading
     import time
     import webbrowser
@@ -184,7 +284,7 @@ def serve(port=8765, app=None, browser=True, token=None):
     token = token or secrets.token_urlsafe(24)
     url = f"http://127.0.0.1:{port}/?token={token}"
     config = uvicorn.Config(
-        create_app(dist, token),
+        create_app(dist, token, agent=agent),
         host="127.0.0.1",
         port=port,
         log_level="warning",
@@ -199,6 +299,15 @@ def serve(port=8765, app=None, browser=True, token=None):
             time.sleep(0.05)
         if server.started:
             print(f"FElupe Studio runs at {url}", flush=True)
+            if agent:
+                endpoint = f"http://127.0.0.1:{port}/mcp"
+                print(
+                    f"The MCP endpoint for agents: {endpoint}\n"
+                    "  Claude Code: claude mcp add --transport http felupe-studio "
+                    f'{endpoint} --header "Authorization: Bearer {token}"\n'
+                    "  Then connect the app: Help ▸ Connect an agent.",
+                    flush=True,
+                )
             print("Press Ctrl+C to stop it.", flush=True)
             if browser:
                 webbrowser.open(url)

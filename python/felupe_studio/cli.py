@@ -26,6 +26,11 @@ def main(argv=None):
     serve.add_argument(
         "--app", help="the folder of the built app (default: the app of the package)"
     )
+    serve.add_argument(
+        "--agent",
+        action="store_true",
+        help="also offer an MCP endpoint, by which AI agents act on the open app",
+    )
     args = parser.parse_args(argv)
     if args.command == "serve":
         try:
@@ -35,12 +40,25 @@ def main(argv=None):
             sys.exit(
                 f"{error}. The local runtime needs: pip install 'felupe-studio[serve]'"
             )
+        if args.agent:
+            try:
+                from . import bridge  # noqa: F401
+            except ImportError as error:
+                sys.exit(
+                    f"{error}. The agent bridge needs: "
+                    "pip install 'felupe-studio[serve,mcp]'"
+                )
         try:
             find_app(args.app)
         except FileNotFoundError as error:
             sys.exit(str(error))
         try:
-            run(port=args.port, app=args.app, browser=not args.no_browser)
+            run(
+                port=args.port,
+                app=args.app,
+                browser=not args.no_browser,
+                agent=args.agent,
+            )
         except KeyboardInterrupt:
             pass
 
