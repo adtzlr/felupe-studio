@@ -6,11 +6,13 @@ import { registerServiceWorker } from "./service-worker";
 import "./style.css";
 import { App } from "./ui/App";
 import { watchForUpdates } from "./updates";
-import { PyodideClient } from "./worker/client";
+import { createClient } from "./worker/client";
+import { isLocal } from "./worker/local";
 
-void registerServiceWorker();
-// start loading Python and FElupe right away (#40)
-const client = new PyodideClient();
+// the app of felupe-studio serve is served by its version of the package (#240)
+if (!isLocal()) void registerServiceWorker();
+// start loading Python and FElupe right away (#40): Pyodide, or the local Python
+const client = createClient();
 const store = new ModelStore();
 // mesh files are written into the project directory of Python and read with meshio;
 // scripts are written there and make meshes with the parameters of the model (#182)

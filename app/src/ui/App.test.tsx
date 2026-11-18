@@ -20,7 +20,7 @@ import { SAMPLES } from "../core/samples";
 import { IndexedDBSession, type SessionStorage } from "../core/session";
 import { ModelStore } from "../core/store";
 import type {
-  PyodideClient,
+  RuntimeClient,
   Ready,
   ScriptView as ScriptViewData,
 } from "../worker/client";
@@ -43,8 +43,8 @@ const material = {
   parameters: { mu: 1, lmbda: 2 },
 } as const;
 
-function client(ready: Promise<Ready>, extra: Partial<PyodideClient> = {}) {
-  return { ready, onRestart: () => () => {}, ...extra } as PyodideClient;
+function client(ready: Promise<Ready>, extra: Partial<RuntimeClient> = {}) {
+  return { ready, onRestart: () => () => {}, ...extra } as RuntimeClient;
 }
 
 const readyValue: Ready = {

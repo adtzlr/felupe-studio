@@ -10,9 +10,16 @@ interface Props {
   onImportMesh: () => void;
   onOpen: () => void;
   onOpenSample: (sample: Sample) => Promise<void>;
+  /** Python runs on this computer (`felupe-studio serve`, #240). */
+  local?: boolean;
 }
 
-export function Welcome({ onImportMesh, onOpen, onOpenSample }: Props) {
+export function Welcome({
+  onImportMesh,
+  onOpen,
+  onOpenSample,
+  local = false,
+}: Props) {
   const { opening, open } = useOpening(onOpenSample);
   const { samples, more } = sampleSections();
   return (
@@ -20,7 +27,10 @@ export function Welcome({ onImportMesh, onOpen, onOpenSample }: Props) {
       <h2 id="welcome-title">Welcome to {APP_NAME}</h2>
       <p class="muted">
         Build models of hyperelastic solids from mesh files and solve them with
-        FElupe, here in the browser. Nothing is uploaded.
+        FElupe,{" "}
+        {local
+          ? "with the Python of this computer. Nothing leaves this computer."
+          : "here in the browser. Nothing is uploaded."}
       </p>
       <div class="welcome-actions">
         <button type="button" class="button primary" onClick={onImportMesh}>

@@ -4,12 +4,12 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { highlightPython } from "../core/highlight";
 import type { ModelStore } from "../core/store";
-import type { PyodideClient, ScriptView as View } from "../worker/client";
+import type { RuntimeClient, ScriptView as View } from "../worker/client";
 import type { Runtime } from "./hooks";
 
 interface Props {
   store: ModelStore;
-  client?: Pick<PyodideClient, "scriptView">;
+  client?: Pick<RuntimeClient, "scriptView">;
   runtime: Runtime;
   /** The view is shown (the ribbon tab Script of the Model workspace). */
   active: boolean;

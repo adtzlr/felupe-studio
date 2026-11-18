@@ -1,7 +1,7 @@
 import "../style.css";
 import "./spike.css";
 import { registerServiceWorker } from "../service-worker";
-import { PyodideClient } from "../worker/client";
+import { RuntimeClient } from "../worker/client";
 import type {
   BenchmarkResult,
   LoadTimings,
@@ -51,7 +51,7 @@ function updateMarkdown(): void {
   copyButton.disabled = false;
 }
 
-const client = new PyodideClient();
+const client = new RuntimeClient();
 environment.serviceWorker = await registerServiceWorker();
 
 client.ready.then(

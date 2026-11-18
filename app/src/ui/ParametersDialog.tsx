@@ -21,6 +21,12 @@ interface Props {
   project: string;
   /** Opened just now: the saved values may be kept. */
   opening: boolean;
+  /**
+   * Python runs on this computer (`felupe-studio serve`, #240): the scripts run with
+   * the rights of the user, so a project with scripts shows them before they run,
+   * also without parameters.
+   */
+  local?: boolean;
   onClose: () => void;
 }
 
@@ -47,6 +53,7 @@ export function ParametersDialog({
   files,
   project,
   opening,
+  local = false,
   onClose,
 }: Props) {
   const parameters = parametersOf(store.commands);
@@ -96,14 +103,20 @@ export function ParametersDialog({
 
   return (
     <Dialog
-      title={opening ? `Parameters of ${project}` : "Parameters"}
+      title={
+        !rows.length
+          ? `Open ${project}`
+          : opening
+            ? `Parameters of ${project}`
+            : "Parameters"
+      }
       onClose={onClose}
       wide
     >
       {/* the values are checked like the model (parameterProblems), not by the
           browser: a value between the steps of the slider is fine */}
       <form class="parameters-dialog" onSubmit={apply} noValidate>
-        {opening && (
+        {opening && rows.length > 0 && (
           <p class="muted">
             Set the values of the parameters before the meshes are made, or keep
             the saved values.
@@ -202,7 +215,9 @@ export function ParametersDialog({
               {scripts.length === 1
                 ? "a Python script, which runs"
                 : "Python scripts, which run"}{" "}
-              in this browser (in the worker of Python, like the jobs):
+              {local
+                ? "on this computer with your rights, in the local Python of felupe-studio serve, like the jobs:"
+                : "in this browser (in the worker of Python, like the jobs):"}
             </span>
             <ul>
               {scripts.map((name) => {
@@ -236,9 +251,11 @@ export function ParametersDialog({
           </div>
         )}
         <div class="actions">
-          <button type="button" class="button" onClick={onClose}>
-            {opening ? "Keep the saved values" : "Cancel"}
-          </button>
+          {rows.length > 0 && (
+            <button type="button" class="button" onClick={onClose}>
+              {opening ? "Keep the saved values" : "Cancel"}
+            </button>
+          )}
           <button type="submit" class="button primary" disabled={invalid}>
             {opening ? "Open" : "Apply"}
           </button>

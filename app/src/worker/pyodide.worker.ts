@@ -97,7 +97,7 @@ async function init(
   pyodide = py;
   post({
     type: "ready",
-    versions: { ...versions, pyodide: py.version },
+    versions: { ...versions, pyodide: py.version, runtime: "pyodide" },
     timings: {
       pyodide: t1 - t0,
       packages: t2 - t1,

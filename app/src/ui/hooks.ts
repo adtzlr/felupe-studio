@@ -9,7 +9,7 @@ import { VIEWS, type Viewer } from "../viewer/viewer";
 import type { JobRun, JobRunner } from "../core/jobs";
 import type { MeshFiles } from "../core/meshfiles";
 import type { ModelStore } from "../core/store";
-import type { PyodideClient, Ready } from "../worker/client";
+import type { RuntimeClient, Ready } from "../worker/client";
 
 /** Re-render the component after every change of the store. */
 export function useStore(store: ModelStore): ModelStore {
@@ -25,22 +25,30 @@ export function useMeshFiles(files: MeshFiles): MeshFiles {
   return files;
 }
 
-export type Runtime =
+export type Runtime = (
   | { state: "loading" }
   | { state: "ready"; ready: Ready; seconds: number }
-  | { state: "error"; message: string };
+  | { state: "error"; message: string }
+) & {
+  /** Python of this computer (`felupe-studio serve`, #240), not Pyodide. */
+  local?: boolean;
+};
 
 /** State of the Python runtime (Pyodide and FElupe) of the client. */
-export function useRuntime(client: PyodideClient | undefined): Runtime {
-  const [runtime, setRuntime] = useState<Runtime>({ state: "loading" });
+export function useRuntime(client: RuntimeClient | undefined): Runtime {
+  const [runtime, setRuntime] = useState<Runtime>({
+    state: "loading",
+    local: client?.local,
+  });
   useEffect(() => {
     if (!client) return;
+    const local = client.local;
     let generation = 0;
     const follow = () => {
       const current = ++generation;
       const active = () => current === generation;
       const started = performance.now();
-      setRuntime({ state: "loading" });
+      setRuntime({ state: "loading", local });
       client.ready.then(
         (ready) =>
           active() &&
@@ -48,9 +56,11 @@ export function useRuntime(client: PyodideClient | undefined): Runtime {
             state: "ready",
             ready,
             seconds: (performance.now() - started) / 1000,
+            local,
           }),
         (error: Error) =>
-          active() && setRuntime({ state: "error", message: error.message }),
+          active() &&
+          setRuntime({ state: "error", message: error.message, local }),
       );
     };
     follow();
@@ -71,14 +81,36 @@ export function useJobs(jobs: JobRunner | undefined): JobRun {
   return jobs?.run ?? { state: "idle" };
 }
 
+/**
+ * The version of felupe_studio of the local runtime if it differs from that of the
+ * app, e.g. of a clone with an older build (#240).
+ */
+export function otherVersion(runtime: Runtime): string | undefined {
+  if (runtime.state !== "ready") return undefined;
+  const version = runtime.ready.versions.felupe_studio;
+  return version && version !== __APP_VERSION__ ? version : undefined;
+}
+
 export function runtimeText(runtime: Runtime): string {
   switch (runtime.state) {
     case "loading":
-      return "Loading Python and FElupe …";
-    case "ready":
-      return `FElupe ${runtime.ready.versions.felupe} ready (${runtime.seconds.toFixed(1)} s)`;
+      return runtime.local
+        ? "Starting the local Python …"
+        : "Loading Python and FElupe …";
+    case "ready": {
+      const { felupe, python } = runtime.ready.versions;
+      const seconds = `${runtime.seconds.toFixed(1)} s`;
+      if (!runtime.local) return `FElupe ${felupe} ready (${seconds})`;
+      const other = otherVersion(runtime);
+      return (
+        `FElupe ${felupe} ready, local Python ${python} (${seconds})` +
+        (other ? ` · package ${other}, app ${__APP_VERSION__}` : "")
+      );
+    }
     case "error":
-      return `Python could not be loaded: ${runtime.message}`;
+      return runtime.local
+        ? runtime.message
+        : `Python could not be loaded: ${runtime.message}`;
   }
 }
 

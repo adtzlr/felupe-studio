@@ -42,10 +42,15 @@ const commands: Command[] = [
 
 afterEach(cleanup);
 
-async function setup(opening = true, more: Command[] = []) {
+async function setup(
+  opening = true,
+  more: Command[] = [],
+  local = false,
+  base: Command[] = commands,
+) {
   const store = new ModelStore({
     schema_version: 3,
-    commands: [...commands, ...more],
+    commands: [...base, ...more],
   });
   const files = new MeshFiles(undefined, { write: async () => {} });
   await files.add("spring.py", new TextEncoder().encode("mesh = None\n"));
@@ -56,12 +61,11 @@ async function setup(opening = true, more: Command[] = []) {
       files={files}
       project="spring.felupe.zip"
       opening={opening}
+      local={local}
       onClose={onClose}
     />,
   );
-  const dialog = screen.getByRole("dialog", {
-    name: opening ? "Parameters of spring.felupe.zip" : "Parameters",
-  });
+  const dialog = screen.getByRole("dialog");
   return { store, onClose, dialog };
 }
 
@@ -220,5 +224,28 @@ describe("the parameters and the expressions (#242)", () => {
     fireEvent.click(within(dialog).getByRole("button", { name: "Apply" }));
     expect(store.get("layers")).toMatchObject({ value: 2 });
     expect(store.issues.map((i) => i.name)).toEqual(["step"]);
+  });
+});
+
+describe("the scripts in the local runtime (#240)", () => {
+  it("run on this computer", async () => {
+    const { dialog } = await setup(true, [], true);
+    expect(dialog.textContent).toContain(
+      "on this computer with your rights, in the local Python of felupe-studio serve",
+    );
+  });
+
+  it("are shown before they run, also without parameters", async () => {
+    const scripts = commands.filter((c) => c.command !== "parameter.add");
+    const { dialog, onClose } = await setup(true, [], true, scripts);
+    expect(
+      within(dialog).getByRole("heading", { name: "Open spring.felupe.zip" }),
+    ).toBeTruthy();
+    expect(dialog.textContent).not.toContain("Set the values");
+    expect(
+      within(dialog).queryByRole("button", { name: "Keep the saved values" }),
+    ).toBeNull();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Open" }));
+    expect(onClose).toHaveBeenCalled();
   });
 });
