@@ -189,18 +189,28 @@ export function stepOf(
 }
 
 /**
- * The component with the largest displacement of the last substep of a curve; of
- * equal displacements the one with the largest force, e.g. the axial force of a
- * spring that is compressed and then sheared by as much.
+ * The component of a curve whose displacement changes most over the substeps of the
+ * job (its range), e.g. x of a job that moves there and back in x after an earlier
+ * job moved it in y (FElupe ex07, the last displacement is 0 in x); of a curve of one
+ * substep its largest displacement. Of equal displacements the one with the largest
+ * force of the last substep, e.g. the axial force of a spring that is compressed and
+ * then sheared by as much.
  */
 export function largestAxis(result: JobResult): number {
-  const last = result.x?.at(-1) ?? [];
+  const rows = result.x ?? [];
+  const last = rows.at(-1) ?? [];
   const force = result.y?.at(-1) ?? [];
   const size = (row: readonly (number | null)[], i: number) =>
     Math.abs(row[i] ?? 0);
+  const range = (i: number) => {
+    if (rows.length < 2) return size(last, i);
+    const values = rows.flatMap((row) => (row[i] == null ? [] : [row[i]!]));
+    return values.length ? Math.max(...values) - Math.min(...values) : 0;
+  };
+  const ranges = last.map((_, i) => range(i));
   let axis = 0;
-  last.forEach((_, i) => {
-    const [u, best] = [size(last, i), size(last, axis)];
+  ranges.forEach((u, i) => {
+    const best = ranges[axis];
     const tie = Math.abs(u - best) <= 1e-9 * Math.max(u, best);
     if (tie ? size(force, i) > size(force, axis) : u > best) axis = i;
   });
@@ -209,8 +219,8 @@ export function largestAxis(result: JobResult): number {
 
 /**
  * The displacement and the force of a characteristic curve at a substep (counted
- * from 1; the last one by default), of a component (by default the one with the
- * largest displacement of the last substep).
+ * from 1; the last one by default), of a component (by default the one whose
+ * displacement changes most, `largestAxis`).
  */
 export function curvePoint(
   result: JobResult,
