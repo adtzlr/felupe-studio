@@ -119,9 +119,9 @@ def main():
     ):
         write_vtu(HERE / case / "block.vtu", fem.Cube(n=5))
 
-    # a cube of 2 x 2 x 2 cells for the uniaxial tension of the material models, and
-    # of the elastic-plastic material (#191)
-    for case in [*MATERIAL_CASES, "plasticity_cube"]:
+    # a cube of 2 x 2 x 2 cells for the uniaxial tension of the material models, of
+    # the elastic-plastic material (#191) and of the linear elastic one (#259)
+    for case in [*MATERIAL_CASES, "plasticity_cube", "linear_elastic_cube"]:
         write_vtu(HERE / case / "cube.vtu", fem.Cube(n=3))
 
 

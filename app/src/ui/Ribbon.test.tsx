@@ -69,24 +69,30 @@ describe("ribbon commands", () => {
       "Parameter",
     ]);
     tab("Materials");
-    // the models in menus of their groups, so the ribbon stays one row (#136)
+    // the models in menus of their kind, so the ribbon stays one row (#136, #259)
     expect(names()).toEqual([
-      "Neo-Hooke ▾",
-      "Polynomial ▾",
-      "Ogden",
-      "Micromechanical ▾",
-      "Linear elastic (large strain)",
-      "Strain-based ▾",
+      "Linear elasticity ▾",
+      "Hyperelasticity ▾",
+      "Strain-based elasticity ▾",
     ]);
-    const polynomial = command("Polynomial");
-    expect(polynomial.getAttribute("aria-haspopup")).toBe("menu");
-    fireEvent.click(polynomial);
-    const menu = screen.getByRole("menu", { name: "Polynomial" });
+    const hyperelasticity = command("Hyperelasticity");
+    expect(hyperelasticity.getAttribute("aria-haspopup")).toBe("menu");
+    fireEvent.click(hyperelasticity);
+    const menu = screen.getByRole("menu", { name: "Hyperelasticity" });
     expect(
       within(menu)
         .getAllByRole("menuitem")
         .map((i) => i.textContent),
-    ).toEqual(["Mooney-Rivlin", "Yeoh", "Third-order deformation"]);
+    ).toEqual([
+      "Neo-Hooke",
+      "Neo-Hooke (compressible)",
+      "Mooney-Rivlin",
+      "Yeoh",
+      "Third-order deformation",
+      "Ogden",
+      "Arruda-Boyce",
+      "Extended tube",
+    ]);
     fireEvent.click(within(menu).getByRole("menuitem", { name: "Yeoh" }));
     expect(screen.queryByRole("menu")).toBeNull();
     expect(
@@ -110,7 +116,7 @@ describe("ribbon commands", () => {
   it("open a dialog that creates and selects the object", () => {
     const { store, tab, command, dialog, field, create } = setup();
     tab("Materials");
-    const opener = command("Neo-Hooke");
+    const opener = command("Hyperelasticity");
     opener.focus();
     fireEvent.click(opener);
     fireEvent.click(screen.getByRole("menuitem", { name: "Neo-Hooke" }));
@@ -221,7 +227,7 @@ describe("ribbon commands", () => {
     add("Mesh", "Point set", () =>
       fireEvent.input(field("Coordinate"), { target: { value: "3" } }),
     );
-    add("Materials", "Neo-Hooke > Neo-Hooke (compressible)");
+    add("Materials", "Hyperelasticity > Neo-Hooke (compressible)");
     add("Sections", "Section");
     add("Loads & BCs", "Boundary", () =>
       fireEvent.change(field("Point set"), { target: { value: "points_1" } }),

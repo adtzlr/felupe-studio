@@ -142,6 +142,15 @@ describe("editing in the properties panel", () => {
 
   it("switches the material model and its parameters", () => {
     const { store, properties, field, button, choose } = edit("umat_soft");
+    // the models in the groups of the menus of the ribbon (#259)
+    const groups = [...field<HTMLSelectElement>("Model").children].map(
+      (g) => `${(g as HTMLOptGroupElement).label}: ${[...g.children].length}`,
+    );
+    expect(groups).toEqual([
+      "Linear elasticity: 2",
+      "Hyperelasticity: 8",
+      "Strain-based elasticity: 2",
+    ]);
     expect(field("K").value).toBe("");
     expect(field("K").placeholder).toBe("none");
     choose("Model", "NeoHookeCompressible");

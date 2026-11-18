@@ -47,32 +47,37 @@ describe("ribbonGroups", () => {
     expect(
       materials.map((item) => [item.label, item.preset, item.group]),
     ).toEqual([
-      ["Neo-Hooke", { model: "NeoHooke" }, "Neo-Hooke"],
       [
-        "Neo-Hooke (compressible)",
-        { model: "NeoHookeCompressible" },
-        "Neo-Hooke",
+        "Linear elastic (small strain)",
+        { model: "LinearElasticSmallStrain" },
+        "Linear elasticity",
       ],
-      ["Mooney-Rivlin", { model: "MooneyRivlin" }, "Polynomial"],
-      ["Yeoh", { model: "Yeoh" }, "Polynomial"],
-      [
-        "Third-order deformation",
-        { model: "ThirdOrderDeformation" },
-        "Polynomial",
-      ],
-      ["Ogden", { model: "Ogden" }, undefined],
-      ["Arruda-Boyce", { model: "ArrudaBoyce" }, "Micromechanical"],
-      ["Extended tube", { model: "ExtendedTube" }, "Micromechanical"],
       [
         "Linear elastic (large strain)",
         { model: "LinearElasticLargeStrain" },
-        undefined,
+        "Linear elasticity",
       ],
-      ["Linear elastic", { model: "LinearElastic" }, "Strain-based"],
+      ["Neo-Hooke", { model: "NeoHooke" }, "Hyperelasticity"],
+      [
+        "Neo-Hooke (compressible)",
+        { model: "NeoHookeCompressible" },
+        "Hyperelasticity",
+      ],
+      ["Mooney-Rivlin", { model: "MooneyRivlin" }, "Hyperelasticity"],
+      ["Yeoh", { model: "Yeoh" }, "Hyperelasticity"],
+      [
+        "Third-order deformation",
+        { model: "ThirdOrderDeformation" },
+        "Hyperelasticity",
+      ],
+      ["Ogden", { model: "Ogden" }, "Hyperelasticity"],
+      ["Arruda-Boyce", { model: "ArrudaBoyce" }, "Hyperelasticity"],
+      ["Extended tube", { model: "ExtendedTube" }, "Hyperelasticity"],
+      ["Linear elastic", { model: "LinearElastic" }, "Strain-based elasticity"],
       [
         "Elastic-plastic, isotropic hardening",
         { model: "LinearElasticPlasticIsotropicHardening" },
-        "Strain-based",
+        "Strain-based elasticity",
       ],
     ]);
     expect(dialogTitle(materials[0])).toBe("New material");
@@ -87,12 +92,11 @@ describe("ribbonGroups", () => {
           : e.item.label,
       ),
     ).toEqual([
-      "Neo-Hooke: Neo-Hooke, Neo-Hooke (compressible)",
-      "Polynomial: Mooney-Rivlin, Yeoh, Third-order deformation",
-      "Ogden",
-      "Micromechanical: Arruda-Boyce, Extended tube",
-      "Linear elastic (large strain)",
-      "Strain-based: Linear elastic, Elastic-plastic, isotropic hardening",
+      // three menus by the kind of material (#259)
+      "Linear elasticity: Linear elastic (small strain), Linear elastic (large strain)",
+      "Hyperelasticity: Neo-Hooke, Neo-Hooke (compressible), Mooney-Rivlin, Yeoh, " +
+        "Third-order deformation, Ogden, Arruda-Boyce, Extended tube",
+      "Strain-based elasticity: Linear elastic, Elastic-plastic, isotropic hardening",
     ]);
     // a group of one item is a button
     const [one] = ribbonEntries([{ ...materials[0], group: "Solo" }]);

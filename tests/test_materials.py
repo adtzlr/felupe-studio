@@ -42,7 +42,10 @@ def create(model, framework=None, strain_exponent=None, **changes):
 
 
 def test_models():
+    # in the order of the menus of the ribbon (#259)
     assert MODELS == [
+        "LinearElasticSmallStrain",
+        "LinearElasticLargeStrain",
         "NeoHooke",
         "NeoHookeCompressible",
         "MooneyRivlin",
@@ -51,7 +54,6 @@ def test_models():
         "Ogden",
         "ArrudaBoyce",
         "ExtendedTube",
-        "LinearElasticLargeStrain",
         "LinearElastic",
         "LinearElasticPlasticIsotropicHardening",
     ]
