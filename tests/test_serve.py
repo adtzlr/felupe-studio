@@ -216,6 +216,9 @@ def test_the_app_is_served(client):
         assert response.status_code == 200 and META in response.text
         assert response.headers["cache-control"] == "no-store"
     assert client.get("/assets/main.js").text == "console.log('app');\n"
+    # the samples of the package, if the app has none (the app of the wheel)
+    model = client.get("/samples/plate-with-hole/model.felupe.json")
+    assert model.status_code == 200 and "commands" in model.json()
     assert client.get("/missing.js").status_code == 404
     # only the hosts of the loopback interface (against DNS rebinding)
     other = client.get("/", headers={"host": "example.com"})

@@ -54,6 +54,21 @@ def find_app(app=None):
     )
 
 
+def find_samples(dist):
+    """The folder of the samples of the app: those of the built app, or those of
+    the package (the wheel has them once, in ``felupe_studio/data/samples``) or of
+    a clone."""
+    here = Path(__file__).parent
+    for folder in (
+        Path(dist) / "samples",
+        here / "data" / "samples",
+        here.parents[1] / "app" / "public" / "samples",
+    ):
+        if folder.is_dir():
+            return folder
+    return None
+
+
 class Session:
     """A Python process of a connection with a temporary folder."""
 
@@ -143,11 +158,13 @@ def create_app(dist, token):
     async def not_found(request, exc):
         return PlainTextResponse("Not found.", status_code=404)
 
+    samples = find_samples(dist)
     return Starlette(
         routes=[
             Route("/", index),
             Route("/index.html", index),
             WebSocketRoute("/runtime", runtime),
+            *([Mount("/samples", StaticFiles(directory=samples))] if samples else []),
             Mount("/", StaticFiles(directory=dist)),
         ],
         middleware=[Middleware(TrustedHostMiddleware, allowed_hosts=HOSTS)],
