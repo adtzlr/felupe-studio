@@ -206,6 +206,13 @@ def _script(request, send):
     send({"type": "text", "id": request["id"], "text": text})
 
 
+def _check(request, send):
+    from .checks import check
+
+    report = check(json.loads(request["document"]))
+    send({"type": "text", "id": request["id"], "text": json.dumps(report)})
+
+
 def _result(request, send):
     from . import results
 
@@ -272,6 +279,7 @@ HANDLERS = {
     "run": _run,
     "script": _script,
     "script-view": _script,
+    "check": _check,
     "result": _result,
     "result-ranges": _result_ranges,
     "export-results": _export_results,

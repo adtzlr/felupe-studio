@@ -2,6 +2,7 @@ import type { ModelStore } from "../core/store";
 import type { CommandType } from "../core/validate";
 import { CommandLine } from "./CommandLine";
 import { History } from "./History";
+import type { AgentState } from "../agent/connection";
 import { type Runtime, runtimeText } from "./hooks";
 import type { Kept } from "./useSession";
 
@@ -43,6 +44,24 @@ interface Props {
   selected?: string;
   onSelect: (name: string) => void;
   onOpen: (type: CommandType) => void;
+  /** The connection to the agent bridge (#258), and how to end it. */
+  agent?: { state: AgentState; onDisconnect: () => void };
+}
+
+/** The connection to an agent, for the status bar (#258). */
+function agentText(state: AgentState): string | undefined {
+  switch (state.state) {
+    case "off":
+      return undefined;
+    case "connecting":
+      return "Connecting the agent …";
+    case "connected":
+      return "Agent connected";
+    case "replaced":
+      return "The agent is connected to another tab";
+    case "failed":
+      return state.message;
+  }
 }
 
 export function Footer({
@@ -52,9 +71,11 @@ export function Footer({
   selected,
   onSelect,
   onOpen,
+  agent,
 }: Props) {
   const issues = store.issues.length;
   const storage = keptText(kept);
+  const agentStatus = agent && agentText(agent.state);
   return (
     <footer class="footer">
       <div class="command-line">
@@ -76,6 +97,27 @@ export function Footer({
               title={storage.title}
             >
               {storage.text}
+            </span>
+          )}
+          {agent && agentStatus && (
+            <span
+              class={
+                agent.state.state === "connected"
+                  ? "agent-status"
+                  : "agent-status warning"
+              }
+            >
+              {agentStatus}{" "}
+              {agent.state.state === "connected" && (
+                <button
+                  type="button"
+                  class="link"
+                  title="The agent's tools stop working until you connect it again (Help ▸ Connect an agent)"
+                  onClick={agent.onDisconnect}
+                >
+                  Disconnect
+                </button>
+              )}
             </span>
           )}
         </div>

@@ -285,6 +285,8 @@ export type ToWorker =
     }
   | { type: "run"; id: number; document: string; live?: LiveSettings }
   | { type: "script"; id: number; document: string }
+  /** The checks of the mesh data (`felupe_studio.checks`), local runtime only. */
+  | { type: "check"; id: number; document: string }
   /** The script and the lines of its objects, as JSON text (#130). */
   | { type: "script-view"; id: number; document: string }
   | {

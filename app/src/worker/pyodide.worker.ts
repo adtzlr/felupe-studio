@@ -352,6 +352,11 @@ ctx.onmessage = async (event: MessageEvent<ToWorker>) => {
         return await run(message.id, message.document, message.live);
       case "script":
         return script(message.id, message.document);
+      case "check":
+        // the schema check of felupe_studio.checks needs jsonschema
+        throw new Error(
+          "The checks of the mesh data need the local runtime of felupe-studio serve.",
+        );
       case "script-view":
         return script(message.id, message.document, true);
       case "export-results":
