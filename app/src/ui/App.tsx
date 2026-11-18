@@ -261,6 +261,8 @@ export function App({
   // the settings of the contour of the results, kept in the browser (#139)
   const [contour, setContour] = useState<ContourSettings>(loadContour);
   const [shownRange, setShownRange] = useState<readonly [number, number]>();
+  // the values of the shown results can be shifted to the points (#231)
+  const [shift, setShift] = useState<boolean>();
   const changeContour = (settings: ContourSettings) => {
     setContour(settings);
     saveContour(settings);
@@ -484,6 +486,7 @@ export function App({
         ? {
             quantity:
               (resultView ?? lastView.current)?.quantity ?? "displacement",
+            method: contour.values,
           }
         : undefined,
     );
@@ -626,10 +629,12 @@ export function App({
   const exportResults = async (format: "vtu" | "xdmf" | "csv") => {
     if (!client || !finished || !resultView) return;
     const { job, substep } = resultView;
+    // the strains and the stresses at the points too, as in the view (#231)
     const data = await client.exportResults(
       job,
       format,
       format === "vtu" ? substep : undefined,
+      contour.values,
     );
     const suffix =
       format === "vtu"
@@ -1038,6 +1043,7 @@ export function App({
             contour={contour}
             onContour={changeContour}
             currentRange={shownRange}
+            shift={shift}
             player={player}
           />
         }
@@ -1135,6 +1141,7 @@ export function App({
             commands={finished?.commands ?? live?.run.commands}
             contour={contour}
             onRange={setShownRange}
+            onShift={setShift}
             ahead={player.ahead}
             onShown={(view, ok) => setShown({ view, ok })}
             live={live}

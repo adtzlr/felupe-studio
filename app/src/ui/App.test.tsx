@@ -28,7 +28,9 @@ import type {
   JobEvent,
   JobResult,
   LiveSettings,
+  Quantity,
   ResultScene,
+  ValuesMethod,
 } from "../worker/protocol";
 import { App, NARROW } from "./App";
 
@@ -1169,9 +1171,10 @@ describe("solve", () => {
         expect.any(Blob),
       ),
     );
+    // (the strains and the stresses at the cells, as in the view, #231)
     expect(exportResults.mock.calls).toEqual([
-      ["job_1", "vtu", 5],
-      ["job_1", "xdmf", undefined],
+      ["job_1", "vtu", 5, "cells"],
+      ["job_1", "xdmf", undefined, "cells"],
     ]);
 
     // the substeps with the keyboard (#129), not while the focus is in the tree
@@ -1351,7 +1354,10 @@ describe("solve", () => {
     fireEvent.click(solveButton());
     await waitFor(() => expect(jobs.run).toHaveBeenCalledTimes(1));
     // the scenes show the quantity of the view, live results are on by default
-    expect(jobs.run.mock.calls[0][2]).toEqual({ quantity: "displacement" });
+    expect(jobs.run.mock.calls[0][2]).toEqual({
+      quantity: "displacement",
+      method: "cells",
+    });
     jobs.emit({
       event: "start",
       jobs: ["job_1"],
@@ -1428,7 +1434,12 @@ describe("solve", () => {
       }),
     );
     await waitFor(() =>
-      expect(resultScene).toHaveBeenCalledWith("job_1", 4, "stress_mises"),
+      expect(resultScene).toHaveBeenCalledWith(
+        "job_1",
+        4,
+        "stress_mises",
+        "cells",
+      ),
     );
     expect(within(results()).queryByText(/Live ·/)).toBeNull();
     // the next run shows the scenes of the chosen quantity, and none when off
@@ -1507,7 +1518,11 @@ describe("solve", () => {
     });
     fireEvent.click(within(popover).getByLabelText("All substeps"));
     await waitFor(() =>
-      expect(resultRanges).toHaveBeenCalledWith("job_1", "displacement"),
+      expect(resultRanges).toHaveBeenCalledWith(
+        "job_1",
+        "displacement",
+        "cells",
+      ),
     );
     await act(async () => resolveRanges([[0, 1], null, [0, 3]]));
     // the viewer draws in a microtask
@@ -1519,6 +1534,7 @@ describe("solve", () => {
       map: "viridis",
       bands: 8,
       range: "job",
+      values: "cells",
     });
 
     // a manual range starts at the range of the substep; values above it get
@@ -1541,6 +1557,113 @@ describe("solve", () => {
     await waitFor(() =>
       expect(ticks()).toEqual(["0", "0.25", "0.5", "0.75", "1"]),
     );
+    localStorage.clear();
+  });
+
+  it("shows the strains and the stresses at the points (#231)", async () => {
+    localStorage.clear();
+    const jobs = runner();
+    const resultScene = vi.fn(
+      async (
+        _job: string,
+        _substep: number,
+        quantity: Quantity,
+        method?: ValuesMethod,
+      ): Promise<ResultScene> => ({
+        label: quantity,
+        at:
+          quantity === "displacement" || method !== "cells" ? "point" : "cell",
+        // the cells of the model are tetrahedrons: projected instead of shifted
+        shift: false,
+        range: [0, 1],
+        points: [],
+        surfaces: [],
+      }),
+    );
+    const resultRanges = vi.fn(async () => [[0, 1]] as [number, number][]);
+    const exportResults = vi.fn(async () => new Uint8Array([1]));
+    render(
+      <App
+        store={new ModelStore(fixture as CommandList)}
+        files={await files()}
+        client={client(Promise.resolve(readyValue), {
+          ...jobs,
+          resultScene,
+          resultRanges,
+          exportResults,
+        })}
+        download={vi.fn()}
+      />,
+    );
+    await waitFor(() =>
+      expect(solveButton().getAttribute("aria-disabled")).toBeNull(),
+    );
+    fireEvent.click(solveButton());
+    await waitFor(() => expect(jobs.run).toHaveBeenCalledTimes(1));
+    await act(async () =>
+      jobs.settle().resolve({
+        job_1: { substeps: 1, time: 0.1, x: [[0.5, 0, 0]], y: [[5, 0, 0]] },
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show results" }));
+    const last = () => resultScene.mock.calls.at(-1)?.slice(1);
+    await waitFor(() => expect(last()).toEqual([1, "displacement", "cells"]));
+    const panel = screen.getByRole("tabpanel");
+    fireEvent.change(within(panel).getByLabelText("Contour"), {
+      target: { value: "stress_mises" },
+    });
+    await waitFor(() => expect(last()).toEqual([1, "stress_mises", "cells"]));
+
+    fireEvent.click(screen.getByRole("button", { name: "Contour settings" }));
+    const popover = screen.getByRole("dialog", { name: "Contour settings" });
+    const values = within(popover).getByLabelText(
+      "Values at",
+    ) as HTMLSelectElement;
+    expect(values.value).toBe("cells");
+    const shifted = within(values).getByRole("option", {
+      name: "Points: shifted",
+    }) as HTMLOptionElement;
+    expect(shifted.disabled).toBe(true);
+    // (a choice of another model: projected instead)
+    fireEvent.change(values, { target: { value: "topoints" } });
+    await waitFor(() =>
+      expect(last()).toEqual([1, "stress_mises", "topoints"]),
+    );
+    expect(values.value).toBe("project");
+    expect(popover.textContent).toContain("projected instead of shifted");
+    fireEvent.change(values, { target: { value: "project" } });
+    await waitFor(() => expect(last()).toEqual([1, "stress_mises", "project"]));
+    expect(popover.textContent).toContain("L2 projection");
+    // the range over all substeps and the exports take the method
+    fireEvent.click(within(popover).getByLabelText("All substeps"));
+    await waitFor(() =>
+      expect(resultRanges).toHaveBeenCalledWith(
+        "job_1",
+        "stress_mises",
+        "project",
+      ),
+    );
+    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    fireEvent.click(
+      within(screen.getByRole("menu", { name: "Export" })).getByRole(
+        "menuitem",
+        { name: /Results of the substep/ },
+      ),
+    );
+    await waitFor(() =>
+      expect(exportResults).toHaveBeenCalledWith("job_1", "vtu", 1, "project"),
+    );
+    // kept in the browser, and for the live scenes of the next run
+    expect(
+      JSON.parse(localStorage.getItem("felupe-studio.contour")!),
+    ).toMatchObject({ values: "project" });
+    fireEvent.click(solveButton());
+    await waitFor(() => expect(jobs.run).toHaveBeenCalledTimes(2));
+    expect(jobs.run.mock.calls[1][2]).toEqual({
+      quantity: "stress_mises",
+      method: "project",
+    });
     localStorage.clear();
   });
 

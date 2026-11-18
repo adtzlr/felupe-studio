@@ -39,6 +39,8 @@ interface Props {
   onContour?: (settings: ContourSettingsType) => void;
   /** The range of the shown substep, as the start of a manual range. */
   currentRange?: readonly [number, number];
+  /** The values of the shown results can be shifted to the points (#231). */
+  shift?: boolean;
   /** Play the substeps (#141). */
   player?: Player;
   /**
@@ -84,6 +86,7 @@ export function ResultsControls({
   contour,
   onContour,
   currentRange,
+  shift,
   player,
   live,
   liveOn,
@@ -171,6 +174,7 @@ export function ResultsControls({
             settings={contour}
             onChange={onContour}
             current={currentRange}
+            shift={shift}
           />
         )}
       </div>

@@ -15,6 +15,7 @@ import type {
   Quantity,
   ResultScene,
   ToWorker,
+  ValuesMethod,
   Versions,
 } from "./protocol";
 
@@ -191,9 +192,10 @@ export class PyodideClient {
     job: string,
     format: "vtu" | "xdmf" | "csv",
     substep?: number,
+    method?: ValuesMethod,
   ): Promise<Uint8Array> {
     const message = await this.request(
-      { type: "export-results", job, format, substep },
+      { type: "export-results", job, format, substep, method },
       "bytes",
     );
     return new Uint8Array(
@@ -229,9 +231,10 @@ export class PyodideClient {
     job: string,
     substep: number,
     quantity: Quantity,
+    method?: ValuesMethod,
   ): Promise<ResultScene> {
     const message = await this.request(
-      { type: "result", job, substep, quantity },
+      { type: "result", job, substep, quantity, method },
       "result-scene",
     );
     return (message as Extract<FromWorker, { type: "result-scene" }>).scene;
@@ -244,9 +247,10 @@ export class PyodideClient {
   async resultRanges(
     job: string,
     quantity: Quantity,
+    method?: ValuesMethod,
   ): Promise<([number, number] | null)[]> {
     const message = await this.request(
-      { type: "result-ranges", job, quantity },
+      { type: "result-ranges", job, quantity, method },
       "text",
     );
     return JSON.parse(

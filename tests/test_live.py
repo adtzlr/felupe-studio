@@ -58,10 +58,13 @@ def test_curve_points_of_every_substep(bar):
     assert [e["y"] for e in live] == result["y"]
 
 
-def test_scenes_are_throttled_and_equal_the_recorded_ones(bar):
+@pytest.mark.parametrize("method", ["cells", "project"])
+def test_scenes_are_throttled_and_equal_the_recorded_ones(bar, method):
     events = []
     # one tick for the substep, one for the scene: a scene at most every second
-    run(bar, events.append, {"quantity": "stress_mises", "budget": 1}, Clock())
+    # (with the stresses at the cells or projected to the points, #231)
+    live = {"quantity": "stress_mises", "budget": 1, "method": method}
+    run(bar, events.append, live, Clock())
     scenes = [e for e in lives(events) if "scene" in e]
     shown = [e["substep"] for e in scenes]
     # the last substeps of both steps (6 and 10) always, others at most every second
@@ -69,7 +72,7 @@ def test_scenes_are_throttled_and_equal_the_recorded_ones(bar):
     assert 2 < len(shown) < 10
     for event in scenes:
         meta, surfaces = event["scene"]
-        expected = results.scene("job_1", event["substep"], "stress_mises")
+        expected = results.scene("job_1", event["substep"], "stress_mises", method)
         assert json.loads(meta) == json.loads(expected[0])
         for live, recorded in zip(surfaces, expected[1], strict=True):
             assert live.keys() == recorded.keys()

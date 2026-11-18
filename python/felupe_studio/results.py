@@ -8,7 +8,7 @@ surface of every section with the displacements of its points and the values of 
 quantity, like :class:`felupe.ViewSolid` and the plotting backend ``"webgl"`` of
 FElupe: the displacements at the points, the principal values of the logarithmic
 strain and of the Cauchy stress (and its von Mises equivalent) as the means of the
-quadrature points of every cell.
+quadrature points of every cell, or at the points (#231, see :data:`METHODS`).
 
 The surfaces are triangulated once per section (``triangulate_surface`` of FElupe,
 subdivided for quadratic cells) and returned as little-endian bytes, like
@@ -44,9 +44,44 @@ QUANTITIES = {
     "stress_mises": ("mises", 0, "Von Mises equivalent Cauchy stress"),
 }
 
+# the methods of the values of the strains and the stresses (#231): the means of the
+# quadrature points of every cell, or at the points: the means of the cells averaged
+# at the points, an L2 projection (fem.project) or the values of the quadrature
+# points shifted to the points (fem.topoints, of cells whose quadrature points are at
+# their points, e.g. linear hexahedrons)
+METHODS = ("cells", "mean", "project", "topoints")
+
 # corner points of cell types of regions which are not drawn by their points, e.g.
 # the bubble point of the MINI element
 CORNERS = {"tetra5": ("tetra", 4), "triangle4": ("triangle", 3)}
+
+
+def _linear(linear, element):
+    """Return the shape functions of a linear cell at the points of a cell."""
+    return np.array([linear.function(point) for point in element.points])
+
+
+# the linear cells (their type, number of points and region) of quadratic triangles
+# and tetrahedrons and of the MINI elements, whose values are moved to the corner
+# points (#231): their quadrature points are too few for an L2 projection with the
+# quadratic shape functions. The other points of quadratic cells get the values of
+# the linear shape functions (at their points).
+LINEAR = {
+    "tetra10": (
+        "tetra",
+        4,
+        fem.RegionTetra,
+        _linear(fem.Tetra(), fem.QuadraticTetra()),
+    ),
+    "triangle6": (
+        "triangle",
+        3,
+        fem.RegionTriangle,
+        _linear(fem.Triangle(), fem.QuadraticTriangle()),
+    ),
+    "tetra5": ("tetra", 4, fem.RegionTetra, None),
+    "triangle4": ("triangle", 3, fem.RegionTriangle, None),
+}
 
 _state = {"namespace": None, "sections": [], "records": {}, "surfaces": {}}
 
@@ -63,6 +98,7 @@ def reset(namespace, sections, points=(), units=None):
         records={},
         controls={},
         ranges={},
+        regions={},
     )
     _state["surfaces"] = {}
 
@@ -214,25 +250,117 @@ def _cauchy_stress(solid, field):
     return solid.evaluate.cauchy_stress(field)
 
 
-def _data(kind, section):
-    """Return the data of a section of the current values of the fields: at the
-    points (displacements) or at the cells (the means of the quadrature points)."""
+def _point_region(section):
+    """Return the region to move the values of the quadrature points of a section to
+    its points (cached, #231) and the shape functions of its linear cells at the
+    points of its cells (or None).
+
+    The region is the one of the displacement field, or of its linear cells for
+    quadratic triangles and tetrahedrons and for the MINI elements (with the same
+    quadrature points)."""
+    regions = _state.setdefault("regions", {})
+    if section not in regions:
+        region = _state["namespace"][f"field_{section}"][0].region
+        mesh = region.mesh
+        functions = None
+        if mesh.cell_type in LINEAR:
+            cell_type, corners, Region, functions = LINEAR[mesh.cell_type]
+            linear = fem.Mesh(mesh.points, mesh.cells[:, :corners], cell_type)
+            region = Region(linear, quadrature=region.quadrature)
+        regions[section] = region, functions
+    return regions[section]
+
+
+def _solve(matrix, rhs):
+    """Solve the system of an L2 projection (#231) by the conjugate gradient method
+    with a Jacobi preconditioner, one column of the right-hand sides after the other:
+    the matrix is a mass matrix (symmetric and positive definite), faster than with a
+    sparse direct solver for large meshes."""
+    from scipy.sparse import diags
+    from scipy.sparse.linalg import cg, spsolve
+
+    preconditioner = diags(1 / matrix.diagonal())
+    x = np.empty(rhs.shape)
+    for j, b in enumerate(rhs.T):
+        x[:, j], info = cg(matrix, b, rtol=1e-10, atol=0.0, M=preconditioner)
+        if info != 0:
+            x[:, j] = spsolve(matrix.tocsc(), b)
+    return x
+
+
+def method_of(method):
+    """Return the method of the values of the strains and the stresses of the
+    sections (#231): ``"project"`` instead of ``"topoints"`` if the quadrature points
+    of the cells of a section are not at their points."""
+    if method not in METHODS:
+        raise ValueError(f"Unknown method '{method}', expected one of {METHODS}.")
+    if method == "topoints" and not shift():
+        return "project"
+    return method
+
+
+def shift():
+    """Return whether the values of the quadrature points of all sections can be
+    shifted to their points (``fem.topoints``, #231): their quadrature points are at
+    their points (Gauss-Legendre, as many quadrature points as points)."""
+    namespace = _state["namespace"]
+    for section in _state["sections"]:
+        region = namespace[f"field_{section}"][0].region
+        quadrature = region.quadrature
+        if not isinstance(quadrature, fem.GaussLegendre):
+            return False
+        if quadrature.npoints != region.mesh.cells.shape[1]:
+            return False
+    return True
+
+
+def _quadrature_data(kind, section):
+    """Return the strains or the stresses of a section of the current values of the
+    fields at the quadrature points: the components (the principal values, or the
+    von Mises equivalent), the quadrature points and the cells as axes."""
     namespace = _state["namespace"]
     field = namespace[f"field_{section}"]
-    if kind == "displacement":
-        return field[0].values
     if kind == "strain":
-        values = field.evaluate.strain(tensor=False).mean(-2).T
+        return field.evaluate.strain(tensor=False)
+    stress = _cauchy_stress(namespace[f"solid_{section}"], field)
+    if kind == "mises":
+        return equivalent_von_mises(stress)[None]
+    return eigvalsh(stress)
+
+
+def _reduce(values, section, method):
+    """Return the values of the quadrature points of a section at its cells (their
+    means) or at its points (#231), with a component per column, the principal values
+    from the largest to the smallest one."""
+    if method == "cells":
+        data = values.mean(-2).T
     else:
-        stress = _cauchy_stress(namespace[f"solid_{section}"], field)
-        if kind == "mises":
-            return equivalent_von_mises(stress).mean(-2).reshape(-1, 1)
-        values = eigvalsh(stress).mean(-2).T
-    # the principal values from the largest to the smallest one
-    return -np.sort(-values, axis=1)
+        region, functions = _point_region(section)
+        if method == "project":
+            data = fem.project(values, region, solver=_solve)
+        else:
+            # (the points without cells of the region divide by zero, unused)
+            with np.errstate(divide="ignore", invalid="ignore"):
+                data = fem.topoints(values, region, mean=method == "mean")
+        data = data.reshape(len(data), -1)
+        if functions is not None:
+            # the points of quadratic cells: interpolated linearly between corners
+            cells = region.mesh.cells
+            full = _state["namespace"][f"field_{section}"][0].region.mesh.cells
+            data[full] = np.einsum("ij,cjk->cik", functions, data[cells])
+    return -np.sort(-data, axis=1)
 
 
-def _values(section, kind, component):
+def _data(kind, section, method="cells"):
+    """Return the data of a section of the current values of the fields: at the
+    points (displacements, or strains and stresses of a point method, #231) or at the
+    cells (the means of the quadrature points)."""
+    if kind == "displacement":
+        return _state["namespace"][f"field_{section}"][0].values
+    return _reduce(_quadrature_data(kind, section), section, method)
+
+
+def _values(section, kind, component, method="cells"):
     """Return the data of a quantity of a section of the current values of the
     fields (at the points of the cells or at the cells), its values at the points of
     the surface and the displacements of the points of the surface."""
@@ -249,8 +377,10 @@ def _values(section, kind, component):
                 displacement,
             )
         return used[:, component], displacement[:, component], displacement
-    data = _data(kind, section)[:, component]
-    return data, data[surface.owners], displacement
+    data = _data(kind, section, method)[:, component]
+    if method == "cells":
+        return data, data[surface.owners], displacement
+    return data[np.unique(cells)], surface.interpolate(data), displacement
 
 
 def _extend(bounds, *arrays):
@@ -263,21 +393,23 @@ def _extend(bounds, *arrays):
     return low, high
 
 
-def ranges(job, quantity):
+def ranges(job, quantity, method="cells"):
     """Return the ranges of a quantity of all substeps of a job, as the JSON text
     of a list of ``[low, high]`` per substep (``null`` without finite values), like
     the ``range`` of :func:`scene` (for a range of the contour over all substeps,
-    #139). The ranges are kept until the next run."""
-    key = (job, quantity)
+    #139), with the values of the strains and the stresses of a method of
+    :data:`METHODS` (#231). The ranges are kept until the next run."""
+    kind, component, _ = QUANTITIES[quantity]
+    method = method_of(method) if kind != "displacement" else "cells"
+    key = (job, quantity, method)
     cache = _state.setdefault("ranges", {})
     if key not in cache:
-        kind, component, _ = QUANTITIES[quantity]
         result = []
         for substep in range(1, len(_state["records"].get(job, [])) + 1):
             _restore(job, substep)
             low, high = np.inf, -np.inf
             for section in _state["sections"]:
-                data, values, _ = _values(section, kind, component)
+                data, values, _ = _values(section, kind, component, method)
                 low, high = _extend((low, high), data, values)
             result.append([float(low), float(high)] if low <= high else None)
         cache[key] = result
@@ -288,7 +420,7 @@ def _bytes(array, dtype):
     return np.ascontiguousarray(array, dtype=dtype).tobytes()
 
 
-def scene(job, substep, quantity):
+def scene(job, substep, quantity, method="cells"):
     """Return the result of a substep of a job for the viewer.
 
     Parameters
@@ -299,16 +431,28 @@ def scene(job, substep, quantity):
         The substep, counted from 1 over all steps of the job.
     quantity : str
         A key of :data:`QUANTITIES`.
+    method : str, optional
+        The method of the values of the strains and the stresses, one of
+        :data:`METHODS` (#231): ``"cells"`` (the means of the quadrature points of
+        every cell, the default) or at the points: ``"mean"`` (the means of the cells
+        averaged at the points), ``"project"`` (an L2 projection, ``fem.project``)
+        or ``"topoints"`` (the values of the quadrature points shifted to the points,
+        ``fem.topoints``; projected instead if the quadrature points of the cells of
+        a section are not at their points, see :func:`method_of`). The values at the
+        points are per section, discontinuous between sections.
 
     Returns
     -------
     tuple of str and list of dict
         The JSON text of the label, of where the values are given (``"point"`` or
-        ``"cell"``), of their ``range`` over all cells of all sections (``None``
-        without finite values), of the ``extremes`` (``min`` and ``max`` with their
-        ``value``, ``section``, ``at``, ``index`` of the node or the cell, whether it
-        is at the ``surface``, its ``position`` and ``displacement``; ``None``
-        without finite values) and of the control ``points`` (``name``,
+        ``"cell"``), of the ``method`` of the values of strains and stresses (see
+        :func:`method_of`, not of displacements), of whether their values can be
+        shifted to the points (``shift``, see :func:`shift`), of their ``range``
+        over all cells of all sections (``None`` without finite values), of the
+        ``extremes`` (``min`` and ``max`` with their ``value``, ``section``, ``at``,
+        ``index`` of the node or the cell, whether it is at the ``surface``, its
+        ``position`` and ``displacement``; ``None`` without finite values) and of
+        the control ``points`` (``name``,
         ``position`` and ``displacement``), and the surface of every section: its
         ``name``, ``positions`` (three coordinates per point of the surface),
         ``displacement`` (three components per point), ``triangles``, ``faces`` (to
@@ -318,22 +462,23 @@ def scene(job, substep, quantity):
         subdivided face) as bytes.
     """
     _restore(job, substep)
-    return current_scene(job, substep, quantity)
+    return current_scene(job, substep, quantity, method)
 
 
-def current_scene(job, substep, quantity):
+def current_scene(job, substep, quantity, method="cells"):
     """Return the result of the current fields for the viewer, like :func:`scene`
     without restoring a substep: e.g. the live results of a running job after a
     converged substep (#207), whose fields are current."""
     kind, component, label = QUANTITIES[quantity]
-    at = "point" if kind == "displacement" else "cell"
+    method = method_of(method)
+    at = "point" if kind == "displacement" or method != "cells" else "cell"
     surfaces = []
     low, high = np.inf, -np.inf
     extremes = {}
     for section in _state["sections"]:
         surface, cells, order = _surface(section)
         mesh = _state["namespace"][f"field_{section}"][0].region.mesh
-        data, values, displacement = _values(section, kind, component)
+        data, values, displacement = _values(section, kind, component, method)
         low, high = _extend((low, high), data, values)
         for name, candidate in _extremes(section, at, data).items():
             sign = -1 if name == "min" else 1
@@ -358,6 +503,8 @@ def current_scene(job, substep, quantity):
     meta = {
         "label": label,
         "at": at,
+        **({"method": method} if kind != "displacement" else {}),
+        "shift": shift(),
         "range": [float(low), float(high)] if low <= high else None,
         "extremes": extremes or None,
         "points": _control_points(job, substep),
@@ -468,14 +615,28 @@ def _export_mesh():
     return _3d(points[used]), [(t, index[cells]) for t, cells in blocks], used
 
 
-def _export_data(used):
-    """Return the point data and the cell data of the current values of the fields."""
+def _export_data(used, method="cells"):
+    """Return the point data and the cell data of the current values of the fields.
+    A point method of the strains and the stresses (#231) adds them as point data,
+    the means of the sections at their common points."""
     field = _state["namespace"]["field"]
     point_data = {"Displacement": _3d(field[0].values[used])}
-    cell_data = {
-        name: [_data(kind, section) for section in _state["sections"]]
-        for name, kind in EXPORTED.items()
-    }
+    cell_data = {name: [] for name in EXPORTED}
+    sums = {name: 0.0 for name in EXPORTED}
+    count = np.zeros(len(field[0].values))
+    for section in _state["sections"]:
+        nodes = np.unique(_cells(section)[1])
+        count[nodes] += 1
+        for name, kind in EXPORTED.items():
+            values = _quadrature_data(kind, section)
+            cell_data[name].append(_reduce(values, section, "cells"))
+            if method != "cells":
+                data = np.zeros((len(count), len(values)))
+                data[nodes] = _reduce(values, section, method)[nodes]
+                sums[name] = sums[name] + data
+    if method != "cells":
+        for name in EXPORTED:
+            point_data[name] = (sums[name] / count[:, None])[used]
     cell_data["Section"] = [
         np.full(len(_cells(section)[1]), i)
         for i, section in enumerate(_state["sections"])
@@ -483,7 +644,7 @@ def _export_data(used):
     return point_data, cell_data
 
 
-def export(job, file_format, substep=None):
+def export(job, file_format, substep=None, method="cells"):
     """Return the results of a job as the bytes of a file.
 
     Parameters
@@ -497,6 +658,10 @@ def export(job, file_format, substep=None):
         displacements and forces of the control points of all substeps.
     substep : int or None, optional
         The substep of a VTU file, counted from 1 over all steps of the job.
+    method : str, optional
+        The method of the values of the strains and the stresses (#231), see
+        :func:`scene`: with a method at the points, they are point data too, the
+        means of the sections at their common points.
 
     Notes
     -----
@@ -505,7 +670,8 @@ def export(job, file_format, substep=None):
     is the displacement, the cell data are the principal values of the logarithmic
     strain and of the Cauchy stress and the von Mises equivalent of the Cauchy
     stress (the means of the quadrature points of every cell, like
-    :class:`felupe.ViewSolid`) and the index of the section.
+    :class:`felupe.ViewSolid`) and the index of the section. With a method at the
+    points, the strains and the stresses are point data too.
     """
     import meshio
 
@@ -513,12 +679,13 @@ def export(job, file_format, substep=None):
         return control_csv(job).encode("utf-8")
     if not _state["records"].get(job):
         raise KeyError(f"No results of the job '{job}'.")
+    method = method_of(method)
     points, cells, used = _export_mesh()
     with tempfile.TemporaryDirectory() as folder:
         filename = os.path.join(folder, f"result.{file_format}")
         if file_format == "vtu":
             _restore(job, substep or substeps(job))
-            point_data, cell_data = _export_data(used)
+            point_data, cell_data = _export_data(used, method)
             meshio.Mesh(
                 points, cells, point_data=point_data, cell_data=cell_data
             ).write(filename)
@@ -527,7 +694,7 @@ def export(job, file_format, substep=None):
                 writer.write_points_cells(points, cells)
                 for substep in range(1, substeps(job) + 1):
                     _restore(job, substep)
-                    point_data, cell_data = _export_data(used)
+                    point_data, cell_data = _export_data(used, method)
                     writer.write_data(float(substep), point_data, cell_data)
         else:
             raise ValueError(f"Unknown file format '{file_format}'.")

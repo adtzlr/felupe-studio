@@ -6,6 +6,7 @@ import {
   DEFAULT_CONTOUR,
   loadContour,
   manualRange,
+  methodOf,
   saveContour,
 } from "./contour";
 
@@ -108,16 +109,29 @@ describe("contour settings (#139)", () => {
       range: "manual" as const,
       min: -1,
       max: 2,
+      values: "project" as const,
     };
     saveContour(settings, storage);
     expect(loadContour(storage)).toEqual(settings);
     // unknown values fall back to the defaults
     storage.setItem(
       "felupe-studio.contour",
-      '{"map": "jet", "bands": 7, "range": "x"}',
+      '{"map": "jet", "bands": 7, "range": "x", "values": "nodes"}',
     );
     expect(loadContour(storage)).toEqual(DEFAULT_CONTOUR);
+    // the settings of earlier versions: the values at the cells (#231)
+    storage.setItem("felupe-studio.contour", '{"map": "viridis"}');
+    expect(loadContour(storage)).toEqual({
+      ...DEFAULT_CONTOUR,
+      map: "viridis",
+    });
     storage.setItem("felupe-studio.contour", "{");
     expect(loadContour(storage)).toEqual(DEFAULT_CONTOUR);
+  });
+
+  it("of the displacements do not depend on the method (#231)", () => {
+    const settings = { ...DEFAULT_CONTOUR, values: "project" as const };
+    expect(methodOf("displacement_x", settings)).toBe("cells");
+    expect(methodOf("stress_mises", settings)).toBe("project");
   });
 });

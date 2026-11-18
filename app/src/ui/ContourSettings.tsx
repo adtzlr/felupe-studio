@@ -1,5 +1,6 @@
 // The settings of the contour (#139) in a popover beside *Contour*: the color map,
-// the bands and the range. Esc or a click outside closes it.
+// the bands, the range and the values at the cells or the points (#231). Esc or a
+// click outside closes it.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { COLOR_MAPS, type ColorMapId, colorOf } from "../core/colormaps";
 import {
@@ -9,13 +10,20 @@ import {
   manualRange,
   RANGE_MODES,
   type RangeMode,
+  VALUES_METHODS,
 } from "../core/contour";
+import type { ValuesMethod } from "../worker/protocol";
 
 interface Props {
   settings: Settings;
   onChange: (settings: Settings) => void;
   /** The range of the shown substep, as the start of a manual range. */
   current?: readonly [number, number];
+  /**
+   * The values of the quadrature points of the results can be shifted to the
+   * points (#231); false: they are projected instead (unknown without results).
+   */
+  shift?: boolean;
 }
 
 /** A small gradient of a map, beside its name. */
@@ -35,7 +43,7 @@ function Swatch({ map }: { map: ColorMapId }) {
 const numberText = (x: number | undefined) =>
   x === undefined ? "" : String(+x.toPrecision(6));
 
-export function ContourSettings({ settings, onChange, current }: Props) {
+export function ContourSettings({ settings, onChange, current, shift }: Props) {
   const [open, setOpen] = useState(false);
   const [place, setPlace] = useState({ top: 0, left: 0 });
   const button = useRef<HTMLButtonElement>(null);
@@ -125,6 +133,9 @@ export function ContourSettings({ settings, onChange, current }: Props) {
       ? "The minimum must be less than the maximum."
       : undefined;
   const changed = JSON.stringify(settings) !== JSON.stringify(DEFAULT_CONTOUR);
+  // the values are projected if they cannot be shifted to the points (#231)
+  const fallback = settings.values === "topoints" && shift === false;
+  const values = fallback ? "project" : settings.values;
 
   return (
     <>
@@ -133,7 +144,7 @@ export function ContourSettings({ settings, onChange, current }: Props) {
         type="button"
         class="icon-button contour-button"
         aria-label="Contour settings"
-        title="Color map, bands and range of the contour"
+        title="Color map, bands and range of the contour, and the values at the cells or the points"
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => (open ? close(false) : show())}
@@ -223,6 +234,33 @@ export function ContourSettings({ settings, onChange, current }: Props) {
               </small>
             </div>
           )}
+          <div class="popover-row">
+            <label for="contour-values">Values at</label>
+            <select
+              id="contour-values"
+              value={values}
+              title="The values of the strains and the stresses"
+              aria-describedby="contour-values-note"
+              onChange={(event) =>
+                set({ values: event.currentTarget.value as ValuesMethod })
+              }
+            >
+              {VALUES_METHODS.map((m) => (
+                <option
+                  key={m.id}
+                  value={m.id}
+                  disabled={m.id === "topoints" && shift === false}
+                >
+                  {m.label}
+                </option>
+              ))}
+            </select>
+            <small id="contour-values-note" class="muted popover-note">
+              {fallback
+                ? "The quadrature points of the cells are not at their points (e.g. of tetrahedrons): the values are projected instead of shifted."
+                : VALUES_METHODS.find((m) => m.id === values)?.hint}
+            </small>
+          </div>
           <div class="popover-actions">
             <button
               type="button"

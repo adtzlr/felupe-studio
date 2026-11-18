@@ -137,6 +137,9 @@ class Live(fem.Plugin):
         The job, if it is a characteristic curve.
     quantity : str or None, optional
         The quantity of the scenes (none without scenes).
+    method : str, optional
+        The method of the values of the strains and the stresses of the scenes
+        (#231), see :func:`felupe_studio.results.scene`.
     interval : float, optional
         The least time between two scenes in seconds (default 1).
     budget : float, optional
@@ -155,6 +158,7 @@ class Live(fem.Plugin):
         substeps,
         curve=None,
         quantity=None,
+        method="cells",
         interval=1.0,
         budget=0.1,
         clock=time.perf_counter,
@@ -166,6 +170,7 @@ class Live(fem.Plugin):
         self.curve = curve
         self.rotation = rotation
         self.quantity = quantity
+        self.method = method
         self.interval = interval
         self.budget = budget
         self.clock = clock
@@ -195,7 +200,7 @@ class Live(fem.Plugin):
         now = self.clock()
         if self.due(now, state):
             event["scene"] = results_.current_scene(
-                self.job, event["substep"], self.quantity
+                self.job, event["substep"], self.quantity, self.method
             )
             self.last = self.clock()
             self.spent += self.last - now
@@ -265,9 +270,9 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
         ``live`` (see :class:`Live`) and ``finished``.
     live : dict or None, optional
         The settings of the live scenes of the running jobs (#207): the
-        ``quantity`` and optionally the ``interval`` and the ``budget`` of
-        :class:`Live`. Without them, the live events have only the points of the
-        curves of characteristic curves.
+        ``quantity`` and optionally the ``method`` (#231), the ``interval`` and the
+        ``budget`` of :class:`Live`. Without them, the live events have only the
+        points of the curves of characteristic curves.
     clock : callable, optional
         The time in seconds, e.g. a fake clock for tests of the live scenes.
 

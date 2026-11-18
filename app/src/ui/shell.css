@@ -1920,6 +1920,7 @@ button {
 }
 
 .popover-row > span,
+.popover-row > label,
 .popover-row legend {
   color: var(--color-text-muted);
 }
@@ -1950,6 +1951,13 @@ button {
 
 .popover-limits small {
   grid-column: 1 / -1;
+  font-size: var(--text-xs);
+}
+
+/* a note below the field of a row (#231) */
+.popover-note {
+  grid-column: 2;
+  margin-top: -4px;
   font-size: var(--text-xs);
 }
 
