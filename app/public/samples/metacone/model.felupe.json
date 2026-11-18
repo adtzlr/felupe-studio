@@ -1,0 +1,124 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "model.settings",
+      "name": "settings",
+      "analysis": "axisymmetric",
+      "units": {
+        "length": "mm",
+        "force": "N"
+      }
+    },
+    {
+      "command": "parameter.add",
+      "name": "sheet",
+      "value": 0.5,
+      "quantity": "length",
+      "min": 0.3,
+      "max": 1,
+      "step": 0.1,
+      "description": "Thickness of the steel sheets"
+    },
+    {
+      "command": "parameter.add",
+      "name": "cells",
+      "value": 20,
+      "min": 8,
+      "max": 60,
+      "integer": true,
+      "description": "Cells along the layers"
+    },
+    {
+      "command": "parameter.add",
+      "name": "cells_layer",
+      "value": 10,
+      "min": 2,
+      "max": 30,
+      "integer": true,
+      "description": "Cells through a rubber layer"
+    },
+    {
+      "command": "mesh.script",
+      "name": "rubber_mesh",
+      "file": "metacone.py",
+      "item": "rubber"
+    },
+    {
+      "command": "mesh.script",
+      "name": "metal_mesh",
+      "file": "metacone.py",
+      "item": "metal"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "rubber_cells",
+      "mesh": "rubber_mesh"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "metal_cells",
+      "mesh": "metal_mesh"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 1
+      }
+    },
+    {
+      "command": "material.add",
+      "name": "steel",
+      "model": "LinearElasticLargeStrain",
+      "parameters": {
+        "E": 210000,
+        "nu": 0.3
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "rubber_layers",
+      "cellset": "rubber_cells",
+      "material": "rubber",
+      "formulation": "u-p-J",
+      "bulk": 5000
+    },
+    {
+      "command": "section.add",
+      "name": "steel_sheets",
+      "cellset": "metal_cells",
+      "material": "steel",
+      "formulation": "u"
+    },
+    {
+      "command": "loadcase.add",
+      "name": "push",
+      "type": "uniaxial",
+      "clamped": true,
+      "symmetry": false
+    },
+    {
+      "command": "step.add",
+      "name": "pushing",
+      "ramp": {
+        "num": 5,
+        "items": [
+          {
+            "target": "push",
+            "end": -1.5
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job",
+      "steps": [
+        "pushing"
+      ],
+      "curve": "push"
+    }
+  ]
+}

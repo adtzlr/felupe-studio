@@ -5,6 +5,7 @@ import json
 import sys
 from pathlib import Path
 
+import felupe as fem
 import numpy as np
 import pytest
 
@@ -48,7 +49,8 @@ def test_sample_solves(sample, monkeypatch):
     steps = [c for c in document["commands"] if c["command"] == "step.add"]
     assert results["job"]["substeps"] == sum(s["ramp"]["num"] + 1 for s in steps)
     force = np.array(results["job"]["y"])[:, 0]
-    assert np.all(np.isfinite(force)) and force[-1] > 0
+    # (the metacone is pushed in -x)
+    assert np.all(np.isfinite(force)) and abs(force[-1]) > 0
 
 
 def test_material_test_is_analytical(monkeypatch):
@@ -301,3 +303,86 @@ def test_thumbnail_is_up_to_date(sample):
     assert svg == thumbnail(folder), "Run python app/scripts/make_samples.py."
     assert svg.startswith('<svg xmlns="http://www.w3.org/2000/svg"')
     assert svg.count("<polygon") > 10
+
+
+def ex15():
+    """The axisymmetric metacone of the example ex15 of FElupe: its force over the
+    displacement of the end of its inner sleeve (with FElupe's tolerance)."""
+    layers = [2, 11, 2, 11, 2]
+    lines = [
+        fem.mesh.Line(a=0, b=13, n=21).expand(n=1).translate(2, axis=1),
+        fem.mesh.Line(a=0, b=13, n=21).expand(n=1).translate(2.5, axis=1),
+        fem.mesh.Line(a=-0.2, b=10, n=21).expand(n=1).translate(4.5, axis=1),
+        fem.mesh.Line(a=-0.2, b=10, n=21).expand(n=1).translate(5, axis=1),
+        fem.mesh.Line(a=-0.4, b=7, n=21).expand(n=1).translate(6.5, axis=1),
+        fem.mesh.Line(a=-0.4, b=7, n=21).expand(n=1).translate(7, axis=1),
+    ]
+    faces = fem.MeshContainer(
+        [
+            first.fill_between(second, n=n)
+            for first, second, n in zip(lines[:-1], lines[1:], layers, strict=True)
+        ]
+    )
+
+    def point(m):
+        return m.points[np.unique(m.cells)].mean(axis=0) - np.array([2, 0])
+
+    def mask(m):
+        return np.unique(m.cells)
+
+    kwargs = dict(axis=1, exponent=2.5, normalize=True)
+    faces.points[:] = (
+        faces[1]
+        .add_runouts([3], centerpoint=point(faces[1]), mask=mask(faces[1]), **kwargs)
+        .points
+    )
+    faces.points[:] = (
+        faces[3]
+        .add_runouts([7], centerpoint=point(faces[3]), mask=mask(faces[3]), **kwargs)
+        .points
+    )
+    faces.points[:21] = faces.points[21 : 2 * 21]
+    faces.points[-21:] = faces.points[-2 * 21 : -21]
+    faces.points[:] = faces[0].rotate(15, axis=2).points
+    faces[0].y[:21] = 2
+    faces[-1].y[-21:] = 8.5
+    mesh = fem.MeshContainer(
+        [faces.stack([1, 3]), faces.stack([0, 2, 4])], merge=True, decimals=4
+    )
+    fields = [
+        fem.FieldAxisymmetric(fem.RegionQuad(m), dim=2).as_container() for m in mesh
+    ]
+    x0 = fem.FieldContainer(fields).merge()
+    rubber = fem.NeoHooke(mu=1)
+    metal = fem.LinearElasticLargeStrain(E=2.1e5, nu=0.3)
+    solid1 = fem.SolidBodyNearlyIncompressible(rubber, fields[0], bulk=5000)
+    solid2 = fem.SolidBody(metal, fields[1])
+    boundaries = fem.dof.uniaxial(x0, clamped=True, sym=False)
+    ramp = {boundaries["move"]: fem.math.linsteps([0, 1], num=5) * -1.5}
+    step = fem.Step(items=[solid1, solid2], ramp=ramp, boundaries=boundaries)
+    job = fem.CharacteristicCurve(steps=[step], boundary=boundaries["move"])
+    job.evaluate(verbose=0)
+    return mesh, np.array(job.x)[:, 0], np.array(job.y)[:, 0]
+
+
+def test_metacone_like_ex15(monkeypatch):
+    # the mesh of the script and the force of the sample (with FElupe's tolerance)
+    # are those of the example ex15 of FElupe (#241)
+    folder = APP / "public" / "samples" / "metacone"
+    mesh, x, y = ex15()
+    namespace = {}
+    exec((folder / "metacone.py").read_text(encoding="utf-8"), namespace)
+    for item, expected in zip(["rubber", "metal"], mesh, strict=True):
+        made = namespace["mesh"][item]
+        np.testing.assert_allclose(made.points, expected.points)
+        np.testing.assert_array_equal(made.cells, expected.cells)
+
+    monkeypatch.chdir(folder)
+    document = loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
+    for cmd in document["commands"]:
+        if cmd["command"] == "job.add":
+            cmd["tol"] = 1.49e-8
+    results = run(document)["job"]
+    np.testing.assert_allclose(np.array(results["x"])[:, 0], x)
+    np.testing.assert_allclose(np.array(results["y"])[:, 0], y, rtol=1e-8)
+    assert y[-1] == pytest.approx(-516.77, rel=1e-4)
