@@ -106,6 +106,12 @@ export interface Target {
 /** A drag of more pixels is a rotation, not a click. */
 const CLICK = 4;
 
+/**
+ * A pointer held still for this time (ms) is a long press, which picks like
+ * Shift+click, also on a touch screen without Shift (#273).
+ */
+export const LONG_PRESS = 500;
+
 /** A node is picked within this distance of the click, in pixels. */
 const NODE_RADIUS = 8;
 
@@ -191,6 +197,9 @@ export class Viewer {
   private targets: readonly Target[] = [];
   private scheduled = false;
   private down: { x: number; y: number } | undefined;
+  /** The timer of a long press (#273), and whether one picked (its click is dropped). */
+  private press: ReturnType<typeof setTimeout> | undefined;
+  private pressed = false;
   private pickListeners = new Set<
     (pick: Pick | undefined, click: Click) => void
   >();
@@ -219,10 +228,43 @@ export class Viewer {
     );
     root.addEventListener(
       "pointerdown",
-      (event) => (this.down = { x: event.clientX, y: event.clientY }),
+      (event) => {
+        this.down = { x: event.clientX, y: event.clientY };
+        this.pressed = false;
+        this.cancelPress();
+        // a long press of the primary pointer (#273); a second finger (a pinch)
+        // cancels it
+        if (event.button === 0 && event.isPrimary !== false) {
+          const at = { x: event.clientX, y: event.clientY };
+          this.press = setTimeout(() => this.longPress(at), LONG_PRESS);
+        }
+      },
       true,
     );
-    root.addEventListener("click", (event) => this.click(event));
+    root.addEventListener(
+      "pointermove",
+      (event) => {
+        const down = this.down;
+        if (
+          this.press &&
+          down &&
+          Math.hypot(event.clientX - down.x, event.clientY - down.y) > CLICK
+        )
+          this.cancelPress();
+      },
+      true,
+    );
+    for (const type of ["pointerup", "pointercancel"])
+      root.addEventListener(type, () => this.cancelPress(), true);
+    root.addEventListener("click", (event) => {
+      // the click after a long press, which picked already (#273)
+      if (this.pressed) {
+        this.pressed = false;
+        this.down = undefined;
+        return;
+      }
+      this.click(event);
+    });
     // a right click without a drag (which pans) deselects or excludes (#195)
     root.addEventListener(
       "pointerup",
@@ -505,8 +547,29 @@ export class Viewer {
   }
 
   dispose(): void {
+    this.cancelPress();
     this.labels.dispose();
     this.handle.dispose();
+  }
+
+  private cancelPress() {
+    clearTimeout(this.press);
+    this.press = undefined;
+  }
+
+  /** A long press picks like Shift+click and shows a ring at the pointer (#273). */
+  private longPress(at: { x: number; y: number }) {
+    this.press = undefined;
+    this.pressed = true;
+    const root = this.handle.root;
+    const box = root.getBoundingClientRect();
+    const ring = document.createElement("div");
+    ring.className = "fv-press";
+    ring.style.left = `${at.x - box.left}px`;
+    ring.style.top = `${at.y - box.top}px`;
+    root.append(ring);
+    setTimeout(() => ring.remove(), 400);
+    this.pick(at.x, at.y, { shift: true });
   }
 
   private click(event: MouseEvent, right = false) {
@@ -518,18 +581,29 @@ export class Viewer {
     ) {
       return;
     }
+    this.pick(event.clientX, event.clientY, {
+      shift: event.shiftKey,
+      ...(right ? { right: true } : {}),
+    });
+  }
+
+  /** Pick at a point of the client and tell the listeners. */
+  private pick(
+    clientX: number,
+    clientY: number,
+    modifiers: { shift: boolean; right?: boolean },
+  ) {
     const canvas = this.handle.root.querySelector("canvas");
     if (!canvas || !this.available) return;
     const rect = canvas.getBoundingClientRect();
-    const [x, y] = [event.clientX - rect.left, event.clientY - rect.top];
+    const [x, y] = [clientX - rect.left, clientY - rect.top];
     const pick = this.pickAt(x, y, rect.width, rect.height);
     const target = this.targetAt(x, y, rect.width, rect.height);
     const node = target
       ? undefined
       : this.nodeAt(x, y, rect.width, rect.height);
     const click: Click = {
-      shift: event.shiftKey,
-      ...(right ? { right: true } : {}),
+      ...modifiers,
       ...(node ? { node } : {}),
       ...(target ? { target } : {}),
     };

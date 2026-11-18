@@ -802,6 +802,65 @@ describe("Viewport", () => {
     expect(screen.queryByRole("note", { name: "Tip" })).toBeNull();
   });
 
+  it("speaks of taps and long presses on a touch screen (#273)", async () => {
+    localStorage.removeItem("felupe-studio.tip.pick");
+    const matchMedia = vi.spyOn(window, "matchMedia").mockImplementation(
+      (query: string) =>
+        ({
+          matches: query === "(pointer: coarse)",
+          media: query,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }) as unknown as MediaQueryList,
+    );
+    try {
+      const { files } = meshFiles();
+      await files.add("hex.vtu", new Uint8Array());
+      const store = new ModelStore();
+      for (const command of [
+        mesh("block", "hex.vtu"),
+        { command: "cellset.from_file", name: "all", mesh: "block" },
+        { command: "material.add", name: "rubber", model: "NeoHooke" },
+        {
+          command: "section.add",
+          name: "body",
+          cellset: "all",
+          material: "rubber",
+          formulation: "u",
+        },
+      ] as Command[]) {
+        store.apply({ type: "add", command });
+      }
+      const viewer = fakeViewer();
+      render(
+        <Viewport
+          store={store}
+          files={files}
+          hidden={new Set()}
+          createViewer={viewer.create}
+        />,
+      );
+      await act(async () => {});
+      expect(screen.getByRole("note", { name: "Tip" }).textContent).toContain(
+        "Tap faces to pick their surfaces for a point set or a face set, " +
+          "again to exclude them and a third time to deselect them. " +
+          "Long-press single faces.",
+      );
+      const canvas = viewer.handle.root.querySelector("canvas")!;
+      await act(async () => {
+        canvas.dispatchEvent(
+          new MouseEvent("click", { bubbles: true, clientX: 50, clientY: 50 }),
+        );
+      });
+      expect(
+        screen.getByRole("status", { name: "Picked faces" }).textContent,
+      ).toContain("tap again to exclude");
+    } finally {
+      matchMedia.mockRestore();
+      localStorage.setItem("felupe-studio.tip.pick", "seen");
+    }
+  });
+
   it("forgets the tip when it is dismissed", async () => {
     localStorage.removeItem("felupe-studio.tip.pick");
     const { files } = meshFiles();

@@ -19,7 +19,7 @@ import { pressureLines } from "../viewer/pressures";
 import { contactPoints, rigidShapes } from "../viewer/rigid";
 import type { MeshFiles } from "../core/meshfiles";
 import type { ModelStore } from "../core/store";
-import { useViewKeys } from "./hooks";
+import { useMedia, useViewKeys } from "./hooks";
 import { withHint } from "../core/shortcuts";
 import { NodesButton, useShowNodes } from "./NodesButton";
 import {
@@ -335,14 +335,19 @@ export function Viewport({
     () => combine(patches, sections, angle),
     [patches, sections, angle],
   );
+  // the words of the hints: taps and long presses on a touch screen, where a long
+  // press picks like Shift+click (#273)
+  const coarse = useMedia("(pointer: coarse)");
+  const [tap, more] = coarse ? ["tap", "long-press"] : ["click", "Shift+click"];
+  const capital = (text: string) => text[0].toUpperCase() + text.slice(1);
   // what the next click on the last clicked surface does (#260)
   const nextClick = useMemo(() => {
     if (!lastFace) return undefined;
     const state = faceState(combined, lastFace);
-    if (state === "selected") return "click again to exclude";
-    if (state === "excluded") return "click again to deselect";
-    return "click again to pick";
-  }, [combined, lastFace]);
+    if (state === "selected") return `${tap} again to exclude`;
+    if (state === "excluded") return `${tap} again to deselect`;
+    return `${tap} again to pick`;
+  }, [combined, lastFace, tap]);
   const faces = useMemo((): Highlight[] => {
     // the drawn triangles of faces (not of hidden cells)
     const highlight = (
@@ -894,8 +899,8 @@ export function Viewport({
             <div class="pick-panel tip" role="note" aria-label="Tip">
               <span class="muted">
                 {nodesShown
-                  ? "Click a node to pick it, Shift+click for more."
-                  : "Click faces to pick their surfaces for a point set or a face set, again to exclude them and a third time to deselect them. Shift+click single faces."}
+                  ? `${capital(tap)} a node to pick it, ${more} for more.`
+                  : `${capital(tap)} faces to pick their surfaces for a point set or a face set, again to exclude them and a third time to deselect them. ${capital(more)} single faces.`}
               </span>
               <button
                 type="button"
@@ -982,7 +987,7 @@ export function Viewport({
             ) : (
               <span class="muted">
                 This face is not normal to x, y or z. Point sets and face sets
-                select planes normal to an axis; Shift+click picks faces.
+                select planes normal to an axis; {more} picks faces.
               </span>
             )}
             <button
@@ -1160,7 +1165,7 @@ export function Viewport({
               ) : (
                 <strong>{pickedNodes.length} nodes</strong>
               )}{" "}
-              <span class="muted">· Shift+click for more</span>
+              <span class="muted">· {more} for more</span>
             </span>
             <button type="button" class="button" onClick={copyNodes}>
               {copied ? "Copied" : "Copy"}
