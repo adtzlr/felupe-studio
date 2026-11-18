@@ -437,6 +437,8 @@ export function ResultsView({
   const [nodesShown, toggleNodes] = useShowNodes(showNodes, onShowNodes);
   // the table of the control points of the substep (#101)
   const [pointsShown, setPointsShown] = useState(true);
+  // the edges of the cells on the deformed shape (#233), kept for the next run
+  const [edgesShown, setEdgesShown] = useState(true);
   // the minimum and the maximum of the contour, one of them selected (#140)
   const [extremesShown, setExtremesShown] = useState(false);
   const [pinned, setPinned] = useState<Extreme>();
@@ -525,6 +527,7 @@ export function ResultsView({
             scene: titled || scene,
             scale: view.scale,
             undeformed: view.undeformed,
+            edges: edgesShown,
             look,
           }
         : undefined,
@@ -645,6 +648,7 @@ export function ResultsView({
     pinned,
     view?.scale,
     view?.undeformed,
+    edgesShown,
     nodesShown,
     commands,
     createViewer,
@@ -803,6 +807,14 @@ export function ResultsView({
           ))}
           <span class="toolbar-separator" aria-hidden="true" />
           <NodesButton pressed={nodesShown} onToggle={toggleNodes} />
+          <button
+            type="button"
+            aria-pressed={edgesShown}
+            title="Show the edges of the cells on the deformed shape"
+            onClick={() => setEdgesShown(!edgesShown)}
+          >
+            Edges
+          </button>
           {scene?.extremes && (
             <button
               type="button"
