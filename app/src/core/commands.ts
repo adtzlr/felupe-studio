@@ -1049,7 +1049,7 @@ export interface JobAdd {
    */
   curve?: string;
   /**
-   * Tolerance of the Newton-Raphson method: the norm of the residual forces relative to the reaction forces (default 0.01, like commercial codes).
+   * Tolerance of the Newton-Raphson method: the norm of the residual forces relative to a reference force, the reaction forces or the forces between the items (e.g. of a pressure on a solid body), if they are larger (default 0.01, like commercial codes).
    */
   tol?: number;
   /**

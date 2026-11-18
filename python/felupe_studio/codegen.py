@@ -241,8 +241,9 @@ def _call(target, func, args):
 
 
 # the default tolerance of the Newton-Raphson method: the norm of the residual forces
-# relative to the norm of the reaction forces, looser than FElupe's default (the square
-# root of the machine epsilon) like commercial codes (#176)
+# relative to a reference force (the reaction forces, or the forces between the items
+# like a pressure on a solid body if they are larger, FElupe 12.1), looser than
+# FElupe's default (the square root of the machine epsilon) like commercial codes (#176)
 TOL = 0.01
 
 
