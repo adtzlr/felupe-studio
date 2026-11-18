@@ -12,8 +12,9 @@ plate*, solves it with Python in the browser (the first start downloads Pyodide)
 writes small PNGs to ``docs/images``: the model, the results and a pressure on a face
 set. Then it opens three samples of version 0.4: the parameters of the sandwich
 spring (the dialog when it is opened), the results of the plate with a hole (a 2D
-model) and of the spring with end stops (contact), and one of version 0.5: the engine
-mount (FElupe ex07, air as a third medium) with the stresses at the points.
+model) and of the spring with end stops (contact), and two of version 0.5: the engine
+mount (FElupe ex07, air as a third medium) with the stresses at the points and the
+elastic-plastic plate with a hole (the equivalent plastic strain).
 
 The app loads Pyodide and its packages from the CDN (cdn.jsdelivr.net): the script
 needs it, a stub of the runtime would not show the real versions and load times.
@@ -169,18 +170,35 @@ def capture(context, url, out):
     shot("contact")
 
     # v0.5: the engine mount (ex07) in plane strain, with air as a third medium in
-    # its cavities, at the end of the horizontal shift; the von Mises stress
-    # projected to the points (a smooth contour)
+    # its cavities, at the end of the horizontal shift by 8 mm (substep 1 is the
+    # start); the von Mises stress at the points, the means of the cells (a smooth
+    # contour without the undershoots of a projection next to the soft air)
     open_sample("Engine mount (FElupe ex07)", "engine-mount.felupe.zip")
     page.wait_for_selector("text=engine-mount.felupe.zip")
-    solve(substep=8, quantity="stress_mises", job="horizontal")
+    solve(substep=9, quantity="stress_mises", job="horizontal")
     page.get_by_role("button", name="Contour settings").click()
     page.get_by_role("dialog", name="Contour settings").get_by_label(
         "Values at"
-    ).select_option("project")
+    ).select_option("mean")
     page.keyboard.press("Escape")
     page.get_by_label("Curve", exact=True).set_checked(True)
     shot("engine-mount")
+
+    # v0.5: plasticity, the elastic-plastic plate with a hole back at the start: the
+    # equivalent plastic strain and the curve of the loading and the unloading
+    open_sample("Elastic-plastic plate with a hole", "plastic-plate.felupe.zip")
+    page.get_by_role("dialog", name=re.compile("^Parameters")).get_by_role(
+        "button", name="Open", exact=True
+    ).click()
+    page.wait_for_selector("text=plastic-plate.felupe.zip")
+    solve(quantity="plastic_strain")
+    page.get_by_role("button", name="Contour settings").click()
+    page.get_by_role("dialog", name="Contour settings").get_by_label(
+        "Values at"
+    ).select_option("cells")
+    page.keyboard.press("Escape")
+    page.get_by_label("Curve", exact=True).set_checked(True)
+    shot("plasticity")
 
     if errors:
         raise RuntimeError(f"Errors of the page: {errors}")

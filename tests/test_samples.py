@@ -198,6 +198,47 @@ def test_plate_with_hole_concentrates_the_stress(monkeypatch):
     assert top["value"] / (force / 40) > 2
 
 
+def test_plastic_plate_unloads_elastically(monkeypatch):
+    """The elastic-plastic plate with a hole (#269): the first substep is elastic,
+    with the stiffness of the same plate of the linear elastic material of small
+    strains (#259); the unloading has the same stiffness and crosses zero force at a
+    remaining elongation; the equivalent plastic strain is largest at the top of the
+    hole (x = 0, y = radius)."""
+    from felupe_studio import results
+
+    folder = APP / "public" / "samples" / "plastic-plate"
+    document = loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
+    monkeypatch.chdir(folder)
+    result = run(document)["job"]
+    u, force = np.array(result["x"])[:, 0], np.array(result["y"])[:, 0]
+    meta, _ = results.scene("job", results.substeps("job"), "plastic_strain")
+    extremes = json.loads(meta)["extremes"]
+
+    for c in document["commands"]:
+        if c["command"] == "material.add":
+            c["model"] = "LinearElasticSmallStrain"
+            c["parameters"] = {"E": 210000, "nu": 0.3}
+    elastic = run(document)["job"]
+    stiffness = np.array(elastic["y"])[1, 0] / np.array(elastic["x"])[1, 0]
+
+    assert force[1] / u[1] == pytest.approx(stiffness, rel=1e-8)
+    # the curve bends over: yielding at the hole, then across the net section
+    assert force[10] < 0.5 * stiffness * u[10]
+    # unloading (the substeps of the second step, from its start)
+    unloading = slice(11, None)
+    slope = np.diff(force[unloading]) / np.diff(u[unloading])
+    assert slope[0] == pytest.approx(stiffness, rel=0.01)
+    remaining = np.interp(0, force[unloading][::-1], u[unloading][::-1])
+    assert 0.04 < remaining < 0.07
+    # yields again in compression before the end: softer than at the start
+    assert slope[-1] < 0.5 * stiffness
+    assert extremes["min"]["value"] == 0  # elastic far from the hole
+    top = extremes["max"]
+    assert top["value"] > 0.005
+    assert top["position"][0] == pytest.approx(0, abs=2)
+    assert top["position"][1] == pytest.approx(10, abs=2)
+
+
 def test_bushing_matches_ex05(monkeypatch):
     """The bushing (#185) with a rigid connection of the inner sleeve, compared with
     the example ex05 of FElupe on the same mesh, which prescribes the rotated

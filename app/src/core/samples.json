@@ -108,6 +108,20 @@
     ]
   },
   {
+    "id": "plastic-plate",
+    "title": "Elastic-plastic plate with a hole",
+    "description": "The quarter of the plate with a hole in steel, pulled beyond its yield stress and back to the start. The stress at the hole yields first; the curve unloads elastically, crosses zero force at the remaining elongation and yields again in compression. The contour of the equivalent plastic strain shows the plastic zone.",
+    "topics": [
+      "plasticity",
+      "unloading",
+      "plane strain",
+      "strain-based"
+    ],
+    "files": [
+      "plate_with_hole.py"
+    ]
+  },
+  {
     "id": "bushing",
     "title": "Bushing with steel sleeves (FElupe ex05)",
     "description": "A hyperelastic bushing between two steel sleeves, the inner sleeve moved radially, twisted and tilted by a rigid connection. A script makes the mesh from the lengths of the sleeves, the runout and the fineness.",
