@@ -16,5 +16,6 @@ Short records of decisions that shape felupe-studio. A record is changed by a ne
 | [0010](0010-2d-models.md)                   | 2D models                      | Accepted |
 | [0011](0011-rigid-surfaces-and-contacts.md) | Rigid surfaces and contacts    | Accepted |
 | [0012](0012-mcp-server.md)                  | An MCP server for AI agents    | Accepted |
+| [0013](0013-expressions-of-parameters.md)   | Expressions of parameters      | Accepted |
 
 Template: Context, Decision, Consequences, Alternatives.
