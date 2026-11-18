@@ -179,4 +179,16 @@ Container with 2 cores (x86_64), CPython 3.13, FElupe 12.1.0, SuperLU. Peak memo
 
 The model in `float32` (`model.settings`, regions and fields in single precision) needs adtzlr/felupe#1293 and #1294 first (ADR 0016).
 
-**Pyodide:** to be measured on the phone with `spike.html`, n = 9, 11 and 13 in both precisions.
+### Phone
+
+Android 17, Firefox 160 (mobile), 8 cores, Pyodide 314.0.7, Python 3.14.2, FElupe 12.1.0, NumPy 2.4.6, SciPy 1.18.0, warm (service worker cache active). Times in seconds.
+
+|   n |  DOF | Cells | Solve, double | Solve, single | Speedup |  Force |
+| --: | ---: | ----: | ------------: | ------------: | ------: | -----: |
+|   9 | 2187 |   512 |         0.967 |         0.883 |    1.10 | 1.7940 |
+|  11 | 3993 |  1000 |         2.488 |         2.188 |    1.14 | 1.7930 |
+|  13 | 6591 |  1728 |         8.661 |         5.919 |    1.46 | 1.7925 |
+
+The forces agree with the native reference in both precisions. As in CPython, the speedup grows with the size of the model, where the factorization dominates: 1.46 at 6,591 DOF on the phone, 1.51 in CPython.
+
+The load of the same run (warm): Pyodide 1.938 s, NumPy and SciPy 2.319 s, FElupe and meshio (the wheels of the app) 3.599 s, in total 7.856 s. The FElupe step is the measurement before #49 on this phone.
