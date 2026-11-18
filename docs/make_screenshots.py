@@ -170,15 +170,16 @@ def capture(context, url, out):
     shot("contact")
 
     # v0.5: the engine mount (ex07) in plane strain, with air as a third medium in
-    # its cavities, at the end of the horizontal shift; the von Mises stress
-    # projected to the points (a smooth contour)
+    # its cavities, at the end of the horizontal shift by 8 mm (substep 1 is the
+    # start); the von Mises stress at the points, the means of the cells (a smooth
+    # contour without the undershoots of a projection next to the soft air)
     open_sample("Engine mount (FElupe ex07)", "engine-mount.felupe.zip")
     page.wait_for_selector("text=engine-mount.felupe.zip")
-    solve(substep=8, quantity="stress_mises", job="horizontal")
+    solve(substep=9, quantity="stress_mises", job="horizontal")
     page.get_by_role("button", name="Contour settings").click()
     page.get_by_role("dialog", name="Contour settings").get_by_label(
         "Values at"
-    ).select_option("project")
+    ).select_option("mean")
     page.keyboard.press("Escape")
     page.get_by_label("Curve", exact=True).set_checked(True)
     shot("engine-mount")
