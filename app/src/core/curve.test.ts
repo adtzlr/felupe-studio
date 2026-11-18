@@ -216,6 +216,25 @@ describe("axes of the curve (#197)", () => {
       "ux",
       "Fx",
     ]);
+    // the component that changes most, not the largest one of the last substep: a
+    // second job moves there and back in x after a first one moved it by 3 in y
+    // (the engine mount, FElupe ex07)
+    const there = {
+      ...result,
+      x: [
+        [0, 3, 0],
+        [8, 3, 0],
+        [-8, 3, 0],
+        [0, 3, 0],
+      ],
+      y: [
+        [0, 10, 0],
+        [40, 12, 0],
+        [-40, 9, 0],
+        [0, 10, 0],
+      ],
+    };
+    expect(defaultSeries(there)).toEqual(["ux", "Fx"]);
     expect(curveOf(result, "ux", "uy")[3]).toEqual({
       substep: 4,
       u: 0.3,
