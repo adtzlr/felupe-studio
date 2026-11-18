@@ -36,8 +36,11 @@ export interface LoadTimings {
   cache?: CacheState;
 }
 
-/** The precision of the linear equation system of the benchmark (ADR 0016). */
-export type Precision = "double" | "single";
+/**
+ * The precision of the benchmark (ADR 0016): double, the linear equation system in
+ * single precision, or the model in single precision (#297).
+ */
+export type Precision = "double" | "single" | "model";
 
 /** Result of `felupe_studio.benchmark.benchmark()`, times in seconds. */
 export interface BenchmarkResult {
@@ -46,7 +49,7 @@ export interface BenchmarkResult {
   cells: number;
   dofs: number;
   increments: number;
-  /** The precision of the linear equation system (ADR 0016). */
+  /** The precision (ADR 0016). */
   precision: Precision;
   setup: number;
   solve: number;
