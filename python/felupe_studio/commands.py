@@ -323,6 +323,47 @@ def value_at(command, path):
     return value
 
 
+def references(command):
+    """Return the names that a command references, as ``(field, name)`` pairs (the
+    targets of the ramp of a step as ``ramp``), like ``references()`` of the app.
+
+    Examples
+    --------
+    >>> references({"command": "pointset.add", "name": "inner",
+    ...             "select": {"section": "metal"}})
+    [('select.section', 'metal')]
+    """
+    result = []
+    for field, (_, is_list) in REFERENCES.get(command["command"], {}).items():
+        value = value_at(command, field)
+        if value is None:
+            continue
+        result.extend((field, name) for name in (value if is_list else [value]))
+    if command["command"] == "step.add":
+        result.extend(("ramp", item["target"]) for item in command["ramp"]["items"])
+    return result
+
+
+def rename_references(command, old, new):
+    """Return a copy of a command whose references to a name point to another one,
+    like ``renameReferences()`` of the app."""
+    copy = json.loads(json.dumps(command))
+    for field, (_, is_list) in REFERENCES.get(command["command"], {}).items():
+        *path, key = field.split(".")
+        owner = value_at(copy, ".".join(path)) if path else copy
+        if not isinstance(owner, dict) or key not in owner:
+            continue
+        if is_list:
+            owner[key] = [new if name == old else name for name in owner[key]]
+        elif owner[key] == old:
+            owner[key] = new
+    if command["command"] == "step.add":
+        for item in copy["ramp"]["items"]:
+            if item["target"] == old:
+                item["target"] = new
+    return copy
+
+
 def _reference_errors(commands):
     # the registries read the schema of this module
     from .loadcases import problems as loadcase_problems

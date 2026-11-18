@@ -15,5 +15,6 @@ Short records of decisions that shape felupe-studio. A record is changed by a ne
 | [0009](0009-mesh-scripts.md)                | Meshes made by scripts         | Accepted |
 | [0010](0010-2d-models.md)                   | 2D models                      | Accepted |
 | [0011](0011-rigid-surfaces-and-contacts.md) | Rigid surfaces and contacts    | Accepted |
+| [0012](0012-mcp-server.md)                  | An MCP server for AI agents    | Accepted |
 
 Template: Context, Decision, Consequences, Alternatives.

@@ -15,6 +15,11 @@ dependencies = ["felupe>=12.1.0", "meshio", "tensortrax>=0.30.0", "jsonschema>=4
 
 [project.optional-dependencies]
 test = ["pytest", "ruff"]
+# the MCP server for AI agents (#239)
+mcp = ["mcp>=2.3"]
+
+[project.scripts]
+felupe-studio-mcp = "felupe_studio.mcp:main"
 
 [project.urls]
 Homepage = "https://github.com/adtzlr/felupe-studio"

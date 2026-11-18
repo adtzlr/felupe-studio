@@ -6,6 +6,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Added
 
+- An MCP server for AI agents (`felupe-studio-mcp`, the optional dependency `felupe-studio[mcp]`): agents like Claude Code or GitHub Copilot build, check and solve models with its tools (the schema of the commands, samples, projects, commands with the issues of the validation, mesh files and scripts, checks, the script, solve with progress, results and exports), headless with CPython; the saved project opens in the app. Mesh scripts run only if the server wrote them or with `--allow-scripts`. See [AI agents](docs/agents.md) and ADR 0012 (#239).
 - The frameworks *Co-rotational* (the Biot strain of the stretch) and *Seth-Hill* with a *Strain exponent m* (e.g. 0 for the logarithmic Hencky strain) of the strain-based materials, from FElupe 12.1 with exact tangents. The package needs `felupe>=12.1.0` (#191).
 - The sample *Engine mount (FElupe ex07)*: rubber between an inner and an outer metal part in plane strain, with air in its cavities, on the meshes of ex07. The job `vertical` moves the inner part by 3 mm in y, the job `horizontal` then by 8 mm in x, there and back; the vertical force equals the one of ex07 (#241).
 - The formulation `u-isochoric` of a section (*Displacement, isochoric part only (third medium)*): a material without a bulk modulus as it is, without a volumetric part, e.g. air as a third medium in the cavities of a rubber part (#241).
