@@ -85,6 +85,8 @@ export interface ResultContent {
   scale: number;
   /** Show the undeformed surfaces as a transparent ghost. */
   undeformed: boolean;
+  /** Show the edges of the cells on the deformed surfaces (default, #233). */
+  edges?: boolean;
   /**
    * The look of the contour (#139): its lookup table, bands and range; the app
    * draws its scalar bar. Without it, the viewer draws turbo over the range of the
@@ -362,7 +364,7 @@ export function arrowObject(arrows: Arrows): LinesObject {
  * surfaces of the sections with the values in a common range (one scalar bar).
  */
 export function resultObjects(result: ResultContent): SurfaceObject[] {
-  const { scene, scale, undeformed, look } = result;
+  const { scene, scale, undeformed, edges = true, look } = result;
   const range: [number, number] = look?.range ?? scene.range ?? [0, 1];
   const contour = look
     ? {
@@ -388,9 +390,10 @@ export function resultObjects(result: ResultContent): SurfaceObject[] {
     factor: scale,
     triangles: u4(s.triangles),
     ...(s.faces ? { faceIds: u4(s.faces) } : {}),
-    edges: u4(s.edges),
-    edgeColor: EDGE_COLOR,
-    lineWidth: 1,
+    // the edges of the cells, unless the contour is shown without them (#233)
+    ...(edges
+      ? { edges: u4(s.edges), edgeColor: EDGE_COLOR, lineWidth: 1 }
+      : {}),
     smooth: false,
     sharp: true,
     values: f4(s.values),

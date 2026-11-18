@@ -295,6 +295,21 @@ describe("results", () => {
 
     const plain = resultObjects({ scene, scale: 1, undeformed: false });
     expect(plain).toHaveLength(2);
+    // the contour without the edges of the cells (#233)
+    expect(plain[0].edges).toBeDefined();
+    const bare = resultObjects({
+      scene,
+      scale: 1,
+      undeformed: true,
+      edges: false,
+    });
+    expect(bare.map((o) => o.edges)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
+    expect(bare[2]).toMatchObject({ values: plain[0].values, range: [0, 0.5] });
     // without finite values, the range is a placeholder
     const empty = resultObjects({
       scene: { ...scene, range: null },
