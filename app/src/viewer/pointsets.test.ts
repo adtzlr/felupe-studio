@@ -70,6 +70,20 @@ describe("point sets", () => {
     expect(selectsNothing({ surface: true }, [left])).toBe(false);
   });
 
+  it("select the nodes of a section (#241)", () => {
+    const nodes = Float64Array.from([0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0]);
+    const ofSection = (name: string) => (name === "metal" ? nodes : undefined);
+    // without duplicates; of an unknown section none
+    const select = { section: "metal" };
+    expect([...selectedPoints(select, [], [], ofSection)]).toEqual([
+      0, 0, 0, 1, 0, 0, 1, 1, 0,
+    ]);
+    expect(selectedPoints({ section: "air" }, [], [], ofSection)).toHaveLength(
+      0,
+    );
+    expect(selectsNothing(select, [nodes])).toBe(false);
+  });
+
   it("select the nodes on a cylinder (#181)", () => {
     // a ring of 8 nodes of radius 2 about x through (5, 1, -1), and its center
     const ring = Float64Array.from(

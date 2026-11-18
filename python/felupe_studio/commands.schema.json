@@ -1069,8 +1069,8 @@
           "$ref": "#/$defs/Name"
         },
         "formulation": {
-          "description": "u: displacement field only. u-p-J: mixed fields (fem.FieldsMixed) for nearly incompressible materials.",
-          "enum": ["u", "u-p-J"]
+          "description": "u: displacement field only. u-p-J: mixed fields (fem.FieldsMixed) for nearly incompressible materials. u-isochoric: displacement field only, with a material without a bulk modulus whose strain energy has no volumetric part, e.g. air as a third medium between the parts of a model that come into contact.",
+          "enum": ["u", "u-p-J", "u-isochoric"]
         },
         "bulk": {
           "description": "Bulk modulus of the nearly incompressible formulation (required for u-p-J).",
@@ -1108,7 +1108,7 @@
       }
     },
     "PointSetAdd": {
-      "description": "Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, on the outer surface, by the coordinates of points or by point ids.",
+      "description": "Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, on the outer surface, of the cells of a section, by the coordinates of points or by point ids.",
       "type": "object",
       "required": ["command", "name", "select"],
       "additionalProperties": false,
@@ -1222,6 +1222,17 @@
                   "description": "Absolute tolerance (default 1e-8).",
                   "type": "number",
                   "exclusiveMinimum": 0
+                }
+              }
+            },
+            {
+              "description": "The points of the cells of a section, e.g. of a rigid part whose points are all moved by boundaries.",
+              "type": "object",
+              "required": ["section"],
+              "additionalProperties": false,
+              "properties": {
+                "section": {
+                  "$ref": "#/$defs/Name"
                 }
               }
             },

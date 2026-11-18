@@ -153,6 +153,7 @@ describe("deriveTree", () => {
       { radius: 25, axis: "x" },
       { radius: 25, axis: "x", center: [0, 5, -3] },
       { surface: true },
+      { section: "body" },
     ].map((select, i) => ({
       command: "pointset.add",
       name: `set_${i}`,
@@ -164,6 +165,7 @@ describe("deriveTree", () => {
       "r = 25 mm about x",
       "r = 25 mm about x through (0, 5, -3) mm",
       "outer surface",
+      "of body",
     ]);
     expect(find(tree, "step_1")!.detail).toBe("move: 0 → 0.5 mm (5)");
     expect(find(tree, "fixed")!.detail).toBe("left · x, y, z");

@@ -156,6 +156,23 @@ CHANGES = {
         find(d, "section_soft").update(formulation="u"),
         find(d, "section_soft").pop("bulk"),
     ),
+    # a material without a volumetric part, e.g. air as a third medium (#241)
+    "NeoHooke without bulk, isochoric part only": lambda d: (
+        find(d, "section_soft").update(formulation="u-isochoric"),
+        find(d, "section_soft").pop("bulk"),
+    ),
+    "NeoHooke with bulk, isochoric part only": lambda d: (
+        find(d, "umat_soft")["parameters"].update(bulk=5000),
+        find(d, "section_soft").update(formulation="u-isochoric"),
+        find(d, "section_soft").pop("bulk"),
+    ),
+    # the points of the cells of a section, e.g. of a rigid part (#241)
+    "point set of a section": lambda d: find(d, "right").update(
+        select={"section": "section_hard"}
+    ),
+    "point set of an unknown section": lambda d: find(d, "right").update(
+        select={"section": "hard"}
+    ),
     "NeoHooke with bulk": lambda d: (
         find(d, "umat_soft")["parameters"].update(bulk=5000),
         find(d, "section_soft").update(formulation="u"),

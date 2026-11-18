@@ -273,7 +273,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       material: { label: "Material" },
       formulation: {
         label: "Formulation",
-        hint: "u-p-J for (nearly) incompressible materials; linear tetrahedra get a bubble point (MINI)",
+        hint: "u-p-J for (nearly) incompressible materials; linear tetrahedra get a bubble point (MINI). u-isochoric for a material without a bulk modulus, e.g. air as a third medium",
         default: "u",
       },
       bulk: {
@@ -288,7 +288,11 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       },
     },
     options: {
-      formulation: { u: "Displacement (u)", "u-p-J": "Mixed (u, p, J)" },
+      formulation: {
+        u: "Displacement (u)",
+        "u-p-J": "Mixed (u, p, J)",
+        "u-isochoric": "Displacement, isochoric part only (third medium)",
+      },
       volumetric: {
         "volume-ratio": "Volume ratio: K/2 (J − 1)²",
         stretch: "Stretch: 9K/2 (J^⅓ − 1)²",
@@ -322,6 +326,10 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       },
       "select.atol": { label: "Tolerance", placeholder: "1e-8" },
       "select.surface": { label: "Surface", default: true },
+      "select.section": {
+        label: "Section",
+        hint: "All points of its cells, e.g. of a rigid part moved by boundaries",
+      },
       "select.points": {
         label: "Nodes",
         hint: "One point per line: x, y, z",
@@ -339,6 +347,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         bound: "At a bound",
         radius: "On a cylinder",
         surface: "On the outer surface",
+        section: "Of a section",
         points: "By nodes",
         ids: "By point ids",
       },

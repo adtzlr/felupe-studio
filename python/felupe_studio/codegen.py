@@ -529,11 +529,14 @@ def codegen(document, evaluate=True, check_schema=True):
         for sec in sections:
             c = sec["cellset"]
             region = f"region_{sec['name']}"
-            if sec["formulation"] == "u":
+            # (u-isochoric: the displacements of a material without a volumetric
+            # part, e.g. air as a third medium, #241)
+            displacements = sec["formulation"] != "u-p-J"
+            if displacements:
                 out.append(_call(region, f"REGIONS[{c}.cell_type]", [c]))
             else:
                 out.append(_call(region, "mixed_region", [c]))
-            if sec["formulation"] == "u":
+            if displacements:
                 fields = f"[{field_class}({region}, dim={dim})]"
                 out.append(
                     _call(f"field_{sec['name']}", "fem.FieldContainer", [fields])
@@ -644,6 +647,11 @@ def codegen(document, evaluate=True, check_schema=True):
                 # the points of the faces of one cell (of the edges of 2D cells)
                 meshes = _List(f"region_{sec['name']}.mesh" for sec in sections)
                 out.append(_call(ps["name"], "surface_points", [meshes, "points"]))
+            elif "section" in sel:
+                # the points of the cells of a section, e.g. of a rigid part (#241)
+                cells = f"region_{sel['section']}.mesh.cells"
+                args = ["np.arange(len(points))", cells]
+                out.append(_call(ps["name"], "np.isin", args))
             elif "points" in sel:
                 # the points of a 2D model in the xy-plane (#175)
                 coordinates = (

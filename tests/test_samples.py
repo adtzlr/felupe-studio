@@ -46,11 +46,15 @@ def test_sample_solves(sample, monkeypatch):
 
     monkeypatch.chdir(folder)
     results = run(document)
-    steps = [c for c in document["commands"] if c["command"] == "step.add"]
-    assert results["job"]["substeps"] == sum(s["ramp"]["num"] + 1 for s in steps)
-    force = np.array(results["job"]["y"])[:, 0]
-    # (the metacone is pushed in -x)
-    assert np.all(np.isfinite(force)) and abs(force[-1]) > 0
+    # every job (the engine mount has two, #241): the substeps of its steps and a
+    # force (the metacone is pushed in -x)
+    steps = {c["name"]: c for c in document["commands"] if c["command"] == "step.add"}
+    for job in (c for c in document["commands"] if c["command"] == "job.add"):
+        result = results[job["name"]]
+        num = sum(steps[name]["ramp"]["num"] + 1 for name in job["steps"])
+        assert result["substeps"] == num
+        force = np.array(result["y"])
+        assert np.all(np.isfinite(force)) and np.abs(force[-1]).max() > 0
 
 
 def test_material_test_is_analytical(monkeypatch):
@@ -386,3 +390,58 @@ def test_metacone_like_ex15(monkeypatch):
     np.testing.assert_allclose(np.array(results["x"])[:, 0], x)
     np.testing.assert_allclose(np.array(results["y"])[:, 0], y, rtol=1e-8)
     assert y[-1] == pytest.approx(-516.77, rel=1e-4)
+
+
+def ex07():
+    """The vertical force of the engine mount of the example ex07 of FElupe over the
+    vertical displacement of its inner metal part (with FElupe's tolerance)."""
+    folder = APP / "scripts" / "ex07"
+    meshes = fem.MeshContainer(
+        [
+            fem.mesh.read(folder / f"mesh-{name}.vtk", dim=2)[0]
+            for name in ("metal", "rubber", "air")
+        ],
+        merge=True,
+    )
+    mesh = meshes.stack()
+    radius = np.linalg.norm(mesh.points, axis=1)
+    regions = [fem.RegionQuad(m) for m in meshes]
+    fields = [fem.FieldsMixed(r, n=1, planestrain=True) for r in regions]
+    field = fem.FieldContainer(fields).merge()
+    metal = np.isin(np.arange(mesh.npoints), np.unique(meshes[0].cells))
+    inner = np.logical_and(metal, radius <= 45)
+    outer = np.logical_and(metal, radius > 45)
+    boundaries = dict(
+        fixed=fem.Boundary(field[0], mask=outer),
+        u_x=fem.Boundary(field[0], mask=inner, skip=(0, 1)),
+        u_y=fem.Boundary(field[0], mask=inner, skip=(1, 0)),
+    )
+    rubber = fem.SolidBodyNearlyIncompressible(fem.NeoHooke(mu=1), fields[1], bulk=100)
+    air = fem.SolidBody(fem.NeoHooke(mu=1 / 75), fields[2])
+    ramp = {boundaries["u_y"]: fem.math.linsteps([0, 3], num=3)}
+    step = fem.Step(items=[rubber, air], ramp=ramp, boundaries=boundaries)
+    job = fem.CharacteristicCurve(steps=[step], boundary=boundaries["u_y"])
+    job.evaluate(verbose=0)
+    return np.array(job.x)[:, 1], np.array(job.y)[:, 1]
+
+
+def test_engine_mount_like_ex07(monkeypatch):
+    # the vertical force of the sample (with FElupe's tolerance) is the one of the
+    # example ex07 of FElupe (#241): air without a volumetric part (u-isochoric) and
+    # rigid metal parts, whose points (of their sections) are moved by boundaries
+    folder = APP / "public" / "samples" / "engine-mount"
+    x, y = ex07()
+    monkeypatch.chdir(folder)
+    document = loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
+    commands = []
+    for cmd in document["commands"]:
+        if cmd["command"] == "job.add" and cmd["name"] == "horizontal":
+            continue
+        if cmd["command"] == "job.add":
+            cmd["tol"] = 1.49e-8
+        commands.append(cmd)
+    document["commands"] = commands
+    results = run(document)["vertical"]
+    np.testing.assert_allclose(np.array(results["x"])[:, 1], x)
+    np.testing.assert_allclose(np.array(results["y"])[:, 1], y, rtol=1e-8)
+    assert y[-1] == pytest.approx(19.773, rel=1e-4)

@@ -1,0 +1,219 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "model.settings",
+      "name": "settings",
+      "analysis": "plane-strain",
+      "units": {
+        "length": "mm",
+        "force": "N"
+      }
+    },
+    {
+      "command": "mesh.import",
+      "name": "metal",
+      "file": "metal.vtu",
+      "tag": "part"
+    },
+    {
+      "command": "mesh.import",
+      "name": "rubber",
+      "file": "rubber.vtu"
+    },
+    {
+      "command": "mesh.import",
+      "name": "air",
+      "file": "air.vtu"
+    },
+    {
+      "command": "cellset.from_tag",
+      "name": "inner_cells",
+      "mesh": "metal",
+      "value": 1
+    },
+    {
+      "command": "cellset.from_tag",
+      "name": "outer_cells",
+      "mesh": "metal",
+      "value": 2
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "rubber_cells",
+      "mesh": "rubber"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "air_cells",
+      "mesh": "air"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber_material",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 1
+      }
+    },
+    {
+      "command": "material.add",
+      "name": "air_material",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 0.013333333333333334
+      }
+    },
+    {
+      "command": "material.add",
+      "name": "steel",
+      "model": "LinearElasticLargeStrain",
+      "parameters": {
+        "E": 210000,
+        "nu": 0.3
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "rubber_section",
+      "cellset": "rubber_cells",
+      "material": "rubber_material",
+      "formulation": "u-p-J",
+      "bulk": 100
+    },
+    {
+      "command": "section.add",
+      "name": "air_section",
+      "cellset": "air_cells",
+      "material": "air_material",
+      "formulation": "u-isochoric"
+    },
+    {
+      "command": "section.add",
+      "name": "inner_metal",
+      "cellset": "inner_cells",
+      "material": "steel",
+      "formulation": "u"
+    },
+    {
+      "command": "section.add",
+      "name": "outer_metal",
+      "cellset": "outer_cells",
+      "material": "steel",
+      "formulation": "u"
+    },
+    {
+      "command": "pointset.add",
+      "name": "inner",
+      "select": {
+        "section": "inner_metal"
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "outer",
+      "select": {
+        "section": "outer_metal"
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "outer",
+      "constrained": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "move_x",
+      "pointset": "inner",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "move_y",
+      "pointset": "inner",
+      "constrained": [
+        "y"
+      ]
+    },
+    {
+      "command": "step.add",
+      "name": "up",
+      "ramp": {
+        "num": 3,
+        "items": [
+          {
+            "target": "move_y",
+            "start": 0,
+            "end": 3
+          }
+        ]
+      }
+    },
+    {
+      "command": "step.add",
+      "name": "there",
+      "ramp": {
+        "num": 8,
+        "items": [
+          {
+            "target": "move_x",
+            "start": 0,
+            "end": 8
+          }
+        ]
+      }
+    },
+    {
+      "command": "step.add",
+      "name": "back",
+      "ramp": {
+        "num": 16,
+        "items": [
+          {
+            "target": "move_x",
+            "start": 8,
+            "end": -8
+          }
+        ]
+      }
+    },
+    {
+      "command": "step.add",
+      "name": "home",
+      "ramp": {
+        "num": 8,
+        "items": [
+          {
+            "target": "move_x",
+            "start": -8,
+            "end": 0
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "vertical",
+      "steps": [
+        "up"
+      ],
+      "curve": "move_y"
+    },
+    {
+      "command": "job.add",
+      "name": "horizontal",
+      "steps": [
+        "there",
+        "back",
+        "home"
+      ],
+      "curve": "move_x"
+    }
+  ]
+}

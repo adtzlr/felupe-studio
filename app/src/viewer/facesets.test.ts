@@ -134,6 +134,11 @@ describe("the faces of the sections (#142)", () => {
     expect(half.size).toBeCloseTo(Math.sqrt(3));
     // the triangles know their face
     expect([...half.ofTriangle].filter((f) => f >= 0)).toHaveLength(12);
+    // the nodes of the cells (on the surface), for point sets of a section (#241):
+    // the block of two cells has 12 nodes, its left half 8
+    expect(body.nodes).toHaveLength(3 * 12);
+    expect(half.nodes).toHaveLength(3 * 8);
+    expect(Math.max(...[...half.nodes!].filter((_, i) => i % 3 === 0))).toBe(1);
     // computed once per surface
     expect(sectionFaces(commands, files, scaledSurface).get("body")).toBe(body);
   });

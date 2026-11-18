@@ -132,6 +132,20 @@ SAMPLES = [
         "fineness.",
         "topics": ["axisymmetric", "2D mesh script", "clamped load case", "u-p-J"],
     },
+    {
+        "id": "engine-mount",
+        "title": "Engine mount (FElupe ex07)",
+        "description": "An engine mount in plane strain: rubber between an inner "
+        "and an outer metal part, with air in its cavities. The inner metal part is "
+        "moved vertically and then horizontally, there and back; the metal parts "
+        "are rigid, all of their points move with boundaries.",
+        "topics": [
+            "plane strain",
+            "air as a third medium",
+            "rigid parts",
+            "two jobs",
+        ],
+    },
 ]
 
 
@@ -1698,6 +1712,141 @@ def metacone():
     write("metacone", commands, {"metacone.py": METACONE})
 
 
+# the meshes of the example ex07 of FElupe (its VTK files, #241)
+EX07 = Path(__file__).parent / "ex07"
+
+
+def engine_mount():
+    """The engine mount of the example ex07 of FElupe (#241), in plane strain: rubber
+    (Neo-Hooke, nearly incompressible) between an inner and an outer metal part, and
+    air in its cavities (Neo-Hooke without a volumetric part, the formulation
+    u-isochoric, a third medium). The meshes are those of ex07; the cells of the metal
+    are tagged as the inner (1) and the outer part (2) by the radius of their centers.
+
+    The metal parts are rigid: all of their points (the point sets of their sections)
+    are moved by boundaries, like in ex07, so their stiffness does not matter. The job
+    `vertical` moves the inner part by 3 mm in y, the job `horizontal` then by 8 mm in
+    x, there and back, like ex07. The forces are per unit thickness (ex07 plots them
+    for a thickness of 100 mm)."""
+    meshes = {}
+    for name in ("metal", "rubber", "air"):
+        mesh = meshio.read(EX07 / f"mesh-{name}.vtk")
+        points = np.zeros((len(mesh.points), 3))
+        points[:, :2] = mesh.points[:, :2]
+        cells = mesh.get_cells_type("quad")
+        cell_data = {}
+        if name == "metal":
+            radius = np.linalg.norm(points[cells].mean(axis=1), axis=1)
+            cell_data = {"part": [np.where(radius <= 45, 1, 2)]}
+        meshes[f"{name}.vtu"] = meshio.Mesh(
+            points, [("quad", cells)], cell_data=cell_data
+        )
+
+    def section(name, cellset, material, formulation, **kwargs):
+        return {
+            "command": "section.add",
+            "name": name,
+            "cellset": cellset,
+            "material": material,
+            "formulation": formulation,
+            **kwargs,
+        }
+
+    def boundary(name, pointset, constrained):
+        return {
+            "command": "boundary.add",
+            "name": name,
+            "pointset": pointset,
+            "constrained": constrained,
+        }
+
+    def step(name, target, start, end, num):
+        item = {"target": target, "start": start, "end": end}
+        return {
+            "command": "step.add",
+            "name": name,
+            "ramp": {"num": num, "items": [item]},
+        }
+
+    commands = [
+        {
+            "command": "model.settings",
+            "name": "settings",
+            "analysis": "plane-strain",
+            "units": {"length": "mm", "force": "N"},
+        },
+        {
+            "command": "mesh.import",
+            "name": "metal",
+            "file": "metal.vtu",
+            "tag": "part",
+        },
+        {"command": "mesh.import", "name": "rubber", "file": "rubber.vtu"},
+        {"command": "mesh.import", "name": "air", "file": "air.vtu"},
+        {
+            "command": "cellset.from_tag",
+            "name": "inner_cells",
+            "mesh": "metal",
+            "value": 1,
+        },
+        {
+            "command": "cellset.from_tag",
+            "name": "outer_cells",
+            "mesh": "metal",
+            "value": 2,
+        },
+        {"command": "cellset.from_file", "name": "rubber_cells", "mesh": "rubber"},
+        {"command": "cellset.from_file", "name": "air_cells", "mesh": "air"},
+        {
+            "command": "material.add",
+            "name": "rubber_material",
+            "model": "NeoHooke",
+            "parameters": {"mu": 1},
+        },
+        {
+            "command": "material.add",
+            "name": "air_material",
+            "model": "NeoHooke",
+            "parameters": {"mu": 1 / 75},
+        },
+        {
+            "command": "material.add",
+            "name": "steel",
+            "model": "LinearElasticLargeStrain",
+            "parameters": {"E": 210000, "nu": 0.3},
+        },
+        section("rubber_section", "rubber_cells", "rubber_material", "u-p-J", bulk=100),
+        section("air_section", "air_cells", "air_material", "u-isochoric"),
+        section("inner_metal", "inner_cells", "steel", "u"),
+        section("outer_metal", "outer_cells", "steel", "u"),
+        {
+            "command": "pointset.add",
+            "name": "inner",
+            "select": {"section": "inner_metal"},
+        },
+        {
+            "command": "pointset.add",
+            "name": "outer",
+            "select": {"section": "outer_metal"},
+        },
+        boundary("fixed", "outer", ["x", "y"]),
+        boundary("move_x", "inner", ["x"]),
+        boundary("move_y", "inner", ["y"]),
+        step("up", "move_y", 0, 3, 3),
+        step("there", "move_x", 0, 8, 8),
+        step("back", "move_x", 8, -8, 16),
+        step("home", "move_x", -8, 0, 8),
+        {"command": "job.add", "name": "vertical", "steps": ["up"], "curve": "move_y"},
+        {
+            "command": "job.add",
+            "name": "horizontal",
+            "steps": ["there", "back", "home"],
+            "curve": "move_x",
+        },
+    ]
+    write("engine-mount", commands, meshes)
+
+
 def main():
     shear_mount()
     two_materials()
@@ -1710,6 +1859,7 @@ def main():
     bushing()
     hyperelastic_spring()
     metacone()
+    engine_mount()
     INDEX.write_text(json.dumps(SAMPLES, indent=2) + "\n", encoding="utf-8")
 
 

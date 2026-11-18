@@ -24,7 +24,7 @@ A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserve
 - [`cellset.from_file`](#cellsetfrom_file): Cell set of all cells of a mesh.
 - [`material.add`](#materialadd): Add a material to the material library.
 - [`section.add`](#sectionadd): Assign a material and a formulation to a cell set.
-- [`pointset.add`](#pointsetadd): Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, on the outer surface, by the coordinates of points or by point ids.
+- [`pointset.add`](#pointsetadd): Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, on the outer surface, of the cells of a section, by the coordinates of points or by point ids.
 - [`point.add`](#pointadd): A control point that is not a node of the meshes, e.g. the center point of a multi-point constraint.
 - [`rigid.add`](#rigidadd): A rigid surface (#219): a reference point with a plane or a cylinder.
 - [`faceset.add`](#facesetadd): Faces of the boundary of a section, e.g. for a pressure: on a plane, or the faces with the given centers (picked in the viewport).
@@ -272,13 +272,13 @@ Assign a material and a formulation to a cell set. Each section becomes a solid 
 | `name` | name | yes | Name of the object. |
 | `cellset` | name of a cell set | yes |  |
 | `material` | name of a material | yes |  |
-| `formulation` | `u` or `u-p-J` | yes | u: displacement field only. u-p-J: mixed fields (fem.FieldsMixed) for nearly incompressible materials. |
+| `formulation` | `u`, `u-p-J` or `u-isochoric` | yes | u: displacement field only. u-p-J: mixed fields (fem.FieldsMixed) for nearly incompressible materials. u-isochoric: displacement field only, with a material without a bulk modulus whose strain energy has no volumetric part, e.g. air as a third medium between the parts of a model that come into contact. |
 | `bulk` | number > 0 | if `formulation` is `u-p-J` | Bulk modulus of the nearly incompressible formulation (required for u-p-J). |
 | `volumetric` | `volume-ratio`, `stretch` or `log` |  | The volumetric part U(J) of the strain energy of the u-p-J formulation with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)². Default `volume-ratio`. |
 
 ### `pointset.add`
 
-Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, on the outer surface, by the coordinates of points or by point ids.
+Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, on the outer surface, of the cells of a section, by the coordinates of points or by point ids.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -334,6 +334,14 @@ The points at the given coordinates, one point each, e.g. picked nodes. A coordi
 | --- | --- | --- | --- |
 | `select.points` | list of three numbers `[x, y, z]` (at least 1) | yes |  |
 | `select.atol` | number > 0 |  | Absolute tolerance (default 1e-8). |
+
+#### `section`
+
+The points of the cells of a section, e.g. of a rigid part whose points are all moved by boundaries.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `select.section` | name of a section | yes |  |
 
 #### By ids
 

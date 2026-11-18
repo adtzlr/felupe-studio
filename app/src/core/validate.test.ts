@@ -3,7 +3,13 @@ import cases from "../../../tests/data/validation_cases.json";
 import type { Command } from "./commands";
 import { NAME_MAX_LENGTH, RESERVED_KEYWORDS, SCHEMA_VERSION } from "./schema";
 import { symmetryNotes } from "./symmetry";
-import { nameProblem, order, references, validate } from "./validate";
+import {
+  nameProblem,
+  order,
+  references,
+  renameReferences,
+  validate,
+} from "./validate";
 
 describe("validate", () => {
   // the same cases and messages as the Python validation
@@ -79,6 +85,28 @@ describe("references", () => {
       { field: "ramp", name: "move" },
       { field: "ramp", name: "pull" },
     ]);
+  });
+
+  it("of a path of fields, e.g. the section of a point set (#241)", () => {
+    const set: Command = {
+      command: "pointset.add",
+      name: "inner",
+      select: { section: "metal" },
+    };
+    expect(references(set)).toEqual([
+      { field: "select.section", name: "metal" },
+    ]);
+    expect(renameReferences(set, "metal", "core")).toEqual({
+      ...set,
+      select: { section: "core" },
+    });
+    const plane: Command = {
+      command: "pointset.add",
+      name: "left",
+      select: { axis: "x", value: 0 },
+    };
+    expect(references(plane)).toEqual([]);
+    expect(renameReferences(plane, "metal", "core")).toEqual(plane);
   });
 });
 

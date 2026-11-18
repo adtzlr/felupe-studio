@@ -623,9 +623,9 @@ export interface SectionAdd {
   cellset: Name;
   material: Name;
   /**
-   * u: displacement field only. u-p-J: mixed fields (fem.FieldsMixed) for nearly incompressible materials.
+   * u: displacement field only. u-p-J: mixed fields (fem.FieldsMixed) for nearly incompressible materials. u-isochoric: displacement field only, with a material without a bulk modulus whose strain energy has no volumetric part, e.g. air as a third medium between the parts of a model that come into contact.
    */
-  formulation: "u" | "u-p-J";
+  formulation: "u" | "u-p-J" | "u-isochoric";
   /**
    * Bulk modulus of the nearly incompressible formulation (required for u-p-J).
    */
@@ -636,7 +636,7 @@ export interface SectionAdd {
   volumetric?: "volume-ratio" | "stretch" | "log";
 }
 /**
- * Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, on the outer surface, by the coordinates of points or by point ids.
+ * Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, on the outer surface, of the cells of a section, by the coordinates of points or by point ids.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "PointSetAdd".
@@ -691,6 +691,9 @@ export interface PointSetAdd {
          * Absolute tolerance (default 1e-8).
          */
         atol?: number;
+      }
+    | {
+        section: Name;
       }
     | {
         /**
