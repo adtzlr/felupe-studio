@@ -355,6 +355,40 @@ def _reference_errors(commands):
                     )
             for ref in sorted({t for t in targets if targets.count(t) > 1}):
                 messages.append(f"commands/{i}: step '{name}' ramps '{ref}' twice.")
+            # one value per constrained component of a boundary (#225)
+            for item in cmd["ramp"]["items"]:
+                values = [
+                    value
+                    for value in (item.get("start", 0), item["end"])
+                    if isinstance(value, list)
+                ]
+                if not values or item["target"] not in defined:
+                    continue
+                target = defined[item["target"]][1]
+                if target["command"] != "boundary.add":
+                    messages.append(
+                        f"commands/{i}: step '{name}' ramps '{item['target']}' "
+                        f"with {len(values[0])} values: only a boundary ramps one "
+                        "value per constrained component."
+                    )
+                    continue
+                constrained = len(target["constrained"])
+                for count in sorted({len(v) for v in values if len(v) != constrained}):
+                    messages.append(
+                        f"commands/{i}: step '{name}' ramps '{item['target']}' "
+                        f"with {_count(count, 'value')}, but the boundary "
+                        f"constrains {_count(constrained, 'component')}."
+                    )
+
+        # a boundary with a value per constrained component (#225)
+        if cmd["command"] == "boundary.add" and isinstance(cmd.get("value"), list):
+            constrained = len(cmd["constrained"])
+            if len(cmd["value"]) != constrained:
+                messages.append(
+                    f"commands/{i}: boundary '{name}' has "
+                    f"{_count(len(cmd['value']), 'value')}, but it constrains "
+                    f"{_count(constrained, 'component')}."
+                )
 
         # cell sets from tags need a mesh imported with a tag
         if cmd["command"] == "cellset.from_tag" and cmd["mesh"] in defined:
@@ -512,6 +546,11 @@ def _number(value):
     """A coordinate as text like in the app (JavaScript), e.g. 0 or 12.5."""
     value = float(value)
     return str(int(value)) if value.is_integer() else repr(value)
+
+
+def _count(count, word):
+    """A number with its noun, in the plural if needed, e.g. `1 value`."""
+    return f"{count} {word}" if count == 1 else f"{count} {word}s"
 
 
 def notes(commands):

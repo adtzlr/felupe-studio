@@ -235,6 +235,27 @@ describe("editing in the properties panel", () => {
     expect(store.get("section_hard")).toMatchObject({ material: "umat_hard" });
   });
 
+  it("takes one value or one per component of a boundary (#225)", () => {
+    const boundary = edit("fixed");
+    fireEvent.click(boundary.field("y"));
+    boundary.type("Value", "0.5, -0.1");
+    fireEvent.click(boundary.button("Apply"));
+    expect(boundary.store.get("fixed")).toMatchObject({
+      constrained: ["x", "z"],
+      value: [0.5, -0.1],
+    });
+    // one number is a number for all components, as before
+    boundary.type("Value", "0.2");
+    fireEvent.click(boundary.button("Apply"));
+    expect(boundary.store.get("fixed")).toMatchObject({ value: 0.2 });
+    // the count is checked against the constrained components
+    boundary.type("Value", "0.5, -0.1, 0");
+    fireEvent.click(boundary.button("Apply"));
+    expect(boundary.properties.textContent).toContain(
+      "boundary 'fixed' has 3 values, but it constrains 2 components.",
+    );
+  });
+
   it("edits checkbox groups, optional groups and variants", () => {
     const boundary = edit("fixed");
     fireEvent.click(boundary.field("y"));

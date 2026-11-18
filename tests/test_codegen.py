@@ -781,6 +781,49 @@ def test_ramp_of_items_with_their_own_values(two_sections, tmp_path, monkeypatch
     assert force(namespace)[-1] > 0
 
 
+def test_value_per_component(two_sections):
+    """A boundary has one value per constrained component (#225): one number for all
+    of them, or one per component in the order x, y, z."""
+    fixed = next(c for c in two_sections["commands"] if c["name"] == "fixed")
+    fixed["value"] = [0, 0.1, 0]
+    assert '"fixed": fem.Boundary(field[0], mask=left, value=[0, 0.1, 0])' in codegen(
+        two_sections
+    )
+    # a list of zeros is no argument, like the number 0
+    fixed["value"] = [0, 0, 0]
+    assert "value=[0, 0, 0]" not in codegen(two_sections)
+    fixed["value"] = 0
+    assert "value=" not in codegen(two_sections)
+
+
+def test_ramp_of_a_value_per_component(two_sections, tmp_path, monkeypatch):
+    """One boundary moves the right end diagonally, with one ramp value per
+    constrained component (#225)."""
+    mesh, tag = bar()
+    write(tmp_path / "specimen.vtu", mesh, tag)
+    move = next(c for c in two_sections["commands"] if c["name"] == "move")
+    move["constrained"] = ["x", "z"]
+    step = next(c for c in two_sections["commands"] if c["command"] == "step.add")
+    step["ramp"]["items"] = [{"target": "move", "end": [0.5, -0.1]}]
+    script = codegen(two_sections)
+    assert "ramp_step_1 = np.linspace([0, 0], [0.5, -0.1], 6)\n" in script
+    namespace = run(two_sections, tmp_path, monkeypatch)
+    ramp = namespace["step_1"].ramp[namespace["boundaries"]["move"]]
+    np.testing.assert_allclose(ramp, np.outer(np.linspace(0, 1, 6), [0.5, -0.1]))
+    # the end moves in x and z, from the start of the step to its end
+    u = namespace["field"][0].values[namespace["boundaries"]["move"].points]
+    np.testing.assert_allclose(u[:, 0], 0.5)
+    np.testing.assert_allclose(u[:, 2], -0.1)
+
+    # from a start other than zero: from the start to the end, one row per substep
+    step["ramp"]["items"] = [{"target": "move", "start": [0.1, 0], "end": [0.5, -0.1]}]
+    script = codegen(two_sections)
+    assert "ramp_step_1 = np.linspace([0.1, 0], [0.5, -0.1], 6)\n" in script
+    namespace = run(two_sections, tmp_path, monkeypatch)
+    ramp = namespace["step_1"].ramp[namespace["boundaries"]["move"]]
+    np.testing.assert_allclose(ramp, np.linspace([0.1, 0], [0.5, -0.1], 6))
+
+
 def test_point_set_by_coordinates(two_sections, tmp_path, monkeypatch):
     mesh, tag = bar()
     write(tmp_path / "specimen.vtu", mesh, tag)

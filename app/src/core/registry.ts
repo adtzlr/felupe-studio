@@ -372,7 +372,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       constrained: { label: "Constrained", default: ["x", "y", "z"] },
       value: {
         label: "Value",
-        hint: "Prescribed displacement",
+        hint: "Prescribed displacement, 0 if empty: one value, or one per constrained component (x, y, z), e.g. 0.5, -0.1",
         placeholder: "0",
       },
     },
@@ -649,7 +649,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       "ramp.num": { label: "Increments", default: 5 },
       "ramp.items": {
         label: "Ramped",
-        hint: "Boundaries, load cases or loads (a factor of the force), each from its start to its end value",
+        hint: "Boundaries, load cases or loads (a factor of the force), each from its start to its end value; a boundary may have one value per constrained component (x, y, z), e.g. 0.5, -0.1",
       },
       "ramp.items.target": { label: "Item", unique: true },
       "ramp.items.start": { label: "Start", placeholder: "0" },

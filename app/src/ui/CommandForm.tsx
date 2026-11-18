@@ -307,23 +307,33 @@ export function CommandForm({
             }}
           />
         );
-      case "numbers":
+      case "numbers": {
+        // one number of a number or a list of numbers is a number (#225)
+        const parse = (text: string) => {
+          const numbers = parseNumbers(text);
+          if (!input.collapse) return numbers;
+          return numbers.length > 1 ? numbers : numbers[0];
+        };
+        const shown = Array.isArray(value)
+          ? value.join(", ")
+          : typeof value === "number"
+            ? String(value)
+            : "";
         return (
           <input
             {...common}
             type="text"
             inputMode="decimal"
-            value={
-              texts[key]?.text ?? (Array.isArray(value) ? value.join(", ") : "")
-            }
+            value={texts[key]?.text ?? shown}
             placeholder={spec.placeholder}
             autocomplete="off"
             onInput={(event) => {
               const text = event.currentTarget.value;
-              change(spec, parseNumbers(text), { text, parse: parseNumbers });
+              change(spec, parse(text), { text, parse });
             }}
           />
         );
+      }
       case "coordinates": {
         const text = texts[key]?.text ?? coordinatesText(value);
         return (

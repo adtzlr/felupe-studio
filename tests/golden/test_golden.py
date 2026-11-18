@@ -168,6 +168,56 @@ def test_symmetry_quarter_of_the_bar(tmp_path, monkeypatch):
     )
 
 
+def run_script(document, folder, tmp_path, monkeypatch):
+    """Run the script of a command list with the files of a case in a directory."""
+    for path in (HERE / folder).glob("*.vtu"):
+        shutil.copy(path, tmp_path)
+    script = tmp_path / "script.py"
+    script.write_text(codegen(document), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    return runpy.run_path(str(script))
+
+
+def test_diagonal_boundary_like_two_boundaries(tmp_path, monkeypatch):
+    # one boundary that moves the right end diagonally, ramped with one value per
+    # constrained component (#225), like two boundaries with one component each
+    diagonal = load("bar_single_body")
+    move = next(c for c in diagonal["commands"] if c["name"] == "move")
+    move["constrained"] = ["x", "z"]
+    step = next(c for c in diagonal["commands"] if c["command"] == "step.add")
+    step["ramp"]["items"] = [{"target": "move", "end": [0.5, -0.1]}]
+
+    apart = load("bar_single_body")
+    at = 1 + next(i for i, c in enumerate(apart["commands"]) if c["name"] == "move")
+    apart["commands"].insert(
+        at,
+        {
+            "command": "boundary.add",
+            "name": "press",
+            "pointset": "right",
+            "constrained": ["z"],
+        },
+    )
+    step = next(c for c in apart["commands"] if c["command"] == "step.add")
+    step["ramp"]["items"] = [
+        {"target": "move", "end": 0.5},
+        {"target": "press", "end": -0.1},
+    ]
+
+    one = run_script(diagonal, "bar_single_body", tmp_path, monkeypatch)
+    two = run_script(apart, "bar_single_body", tmp_path, monkeypatch)
+    np.testing.assert_allclose(
+        one["field"][0].values, two["field"][0].values, atol=1e-12
+    )
+    np.testing.assert_allclose(
+        np.array(one["job_1"].y), np.array(two["job_1"].y), atol=1e-12
+    )
+    # the end moved in x and z at once
+    end = one["field"][0].values[one["boundaries"]["move"].points]
+    np.testing.assert_allclose(end[:, 0], 0.5)
+    np.testing.assert_allclose(end[:, 2], -0.1)
+
+
 def test_plane_strain_like_the_bar_with_fixed_z(tmp_path, monkeypatch):
     # the cross section of the clamped bar of bar_loadcase in plane strain (#175)
     # has the force of the bar (thickness 1) with all displacements in z fixed

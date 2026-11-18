@@ -394,7 +394,7 @@ Prescribe displacement components of a point set (fem.Boundary).
 | `name` | name | yes | Name of the object. |
 | `pointset` | name of a point set, control point or rigid surface | yes |  |
 | `constrained` | list of axis: `x`, `y` or `z` (at least 1, unique) | yes | Constrained displacement components; all others are free. |
-| `value` | number |  | Prescribed displacement of the constrained components (default 0); a rotation in rad at a rotation point. |
+| `value` | number or list of 1 to 3 numbers |  | Prescribed displacement of the constrained components (default 0): one number for all of them, or one number per constrained component in the order x, y, z (e.g. a point set that moves diagonally); a rotation in rad at a rotation point. |
 
 ### `loadcase.add`
 
@@ -525,8 +525,8 @@ A step with all boundaries, optionally ramping items, each with its own values (
 | `ramp.num` | integer ≥ 1 | yes | Increments of the step. |
 | `ramp.items` | list of objects (at least 1) | yes | The ramped items, each with its own values. |
 | `ramp.items[].target` | name of a boundary, load case, point load or pressure | yes | The ramped boundary, load case, point load or pressure. |
-| `ramp.items[].start` | number |  | Value at the start of the step (default 0). |
-| `ramp.items[].end` | number | yes | Value at the end of the step. |
+| `ramp.items[].start` | number or list of 1 to 3 numbers |  | Value at the start of the step (default 0); of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z. |
+| `ramp.items[].end` | number or list of 1 to 3 numbers | yes | Value at the end of the step; of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z. |
 
 ### `job.add`
 

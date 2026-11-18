@@ -21,8 +21,23 @@ export interface BoundarySymbol {
   points: Float64Array;
   /** The constrained components (0, 1, 2). */
   components: number[];
-  /** The prescribed value at the end of the last step that ramps it (else static). */
-  value: number;
+  /**
+   * The prescribed value of every component at the end of the last step that ramps
+   * it (else static), in the order of `components` (#225).
+   */
+  values: number[];
+}
+
+/**
+ * The values of the components of a boundary: one number for all of them, or one
+ * per component, in the order x, y, z (#225).
+ */
+export function expand(
+  value: number | readonly number[],
+  count: number,
+): number[] {
+  if (Array.isArray(value)) return [...value];
+  return Array.from({ length: count }, () => value as number);
 }
 
 const RTOL = 1e-5;
@@ -197,13 +212,15 @@ export function moving(loadcase: Loadcase): [string, number][] {
 }
 
 /** The final values of the ramped boundaries: of the last step that ramps them. */
-function rampedValues(commands: readonly Command[]): Map<string, number> {
+function rampedValues(
+  commands: readonly Command[],
+): Map<string, number | readonly number[]> {
   const loadcases = new Map(
     commands.flatMap((c) =>
       c.command === "loadcase.add" ? [[c.name, c] as const] : [],
     ),
   );
-  const values = new Map<string, number>();
+  const values = new Map<string, number | readonly number[]>();
   for (const c of commands) {
     if (c.command !== "step.add" || !c.ramp) continue;
     for (const { target: name, end } of c.ramp.items) {
@@ -213,7 +230,8 @@ function rampedValues(commands: readonly Command[]): Map<string, number> {
         continue;
       }
       for (const [key, sign] of moving(loadcase)) {
-        values.set(`${name}/${key}`, sign * end);
+        // a load case ramps one value (lists are of boundaries, #225)
+        if (typeof end === "number") values.set(`${name}/${key}`, sign * end);
       }
     }
   }
@@ -241,13 +259,13 @@ export function boundarySymbols(
     if (c.command === "boundary.add") {
       const at = points.get(c.pointset);
       if (!at) continue;
+      const components = c.constrained.map((a) => AXES.indexOf(a));
       symbols.push({
         owner: c.name,
         name: c.name,
         points: at,
-        components: c.constrained.map((a) => AXES.indexOf(a)),
-        value:
-          ramped.get(c.name) ?? (c as unknown as { value?: number }).value ?? 0,
+        components,
+        values: expand(ramped.get(c.name) ?? c.value ?? 0, components.length),
       });
     } else if (c.command === "symmetry.add") {
       // fem.dof.symmetry: the normal component on every plane (#186)
@@ -258,7 +276,7 @@ export function boundarySymbols(
           name: `${c.name}/sym${axis}`,
           points: plane(nodes, k, value),
           components: [k],
-          value: 0,
+          values: [0],
         });
       }
     } else if (c.command === "loadcase.add") {
@@ -269,7 +287,10 @@ export function boundarySymbols(
           name,
           points: plane(nodes, part.axis, part.at),
           components: part.components,
-          value: ramped.get(name) ?? part.value ?? 0,
+          values: expand(
+            ramped.get(name) ?? part.value ?? 0,
+            part.components.length,
+          ),
         });
       }
     }
@@ -290,8 +311,14 @@ export function boundarySymbols(
   return symbols
     .map((s) => {
       const rotation = rotations.has(pointsets.get(s.owner) ?? "");
-      const kept = s.components.filter((k) => k < dim || rotation);
-      return { ...s, components: kept };
+      const kept = s.components
+        .map((k, i) => ({ k, value: s.values[i] ?? 0 }))
+        .filter(({ k }) => k < dim || rotation);
+      return {
+        ...s,
+        components: kept.map(({ k }) => k),
+        values: kept.map(({ value }) => value),
+      };
     })
     .filter((s) => s.points.length > 0 && s.components.length > 0);
 }
@@ -351,10 +378,12 @@ export function strokes(
   return segments;
 }
 
-/** The direction of a moved boundary: its components with the sign of the value. */
+/** The direction of a moved boundary: the vector of the values of its components. */
 export function direction(symbol: BoundarySymbol): [number, number, number] {
   const d: [number, number, number] = [0, 0, 0];
-  for (const k of symbol.components) d[k] = Math.sign(symbol.value);
+  symbol.components.forEach((k, i) => {
+    d[k] = symbol.values[i] ?? 0;
+  });
   const length = Math.hypot(...d) || 1;
   return d.map((x) => x / length) as [number, number, number];
 }
@@ -394,7 +423,7 @@ export function boundaryLines(
   for (const symbol of symbols) {
     if (hidden.has(symbol.owner)) continue;
     const chosen = symbol.owner === selected;
-    if (symbol.value !== 0) {
+    if (symbol.values.some((value) => value !== 0)) {
       const origins = thinned(symbol.points);
       const d = direction(symbol).map((x) => x * 0.1 * size);
       const directions = new Float32Array(origins.length);

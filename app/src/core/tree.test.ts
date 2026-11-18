@@ -54,6 +54,23 @@ describe("deriveTree", () => {
     expect(find(tree, "move")!.detail).toBe("right · x");
     expect(find(tree, "step_1")!.detail).toBe("move: 0 → 0.5 (5)");
     expect(find(tree, "job_1")!.detail).toBe("step_1 · curve move");
+    // one value per constrained component (#225)
+    const values = commands.map((c) =>
+      c.name === "move"
+        ? { ...c, constrained: ["x", "z"], value: [0.1, -0.2] }
+        : c.command === "step.add"
+          ? {
+              ...c,
+              ramp: { num: 5, items: [{ target: "move", end: [0.1, -0.2] }] },
+            }
+          : c,
+    ) as Command[];
+    expect(find(deriveTree(values), "move")!.detail).toBe(
+      "right · x, z = (0.1, -0.2)",
+    );
+    expect(find(deriveTree(values), "step_1")!.detail).toBe(
+      "move: 0 → (0.1, -0.2) (5)",
+    );
     const jobs = commands.map((c) =>
       c.command === "job.add"
         ? {
