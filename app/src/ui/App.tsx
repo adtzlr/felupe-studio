@@ -1,81 +1,36 @@
-import { useCallback, useEffect, useRef, useState } from "preact/hooks";
-import {
-  type ContourSettings,
-  loadContour,
-  saveContour,
-} from "../core/contour";
-import {
-  ARCHIVE_SUFFIX,
-  exportName,
-  isZip,
-  mediaType,
-  stemOf,
-  SUFFIX,
-} from "../core/files";
+import { useEffect, useRef, useState } from "preact/hooks";
+import { mediaType } from "../core/files";
 import { JobRunner, solveBlocker } from "../core/jobs";
-import { liveResults, loadLiveOn, saveLiveOn } from "../core/live";
-import { type ResultView, substepsOf, viewOf } from "../core/results";
-import type { MeshFormat } from "../worker/protocol";
-import {
-  ariaKeys,
-  dialogOpen,
-  hint,
-  isNavigating,
-  isTyping,
-  matches,
-  type ShortcutId,
-} from "../core/shortcuts";
-import { type Sample, sampleFiles } from "../core/samples";
-import type { Session, SessionStorage } from "../core/session";
 import {
   faceSetNotes,
   fileNotes,
-  isMesh,
-  isScript,
   makeMeshes,
   MeshFiles,
-  meshFileNames,
-  meshStatus,
-  scriptParameters,
 } from "../core/meshfiles";
 import { symmetryNotes } from "../core/symmetry";
-import { duplicateBlocker } from "../core/duplicate";
-import { REGISTRY } from "../core/registry";
-import type { RibbonItem } from "../core/ribbon";
+import type { Sample } from "../core/samples";
 import type { ModelStore } from "../core/store";
-import { SCHEMA_VERSION } from "../core/schema";
+import type { SessionStorage } from "../core/session";
 import type { UpdateWatcher } from "../updates";
 import type { RuntimeClient } from "../worker/client";
-import { KINDS } from "../core/validate";
-import { AboutDialog } from "./AboutDialog";
-import { VISIBLE_KINDS } from "./Browser";
-import type { MenuItem } from "./Menu";
-import { CreateDialog } from "./CreateDialog";
+import { hasAgent } from "../agent/connection";
+import { ErrorBanner, UpdateBanner } from "./Banners";
+import { Dialogs, useDialogs } from "./Dialogs";
 import { Footer } from "./Footer";
-import { type ExportItem, Header } from "./Header";
-import { useJobs, useMedia, useMeshFiles, useRuntime, useStore } from "./hooks";
-import { ImportMeshDialog } from "./ImportMeshDialog";
+import { Header } from "./Header";
+import { useMedia, useMeshFiles, useRuntime, useStore } from "./hooks";
 import { Inspector } from "./Inspector";
 import { JobPanel } from "./JobPanel";
-import type { Capture } from "../viewer/viewer";
-import { safeName } from "../worker/files";
-import { CurveCard } from "./CurveCard";
-import { ParametersDialog, parametersOf } from "./ParametersDialog";
-import { NewProjectDialog } from "./NewProjectDialog";
-import { SamplesDialog } from "./SamplesDialog";
-import { SaveAsDialog } from "./SaveAsDialog";
-import { ExportMeshDialog, type MeshExport } from "./ExportMeshDialog";
-import { ScriptView } from "./ScriptView";
-import { ShortcutsDialog } from "./ShortcutsDialog";
-import { useSession } from "./useSession";
-import { ResultsControls } from "./ResultsControls";
-import { usePlayer } from "./usePlayer";
-import { ResultsView } from "./ResultsView";
+import { ResultsPane, ResultsRibbon } from "./ResultsPane";
 import { Ribbon, type Workspace } from "./Ribbon";
-import { hasAgent } from "../agent/connection";
-import { ScriptConsent } from "./ScriptConsent";
-import { useAgent } from "./useAgent";
+import { ScriptView } from "./ScriptView";
 import { Sidebar } from "./Sidebar";
+import { useAppAgent } from "./useAgent";
+import { useExports } from "./useExports";
+import { useProject } from "./useProject";
+import { useResults } from "./useResults";
+import { objectMenu, useSelection } from "./useSelection";
+import { useShortcuts } from "./useShortcuts";
 import { Viewport } from "./Viewport";
 import { Welcome } from "./Welcome";
 import "./shell.css";
@@ -114,14 +69,11 @@ function downloadFile(name: string, data: string | Blob) {
 /** The windows in which the browser and the properties are drawers (#131). */
 export const NARROW = "(max-width: 1000px)";
 
-const isProject = (file: File) =>
-  file.name.endsWith(SUFFIX) || file.name.endsWith(".json");
-
-/** A project archive (#149): named `.zip`, or a ZIP file by its first bytes. */
-const isArchive = async (file: File) =>
-  file.name.endsWith(".zip") ||
-  isZip(new Uint8Array(await file.slice(0, 4).arrayBuffer()));
-
+/**
+ * The app (#312): it composes the state of its concerns (the project, the run and
+ * the results, the selection, the exports, the dialogs, the agent bridge and the
+ * shortcuts) and its layout.
+ */
 export function App({
   store,
   client,
@@ -137,49 +89,43 @@ export function App({
   useMeshFiles(files);
   const runtime = useRuntime(client);
   const [jobs] = useState(() => client && new JobRunner(client));
-  const run = useJobs(jobs);
-  const finished = jobs?.results;
-  const [resultView, setResultView] = useState<ResultView>();
-  // the last view of the results, also of the live results (#207): its choices
-  // (e.g. the quantity) are kept for the next run
-  const lastView = useRef<ResultView | undefined>(undefined);
-  if (resultView) lastView.current = resultView;
-  // a finished run shows its last substep, with the choices of the previous view
-  useEffect(
-    () =>
-      setResultView(
-        (previous) =>
-          finished && viewOf(finished, previous ?? lastView.current),
-      ),
-    [finished],
-  );
-  // the live results of a run (#207): scenes of a quantity while the jobs run, if
-  // they are on, the curves always; the shown job and the choices of the view
-  const [liveOn, setLiveOn] = useState(loadLiveOn);
-  const [liveChoice, setLiveChoice] = useState<string>();
-  const [, setLiveBase] = useState<ResultView>();
-  const live = finished
-    ? undefined
-    : liveResults(run, liveChoice, lastView.current);
-  const changeLive = (view: ResultView) => {
-    setLiveChoice(view.job);
-    lastView.current = view;
-    setLiveBase(view);
-  };
-  // play the substeps (#141): the next one follows once the current one is shown
-  const [shown, setShown] = useState<{ view: ResultView; ok: boolean }>();
-  const substeps =
-    finished && resultView ? substepsOf(finished, resultView.job) : 0;
-  // the parameters of a project, when it is opened and from the menu (#183)
-  const [parametersShown, setParametersShown] = useState<{
-    project: string;
-    opening: boolean;
-  }>();
+  const [workspace, setWorkspace] = useState<Workspace>("model");
+  const results = useResults({ store, jobs, workspace });
+  const { run } = results;
+  const dialogs = useDialogs();
+  const project = useProject({
+    store,
+    files,
+    client,
+    jobs,
+    session,
+    download,
+    fetchSample,
+    // after the render, when `selection` below is there
+    onReset: () => selection.reset(),
+    onImport: dialogs.importMesh,
+    onCreate: dialogs.setCreating,
+    onParameters: (name) =>
+      dialogs.setParameters({ project: name, opening: true }),
+  });
+  const { fileName, modified } = project;
+  const selection = useSelection(store, workspace, project.setError);
+  const { selected, select } = selection;
+  const exports = useExports({
+    store,
+    files,
+    client,
+    runtime,
+    results,
+    project,
+    workspace,
+    download,
+  });
   // the meshes of scripts with the parameters of the model, made in the worker
   // (#182), after the parameters of an opened project are set (#183)
   useEffect(() => {
-    if (!parametersShown?.opening) makeMeshes(store.commands, files);
-  }, [store.commands, files, files.revision, parametersShown]);
+    if (!dialogs.parameters?.opening) makeMeshes(store.commands, files);
+  }, [store.commands, files, files.revision, dialogs.parameters]);
   // notes about the mesh files, and about face sets on cells without faces (#142),
   // and about repeated symmetry planes, which do not block Solve (#186)
   const meshNotes = fileNotes(store.commands, files);
@@ -188,551 +134,34 @@ export function App({
   for (const note of symmetryNotes(store.resolved)) {
     notes.set(note.name, [...(notes.get(note.name) ?? []), note.message]);
   }
-  const [workspace, setWorkspace] = useState<Workspace>("model");
-  const player = usePlayer({
-    enabled: workspace === "results" && run.state !== "running" && substeps > 1,
-    substep: resultView?.substep ?? 0,
-    total: substeps,
-    shown: shown && shown.view === resultView ? shown.ok : undefined,
-    onStep: (substep) => setResultView((view) => view && { ...view, substep }),
-  });
   const [tab, setTab] = useState("mesh");
   // narrow windows show the browser and the properties as drawers (#131)
   const narrow = useMedia(NARROW);
   const [browserOpen, setBrowserOpen] = useState(false);
   // the script view replaces the viewport while its ribbon tab is open (#130)
   const scriptShown = workspace === "model" && tab === "script";
-  const [fileName, setFileName] = useState(`untitled${SUFFIX}`);
-  // the name of the last saved or opened project file: a renamed project is not
-  // saved until it is saved under its new name (#205)
-  const [savedName, setSavedName] = useState(fileName);
-  // a new project is a project file until its first mesh file, then an archive
-  // (#150); a project that was opened, restored or saved keeps its format
-  const [fresh, setFresh] = useState(() => store.commands.length === 0);
-  const meshCount = meshFileNames(store.commands).length;
-  const meshesBefore = useRef(meshCount);
-  useEffect(() => {
-    const before = meshesBefore.current;
-    meshesBefore.current = meshCount;
-    if (!fresh || before > 0 || meshCount === 0) return;
-    if (!fileName.endsWith(ARCHIVE_SUFFIX)) {
-      // the format of a new project changes, it is not renamed (#205)
-      const archive = `${stemOf(fileName)}${ARCHIVE_SUFFIX}`;
-      if (savedName === fileName) setSavedName(archive);
-      setFileName(archive);
-    }
-    setFresh(false);
-  }, [meshCount]);
-  // the command list of the last saved or opened project file; none for a restored
-  // session with unsaved changes
-  const [saved, setSaved] = useState<typeof store.commands | undefined>(
-    store.commands,
-  );
-  const modified = store.commands !== saved || fileName !== savedName;
-  // an error, or a note (`info`), e.g. of the files of an archive that were not used
-  const [error, setError] = useState<{
-    title: string;
-    lines: string[];
-    info?: boolean;
-  }>();
-  const [importing, setImporting] = useState<{ file?: File }>();
   const [dragging, setDragging] = useState(false);
-  const [selection, setSelection] = useState<string | undefined>();
-  // the properties panel on the right opens when an object is selected (#83)
-  const [inspecting, setInspecting] = useState(false);
-  const select = (id: string | undefined) => {
-    setSelection(id);
-    setInspecting(id !== undefined);
+  // the nodes of the meshes in both workspaces (#91)
+  const [showNodes, setShowNodes] = useState(false);
+  const [update, setUpdate] = useState<"available" | "dismissed">();
+  const fileInput = useRef<HTMLInputElement>(null);
+  const openFile = () => fileInput.current?.click();
+
+  // a newer deployment of the app is offered once
+  useEffect(() => updates?.(() => setUpdate("available")), [updates]);
+
+  const openSample = async (sample: Sample) => {
+    await project.openSample(sample);
+    dialogs.setSamplesOpen(false);
   };
+
   // a click in the browser in the Results workspace (#196): a job with results
   // shows them, another object its properties in the Model workspace
   const selectInBrowser = (id: string | undefined) => {
     select(id);
     if (workspace !== "results" || id === undefined) return;
-    if (finished?.results[id] && resultView) {
-      setResultView({
-        ...resultView,
-        job: id,
-        substep: substepsOf(finished, id),
-      });
-      return;
-    }
-    setWorkspace("model");
+    if (!results.showJob(id)) setWorkspace("model");
   };
-  const [creating, setCreating] = useState<RibbonItem | undefined>();
-  const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
-  // the settings of the contour of the results, kept in the browser (#139)
-  const [contour, setContour] = useState<ContourSettings>(loadContour);
-  const [shownRange, setShownRange] = useState<readonly [number, number]>();
-  // the values of the shown results can be shifted to the points (#231)
-  const [shift, setShift] = useState<boolean>();
-  const changeContour = (settings: ContourSettings) => {
-    setContour(settings);
-    saveContour(settings);
-  };
-  // the nodes of the meshes in both workspaces (#91)
-  const [showNodes, setShowNodes] = useState(false);
-  const [update, setUpdate] = useState<"available" | "dismissed">();
-  // a selection that was removed (or renamed) is gone
-  const selected = selection && store.get(selection) ? selection : undefined;
-  // the panel shows the properties of a selected object in the Model workspace
-  const showInspector =
-    inspecting && selected !== undefined && workspace === "model";
-  const toggleVisible = (id: string) =>
-    setHidden((current) => {
-      const next = new Set(current);
-      if (!next.delete(id)) next.add(id);
-      return next;
-    });
-  const fileInput = useRef<HTMLInputElement>(null);
-
-  // the keyboard shortcuts of the app (#129), with the state of the latest render
-  const keys = useRef<(event: KeyboardEvent) => void>(undefined);
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => keys.current?.(event);
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
-
-  // a newer deployment of the app is offered once
-  useEffect(() => updates?.(() => setUpdate("available")), [updates]);
-
-  // the project module (with the schema validator) is loaded on first use; a project
-  // replaces the mesh files of the previous one (#149)
-  const openProject = useCallback(
-    async (file: File, name = file.name) => {
-      const { parse, ProjectError } = await import("../core/project");
-      try {
-        const document = parse(await file.text());
-        files.clear();
-        setFresh(false);
-        store.load(document);
-        setSelection(undefined);
-        setHidden(new Set());
-        setFileName(name);
-        setSavedName(name);
-        setSaved(store.commands);
-        setError(undefined);
-        return true;
-      } catch (e) {
-        const lines =
-          e instanceof ProjectError
-            ? [`${file.name}:`, ...e.errors]
-            : [String(e)];
-        setError({ title: "The project could not be opened.", lines });
-        return false;
-      }
-    },
-    [store, files],
-  );
-
-  // a project that replaces a model with unsaved changes is opened after asking
-  const [opening, setOpening] = useState<{ files: File[]; name: string }>();
-
-  /**
-   * Open files from the Open button, a drop or a sample: a project file with its
-   * mesh files, a project archive (#149), or mesh files to import. With unsaved
-   * changes, a project is opened after asking (unless `confirmed`); `name` is the
-   * name of the project instead of the name of its file (e.g. of a sample).
-   */
-  const openFiles = useCallback(
-    async (
-      list: File[],
-      {
-        confirmed = false,
-        name: given,
-      }: { confirmed?: boolean; name?: string } = {},
-    ) => {
-      // the files of the archives instead of the archives
-      let opened: File[] = [];
-      let archive: string | undefined;
-      const ignored: string[] = [];
-      for (const file of list) {
-        if (!(await isArchive(file))) {
-          opened.push(file);
-          continue;
-        }
-        const { readArchive } = await import("../core/archive");
-        try {
-          const content = readArchive(new Uint8Array(await file.arrayBuffer()));
-          if (content.project) {
-            opened = [content.project, ...opened];
-            archive = `${stemOf(file.name)}${ARCHIVE_SUFFIX}`;
-          }
-          opened.push(...content.files);
-          ignored.push(...content.ignored);
-        } catch (e) {
-          setError({
-            title: `${file.name} could not be opened.`,
-            lines: [e instanceof Error ? e.message : String(e)],
-          });
-          return;
-        }
-      }
-      const projects = opened.filter(isProject);
-      const meshes = opened.filter((file) => !isProject(file));
-      if (projects.length > 1) {
-        setError({
-          title: "Open one project file at a time.",
-          lines: projects.map((f) => f.name),
-        });
-        return;
-      }
-      if (projects.length === 1) {
-        const name = given ?? archive ?? projects[0].name;
-        if (!confirmed && store.commands.length > 0 && modified) {
-          setOpening({ files: list, name });
-          return;
-        }
-        if (await openProject(projects[0], name)) {
-          // its parameters first, if it has any, before its meshes are made (#183)
-          // in the local runtime also its scripts, which run on this computer (#240)
-          if (
-            parametersOf(store.commands).length ||
-            (client?.local && meshFileNames(store.commands).some(isScript))
-          )
-            setParametersShown({ project: name, opening: true });
-          await files.addFiles(meshes);
-          if (ignored.length) {
-            setError({
-              title: `Files of ${name} that the project does not use were not opened:`,
-              lines: ignored,
-              info: true,
-            });
-          }
-        }
-        return;
-      }
-      // scripts that make meshes (#182): kept, and one alone is used by a new mesh
-      // script
-      const scripts = meshes.filter((file) => isScript(file.name));
-      const others = meshes.filter((file) => !isScript(file.name));
-      if (scripts.length) await files.addFiles(scripts);
-      if (others.length === 1) {
-        setImporting({ file: others[0] });
-      } else if (others.length > 1) {
-        await files.addFiles(others);
-        setImporting({});
-      } else if (scripts.length === 1) {
-        setCreating({
-          id: "mesh.script",
-          type: "mesh.script",
-          label: REGISTRY["mesh.script"].label,
-          preset: { file: safeName(scripts[0].name) },
-        });
-      }
-    },
-    [files, openProject, store, modified],
-  );
-
-  const restoreSession = async (restored: Session) => {
-    const { parse } = await import("../core/project");
-    const document = parse(restored.project);
-    setFresh(false);
-    store.load(document);
-    setFileName(restored.fileName);
-    setSavedName(restored.fileName);
-    setSaved(restored.modified ? undefined : store.commands);
-    await files.addFiles(
-      restored.files.map((f) => new File([f.data as BlobPart], f.name)),
-    );
-  };
-  const kept = useSession(session, {
-    store,
-    files,
-    fileName,
-    modified,
-    onRestore: restoreSession,
-  });
-
-  const [confirmNew, setConfirmNew] = useState(false);
-  const newProject = () => {
-    jobs?.forget();
-    store.load({ schema_version: SCHEMA_VERSION as 3, commands: [] });
-    files.clear();
-    setFresh(true);
-    setFileName(`untitled${SUFFIX}`);
-    setSavedName(`untitled${SUFFIX}`);
-    setSaved(store.commands);
-    setSelection(undefined);
-    setHidden(new Set());
-    setError(undefined);
-    setConfirmNew(false);
-  };
-
-  const [samplesOpen, setSamplesOpen] = useState(false);
-  const [help, setHelp] = useState<"about" | "shortcuts">();
-  const openSample = async (sample: Sample) => {
-    try {
-      const list = await sampleFiles(
-        sample,
-        document.baseURI,
-        fetchSample ?? ((...args) => fetch(...args)),
-      );
-      // a sample is an archive: it brings its mesh files (#150)
-      await openFiles(list, {
-        confirmed: true,
-        name: `${sample.id}${ARCHIVE_SUFFIX}`,
-      });
-      setSamplesOpen(false);
-    } catch (error) {
-      setSamplesOpen(false);
-      failed("The sample could not be opened.")(error);
-    }
-  };
-
-  const solve = async () => {
-    if (!jobs) return;
-    const { serialize } = await import("../core/project");
-    setLiveChoice(undefined);
-    // the scenes of the running jobs show the quantity of the view (#207)
-    // the commands with the values of their expressions (#242), the document as
-    // written: the script shows the expressions
-    await jobs.solve(
-      store.resolved,
-      serialize(store.document),
-      liveOn
-        ? {
-            quantity:
-              (resultView ?? lastView.current)?.quantity ?? "displacement",
-            method: contour.values,
-          }
-        : undefined,
-    );
-  };
-
-  /**
-   * Save the project under a name in the format of its suffix: a project file or
-   * an archive with the mesh files and optionally the script (#149, #150).
-   */
-  const saveProject = async (name: string, withScript = false) => {
-    const { serialize } = await import("../core/project");
-    const project = serialize(store.document);
-    const commands = store.commands;
-    if (!name.endsWith(ARCHIVE_SUFFIX)) {
-      download(name, project);
-    } else {
-      let script: string | undefined;
-      if (withScript && client) {
-        try {
-          script = await client.script(project);
-        } catch (e) {
-          failed("The script could not be made; the project was not saved.")(e);
-          return;
-        }
-      }
-      const { writeArchive } = await import("../core/archive");
-      const names = meshFileNames(commands);
-      const missing = names.filter((file) => !files.dataOf(file));
-      const archive = writeArchive({
-        name: stemOf(name),
-        project,
-        files: names.flatMap((file) => {
-          const data = files.dataOf(file);
-          return data ? [{ name: file, data }] : [];
-        }),
-        script,
-      });
-      download(name, new Blob([archive], { type: mediaType(name) }));
-      if (missing.length) {
-        setError({
-          title: `${name} was saved without the mesh files that are not loaded:`,
-          lines: missing,
-          info: true,
-        });
-      }
-    }
-    setFileName(name);
-    setSavedName(name);
-    setFresh(false);
-    setSaved(commands);
-  };
-  const save = () => saveProject(fileName);
-  const [savingAs, setSavingAs] = useState(false);
-  // a mesh to export, from the context menu of the browser, and the last format
-  const [exportingMesh, setExportingMesh] = useState<string>();
-  const [meshFormat, setMeshFormat] = useState<MeshFormat>("vtu");
-
-  const captureModel = useRef<Capture>({}).current;
-  const captureResults = useRef<Capture>({}).current;
-  const failed = (title: string) => (reason: unknown) =>
-    setError({
-      title,
-      lines: [reason instanceof Error ? reason.message : String(reason)],
-    });
-
-  /**
-   * Export a mesh of the model as a file of another format (#230): the mesh file, or
-   * the mesh of a script with the values of the parameters.
-   */
-  const exportMesh = async (
-    name: string,
-    { name: file, format }: MeshExport,
-  ) => {
-    // with the values of the expressions of its scale (#242)
-    const mesh = store.getResolved(name);
-    if (!client || !mesh || !isMesh(mesh)) return;
-    setMeshFormat(format);
-    const data = await client.exportMesh(mesh.file, format, {
-      ...(mesh.command === "mesh.script"
-        ? {
-            parameters: scriptParameters(mesh, store.commands),
-            ...(mesh.item ? { item: mesh.item } : {}),
-          }
-        : mesh.scale !== undefined && mesh.scale !== 1
-          ? { scale: mesh.scale }
-          : {}),
-      ...(mesh.cell_type ? { cellType: mesh.cell_type } : {}),
-    });
-    download(file, new Blob([data as BlobPart], { type: mediaType(file) }));
-  };
-
-  /** Where the mesh to export comes from, for the export dialog (#230). */
-  const meshSource = (name: string): string => {
-    const mesh = store.get(name);
-    if (!mesh || !isMesh(mesh)) return "";
-    if (mesh.command === "mesh.import")
-      return mesh.scale !== undefined && mesh.scale !== 1
-        ? `From ${mesh.file}, scaled by ${mesh.scale}`
-        : `From ${mesh.file}`;
-    const count = Object.keys(scriptParameters(mesh, store.commands)).length;
-    const item = mesh.item ? `, item ${mesh.item}` : "";
-    return `Made by ${mesh.file} with ${count} parameter${count === 1 ? "" : "s"}${item}`;
-  };
-
-  /** Why a mesh cannot be exported, if so (#230). */
-  const meshExportBlocker = (name: string): string | undefined => {
-    const mesh = store.get(name);
-    if (!mesh || !isMesh(mesh)) return "Not a mesh.";
-    if (!client) return "Python is not available.";
-    if (runtime.state === "loading") return "Python is still loading.";
-    if (runtime.state === "error") return "Python could not be loaded.";
-    const status = meshStatus(mesh, store.commands, files);
-    if (status?.state === "reading") return "The mesh is still being read.";
-    if (status?.state === "error")
-      return `The mesh has an error: ${status.message}`;
-    if (status?.state !== "ready")
-      return mesh.command === "mesh.script"
-        ? `Choose the script ${mesh.file} first.`
-        : `Choose the mesh file ${mesh.file} first.`;
-    return undefined;
-  };
-
-  const exportScript = async () => {
-    if (!client) return;
-    const { serialize } = await import("../core/project");
-    const text = await client.script(serialize(store.document));
-    download(exportName(fileName, ".py"), text);
-  };
-
-  const exportPicture = async () => {
-    const results = workspace === "results" && resultView;
-    const capture = results ? captureResults : captureModel;
-    const png = await capture.current?.();
-    if (!png) throw new Error("The view shows nothing yet.");
-    const suffix = results
-      ? `-${resultView.job}-${resultView.substep}.png`
-      : ".png";
-    download(exportName(fileName, suffix), png);
-  };
-
-  const exportResults = async (format: "vtu" | "xdmf" | "csv") => {
-    if (!client || !finished || !resultView) return;
-    const { job, substep } = resultView;
-    // the strains and the stresses at the points too, as in the view (#231)
-    const data = await client.exportResults(
-      job,
-      format,
-      format === "vtu" ? substep : undefined,
-      contour.values,
-    );
-    const suffix =
-      format === "vtu"
-        ? `-${job}-${substep}.vtu`
-        : format === "csv"
-          ? `-${job}-points.csv`
-          : `-${job}.xdmf`;
-    const name = exportName(fileName, suffix);
-    download(name, new Blob([data as BlobPart], { type: mediaType(name) }));
-  };
-  const resultsBlocker =
-    run.state === "running"
-      ? "Wait until the jobs have run."
-      : !finished || !resultView
-        ? "Solve the model first."
-        : undefined;
-
-  const exports: ExportItem[] = [
-    {
-      id: "script",
-      label: "Python script",
-      hint: "The FElupe script of the model; it reads the mesh files from its folder.",
-      blocker: !client
-        ? "Python is not available."
-        : store.issues.length
-          ? "Fix the issues of the model first."
-          : run.state === "running"
-            ? "Wait until the jobs have run."
-            : runtime.state === "loading"
-              ? "Python is still loading."
-              : runtime.state === "error"
-                ? "Python could not be loaded."
-                : undefined,
-      onSelect: () =>
-        void exportScript().catch(failed("The script could not be exported.")),
-    },
-    {
-      id: "xdmf",
-      label: "Results of the job (XDMF)",
-      hint: resultView
-        ? `All substeps of ${resultView.job}: displacements, strains and stresses, for ParaView.`
-        : "All substeps of the job, for ParaView.",
-      blocker: resultsBlocker,
-      onSelect: () =>
-        void exportResults("xdmf").catch(
-          failed("The results could not be exported."),
-        ),
-    },
-    {
-      id: "vtu",
-      label: "Results of the substep (VTU)",
-      hint: resultView
-        ? `Substep ${resultView.substep} of ${resultView.job} (as shown in the Results workspace).`
-        : "The substep shown in the Results workspace.",
-      blocker: resultsBlocker,
-      onSelect: () =>
-        void exportResults("vtu").catch(
-          failed("The results could not be exported."),
-        ),
-    },
-    ...(store.commands.some(
-      (c) => c.command === "point.add" || c.command === "rigid.add",
-    )
-      ? [
-          {
-            id: "points",
-            label: "Control points (CSV)",
-            hint: resultView
-              ? `Displacements and forces of the control points of all substeps of ${resultView.job}.`
-              : "Displacements and forces of the control points of all substeps.",
-            blocker: resultsBlocker,
-            onSelect: () =>
-              void exportResults("csv").catch(
-                failed("The control points could not be exported."),
-              ),
-          },
-        ]
-      : []),
-    {
-      id: "picture",
-      label: "Picture of the view",
-      hint: "A PNG of the 3D view with its scalar bar, legend and axes.",
-      onSelect: () =>
-        void exportPicture().catch(
-          failed("The picture could not be exported."),
-        ),
-    },
-  ];
 
   const blocker = solveBlocker({
     commands: store.commands,
@@ -742,214 +171,51 @@ export function App({
     runtime: runtime.state,
   });
 
-  // the agent bridge of felupe-studio serve --agent (#258): an agent acts on the
-  // open model with the tools of the app
+  // the agent bridge of felupe-studio serve --agent (#258)
   const [agentAvailable] = useState(() => Boolean(client?.local) && hasAgent());
-  const agent = useAgent({
+  const agent = useAppAgent({
     store,
     files,
     client,
     jobs,
-    notes: () =>
-      [...notes].flatMap(([name, messages]) =>
-        messages.map((message) => ({ name, message })),
-      ),
-    modified: () => modified,
+    notes,
+    modified,
     openSample,
-    solveBlocker: () => blocker,
-    solve,
-    selection: () => ({
-      selected: selection ? [selection] : [],
-      workspace,
-      ...(workspace === "results" && resultView ? { view: resultView } : {}),
-    }),
-    select,
-    show: (target, view = {}) => {
-      if (target === "model") {
-        setWorkspace("model");
-        return { workspace: "model" };
-      }
-      if (!finished) return "No results yet: solve first.";
-      const job =
-        view.job ?? resultView?.job ?? Object.keys(finished.results)[0];
-      if (!finished.results[job]) return `No results of job '${job}'.`;
-      const last = substepsOf(finished, job);
-      const substep = view.substep ?? last;
-      if (!Number.isInteger(substep) || substep < 1 || substep > last)
-        return `Job '${job}' has the substeps 1 to ${last}.`;
-      const shown = {
-        ...viewOf(finished, resultView),
-        job,
-        substep,
-        ...(view.quantity ? { quantity: view.quantity } : {}),
-      };
-      setResultView(shown);
-      setWorkspace("results");
-      jobs?.dismiss();
-      return { workspace: "results", view: shown };
-    },
-    picture: async () => {
-      const results = workspace === "results" && resultView;
-      return (results ? captureResults : captureModel).current?.();
-    },
+    blocker,
+    results,
+    selection,
+    workspace,
+    setWorkspace,
+    picture: exports.picture,
   });
 
-  /** Delete the selected object, unless other objects use it. */
-  const removeSelected = (name: string) => {
-    const dependents = store.dependents(name);
-    if (dependents.length > 0) {
-      setError({
-        title: `${name} cannot be deleted.`,
-        lines: [`It is used by ${dependents.join(", ")}: delete these first.`],
-      });
-      return;
-    }
-    store.apply({ type: "remove", name });
-    select(undefined);
-  };
-
-  /** Duplicate an object and select the copy (#138). */
-  const duplicateObject = (name: string) => {
-    const copy = store.duplicate(name);
-    if (copy) select(copy);
-  };
-
-  /** Whether an object can be shown or hidden in the viewport. */
-  const visible = (name: string) => {
-    const command = store.get(name);
-    return command !== undefined && VISIBLE_KINDS.has(KINDS[command.command]);
-  };
-
-  /** The items of the context menu of an object in the browser (#138). */
-  const menuItems = (name: string): MenuItem[] => {
-    const command = store.get(name);
-    if (!command) return [];
-    const dependents = store.dependents(name);
-    const keys = (id: ShortcutId) => ({ text: hint(id), aria: ariaKeys(id) });
-    const blocker = duplicateBlocker(command);
-    return [
-      {
-        id: "duplicate",
-        label: "Duplicate",
-        shortcut: keys("duplicate"),
-        ...(blocker ? { blocker } : {}),
-        onSelect: () => duplicateObject(name),
-      },
-      ...(isMesh(command)
-        ? [
-            {
-              id: "export-mesh",
-              label: "Export mesh…",
-              hint: "As a VTU, VTK, Gmsh, Abaqus or Nastran file",
-              ...(meshExportBlocker(name)
-                ? { blocker: meshExportBlocker(name) }
-                : {}),
-              onSelect: () => setExportingMesh(name),
-            },
-          ]
-        : []),
-      ...(command.command === "parameter.add"
-        ? [
-            {
-              id: "parameters",
-              label: "All parameters…",
-              onSelect: () =>
-                setParametersShown({ project: fileName, opening: false }),
-            },
-          ]
-        : []),
-      {
-        id: "rename",
-        label: "Rename",
-        shortcut: keys("rename"),
-        onSelect: () => {
-          select(name);
-          renameSelected();
-        },
-      },
-      ...(visible(name)
-        ? [
-            {
-              id: "visibility",
-              label: hidden.has(name) ? "Show" : "Hide",
-              shortcut: keys("visibility"),
-              onSelect: () => toggleVisible(name),
-            },
-          ]
-        : []),
-      {
-        id: "delete",
-        label: "Delete",
-        shortcut: keys("delete"),
-        ...(dependents.length
-          ? { blocker: `Used by ${dependents.join(", ")}: delete these first.` }
-          : {}),
-        onSelect: () => removeSelected(name),
-      },
-    ];
-  };
-
-  /** Show the properties of the selected object with the focus on its name. */
-  const renameSelected = () => {
-    setInspecting(true);
-    requestAnimationFrame(() => {
-      const input = document.querySelector<HTMLInputElement>(
-        '[aria-label="Properties"] #field-name',
-      );
-      input?.focus();
-      input?.select();
-    });
-  };
-
-  /** The previous or next substep, or the first or last one (from 1), in the results. */
-  const moveSubstep = (to: "previous" | "next" | "first" | "last") => {
-    if (!finished || !resultView) return;
-    const last = substepsOf(finished, resultView.job);
-    const substep = {
-      previous: Math.max(1, resultView.substep - 1),
-      next: Math.min(last, resultView.substep + 1),
-      first: 1,
-      last,
-    }[to];
-    setResultView({ ...resultView, substep });
-  };
-
-  keys.current = (event: KeyboardEvent) => {
-    if (event.defaultPrevented || dialogOpen()) return;
-    const is = (id: ShortcutId) => matches(event, id);
-    const model = workspace === "model";
-    const object = model && store.commands.some((c) => c.name === selected);
-    // saving and solving also work while typing, e.g. in the properties
-    if (is("save")) void save();
-    else if (is("save-as")) setSavingAs(true);
-    else if (is("solve")) {
-      if (!blocker && run.state !== "running") void solve();
-    } else if (isTyping(event.target)) return;
-    else if (is("open")) fileInput.current?.click();
-    else if (is("undo")) store.undo();
-    else if (is("redo")) store.redo();
-    else if (is("help")) setHelp("shortcuts");
-    else if (is("delete") && object) removeSelected(selected!);
-    else if (is("rename") && object) renameSelected();
-    else if (is("duplicate") && object) duplicateObject(selected!);
-    else if (is("visibility") && object && visible(selected!))
-      toggleVisible(selected!);
-    else if (is("escape") && narrow && browserOpen) setBrowserOpen(false);
-    else if (is("escape") && selected !== undefined) select(undefined);
-    else if (isNavigating(event.target) || workspace !== "results") return;
-    else if (is("substep-previous")) moveSubstep("previous");
-    else if (is("substep-next")) moveSubstep("next");
-    else if (is("substep-first")) moveSubstep("first");
-    else if (is("substep-last")) moveSubstep("last");
-    // Space on a button presses it
-    else if (
-      is("play") &&
-      !(event.target as Element | null)?.closest?.("button, a, summary")
-    )
-      player.toggle();
-    else return;
-    event.preventDefault();
-  };
+  const object =
+    workspace === "model" && store.commands.some((c) => c.name === selected)
+      ? selected
+      : undefined;
+  useShortcuts({
+    object,
+    visible: object !== undefined && selection.visible(object),
+    selected: selected !== undefined,
+    drawer: narrow && browserOpen,
+    results: workspace === "results",
+    canSolve: !blocker && run.state !== "running",
+    save: () => void project.save(),
+    saveAs: () => dialogs.setSavingAs(true),
+    solve: () => void results.solve(),
+    open: openFile,
+    undo: () => store.undo(),
+    redo: () => store.redo(),
+    help: () => dialogs.setHelp("shortcuts"),
+    remove: selection.remove,
+    rename: selection.rename,
+    duplicate: selection.duplicate,
+    toggleVisible: selection.toggleVisible,
+    closeDrawer: () => setBrowserOpen(false),
+    deselect: () => select(undefined),
+    moveSubstep: results.moveSubstep,
+    play: () => results.player.toggle(),
+  });
 
   return (
     <div
@@ -965,26 +231,22 @@ export function App({
       onDrop={(event) => {
         event.preventDefault();
         setDragging(false);
-        void openFiles([...(event.dataTransfer?.files ?? [])]);
+        void project.openFiles([...(event.dataTransfer?.files ?? [])]);
       }}
     >
       <Header
         store={store}
         fileName={fileName}
         modified={modified}
-        onNew={() =>
-          store.commands.length > 0 && modified
-            ? setConfirmNew(true)
-            : newProject()
-        }
-        onOpen={() => fileInput.current?.click()}
-        onSamples={() => setSamplesOpen(true)}
-        onSave={() => void save()}
-        onSaveAs={() => setSavingAs(true)}
+        onNew={project.requestNew}
+        onOpen={openFile}
+        onSamples={() => dialogs.setSamplesOpen(true)}
+        onSave={() => void project.save()}
+        onSaveAs={() => dialogs.setSavingAs(true)}
         // a new name without saving: the next save and the exports take it (#205)
-        onRename={setFileName}
-        onShortcuts={() => setHelp("shortcuts")}
-        onAbout={() => setHelp("about")}
+        onRename={project.rename}
+        onShortcuts={() => dialogs.setHelp("shortcuts")}
+        onAbout={() => dialogs.setHelp("about")}
         agent={
           agentAvailable
             ? {
@@ -996,11 +258,11 @@ export function App({
         }
         browserOpen={narrow && browserOpen}
         onBrowser={() => setBrowserOpen(!browserOpen)}
-        exports={exports}
+        exports={exports.exports}
         solve={{
           blocker,
           running: run.state === "running",
-          onSolve: () => void solve(),
+          onSolve: () => void results.solve(),
           onCancel: () => jobs?.cancel(),
         }}
       />
@@ -1014,55 +276,21 @@ export function App({
           const input = event.currentTarget;
           const list = [...(input.files ?? [])];
           input.value = "";
-          void openFiles(list);
+          void project.openFiles(list);
         }}
       />
       {update === "available" && (
-        <div class="banner info" role="status" aria-label="Update">
-          <div>
-            <strong>A new version of FElupe Studio is available.</strong>{" "}
-            {store.commands.length > 0
-              ? "Save your project first; after the reload, open it again with its mesh files."
-              : "Reload the page to use it."}
-          </div>
-          <div class="banner-actions">
-            <button type="button" class="button" onClick={() => reload()}>
-              Reload
-            </button>
-            <button
-              type="button"
-              class="icon-button"
-              aria-label="Dismiss the update"
-              onClick={() => setUpdate("dismissed")}
-            >
-              ×
-            </button>
-          </div>
-        </div>
+        <UpdateBanner
+          project={store.commands.length > 0}
+          onReload={() => reload()}
+          onDismiss={() => setUpdate("dismissed")}
+        />
       )}
-      {error && (
-        <div
-          class={error.info ? "banner info" : "banner"}
-          role={error.info ? "status" : "alert"}
-          aria-label={error.info ? "Note" : undefined}
-        >
-          <div>
-            <strong>{error.title}</strong>
-            <ul>
-              {error.lines.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          </div>
-          <button
-            type="button"
-            class="icon-button"
-            aria-label="Dismiss"
-            onClick={() => setError(undefined)}
-          >
-            ×
-          </button>
-        </div>
+      {project.error && (
+        <ErrorBanner
+          banner={project.error}
+          onDismiss={() => project.setError(undefined)}
+        />
       )}
       <Ribbon
         store={store}
@@ -1071,7 +299,9 @@ export function App({
         onWorkspace={setWorkspace}
         onTab={setTab}
         onCreate={(item) =>
-          item.type === "mesh.import" ? setImporting({}) : setCreating(item)
+          item.type === "mesh.import"
+            ? dialogs.importMesh()
+            : dialogs.setCreating(item)
         }
         script={
           <p class="ribbon-note muted">
@@ -1080,49 +310,12 @@ export function App({
             line to select its object.
           </p>
         }
-        results={
-          <ResultsControls
-            store={store}
-            results={
-              finished && resultView
-                ? { run: finished, view: resultView }
-                : live
-                  ? {
-                      run: live.run,
-                      // the quantity of the next run, the scenes keep theirs
-                      view: {
-                        ...live.view,
-                        quantity:
-                          lastView.current?.quantity ?? live.view.quantity,
-                      },
-                    }
-                  : undefined
-            }
-            running={run.state === "running"}
-            onChange={live ? changeLive : setResultView}
-            live={
-              live && {
-                status: live.status,
-                quantity: live.view.quantity,
-              }
-            }
-            liveOn={liveOn}
-            onLiveOn={(on) => {
-              setLiveOn(on);
-              saveLiveOn(on);
-            }}
-            contour={contour}
-            onContour={changeContour}
-            currentRange={shownRange}
-            shift={shift}
-            player={player}
-          />
-        }
+        results={<ResultsRibbon store={store} results={results} />}
       />
       <div
         class={[
           "body",
-          showInspector && "inspecting",
+          selection.showInspector && "inspecting",
           narrow && browserOpen && "browser-open",
         ]
           .filter(Boolean)
@@ -1132,15 +325,22 @@ export function App({
           store={store}
           notes={notes}
           selected={selected}
-          hidden={hidden}
+          hidden={selection.hidden}
           onSelect={(id) => {
             selectInBrowser(id);
             // the properties replace the browser drawer
             if (narrow) setBrowserOpen(false);
           }}
           onClose={narrow ? () => setBrowserOpen(false) : undefined}
-          onToggleVisible={toggleVisible}
-          menuItems={menuItems}
+          onToggleVisible={selection.toggleVisible}
+          menuItems={(name) =>
+            objectMenu(store, selection, name, {
+              exportBlocker: exports.meshBlocker,
+              onExportMesh: dialogs.setExportingMesh,
+              onParameters: () =>
+                dialogs.setParameters({ project: fileName, opening: false }),
+            })
+          }
         />
         <div class="views">
           <ScriptView
@@ -1150,94 +350,46 @@ export function App({
             active={scriptShown}
             selected={selected}
             onSelect={select}
-            onDownload={() =>
-              void exportScript().catch(
-                failed("The script could not be exported."),
-              )
-            }
+            onDownload={exports.scriptExport}
           />
           <Viewport
             store={store}
             files={files}
-            hidden={hidden}
+            hidden={selection.hidden}
             selected={selected}
             active={workspace === "model" && !scriptShown}
-            capture={captureModel}
+            capture={exports.captureModel}
             showNodes={showNodes}
             onShowNodes={setShowNodes}
             onSelect={select}
             empty={
               store.commands.length === 0 ? (
                 <Welcome
-                  onImportMesh={() => setImporting({})}
-                  onOpen={() => fileInput.current?.click()}
+                  onImportMesh={() => dialogs.importMesh()}
+                  onOpen={openFile}
                   onOpenSample={openSample}
                   local={client?.local}
                 />
               ) : undefined
             }
             onCreatePointSet={(preset) =>
-              setCreating({
-                id: "pointset.add",
-                type: "pointset.add",
-                label: REGISTRY["pointset.add"].label,
-                preset,
-              })
+              dialogs.create("pointset.add", preset)
             }
-            onCreateFaceSet={(preset) =>
-              setCreating({
-                id: "faceset.add",
-                type: "faceset.add",
-                label: REGISTRY["faceset.add"].label,
-                preset,
-              })
-            }
+            onCreateFaceSet={(preset) => dialogs.create("faceset.add", preset)}
             onCreateControlPoint={(preset) =>
-              setCreating({
-                id: "point.add",
-                type: "point.add",
-                label: REGISTRY["point.add"].label,
-                preset,
-              })
+              dialogs.create("point.add", preset)
             }
           />
-          <ResultsView
-            source={client}
-            view={finished && resultView}
-            generation={jobs?.generation ?? 0}
+          <ResultsPane
+            client={client}
+            jobs={jobs}
+            results={results}
             active={workspace === "results"}
-            running={run.state === "running"}
-            capture={captureResults}
+            capture={exports.captureResults}
             showNodes={showNodes}
             onShowNodes={setShowNodes}
-            commands={finished?.commands ?? live?.run.commands}
-            contour={contour}
-            onRange={setShownRange}
-            onShift={setShift}
-            ahead={player.ahead}
-            onShown={(view, ok) => setShown({ view, ok })}
-            live={live}
-          >
-            {finished && resultView?.curve && (
-              <CurveCard
-                run={finished}
-                view={resultView}
-                onChange={setResultView}
-                download={download}
-              />
-            )}
-            {/* the curve grows with the converged substeps (#207) */}
-            {live?.view.curve && (
-              <CurveCard
-                run={live.run}
-                view={live.view}
-                onChange={(view) =>
-                  changeLive({ ...view, substep: live.view.substep })
-                }
-                download={download}
-              />
-            )}
-          </ResultsView>
+            download={download}
+          />
           <JobPanel
             run={run}
             store={store}
@@ -1251,27 +403,27 @@ export function App({
                   }
             }
             onShowLive={
-              workspace === "results" || !liveOn
+              workspace === "results" || !results.liveOn
                 ? undefined
                 : () => setWorkspace("results")
             }
           />
         </div>
-        {showInspector && (
+        {selection.showInspector && (
           <Inspector
             store={store}
             files={files}
             notes={notes}
             selected={selected}
             onSelect={select}
-            onClose={() => setInspecting(false)}
+            onClose={selection.closeInspector}
           />
         )}
       </div>
       <Footer
         store={store}
         runtime={runtime}
-        kept={kept}
+        kept={project.kept}
         agent={
           agentAvailable
             ? { state: agent.state, onDisconnect: agent.disconnect }
@@ -1280,113 +432,21 @@ export function App({
         selected={selected}
         onSelect={select}
         onOpen={(type) =>
-          type === "mesh.import"
-            ? setImporting({})
-            : setCreating({
-                id: type,
-                type,
-                label: REGISTRY[type].label,
-                preset: {},
-              })
+          type === "mesh.import" ? dialogs.importMesh() : dialogs.create(type)
         }
       />
-      {confirmNew && (
-        <NewProjectDialog
-          fileName={fileName}
-          onConfirm={newProject}
-          onClose={() => setConfirmNew(false)}
-        />
-      )}
-      {savingAs && (
-        <SaveAsDialog
-          fileName={fileName}
-          commands={store.commands}
-          files={files}
-          scriptAvailable={!!client && runtime.state === "ready"}
-          onSave={({ name, script }) => {
-            setSavingAs(false);
-            void saveProject(name, script);
-          }}
-          onClose={() => setSavingAs(false)}
-        />
-      )}
-      {exportingMesh && (
-        <ExportMeshDialog
-          mesh={exportingMesh}
-          stem={`${stemOf(fileName) || "untitled"}-${exportingMesh}`}
-          format={meshFormat}
-          source={meshSource(exportingMesh)}
-          onExport={(choice) => {
-            const name = exportingMesh;
-            setExportingMesh(undefined);
-            void exportMesh(name, choice).catch(
-              failed("The mesh could not be exported."),
-            );
-          }}
-          onClose={() => setExportingMesh(undefined)}
-        />
-      )}
-      {opening && (
-        <NewProjectDialog
-          fileName={fileName}
-          opening={opening.name}
-          onConfirm={() => {
-            setOpening(undefined);
-            void openFiles(opening.files, {
-              confirmed: true,
-              name: opening.name,
-            });
-          }}
-          onClose={() => setOpening(undefined)}
-        />
-      )}
-      {help === "about" && (
-        <AboutDialog runtime={runtime} onClose={() => setHelp(undefined)} />
-      )}
-      {help === "shortcuts" && (
-        <ShortcutsDialog onClose={() => setHelp(undefined)} />
-      )}
-      {samplesOpen && (
-        <SamplesDialog
-          modified={store.commands.length > 0 && modified}
-          onOpen={openSample}
-          onClose={() => setSamplesOpen(false)}
-        />
-      )}
-      {importing && (
-        <ImportMeshDialog
-          store={store}
-          files={files}
-          initial={importing.file}
-          onClose={() => setImporting(undefined)}
-          onCreated={(name) => {
-            setImporting(undefined);
-            select(name);
-          }}
-        />
-      )}
-      {agent.script && <ScriptConsent request={agent.script} />}
-      {parametersShown && (
-        <ParametersDialog
-          store={store}
-          files={files}
-          project={parametersShown.project}
-          opening={parametersShown.opening}
-          local={client?.local}
-          onClose={() => setParametersShown(undefined)}
-        />
-      )}
-      {creating && (
-        <CreateDialog
-          item={creating}
-          store={store}
-          onClose={() => setCreating(undefined)}
-          onCreated={(name) => {
-            setCreating(undefined);
-            select(name);
-          }}
-        />
-      )}
+      <Dialogs
+        dialogs={dialogs}
+        store={store}
+        files={files}
+        client={client}
+        runtime={runtime}
+        project={project}
+        exports={exports}
+        script={agent.script}
+        onOpenSample={openSample}
+        onSelect={select}
+      />
     </div>
   );
 }
