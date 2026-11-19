@@ -1015,6 +1015,31 @@
     },
     {
       "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "step_1"
+        ],
+        "curve": "move",
+        "tol": "1.49e-08",
+        "solver": {
+          "type": "pardiso"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "tol"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
         "command": "mesh.import",
         "name": "left_file",
         "file": "left.vtu"

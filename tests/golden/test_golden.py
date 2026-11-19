@@ -22,6 +22,7 @@ import numpy as np
 import pytest
 
 from felupe_studio import codegen
+from felupe_studio.capabilities import capabilities
 from felupe_studio.codegen import TOL
 from felupe_studio.expressions import resolve
 from felupe_studio.materials import material_call
@@ -76,6 +77,23 @@ def model_in_single_precision(document):
 pytestmark = pytest.mark.golden
 
 
+def needs_pardiso(document, single=False):
+    """Skip a case whose jobs solve with PARDISO (#308) where this Python does not
+    have pypardiso (e.g. CI), or for ``single`` precision a PyPardiso that
+    factorizes in float32."""
+    if not any(
+        c.get("solver", {}).get("type") == "pardiso"
+        for c in document["commands"]
+        if c["command"] == "job.add"
+    ):
+        return
+    pardiso = capabilities().get("pardiso")
+    if pardiso is None:
+        pytest.skip("PARDISO needs the package pypardiso.")
+    if single and not pardiso["single"]:
+        pytest.skip("PARDISO in single precision needs a PyPardiso in float32.")
+
+
 def load(case):
     return json.loads((HERE / case / "commands.json").read_text(encoding="utf-8"))
 
@@ -127,6 +145,7 @@ def test_script(case, request):
 
 @pytest.mark.parametrize("case", CASES)
 def test_results(case, tmp_path, monkeypatch, request):
+    needs_pardiso(load(case))
     results = evaluate(case, tmp_path, monkeypatch)
     expected = HERE / case / "results.json"
     if request.config.getoption("--update-golden"):
@@ -186,6 +205,19 @@ def test_two_materials_reference():
         (HERE / "bar_two_materials" / "results.json").read_text(encoding="utf-8")
     )
     assert np.isclose(results["jobs"]["job_1"]["force"][-1], 0.66322, rtol=1e-5)
+
+
+def test_pardiso_like_superlu():
+    # the bar of two materials with PARDISO of Intel oneMKL (#308): the curve of
+    # SuperLU, stored where pypardiso is installed
+    pardiso, superlu = (
+        json.loads((HERE / case / "results.json").read_text(encoding="utf-8"))
+        for case in ("bar_pardiso", "bar_two_materials")
+    )
+    for key in ("displacement", "force"):
+        np.testing.assert_allclose(
+            pardiso["jobs"]["job_1"][key], superlu["jobs"]["job_1"][key], rtol=1e-10
+        )
 
 
 def test_cell_types_close_to_hexahedra():
@@ -518,6 +550,7 @@ def test_single_precision_gives_the_curves_of_double_precision(
     # most 1e-3 and at least 1e-6 of the largest force (measured: 1.2e-4 for the
     # cutback of bar_cutback with the tolerance 0.01, else below 2e-5)
     document = load(case)
+    needs_pardiso(document, single=True)
     tolerances = {}
     for cmd in resolve(document)[0]["commands"]:
         if cmd["command"] == "job.add":
@@ -563,6 +596,7 @@ def test_model_in_single_precision(case, tmp_path, monkeypatch):
     # which the app reports (measured with FElupe 12.1.1: the deviations are about a
     # tenth of the estimate)
     document = load(case)
+    needs_pardiso(document, single=True)
     settings = [c for c in document["commands"] if c["command"] == "model.settings"]
     if not settings:
         settings = [{"command": "model.settings", "name": "settings"}]

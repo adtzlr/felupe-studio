@@ -38,8 +38,10 @@ from mcp.server.mcpserver.exceptions import ToolError
 from . import __version__, checks, meshes, runner
 from . import commands as commands_
 from . import results as results_
+from .capabilities import capability_errors
 from .codegen import codegen, parameter_value
 from .commands import SCHEMA_VERSION
+from .expressions import resolve
 from .project import ProjectError, dumps, loads
 
 # the samples and the documentation of a clone of the repository, else of the
@@ -182,9 +184,17 @@ class Session:
     def issues(self):
         """The errors and notes of the validation, like the issues of the app."""
         return {
-            "errors": commands_.errors(self.document),
+            "errors": self.errors(),
             "notes": commands_.notes(self.commands),
         }
+
+    def errors(self):
+        """The errors of the model, else the jobs whose linear solver this Python
+        does not have (#308)."""
+        errors = commands_.errors(self.document)
+        if errors:
+            return errors
+        return capability_errors(resolve(self.document)[0]["commands"])
 
     def new_project(self, folder, name="model"):
         folder = Path(folder).expanduser().resolve()
@@ -446,7 +456,7 @@ class Session:
 
     def solve(self, job=None, report=lambda event: None):
         self._need_folder()
-        errors = commands_.errors(self.document)
+        errors = self.errors()
         if errors:
             raise ToolError("Fix the errors first: " + " ".join(errors))
         self._may_run(self._scripts())

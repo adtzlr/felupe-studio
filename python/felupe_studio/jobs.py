@@ -25,6 +25,14 @@ from .loadcases import moving
 # FElupe's default (the square root of the machine epsilon) like commercial codes (#176)
 TOL = 0.01
 
+# the direct linear solvers of a job by their type: SuperLU of FElupe, spsolve of
+# SciPy (#203) and PARDISO of Intel oneMKL (#308)
+DIRECT = {
+    "superlu": "fem.solve.SuperLUSolver()",
+    "spsolve": "spsolve",
+    "pardiso": "pypardiso.spsolve",
+}
+
 # the parameters of fem.CutbackPlugin of the settings of a cutback (#133)
 CUTBACK = {"factor": float, "max_cutbacks": int, "growth": float}
 
@@ -84,15 +92,16 @@ def solver_source(job):
     'iterative_solver("cg", rtol=0.0001, maxiter=500)'
     >>> solver_source({"solver": {"type": "superlu", "precision": "single"}})
     'single_precision(fem.solve.SuperLUSolver())'
+    >>> solver_source({"solver": {"type": "pardiso"}})
+    'pypardiso.spsolve'
     >>> solver_source({}) is None
     True
     """
     solver = job.get("solver")
     if solver is None:
         return None
-    if solver["type"] in ("superlu", "spsolve"):
-        source = {"superlu": "fem.solve.SuperLUSolver()", "spsolve": "spsolve"}
-        source = source[solver["type"]]
+    if solver["type"] in DIRECT:
+        source = DIRECT[solver["type"]]
         # the linear equation system in single precision (ADR 0016)
         if solver.get("precision") == "single":
             return f"single_precision({source})"
@@ -101,6 +110,11 @@ def solver_source(job):
     if "maxiter" in solver:
         args.append(f"maxiter={int(solver['maxiter'])}")
     return f"iterative_solver({', '.join(args)})"
+
+
+def uses_pardiso(jobs):
+    """Whether a job solves with PARDISO, which the script imports (#308)."""
+    return any(job.get("solver", {}).get("type") == "pardiso" for job in jobs)
 
 
 def uses_solver_helpers(jobs):

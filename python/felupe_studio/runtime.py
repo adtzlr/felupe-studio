@@ -49,7 +49,14 @@ def session(connection, folder):
 
         from . import results, runner  # noqa: F401
 
-        ready = {"type": "ready", "versions": versions()}
+        # the linear solvers of this Python, e.g. PARDISO (#308)
+        from .capabilities import capabilities
+
+        ready = {
+            "type": "ready",
+            "versions": versions(),
+            "capabilities": capabilities(),
+        }
     except Exception:
         connection.send({"type": "error", "message": traceback.format_exc()})
         return

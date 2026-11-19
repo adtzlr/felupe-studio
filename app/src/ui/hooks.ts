@@ -74,6 +74,18 @@ export function useRuntime(client: RuntimeClient | undefined): Runtime {
   return runtime;
 }
 
+/**
+ * The linear solvers of the runtime as issues of the jobs of the model (#308), e.g.
+ * PARDISO in the browser; kept while a restart loads the same runtime again.
+ */
+export function useCapabilities(store: ModelStore, runtime: Runtime): void {
+  const capabilities =
+    runtime.state === "ready" ? runtime.ready.capabilities : undefined;
+  useEffect(() => {
+    if (capabilities) store.setCapabilities(capabilities);
+  }, [store, capabilities]);
+}
+
 /** Re-render the component after every change of the run of the jobs. */
 export function useJobs(jobs: JobRunner | undefined): JobRun {
   const [, setVersion] = useState(0);

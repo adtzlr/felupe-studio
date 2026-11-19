@@ -3,7 +3,10 @@
 // (`done`, `mesh-info`) or an `error`. `benchmark` is a spike-only message (#9).
 // The arrays of a surface are transferred, not copied.
 
+import type { Capabilities } from "../core/capabilities";
 import type { CacheState } from "./pycache";
+
+export type { Capabilities };
 
 export interface Versions {
   python: string;
@@ -359,7 +362,13 @@ export type ToWorker =
     };
 
 export type FromWorker =
-  | { type: "ready"; versions: Versions; timings: LoadTimings }
+  | {
+      type: "ready";
+      versions: Versions;
+      timings: LoadTimings;
+      /** The linear solvers of the runtime, e.g. PARDISO (#308). */
+      capabilities?: Capabilities;
+    }
   | { type: "progress"; id: number; message: string }
   | { type: "benchmark-result"; id: number; result: BenchmarkResult }
   | {

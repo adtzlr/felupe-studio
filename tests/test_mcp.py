@@ -16,7 +16,7 @@ pytest.importorskip("mcp")
 from mcp import Client, StdioServerParameters  # noqa: E402
 from mcp.server.mcpserver.exceptions import ToolError  # noqa: E402
 
-from felupe_studio import codegen  # noqa: E402
+from felupe_studio import capabilities, codegen  # noqa: E402
 from felupe_studio.mcp import Session, schema, server  # noqa: E402
 
 GOLDEN = Path(__file__).parent / "golden"
@@ -113,6 +113,27 @@ def test_a_sample_of_an_installed_package(tmp_path, monkeypatch):
         "plate_with_hole.py",
     ]
     assert not session.issues()["errors"]
+
+
+def test_the_linear_solver_of_this_python(tmp_path, monkeypatch):
+    # a job with PARDISO in a Python without pypardiso (#308): an error of the
+    # runtime after the errors of the model
+    monkeypatch.setattr(capabilities, "capabilities", lambda: {"runtime": "python"})
+    document = json.loads((GOLDEN / "bar_single_body" / "commands.json").read_text())
+    *commands, job = document["commands"]
+    session = Session()
+    session.new_project(tmp_path / "bar")
+    shutil.copy(GOLDEN / "bar_single_body" / "bar.vtu", tmp_path / "bar")
+    for command in commands:
+        session.add_command(command)
+    issues = session.add_command({**job, "solver": {"type": "pardiso"}})
+    assert issues["errors"] == [
+        "commands/9: PARDISO needs the package pypardiso: pip install pypardiso."
+    ]
+    with pytest.raises(ToolError, match="Fix the errors first"):
+        session.solve()
+    errors = session.update_command("job_1", {"steps": ["step_2"]})["errors"]
+    assert errors and not any("PARDISO" in e for e in errors)
 
 
 def test_files_stay_in_the_project_folder(tmp_path):

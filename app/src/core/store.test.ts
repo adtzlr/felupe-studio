@@ -246,6 +246,37 @@ describe("ModelStore", () => {
     expect(store.report).toBeUndefined();
   });
 
+  it("has the issues of the runtime after the errors of the model (#308)", () => {
+    const store = new ModelStore(document);
+    const job = store.get("job_1")!;
+    store.apply({
+      type: "update",
+      name: "job_1",
+      command: { ...job, solver: { type: "pardiso" } } as Command,
+    });
+    expect(store.issues).toEqual([]);
+    const listener = vi.fn();
+    store.subscribe(listener);
+    store.setCapabilities({ runtime: "pyodide" });
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(store.issues.map((i) => [i.name, i.field])).toEqual([
+      ["job_1", "solver.type"],
+    ]);
+    expect(
+      store.tree.flatMap((g) => g.children).find((n) => n.id === "job_1")
+        ?.issues,
+    ).toHaveLength(1);
+    // an error of the model first
+    store.apply({ type: "remove", name: "step_1" });
+    expect(store.issues.some((i) => i.message.includes("PARDISO"))).toBe(false);
+    store.undo();
+    store.setCapabilities({
+      runtime: "python",
+      pardiso: { version: "0.4.7", single: false },
+    });
+    expect(store.issues).toEqual([]);
+  });
+
   it("caches the derived state", () => {
     const store = new ModelStore(document);
     expect(store.tree).toBe(store.tree);

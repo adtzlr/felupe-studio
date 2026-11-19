@@ -1180,9 +1180,9 @@ export interface JobAdd {
    */
   solver?: {
     /**
-     * SuperLU of FElupe (fem.solve.SuperLUSolver, the default), spsolve of SciPy (the default of FElupe before v12) or an iterative method of SciPy.
+     * SuperLU of FElupe (fem.solve.SuperLUSolver, the default), spsolve of SciPy (the default of FElupe before v12), PARDISO of Intel oneMKL (pypardiso.spsolve: multithreaded, only in Python on the computer with the package pypardiso, #308) or an iterative method of SciPy.
      */
-    type: "superlu" | "spsolve" | "iterative";
+    type: "superlu" | "spsolve" | "pardiso" | "iterative";
     /**
      * The iterative method of scipy.sparse.linalg: minres (symmetric, also indefinite), cg (symmetric positive definite), gmres or bicgstab.
      */
@@ -1196,7 +1196,7 @@ export interface JobAdd {
      */
     maxiter?: number | string;
     /**
-     * The precision of the linear equation system of a direct solver: double (float64, the default) or single (float32: the matrix, the right-hand side and the factorization, the increment back in double precision). The model, the residual forces and the results stay in double precision; the factorization needs half the memory, and the Newton-Raphson method a few more iterations at tight tolerances.
+     * The precision of the linear equation system of a direct solver: double (float64, the default) or single (float32: the matrix, the right-hand side and the factorization, the increment back in double precision). The model, the residual forces and the results stay in double precision; the factorization needs half the memory, and the Newton-Raphson method a few more iterations at tight tolerances. PARDISO in single precision needs a PyPardiso that factorizes in float32.
      */
     precision?: "double" | "single";
   };
