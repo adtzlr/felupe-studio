@@ -270,4 +270,29 @@ Container with 2 cores (x86_64), CPython 3.13, FElupe 12.1.1, SuperLU. Best of t
 
 The forces are those of double precision (four digits). Without Python and FElupe, the model in single precision takes 188 MB at n = 17 instead of 317 MB in double precision (and 257 MB with the linear system in single precision). The cube with u-p-J of the section above (n = 21, 27,783 DOF) takes 17 s and 575 MB with FElupe 12.1.1, instead of 45 s and 1083 MB.
 
-**Pyodide:** to be measured on the phone with `spike.html` (*Model in single (float32)*, n = 9, 11 and 13).
+### Phone
+
+Android 17, Firefox 160 (mobile), 8 cores, Pyodide 314.0.7, FElupe 12.1.1, warm (service worker cache active, bytecode cache *hit*). Solve times in seconds:
+
+|   n |  DOF | Double | Linear system in single | Model in single | Speedup, linear system / model |  Force |
+| --: | ---: | -----: | ----------------------: | --------------: | -----------------------------: | -----: |
+|   9 | 2187 |  0.877 |                   0.730 |           0.502 |                    1.20 / 1.75 | 1.7940 |
+|  11 | 3993 |  2.457 |                   1.769 |           1.325 |                    1.39 / 1.85 | 1.7930 |
+|  13 | 6591 |  8.718 |                   5.430 |           4.071 |                    1.61 / 2.14 | 1.7925 |
+
+The forces are those of the native reference in all three precisions. As in CPython, the speedup grows with the size of the model.
+
+The start of the same run with FElupe 12.1.1, which imports `scipy.interpolate` and `scipy.special` only when they are used:
+
+| Load step                          | FElupe 12.1.0 (#296) | FElupe 12.1.1 |
+| ---------------------------------- | -------------------: | ------------: |
+| Pyodide                            |                1.944 |         1.907 |
+| NumPy, SciPy                       |                2.275 |         2.213 |
+| FElupe, meshio (wheels of the app) |                1.620 |         1.248 |
+| · wheels and sources               |                0.208 |         0.148 |
+| · import NumPy, SciPy              |                0.802 |         0.690 |
+| · import FElupe                    |                0.336 |         0.137 |
+| · import meshio                    |                0.274 |         0.273 |
+| **Total**                          |            **5.839** |     **5.368** |
+
+Both runs hit the bytecode cache. `import felupe` takes 0.14 s instead of 0.34 s; without the cache and with FElupe 12.1.0 (#296) the FElupe step took 3.60 s, now 1.25 s.
