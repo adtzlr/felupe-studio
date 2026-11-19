@@ -60,170 +60,176 @@ const GROUPS: { kind: Kind | "point" | "contact"; label: string }[] = [
 
 const AXES = ["x", "y", "z"] as const;
 
+/** The commands of the model and its units, for the details of a command. */
+interface DetailContext {
+  commands: readonly Command[];
+  units: ReturnType<typeof unitsOf>;
+  length: string | undefined;
+}
+
+type Detail<C extends Command["command"]> = (
+  cmd: Extract<Command, { command: C }>,
+  context: DetailContext,
+) => string;
+
+/** The parts of a detail that are given, joined by a dot. */
+const joined = (...parts: unknown[]) => parts.filter(Boolean).join(" · ");
+
+/** A point as text with the unit of length, e.g. `(0, 1, 0) mm`. */
+const at = (coordinates: readonly unknown[], length: string | undefined) =>
+  valueWithUnit(`(${coordinates.join(", ")})`, length);
+
+/** The constrained components, e.g. `x, z`, in the order of the axes. */
+const components = (constrained: readonly string[]) =>
+  AXES.filter((a) => constrained.includes(a)).join(", ");
+
+/** One value, or one value per constrained component of a boundary (#225). */
+const valueText = (v: unknown) =>
+  Array.isArray(v) ? `(${v.join(", ")})` : String(v);
+
+const pointsetDetail: Detail<"pointset.add"> = ({ select }, { length }) => {
+  if ("value" in select)
+    return `${select.axis} == ${valueWithUnit(String(select.value), length)}`;
+  if ("bound" in select) return `${select.axis} == ${select.bound}`;
+  if ("radius" in select) {
+    const { radius, axis, center } = select;
+    const through = center?.some((c) => c !== 0)
+      ? ` through ${at(center, length)}`
+      : "";
+    return `r = ${valueWithUnit(String(radius), length)} about ${axis}${through}`;
+  }
+  if ("points" in select) {
+    const [first, ...rest] = select.points;
+    return rest.length
+      ? `${select.points.length} nodes`
+      : `node ${at(first, length)}`;
+  }
+  if ("surface" in select) return "outer surface";
+  if ("section" in select) return `of ${select.section}`;
+  return `${select.ids.length} points`;
+};
+
+const rigidDetail: Detail<"rigid.add"> = (cmd, { length }) => {
+  const shape = cmd.shape as {
+    normal?: number[];
+    radius?: number;
+    axis?: number[];
+    inside?: boolean;
+  };
+  const where = `at ${at(cmd.coordinates, length)}`;
+  if (shape.normal) return `plane n = (${shape.normal.join(", ")}) · ${where}`;
+  return [
+    `cylinder r = ${valueWithUnit(String(shape.radius), length)}`,
+    `axis (${shape.axis!.join(", ")})`,
+    ...(shape.inside ? ["inside"] : []),
+    where,
+  ].join(" · ");
+};
+
+const facesetDetail: Detail<"faceset.add"> = (
+  { section, select },
+  { length },
+) => {
+  if ("axis" in select)
+    return `${section} · ${select.axis} == ${valueWithUnit(String(select.value), length)}`;
+  const n = select.centers.length;
+  return `${section} · ${n} ${n === 1 ? "face" : "faces"}`;
+};
+
+const boundaryDetail: Detail<"boundary.add"> = (cmd, { commands, units }) => {
+  // one value for all constrained components, or one per component (#225)
+  const value = cmd.value ?? 0;
+  const zero = Array.isArray(value) ? !value.some((v) => v !== 0) : value === 0;
+  const unit = unitOf(boundaryQuantity(commands, cmd.pointset), units);
+  const text = zero ? "" : ` = ${valueWithUnit(valueText(value), unit)}`;
+  return `${cmd.pointset} · ${components(cmd.constrained)}${text}`;
+};
+
+const stepDetail: Detail<"step.add"> = ({ ramp }, { commands, units }) => {
+  if (!ramp) return "no ramp";
+  const items = ramp.items.map((i) => {
+    const unit = unitOf(rampedQuantity(commands, i.target), units);
+    const from = valueText(i.start ?? 0);
+    return `${i.target}: ${from} → ${valueWithUnit(valueText(i.end), unit)}`;
+  });
+  return `${items.join(", ")} (${ramp.num})`;
+};
+
+/** The details of the commands by their type: short texts in the browser. */
+const DETAILS: { [C in Command["command"]]: Detail<C> } = {
+  "model.settings": (cmd) =>
+    joined(
+      cmd.analysis === "plane-strain"
+        ? "plane strain"
+        : cmd.analysis === "axisymmetric" && "axisymmetric",
+      cmd.units ? unitsText(cmd.units) : "no units",
+    ),
+  "parameter.add": (cmd, { units }) => describeParameter(cmd, units),
+  "mesh.import": (cmd) =>
+    joined(
+      cmd.file,
+      cmd.tag && `tag ${cmd.tag}`,
+      cmd.scale !== undefined && cmd.scale !== 1 && `× ${cmd.scale}`,
+    ),
+  "mesh.script": (cmd) =>
+    joined(
+      cmd.item ? `${cmd.file} [${cmd.item}]` : cmd.file,
+      cmd.tag && `tag ${cmd.tag}`,
+    ),
+  "mesh.merge": (cmd) => `decimals = ${cmd.decimals}`,
+  "cellset.from_tag": (cmd) => `tag = ${cmd.value}`,
+  "cellset.from_file": () => "all cells",
+  "material.add": (cmd) =>
+    MATERIAL_MODELS.find((m) => m.name === cmd.model)?.label ?? cmd.model,
+  "section.add": (cmd) =>
+    joined(
+      cmd.material,
+      cmd.formulation,
+      cmd.volumetric && cmd.volumetric !== "volume-ratio" && cmd.volumetric,
+    ),
+  "pointset.add": pointsetDetail,
+  "point.add": (cmd, { length }) => `control ${at(cmd.coordinates, length)}`,
+  "rigid.add": rigidDetail,
+  "faceset.add": facesetDetail,
+  "load.add": (cmd, { units }) =>
+    `${cmd.points} · ${valueWithUnit(`(${cmd.force.join(", ")})`, unitOf("force", units))}`,
+  "pressure.add": (cmd, { units }) =>
+    `${cmd.faces} · ${valueWithUnit(String(cmd.pressure), unitOf("stress", units))}`,
+  "contact.add": (cmd) =>
+    joined(
+      `${cmd.points} → ${cmd.surface}`,
+      cmd.friction && `μ = ${cmd.friction}`,
+    ),
+  "mpc.add": (cmd) =>
+    joined(
+      `${cmd.points} → ${cmd.center}`,
+      cmd.constrained.length < 3 && components(cmd.constrained),
+      cmd.rotation && `rotation ${cmd.rotation}`,
+    ),
+  "boundary.add": boundaryDetail,
+  "loadcase.add": (cmd) => describeLoadcase(cmd),
+  "symmetry.add": (cmd, { length }) => describeSymmetry(cmd, length),
+  "step.add": stepDetail,
+  "job.add": (cmd) =>
+    joined(
+      cmd.steps.join(", "),
+      cmd.curve && `curve ${cmd.curve}`,
+      cmd.cutback && "cutback",
+      describeSolver(cmd),
+      cmd.tol !== undefined && `tol ${cmd.tol}`,
+      cmd.maxiter !== undefined && `maxiter ${cmd.maxiter}`,
+    ),
+};
+
 function detail(cmd: Command, commands: readonly Command[]): string {
   // the values with the units of the model (#132)
   const units = unitsOf(commands);
-  const length = unitOf("length", units);
-  switch (cmd.command) {
-    case "model.settings":
-      return [
-        cmd.analysis === "plane-strain"
-          ? "plane strain"
-          : cmd.analysis === "axisymmetric" && "axisymmetric",
-        cmd.units ? unitsText(cmd.units) : "no units",
-      ]
-        .filter(Boolean)
-        .join(" · ");
-    case "parameter.add":
-      return describeParameter(cmd, units);
-    case "mesh.import":
-      return [
-        cmd.file,
-        cmd.tag && `tag ${cmd.tag}`,
-        cmd.scale !== undefined && cmd.scale !== 1 && `× ${cmd.scale}`,
-      ]
-        .filter(Boolean)
-        .join(" · ");
-    case "mesh.script":
-      return [
-        cmd.item ? `${cmd.file} [${cmd.item}]` : cmd.file,
-        cmd.tag && `tag ${cmd.tag}`,
-      ]
-        .filter(Boolean)
-        .join(" · ");
-    case "mesh.merge":
-      return `decimals = ${cmd.decimals}`;
-    case "cellset.from_tag":
-      return `tag = ${cmd.value}`;
-    case "cellset.from_file":
-      return "all cells";
-    case "material.add":
-      return (
-        MATERIAL_MODELS.find((m) => m.name === cmd.model)?.label ?? cmd.model
-      );
-    case "section.add":
-      return [
-        cmd.material,
-        cmd.formulation,
-        cmd.volumetric && cmd.volumetric !== "volume-ratio" && cmd.volumetric,
-      ]
-        .filter(Boolean)
-        .join(" · ");
-    case "pointset.add":
-      if ("value" in cmd.select)
-        return `${cmd.select.axis} == ${valueWithUnit(String(cmd.select.value), length)}`;
-      if ("bound" in cmd.select)
-        return `${cmd.select.axis} == ${cmd.select.bound}`;
-      if ("radius" in cmd.select) {
-        const { radius, axis, center } = cmd.select;
-        const through = center?.some((c) => c !== 0)
-          ? ` through ${valueWithUnit(`(${center.join(", ")})`, length)}`
-          : "";
-        return `r = ${valueWithUnit(String(radius), length)} about ${axis}${through}`;
-      }
-      if ("points" in cmd.select) {
-        const [first, ...rest] = cmd.select.points;
-        return rest.length
-          ? `${cmd.select.points.length} nodes`
-          : `node ${valueWithUnit(`(${first.join(", ")})`, length)}`;
-      }
-      if ("surface" in cmd.select) return "outer surface";
-      if ("section" in cmd.select) return `of ${cmd.select.section}`;
-      return `${cmd.select.ids.length} points`;
-    case "point.add":
-      return `control ${valueWithUnit(`(${cmd.coordinates.join(", ")})`, length)}`;
-    case "rigid.add": {
-      const shape = cmd.shape as {
-        normal?: number[];
-        radius?: number;
-        axis?: number[];
-        inside?: boolean;
-      };
-      const at = `at ${valueWithUnit(`(${cmd.coordinates.join(", ")})`, length)}`;
-      if (shape.normal) return `plane n = (${shape.normal.join(", ")}) · ${at}`;
-      return [
-        `cylinder r = ${valueWithUnit(String(shape.radius), length)}`,
-        `axis (${shape.axis!.join(", ")})`,
-        ...(shape.inside ? ["inside"] : []),
-        at,
-      ].join(" · ");
-    }
-    case "faceset.add":
-      return `${cmd.section} · ${
-        "axis" in cmd.select
-          ? `${cmd.select.axis} == ${valueWithUnit(String(cmd.select.value), length)}`
-          : `${cmd.select.centers.length} ${cmd.select.centers.length === 1 ? "face" : "faces"}`
-      }`;
-    case "load.add":
-      return `${cmd.points} · ${valueWithUnit(`(${cmd.force.join(", ")})`, unitOf("force", units))}`;
-    case "pressure.add":
-      return `${cmd.faces} · ${valueWithUnit(String(cmd.pressure), unitOf("stress", units))}`;
-    case "contact.add":
-      return [
-        `${cmd.points} → ${cmd.surface}`,
-        ...(cmd.friction ? [`μ = ${cmd.friction}`] : []),
-      ].join(" · ");
-    case "mpc.add":
-      return [
-        `${cmd.points} → ${cmd.center}`,
-        cmd.constrained.length < 3 &&
-          AXES.filter((a) => cmd.constrained.includes(a)).join(", "),
-        cmd.rotation && `rotation ${cmd.rotation}`,
-      ]
-        .filter(Boolean)
-        .join(" · ");
-    case "boundary.add": {
-      // one value for all constrained components, or one per component (#225)
-      const value = cmd.value ?? 0;
-      const zero = Array.isArray(value)
-        ? !value.some((v) => v !== 0)
-        : value === 0;
-      const text = Array.isArray(value)
-        ? `(${value.join(", ")})`
-        : String(value);
-      const constrained = AXES.filter((a) => cmd.constrained.includes(a)).join(
-        ", ",
-      );
-      const unit = unitOf(boundaryQuantity(commands, cmd.pointset), units);
-      return `${cmd.pointset} · ${constrained}${zero ? "" : ` = ${valueWithUnit(text, unit)}`}`;
-    }
-    case "loadcase.add":
-      return describeLoadcase(cmd);
-    case "symmetry.add":
-      return describeSymmetry(cmd, length);
-    case "step.add":
-      return cmd.ramp
-        ? cmd.ramp.items
-            .map((i) => {
-              const unit = unitOf(rampedQuantity(commands, i.target), units);
-              // one value per constrained component of a boundary (#225)
-              const text = (v: unknown) =>
-                Array.isArray(v) ? `(${v.join(", ")})` : String(v);
-              const from = text(i.start ?? 0);
-              return `${i.target}: ${from} → ${valueWithUnit(text(i.end), unit)}`;
-            })
-            .join(", ") + ` (${cmd.ramp.num})`
-        : "no ramp";
-    case "job.add":
-      return [
-        cmd.steps.join(", "),
-        cmd.curve && `curve ${cmd.curve}`,
-        cmd.cutback && "cutback",
-        describeSolver(cmd),
-        cmd.tol !== undefined && `tol ${cmd.tol}`,
-        cmd.maxiter !== undefined && `maxiter ${cmd.maxiter}`,
-      ]
-        .filter(Boolean)
-        .join(" · ");
-  }
+  const describe = DETAILS[cmd.command] as Detail<Command["command"]>;
+  return describe(cmd, { commands, units, length: unitOf("length", units) });
 }
 
-/** Derive the browser tree. Cell sets are children of their mesh. */
-export function deriveTree(
-  commands: readonly Command[],
-  issues: readonly Issue[] = [],
-  report?: CheckReport,
-): TreeNode[] {
+/** The issues and the check messages of the objects, by their names. */
+function messagesOf(issues: readonly Issue[], report?: CheckReport) {
   const messages = new Map<string, string[]>();
   const note = (name: string, message: string) =>
     messages.set(name, [...(messages.get(name) ?? []), message]);
@@ -246,7 +252,44 @@ export function deriveTree(
     note(a, `${face.hanging} hanging points at the interface to '${b}'.`);
     note(b, `${face.hanging} hanging points at the interface to '${a}'.`);
   }
+  return messages;
+}
 
+/** The group of an object: its kind, unless it has a group of its own. */
+function groupOf(cmd: Command, kind: Kind): Kind | "point" | "contact" {
+  if (cmd.command === "point.add") return "point";
+  if (cmd.command === "contact.add") return "contact";
+  // cell sets without a valid mesh are shown at the top of the mesh group
+  if (kind === "cellset") return "mesh";
+  // symmetry planes are boundaries of all steps (#186)
+  if (kind === "symmetry") return "boundary";
+  return kind;
+}
+
+/**
+ * The groups of the settings, the merge setting, the control points and the face
+ * sets only if they are used.
+ */
+const OPTIONAL = new Set([
+  "group:settings",
+  "group:parameter",
+  "group:merge",
+  "group:point",
+  "group:rigid",
+  "group:contact",
+  "group:faceset",
+  "group:pressure",
+  "group:constraint",
+  "group:load",
+]);
+
+/** Derive the browser tree. Cell sets are children of their mesh. */
+export function deriveTree(
+  commands: readonly Command[],
+  issues: readonly Issue[] = [],
+  report?: CheckReport,
+): TreeNode[] {
+  const messages = messagesOf(issues, report);
   const node = (cmd: Command): TreeNode => ({
     id: cmd.name,
     label: cmd.name,
@@ -263,58 +306,32 @@ export function deriveTree(
     if (!nodes.has(cmd.name)) nodes.set(cmd.name, node(cmd));
   }
 
-  const groups = GROUPS.map(({ kind, label }) => ({
-    id: `group:${kind}`,
-    label,
-    kind: "group" as const,
-    issues: [],
-    children: [] as TreeNode[],
-  }));
-  const groupOf = (kind: Kind | "point" | "contact") =>
-    groups.find((g) => g.id === `group:${kind}`);
+  const groups = new Map(
+    GROUPS.map(({ kind, label }) => [
+      kind,
+      {
+        id: `group:${kind}`,
+        label,
+        kind: "group" as const,
+        issues: [],
+        children: [] as TreeNode[],
+      },
+    ]),
+  );
 
   const placed = new Set<string>();
   for (const cmd of commands) {
     if (placed.has(cmd.name)) continue;
     placed.add(cmd.name);
     const child = nodes.get(cmd.name)!;
-    if (cmd.command.startsWith("cellset.")) {
-      const mesh = nodes.get((cmd as { mesh: string }).mesh);
-      if (mesh?.kind === "mesh") {
-        mesh.children.push(child);
-        continue;
-      }
-    }
-    // cell sets without a valid mesh are shown at the top of the mesh group
-    const group =
-      cmd.command === "point.add"
-        ? "point"
-        : cmd.command === "contact.add"
-          ? "contact"
-          : child.kind === "cellset"
-            ? "mesh"
-            : // symmetry planes are boundaries of all steps (#186)
-              child.kind === "symmetry"
-              ? "boundary"
-              : (child.kind as Kind);
-    groupOf(group)!.children.push(child);
+    const mesh = cmd.command.startsWith("cellset.")
+      ? nodes.get((cmd as { mesh: string }).mesh)
+      : undefined;
+    if (mesh?.kind === "mesh") mesh.children.push(child);
+    else groups.get(groupOf(cmd, child.kind as Kind))!.children.push(child);
   }
 
-  // the groups of the settings, the merge setting, the control points and the face
-  // sets only if they are used
-  const optional = new Set([
-    "group:settings",
-    "group:parameter",
-    "group:merge",
-    "group:point",
-    "group:rigid",
-    "group:contact",
-    "group:faceset",
-    "group:pressure",
-    "group:constraint",
-    "group:load",
-  ]);
-  return groups
-    .filter((g) => !optional.has(g.id) || g.children.length > 0)
+  return [...groups.values()]
+    .filter((g) => !OPTIONAL.has(g.id) || g.children.length > 0)
     .map((g) => ({ ...g, count: g.children.length }));
 }

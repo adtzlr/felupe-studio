@@ -566,7 +566,8 @@ def schema(command=None):
     return {"$ref": f"#/$defs/{key}", "$defs": needed}
 
 
-def server(session=None):
+# the tools of the server are its nested functions, each of them small (#313)
+def server(session=None):  # noqa: C901
     """The MCP server of a session (a new one by default)."""
     session = session or Session()
     mcp = MCPServer("felupe-studio", instructions=INSTRUCTIONS, version=__version__)

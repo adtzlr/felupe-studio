@@ -18,6 +18,29 @@ cd app && npm run lint && npm test && npm run build
 cd .. && ruff check . && ruff format --check . && pytest
 ```
 
+## Complexity
+
+The linters limit the complexity of a function, so that each function stays small enough to read and to test on its own:
+
+| | Complexity | Lines |
+|---|---|---|
+| Python (`ruff`, C901) | 15 | |
+| App (`eslint`): core, worker, viewer, agent | 20 | 150 |
+| App (`eslint`): components and hooks in `src/ui` | 30 (warning) | 250 (warning) |
+
+Lines count without blank lines and comments; tests are not limited. ESLint counts more branches than ruff (`?.`, `??`, `&&` and default values), hence its higher limit. A component counts its callbacks and its markup, so the limits of `src/ui` are higher and only warnings: a warning is a candidate to split, not a blocker.
+
+Above a limit, split the function: commonly a registry by command type or by type of input instead of a long `switch`, or helpers for the branches of a walk. If a function cannot be split sensibly, say why where the check is disabled, e.g. the tools of a server as its nested functions:
+
+```python
+# the tools of the server are its nested functions, each of them small (#313)
+def server(session=None):  # noqa: C901
+```
+
+```ts
+// eslint-disable-next-line max-lines-per-function -- the tools are its nested handlers
+```
+
 ## Golden tests
 
 `tests/golden` holds complete cases: a command list, its mesh files, the expected generated script and the expected force-displacement curves. CI runs every case with FElupe and compares both. If a change of the generated script or of the results is intended, update the references and review the diff in the PR:

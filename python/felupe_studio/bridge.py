@@ -122,7 +122,8 @@ class Bridge:
                 self._pending.pop(id_, None)
 
 
-def agent_server(bridge):
+# the tools of the server are its nested functions, each of them small (#313)
+def agent_server(bridge):  # noqa: C901
     """The MCP server of the bridge: its tools act on the model of the open app."""
     mcp = MCPServer(
         "felupe-studio",

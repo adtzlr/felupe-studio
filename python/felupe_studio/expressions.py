@@ -22,6 +22,7 @@ generated script shows the expression as written (``repr``).
 
 import json
 import math
+import operator
 import re
 from decimal import Decimal
 
@@ -99,6 +100,82 @@ def tokens(text):
     return result
 
 
+class _Parser:
+    """A recursive descent parser of the tokens of an expression, a method per rule
+    of the grammar."""
+
+    def __init__(self, text):
+        self.items = tokens(text)
+        self.position = 0
+        self.invalid = ExpressionError(f"'{text}' is not a valid expression.")
+
+    def peek(self):
+        if self.position < len(self.items):
+            return self.items[self.position]
+        return (None, None)
+
+    def take(self, expected=None):
+        kind, value = self.peek()
+        if kind is None or (expected is not None and value != expected):
+            raise self.invalid
+        self.position += 1
+        return kind, value
+
+    def tree(self):
+        if not self.items:
+            raise self.invalid
+        tree = self.expression()
+        if self.position != len(self.items):
+            raise self.invalid
+        return tree
+
+    def expression(self):
+        node = self.term()
+        while self.peek()[1] in ("+", "-"):
+            node = (self.take()[1], node, self.term())
+        return node
+
+    def term(self):
+        node = self.unary()
+        while self.peek()[1] in ("*", "/"):
+            node = (self.take()[1], node, self.unary())
+        return node
+
+    def unary(self):
+        if self.peek()[1] in ("+", "-"):
+            sign = self.take()[1]
+            return ("neg" if sign == "-" else "pos", self.unary())
+        return self.power()
+
+    def power(self):
+        node = self.atom()
+        if self.peek()[1] == "**":
+            self.take()
+            return ("**", node, self.unary())
+        return node
+
+    def atom(self):
+        kind, value = self.take()
+        if kind == "number":
+            return ("number", float(value))
+        if kind == "name":
+            return self.call(value) if self.peek()[1] == "(" else ("name", value)
+        if value == "(":
+            node = self.expression()
+            self.take(")")
+            return node
+        raise self.invalid
+
+    def call(self, name):
+        self.take("(")
+        arguments = [self.expression()]
+        while self.peek()[1] == ",":
+            self.take(",")
+            arguments.append(self.expression())
+        self.take(")")
+        return ("call", name, arguments)
+
+
 def parse(text):
     """Return the tree of an expression (nested tuples), or raise an
     :class:`ExpressionError`:
@@ -112,72 +189,7 @@ def parse(text):
     >>> parse("-2 ** 2")
     ('neg', ('**', ('number', 2.0), ('number', 2.0)))
     """
-    items = tokens(text)
-    position = 0
-    invalid = ExpressionError(f"'{text}' is not a valid expression.")
-
-    def peek():
-        return items[position] if position < len(items) else (None, None)
-
-    def take(expected=None):
-        nonlocal position
-        kind, value = peek()
-        if kind is None or (expected is not None and value != expected):
-            raise invalid
-        position += 1
-        return kind, value
-
-    def expression():
-        node = term()
-        while peek()[1] in ("+", "-"):
-            node = (take()[1], node, term())
-        return node
-
-    def term():
-        node = unary()
-        while peek()[1] in ("*", "/"):
-            node = (take()[1], node, unary())
-        return node
-
-    def unary():
-        if peek()[1] in ("+", "-"):
-            sign = take()[1]
-            return ("neg" if sign == "-" else "pos", unary())
-        return power()
-
-    def power():
-        node = atom()
-        if peek()[1] == "**":
-            take()
-            return ("**", node, unary())
-        return node
-
-    def atom():
-        kind, value = take()
-        if kind == "number":
-            return ("number", float(value))
-        if kind == "name":
-            if peek()[1] == "(":
-                take("(")
-                arguments = [expression()]
-                while peek()[1] == ",":
-                    take(",")
-                    arguments.append(expression())
-                take(")")
-                return ("call", value, arguments)
-            return ("name", value)
-        if value == "(":
-            node = expression()
-            take(")")
-            return node
-        raise invalid
-
-    if not items:
-        raise invalid
-    tree = expression()
-    if position != len(items):
-        raise invalid
-    return tree
+    return _Parser(text).tree()
 
 
 def names(text):
@@ -208,6 +220,54 @@ def names(text):
     return result
 
 
+# the binary operators of the tree of an expression
+OPERATORS = {
+    "+": operator.add,
+    "-": operator.sub,
+    "*": operator.mul,
+    "/": operator.truediv,
+    "**": math.pow,
+}
+
+
+class _Evaluator:
+    """The value of the tree of an expression with the values of the parameters."""
+
+    def __init__(self, text, values):
+        self.text = text
+        self.values = values
+
+    def value(self, node):
+        kind = node[0]
+        if kind == "number":
+            return node[1]
+        if kind == "name":
+            return self.name(node[1])
+        if kind == "call":
+            return self.call(node[1], node[2])
+        if kind == "neg":
+            return -self.value(node[1])
+        if kind == "pos":
+            return self.value(node[1])
+        return OPERATORS[kind](self.value(node[1]), self.value(node[2]))
+
+    def name(self, name):
+        if name in self.values:
+            return float(self.values[name])
+        if name in CONSTANTS:
+            return CONSTANTS[name]
+        raise ExpressionError(f"'{name}' is not a parameter in '{self.text}'.")
+
+    def call(self, name, arguments):
+        if name not in FUNCTIONS:
+            raise ExpressionError(f"'{name}' is not a function in '{self.text}'.")
+        low, high, function = FUNCTIONS[name]
+        if len(arguments) < low or (high is not None and len(arguments) > high):
+            count = f"{low} argument" if high == 1 else f"at least {low} arguments"
+            raise ExpressionError(f"'{name}' takes {count} in '{self.text}'.")
+        return float(function(*(self.value(a) for a in arguments)))
+
+
 def evaluate(text, values):
     """Return the value of an expression with the values of the parameters, or raise
     an :class:`ExpressionError`.
@@ -221,44 +281,8 @@ def evaluate(text, values):
     """
     tree = parse(text)
     nonfinite = ExpressionError(f"'{text}' is not a finite number.")
-
-    def value(node):
-        kind = node[0]
-        if kind == "number":
-            return node[1]
-        if kind == "name":
-            name = node[1]
-            if name in values:
-                return float(values[name])
-            if name in CONSTANTS:
-                return CONSTANTS[name]
-            raise ExpressionError(f"'{name}' is not a parameter in '{text}'.")
-        if kind == "call":
-            name, arguments = node[1], node[2]
-            if name not in FUNCTIONS:
-                raise ExpressionError(f"'{name}' is not a function in '{text}'.")
-            low, high, function = FUNCTIONS[name]
-            if len(arguments) < low or (high is not None and len(arguments) > high):
-                count = f"{low} argument" if high == 1 else f"at least {low} arguments"
-                raise ExpressionError(f"'{name}' takes {count} in '{text}'.")
-            return float(function(*(value(a) for a in arguments)))
-        if kind == "neg":
-            return -value(node[1])
-        if kind == "pos":
-            return value(node[1])
-        a, b = value(node[1]), value(node[2])
-        if kind == "+":
-            return a + b
-        if kind == "-":
-            return a - b
-        if kind == "*":
-            return a * b
-        if kind == "/":
-            return a / b
-        return math.pow(a, b)
-
     try:
-        result = value(tree)
+        result = _Evaluator(text, values).value(tree)
     except (ZeroDivisionError, ValueError, OverflowError) as error:
         if isinstance(error, ExpressionError):
             raise
@@ -362,44 +386,61 @@ def _matches(branch, instance):
 CONSTRAINTS = ("minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum")
 
 
+class _Fields:
+    """The fields of a command that hold an expression, found by walking the schema
+    along the command."""
+
+    def __init__(self):
+        self.result, self.seen = [], set()
+
+    def walk(self, node, instance, path):
+        node = _definition(node)
+        self.branches(node, instance, path)
+        if self.leaf(node, instance, path):
+            return
+        if isinstance(instance, dict):
+            for key, child in node.get("properties", {}).items():
+                if key in instance:
+                    self.walk(child, instance[key], [*path, key])
+        elif isinstance(instance, list) and isinstance(node.get("items"), dict):
+            for i, item in enumerate(instance):
+                self.walk(node["items"], item, [*path, i])
+
+    def branches(self, node, instance, path):
+        """The branches of a node that may describe the instance."""
+        for key in ("oneOf", "anyOf"):
+            for branch in node.get(key, []):
+                if _matches(branch, instance):
+                    self.walk(branch, instance, path)
+        for branch in node.get("allOf", []):
+            self.walk(branch, instance, path)
+        for key in ("then", "else"):
+            if key in node:
+                self.walk(node[key], instance, path)
+
+    def leaf(self, node, instance, path):
+        """A string where the schema takes a number or a string: an expression."""
+        types = node.get("type")
+        if not isinstance(instance, str) or not isinstance(types, list):
+            return False
+        if "string" not in types:
+            return False
+        if ("number" in types or "integer" in types) and tuple(path) not in self.seen:
+            self.seen.add(tuple(path))
+            bounds = {k: node[k] for k in CONSTRAINTS if k in node}
+            self.result.append((path, "integer" in types, bounds))
+        return True
+
+
 def fields(command):
     """Return the fields of a command that hold an expression, as ``(path, integer,
     constraints)``: the path of keys and indices, whether its value is an integer,
     and the bounds of its value (``minimum``, ``exclusiveMinimum``, ...), in the
     order of the schema."""
-    result, seen = [], set()
-
-    def walk(node, instance, path):
-        node = _definition(node)
-        for key in ("oneOf", "anyOf"):
-            if key in node:
-                for branch in node[key]:
-                    if _matches(branch, instance):
-                        walk(branch, instance, path)
-        for branch in node.get("allOf", []):
-            walk(branch, instance, path)
-        for key in ("then", "else"):
-            if key in node:
-                walk(node[key], instance, path)
-        types = node.get("type")
-        if isinstance(instance, str) and isinstance(types, list) and "string" in types:
-            if "number" in types or "integer" in types:
-                if tuple(path) not in seen:
-                    seen.add(tuple(path))
-                    bounds = {k: node[k] for k in CONSTRAINTS if k in node}
-                    result.append((path, "integer" in types, bounds))
-            return
-        if isinstance(instance, dict):
-            for key, child in node.get("properties", {}).items():
-                if key in instance:
-                    walk(child, instance[key], [*path, key])
-        elif isinstance(instance, list) and isinstance(node.get("items"), dict):
-            for i, item in enumerate(instance):
-                walk(node["items"], item, [*path, i])
-
+    walker = _Fields()
     command_schema = {"oneOf": _schema()["$defs"]["Command"]["oneOf"]}
-    walk(command_schema, command, [])
-    return result
+    walker.walk(command_schema, command, [])
+    return walker.result
 
 
 def _bound_problem(value, bounds):

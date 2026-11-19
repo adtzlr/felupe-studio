@@ -125,6 +125,80 @@ function groupsOf(
   return [];
 }
 
+/** The cells of the cell sets of a mesh, by the names of the cell sets. */
+function masksOf(
+  mesh: MeshCommand,
+  commands: readonly Command[],
+  surface: MeshSurface,
+) {
+  const masks = new Map<string, Uint8Array>();
+  for (const c of commands) {
+    if (!isCellSet(c) || c.mesh !== mesh.name) continue;
+    const mask = cellMask(c, mesh, surface);
+    if (mask) masks.set(c.name, mask);
+  }
+  return masks;
+}
+
+/** The cells hidden by hidden cell sets and sections, if any are. */
+function hiddenCellsOf(
+  commands: readonly Command[],
+  masks: ReadonlyMap<string, Uint8Array>,
+  hidden: ReadonlySet<string>,
+  cells: number,
+) {
+  const hiddenCells = new Uint8Array(cells);
+  let anyHidden = false;
+  for (const c of commands) {
+    const set = isCellSet(c)
+      ? c.name
+      : c.command === "section.add"
+        ? c.cellset
+        : "";
+    const mask = masks.get(set);
+    if (!mask || !hidden.has(c.name)) continue;
+    anyHidden = true;
+    for (let cell = 0; cell < mask.length; cell++) {
+      if (mask[cell]) hiddenCells[cell] = 1;
+    }
+  }
+  return { hiddenCells, anyHidden };
+}
+
+/**
+ * The colors of the cells of a layer by cell set or section, with the legend
+ * entries of the groups with visible cells, and of the visible cells of no group.
+ */
+function colorGroups(
+  layer: MeshLayer,
+  groups: ReturnType<typeof groupsOf>,
+  hiddenCells: Uint8Array,
+  shown: Map<string, LegendEntry & { order: number }>,
+  other: string,
+) {
+  const grouped = new Uint8Array(layer.surface.cells);
+  groups.forEach((group) => {
+    let visible = false;
+    for (let cell = 0; cell < group.mask.length; cell++) {
+      if (!group.mask[cell]) continue;
+      grouped[cell] = 1;
+      if (!hiddenCells[cell]) visible = true;
+    }
+    if (visible) {
+      const { name, color, order } = group;
+      shown.set(name, { label: name, color, order });
+    }
+  });
+  if (grouped.some((g, cell) => !g && !hiddenCells[cell])) {
+    shown.set(other, { label: other, color: UNASSIGNED, order: Infinity });
+  }
+  layer.color = UNASSIGNED;
+  layer.groups = groups.map((g): CellGroup => ({
+    color: g.color,
+    cells: indices(g.mask),
+  }));
+}
+
 export function viewportContent(
   commands: readonly Command[],
   files: MeshFiles,
@@ -151,32 +225,13 @@ export function viewportContent(
       raw,
       mesh.command === "mesh.import" ? mesh.scale : undefined,
     );
-
-    // the cells of the cell sets of this mesh
-    const masks = new Map<string, Uint8Array>();
-    for (const c of commands) {
-      if (!isCellSet(c) || c.mesh !== mesh.name) continue;
-      const mask = cellMask(c, mesh, surface);
-      if (mask) masks.set(c.name, mask);
-    }
-
-    // hidden cell sets and sections hide their cells
-    const hiddenCells = new Uint8Array(surface.cells);
-    let anyHidden = false;
-    for (const c of commands) {
-      const set = isCellSet(c)
-        ? c.name
-        : c.command === "section.add"
-          ? c.cellset
-          : "";
-      const mask = masks.get(set);
-      if (!mask || !hidden.has(c.name)) continue;
-      anyHidden = true;
-      for (let cell = 0; cell < mask.length; cell++) {
-        if (mask[cell]) hiddenCells[cell] = 1;
-      }
-    }
-
+    const masks = masksOf(mesh, commands, surface);
+    const { hiddenCells, anyHidden } = hiddenCellsOf(
+      commands,
+      masks,
+      hidden,
+      surface.cells,
+    );
     const layer: MeshLayer = {
       name: mesh.name,
       surface,
@@ -185,27 +240,7 @@ export function viewportContent(
     if (anyHidden) layer.hidden = hiddenCells;
     if (colorBy !== "mesh") {
       const groups = groupsOf(mesh, masks, commands, colorBy);
-      const grouped = new Uint8Array(surface.cells);
-      groups.forEach((group) => {
-        let visible = false;
-        for (let cell = 0; cell < group.mask.length; cell++) {
-          if (!group.mask[cell]) continue;
-          grouped[cell] = 1;
-          if (!hiddenCells[cell]) visible = true;
-        }
-        if (visible) {
-          const { name, color, order } = group;
-          shown.set(name, { label: name, color, order });
-        }
-      });
-      if (grouped.some((g, cell) => !g && !hiddenCells[cell])) {
-        shown.set(other, { label: other, color: UNASSIGNED, order: Infinity });
-      }
-      layer.color = UNASSIGNED;
-      layer.groups = groups.map((g): CellGroup => ({
-        color: g.color,
-        cells: indices(g.mask),
-      }));
+      colorGroups(layer, groups, hiddenCells, shown, other);
     }
     meshes.push(layer);
   });
