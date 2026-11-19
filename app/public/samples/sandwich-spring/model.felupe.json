@@ -174,11 +174,11 @@
       "command": "step.add",
       "name": "shearing",
       "ramp": {
-        "num": 8,
+        "num": "2 * cells",
         "items": [
           {
             "target": "shear",
-            "end": 12
+            "end": "0.5 * layers * height"
           }
         ]
       }

@@ -4,7 +4,7 @@ FElupe Studio builds models of solids, hyperelastic (e.g. rubber) or elastic-pla
 
 **Open the app:** <https://adtzlr.github.io/felupe-studio/>
 
-The first start downloads Python, NumPy, SciPy and FElupe; the browser keeps them for the next visits. The [command reference](reference.md) lists every property of every command, [commands.md](commands.md) explains how the commands become a FElupe script. AI agents like Claude Code or GitHub Copilot build, check and solve models with the [MCP server](agents.md).
+The first start downloads Python, NumPy, SciPy and FElupe. The browser keeps them for the next visits, and from the second start of a version also the compiled modules of Python, so the app is ready sooner. The [command reference](reference.md) lists every property of every command, [commands.md](commands.md) explains how the commands become a FElupe script. AI agents like Claude Code or GitHub Copilot build, check and solve models with the [MCP server](agents.md), headless or on the model that is open in the app.
 
 ## The idea
 
@@ -46,7 +46,7 @@ An empty model shows a welcome panel with *Import mesh*, *Open project* and the 
 | Hexahedrons and tetrahedrons | a Gmsh file with two types of cells |
 | Mount in shear | three sections, the Mooney-Rivlin model, the shear load case |
 | Hyperelastic block with a rigid plate | control points, a multi-point constraint with a rotation point, a step with several ramps |
-| Sandwich spring with parameters | parameters, a mesh made by a Python script, point sets at the bounds of the meshes |
+| Sandwich spring with parameters | parameters, a mesh made by a Python script, point sets at the bounds of the meshes, the shear and the increments as expressions of the parameters |
 | Axisymmetric sandwich spring | an axisymmetric model of the sandwich spring, its section made by a 2D mesh script, the force over the circumference |
 | Plate with a hole in plane strain | a plane strain model, two symmetry planes, the concentration of the stress at a hole |
 | Elastic-plastic plate with a hole | a strain-based elastic-plastic material (steel), loading beyond the yield stress and unloading, the equivalent plastic strain |
@@ -65,7 +65,7 @@ The **engine mount** is the example ex07 of FElupe in plane strain: rubber (`u-p
 
 The **metacone** is the example ex15 of FElupe, a conical rubber-metal spring as an axisymmetric model (x is the axis): two rubber layers (`u-p-J`) between three steel sheets. Its script `metacone.py` makes the section with the mesh tools of FElupe, like ex15: lines expanded and filled between, runouts at the free ends of the rubber layers, rotated by 15° to the cone. The clamped uniaxial load case `push` moves the end of the inner sleeve by -1.5 mm along the axis and holds the end of the outer sleeve; the force is the total over the circumference, about -517 N at the end. The parameters change the thickness of the sheets and the fineness.
 
-The **sandwich spring** is a parametric sample: hyperelastic discs between steel sheets, the base sheet fixed and the top sheet sheared by 12 mm. Its mesh comes from the script `sandwich_spring.py`, which gets the parameters *radius*, *layers*, *height*, *sheet*, *cells* (the fineness of the discs) and *cells_height* (the cells through a soft layer; a sheet has one cell through its thickness) and makes a dict of a soft and a metal mesh on the same points. Opening it asks for the values first: with 5 layers instead of 3 the spring is softer by about 3/5, and the point sets `base` (`z == min`) and `top` (`z == max`) follow the height of the stack without a change. The top sheet is guided by two boundaries, `guide_y` and `guide_z`: a ramp of `guide_z` in the step compresses the spring while it is sheared.
+The **sandwich spring** is a parametric sample: hyperelastic discs between steel sheets, the base sheet fixed and the top sheet sheared by half of the height of the soft layers. Its mesh comes from the script `sandwich_spring.py`, which gets the parameters *radius*, *layers*, *height*, *sheet*, *cells* (the fineness of the discs) and *cells_height* (the cells through a soft layer; a sheet has one cell through its thickness) and makes a dict of a soft and a metal mesh on the same points. The step of the shear has expressions of the parameters: the end of the ramp `0.5 * layers * height` (12 mm for 3 layers of 8 mm) and `2 * cells` increments. Opening it asks for the values first: with 5 layers instead of 3, the stack is higher and the spring is softer by about 3/5, so it is sheared by 20 mm to the same shear strain with about the same force. The point sets `base` (`z == min`) and `top` (`z == max`) and the shear follow the parameters without a change. The top sheet is guided by two boundaries, `guide_y` and `guide_z`: a ramp of `guide_z` in the step compresses the spring while it is sheared.
 
 The **axisymmetric sandwich spring** has the same parameters, but its script `sandwich_spring_2d.py` makes the section of the discs and the sheets in the xy-plane: x is the axis, y the radius (*cells* along the radius). The first sheet (`x == min`) is pressed by 4 mm along the axis against the fixed last sheet; the axis is a symmetry plane `y = 0`. The force of the curve is the total over the circumference. The **plate with a hole** is a quarter of a square hyperelastic plate in plane strain, made by `plate_with_hole.py` from the radius of the hole, the half width and the fineness; the symmetry planes `x = 0` and `y = 0` and a pull of the end by 8 mm load it, and the contour of the largest principal stress shows the concentration at the top of the hole. Its force is per unit thickness.
 
@@ -98,6 +98,8 @@ A **Parameter** (*Mesh* tab, next to *Model settings*) is a named number of the 
 A number of an object may be an **expression** of the parameters instead, e.g. `0.5 * layers * height` for the end of a ramp, `sheet + layers * (height + sheet)` for the coordinate of a point set or `2 * cells` for the increments: numbers, the names of the parameters, `pi`, `+ - * /`, `**` for a power, parentheses and the functions `sqrt`, `exp`, `log`, `sin`, `cos`, `tan` (radians), `abs`, `min` and `max`. Type it into the field (a leading `=` is fine); the field shows its value below it, e.g. *= 12 mm*. A list of numbers takes expressions separated by commas, e.g. `0, 0, height`. A typo or a value out of range is an issue, e.g. *'layer' is not a parameter in '0.5 * layer * height'*. The browser and the script show the expression as written, e.g. `fem.math.linsteps([0, (0.5 * layers * height)], num=(2 * cells))`, so the model and its script follow a changed parameter: the point sets, the arrows and the ramps move with it. Renaming a parameter renames it in the expressions; deleting it leaves them as issues. The dialog of the parameters says which objects use a parameter, and warns of the problems of the expressions with the new values, e.g. too few increments.
 
 ![The parameters of the sample "Sandwich spring with parameters" when it is opened: the values with their units and sliders, and the scripts that make the meshes](images/parameters.png)
+
+![The step of the shear of the sandwich spring: the increments 2 * cells = 8 and the end of the ramp 0.5 * layers * height = 12 mm, expressions of the parameters](images/expressions.png)
 
 ### 1. Mesh
 
@@ -213,7 +215,12 @@ The **Export** menu has
 
 ## Python on your computer
 
-The app on GitHub Pages runs Python in the browser (Pyodide). For large models, or for mesh scripts that need packages of your own (e.g. gmsh), the same app runs with the Python of your computer instead, with native NumPy and SciPy on several threads and the memory of the computer (#240):
+The app on GitHub Pages runs Python in the browser (Pyodide). For large models, or for mesh scripts that need packages of your own (e.g. gmsh), the same app runs with the Python of your computer instead, with native NumPy and SciPy on several threads and the memory of the computer (#240).
+
+When to use which:
+
+- **In the browser:** nothing to install, also on a phone or a tablet. A tab has at most about 4 GB of memory (32-bit WebAssembly) and one thread, so a model with a few ten thousand degrees of freedom is the practical limit; single precision (see Building a model) extends it. Mesh scripts use the packages of Pyodide (NumPy, SciPy, FElupe, meshio) and run in the sandbox of the browser.
+- **On your computer:** native speed on several threads, the memory of the computer, mesh scripts with any package of your Python, and an AI agent on the open model (`--agent`). It needs Python 3.11 or later.
 
 ```bash
 pip install "felupe-studio[serve]"
@@ -227,6 +234,8 @@ It prints a link like `http://127.0.0.1:8765/?token=…` and opens it in your br
 - Projects are saved and opened through the browser, as in the web app. The session of the tab (the project and its mesh files) belongs to the address, e.g. `127.0.0.1:8765`, so it is not that of the web app on GitHub Pages.
 - From a clone of the repository: `pip install -e ".[serve]"`, `npm run build` in `app/`, then `felupe-studio serve`.
 - **An AI agent on the open model:** `felupe-studio serve --agent` (with `felupe-studio[serve,mcp]`) prints how to add it to an agent, e.g. Claude Code; *Help ▸ Connect an agent* connects the tab. The agent's changes are steps of the history that you can undo, it sees your selection and a picture of the view, and it solves with the live results of the app. A mesh script of the agent runs only after you agree (*Run it*). See [AI agents](agents.md#the-open-app-felupe-studio-serve---agent).
+
+![An agent on the open app: it opened a sample, added the parameter n and wrote a mesh script, which the user reads before it runs; the status bar says Agent connected](images/agent.png)
 
 ## Keyboard shortcuts
 
@@ -277,6 +286,14 @@ The sample *Hyperelastic block with a rigid plate* glues the top face of a hyper
 
 **Solve** and open the results: the top face stays plane, moves with the plate and tilts with it. The curve is the force of the plate in x over its displacement; the control points show the reaction force at `plate` and the moment about y at `tilt`. Compare your model with the sample: the project files have the same commands. Finally, **File ▸ Save project as…** saves it as a *project archive* with its mesh file, e.g. `glued-plate.felupe.zip`, to open it again in one step.
 
-## Limits of version 0.5
+## Limits of version 0.6
 
-FElupe Studio has no meshing from CAD (meshes come from files or from Python scripts), no contact between two deformable bodies or of a body with itself (contacts are of points with rigid planes and cylinders) and no server: Python runs in the browser, or on your computer with `felupe-studio serve`, and the MCP server for AI agents runs headless on your computer, without a connection to the open app. The boundaries of a model are the same in all steps; a step only ramps values. A parameter is a number, not an expression of other parameters. 2D models are plane strain or axisymmetric, not plane stress. The plasticity is von Mises plasticity with linear isotropic hardening; there are no user-defined materials yet. On a touch screen, single faces and further nodes need Shift (a keyboard). See the [roadmap](https://github.com/adtzlr/felupe-studio/issues/243).
+FElupe Studio has no meshing from CAD: meshes come from files or from Python scripts. It has no contact between two deformable bodies or of a body with itself; contacts are of points with rigid planes and cylinders.
+
+There is no server on the internet. Python runs in the browser, or on your computer with `felupe-studio serve`. An AI agent works headless with the MCP server, or with `felupe-studio serve --agent` on the model that is open in a tab on your computer.
+
+The boundaries of a model are the same in all steps; a step only ramps values. A parameter is a number; the numbers of the objects may be expressions of the parameters, but not of other objects. 2D models are plane strain or axisymmetric, not plane stress.
+
+The plasticity is von Mises plasticity with linear isotropic hardening, and there are no user-defined materials yet. The accuracy of a model in single precision depends on the model: the job panel estimates it, and an elastic-plastic material keeps the linear system in double precision.
+
+See the [roadmap](https://github.com/adtzlr/felupe-studio/issues/272).

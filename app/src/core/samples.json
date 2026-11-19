@@ -68,10 +68,11 @@
   {
     "id": "sandwich-spring",
     "title": "Sandwich spring with parameters",
-    "description": "Hyperelastic discs between steel sheets, sheared by the top sheet. A Python script makes the mesh from the radius, the number and the height of the layers, the thickness of the sheets and the fineness.",
+    "description": "Hyperelastic discs between steel sheets, sheared by the top sheet. A Python script makes the mesh from the radius, the number and the height of the layers, the thickness of the sheets and the fineness; the shear and the increments are expressions of the parameters.",
     "topics": [
       "parameters",
       "mesh script",
+      "expressions",
       "point sets at bounds",
       "shear"
     ],

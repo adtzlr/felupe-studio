@@ -12,12 +12,21 @@ plate*, solves it with Python in the browser (the first start downloads Pyodide)
 writes small PNGs to ``docs/images``: the model, the results and a pressure on a face
 set. Then it opens three samples of version 0.4: the parameters of the sandwich
 spring (the dialog when it is opened), the results of the plate with a hole (a 2D
-model) and of the spring with end stops (contact), and two of version 0.5: the engine
+model) and of the spring with end stops (contact), two of version 0.5: the engine
 mount (FElupe ex07, air as a third medium) with the stresses at the points and the
-elastic-plastic plate with a hole (the equivalent plastic strain).
+elastic-plastic plate with a hole (the equivalent plastic strain), and one of
+version 0.6: the expressions of the step of the sandwich spring.
 
 The app loads Pyodide and its packages from the CDN (cdn.jsdelivr.net): the script
 needs it, a stub of the runtime would not show the real versions and load times.
+``--pyodide <folder>`` serves them from a folder instead, e.g. ``pyodide/`` of the
+release ``pyodide-<version>.tar.bz2`` of Pyodide on GitHub (the version of
+``app/package.json``; numpy, scipy, rich and libopenblas are enough), if the CDN is
+not reachable.
+
+With ``felupe-studio[serve,mcp]`` installed, it also makes the picture of an agent
+on the open app (``felupe-studio serve --agent``, version 0.6): the agent opened a
+sample and wrote a mesh script, which the user reads before it runs.
 """
 
 import argparse
@@ -184,6 +193,19 @@ def capture(context, url, out):
     page.get_by_label("Curve", exact=True).set_checked(True)
     shot("engine-mount")
 
+    # v0.6: the expressions of the parameters in the step of the sandwich spring: the
+    # shear is half of the height of the soft layers, the increments two per cell
+    open_sample("Sandwich spring with parameters", "sandwich-spring.felupe.zip")
+    page.get_by_role("dialog", name=re.compile("^Parameters")).get_by_role(
+        "button", name="Open", exact=True
+    ).click()
+    page.wait_for_selector("text=sandwich-spring.felupe.zip")
+    page.get_by_role("button", name="Model", exact=True).click()
+    browser = page.get_by_role("navigation", name="Model browser")
+    browser.get_by_text("shearing", exact=True).click()
+    page.get_by_text("= 12 mm").first.wait_for()
+    shot("expressions")
+
     # v0.5: plasticity, the elastic-plastic plate with a hole back at the start: the
     # equivalent plastic strain and the curve of the loading and the unloading
     open_sample("Elastic-plastic plate with a hole", "plastic-plate.felupe.zip")
@@ -204,11 +226,124 @@ def capture(context, url, out):
         raise RuntimeError(f"Errors of the page: {errors}")
 
 
+def capture_agent(browser, dist, out, port):
+    """An agent on the open app (v0.6): ``felupe-studio serve --agent`` with the
+    built app, a tab connected by *Help ▸ Connect an agent*, and an MCP client as the
+    agent, which opens a sample and writes a mesh script; the picture shows the
+    script that the user reads before it runs."""
+    try:
+        import asyncio
+        import subprocess
+        import sys
+
+        import httpx2
+        from mcp import Client
+        from mcp.client.streamable_http import streamable_http_client
+    except ImportError:
+        print("agent.png: skipped, needs felupe-studio[serve,mcp]")
+        return
+
+    token = "screenshot-token"
+    code = (
+        "from felupe_studio.serve import serve; "
+        f"serve(port={port}, app={str(dist)!r}, browser=False, token={token!r}, "
+        "agent=True)"
+    )
+    # the log of the server (e.g. the disconnect of the tab at the end) is not needed
+    server = subprocess.Popen(
+        [sys.executable, "-c", code],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+    )
+    script = (
+        '"""A block of the hyperelastic block sample, n cells per edge."""\n'
+        "import felupe as fem\n\n"
+        "mesh = fem.Cube(b=(40, 40, 20), n=(n + 1, n + 1, n // 2 + 1))\n"
+    )
+
+    async def steps():
+        headers = {"Authorization": f"Bearer {token}"}
+        async with httpx2.AsyncClient(headers=headers, timeout=300) as http:
+            url = f"http://127.0.0.1:{port}/mcp"
+            async with Client(streamable_http_client(url, http_client=http)) as c:
+                await c.call_tool("open_sample", {"sample": "glued-plate"})
+                parameter = {
+                    "command": "parameter.add",
+                    "name": "n",
+                    "value": 8,
+                    "integer": True,
+                    "description": "Cells per edge of the block",
+                }
+                await c.call_tool("add_command", {"command": parameter})
+                args = {"name": "block.py", "content": script}
+                await c.call_tool("write_file", args)
+
+    try:
+        assert "FElupe Studio runs at" in server.stdout.readline()
+        context = browser.new_context(viewport=SIZE)
+        context.add_init_script(
+            "localStorage.setItem('felupe-studio.tip.pick', 'seen')"
+        )
+        page = context.new_page()
+        page.goto(f"http://127.0.0.1:{port}/?token={token}")
+        page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
+        page.get_by_role("button", name="Help", exact=True).click()
+        page.get_by_role("menuitem", name="Connect an agent").click()
+        page.get_by_text("Agent connected").wait_for(timeout=10_000)
+
+        # the agent waits for the user, so it runs beside Playwright
+        thread = threading.Thread(target=lambda: asyncio.run(steps()))
+        thread.start()
+        consent = page.get_by_role("dialog", name="A mesh script of the agent")
+        consent.wait_for(timeout=60_000)
+        consent.get_by_role("button", name="Show the script").click()
+        page.wait_for_timeout(800)
+        path = out / "agent.png"
+        page.screenshot(path=str(path))
+        shrink(path)
+        print(f"{path.relative_to(ROOT)}: {path.stat().st_size // 1024} kB")
+        consent.get_by_role("button", name="Run it", exact=True).click()
+        thread.join(60)
+        context.close()
+    finally:
+        server.terminate()
+        server.wait()
+
+
+def route_pyodide(context, folder):
+    """Serve the files of Pyodide of the CDN from a folder."""
+    types = {
+        ".mjs": "text/javascript",
+        ".js": "text/javascript",
+        ".wasm": "application/wasm",
+        ".json": "application/json",
+    }
+
+    def fulfill(route):
+        name = route.request.url.split("/full/")[1].split("?")[0]
+        path = folder / name
+        if not path.is_file():
+            return route.fulfill(status=404)
+        route.fulfill(
+            body=path.read_bytes(),
+            headers={
+                "content-type": types.get(path.suffix, "application/octet-stream"),
+                "access-control-allow-origin": "*",
+            },
+        )
+
+    context.route("https://cdn.jsdelivr.net/pyodide/**", fulfill)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--dist", type=Path, default=ROOT / "app" / "dist")
     parser.add_argument("--out", type=Path, default=ROOT / "docs" / "images")
     parser.add_argument("--port", type=int, default=8765)
+    parser.add_argument(
+        "--pyodide", type=Path, help="a folder with the files of Pyodide of the CDN"
+    )
     args = parser.parse_args()
 
     from playwright.sync_api import sync_playwright
@@ -227,7 +362,10 @@ def main():
                 args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"]
             )
             context = browser.new_context(viewport=SIZE, service_workers="block")
+            if args.pyodide:
+                route_pyodide(context, args.pyodide)
             capture(context, f"http://127.0.0.1:{args.port}/index.html", args.out)
+            capture_agent(browser, args.dist, args.out, args.port + 1)
             browser.close()
     finally:
         server.shutdown()
