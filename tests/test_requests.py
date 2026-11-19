@@ -139,6 +139,30 @@ def test_scripts_make_meshes(answers, tmp_path, monkeypatch):
     assert "traceback" in broken["info"]
 
 
+def test_tools_make_meshes(answers):
+    # the meshes of the tools of FElupe (ADR 0019): the commands of the tools with
+    # the values of their expressions; a line is a construction mesh with its lines
+    line = {"command": "mesh.generate", "name": "edge", "tool": "Line"}
+    request = {
+        "type": "generate-mesh",
+        "id": 1,
+        "commands": [{**line, "parameters": {"a": 0, "b": 2, "n": 5}}],
+        "name": "edge",
+    }
+    [info] = answers(request)
+    assert info["info"]["dimension"] == {"points": 1, "cells": 1, "cell_type": "line"}
+    assert info["info"]["solids"] == []
+    assert list(info["surfaces"]) == ["line"]
+    cube = {"command": "mesh.generate", "name": "block", "tool": "Cube"}
+    parameters = {"a": [0, 0, 0], "b": [2, 1, 1], "n": [3, 2, 2]}
+    [info] = answers(
+        {**request, "commands": [{**cube, "parameters": parameters}], "name": "block"}
+    )
+    [solid] = info["info"]["solids"]
+    assert solid["cell_type"] == "hexahedron" and solid["cells"] == 2
+    assert solid["bounds"] == [[0, 0, 0], [2, 1, 1]]
+
+
 def test_both_paths_give_the_same_messages(tmp_path, monkeypatch):
     """The worker and the local runtime get the same messages, bytes included."""
     monkeypatch.chdir(tmp_path)

@@ -22,6 +22,8 @@ export interface MeshLayer {
   /** Cells that are not drawn (non-zero), one entry per cell. */
   hidden?: ArrayLike<number>;
   opacity?: number;
+  /** The color of the edges, e.g. of the lines of a construction mesh (ADR 0019). */
+  edgeColor?: string;
 }
 
 export interface CellGroup {
@@ -222,7 +224,11 @@ export function meshObjects(layer: MeshLayer): SurfaceObject[] {
     ? visibleEdges(layer.surface, parts)
     : layer.surface.edges;
   if (edgeList.length === 0) return objects;
-  const edges = { edges: u4(edgeList), edgeColor: EDGE_COLOR, lineWidth: 1 };
+  const edges = {
+    edges: u4(edgeList),
+    edgeColor: layer.edgeColor ?? EDGE_COLOR,
+    lineWidth: 1,
+  };
   if (objects.length > 0) Object.assign(objects[0], edges);
   else
     objects.push({

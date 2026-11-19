@@ -44,6 +44,9 @@ export const EXTREME_COLORS = { min: "#8ab4ff", max: "#ff8a80" } as const;
 /** Color of point markers and arrows (boundaries and loads). */
 export const MARKER_COLOR = "#f5a524";
 
+/** The construction meshes of the mesh tools (ADR 0019): inputs, not the model. */
+export const CONSTRUCTION = "#9aa4b2";
+
 /** The categorical color of the object at a position of the model. */
 export function categorical(index: number): string {
   return CATEGORICAL[index] ?? OTHER;

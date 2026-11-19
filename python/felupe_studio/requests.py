@@ -65,6 +65,16 @@ def _make_mesh(request, send):
     _mesh_info(request, send, result)
 
 
+def _generate_mesh(request, send):
+    from . import meshes
+
+    # the resolved commands of the tools that make the mesh (ADR 0019)
+    commands = request["commands"]
+    if not isinstance(commands, str):
+        commands = json.dumps(commands)
+    _mesh_info(request, send, meshes.generate_json(commands, request["name"]))
+
+
 def _run(request, send):
     from . import runner
 
@@ -169,6 +179,7 @@ HANDLERS = {
     "write-file": _write_file,
     "inspect-mesh": _inspect_mesh,
     "make-mesh": _make_mesh,
+    "generate-mesh": _generate_mesh,
     "run": _run,
     "script": _script,
     "script-view": _script,

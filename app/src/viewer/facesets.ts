@@ -15,7 +15,12 @@ import type {
 } from "../core/resolved";
 import { CELLS_2D } from "../core/analysis";
 import { toName } from "../core/importmesh";
-import { isMesh, type MeshFiles, meshStatus } from "../core/meshfiles";
+import {
+  cellTypeOf,
+  isMeshObject,
+  type MeshFiles,
+  meshStatus,
+} from "../core/meshfiles";
 import { solidOf } from "../core/meshinfo";
 import type { MeshSurface } from "../worker/protocol";
 import { cellMask } from "./layers";
@@ -23,7 +28,10 @@ import type { Vec3 } from "./picking";
 import { ATOL, AXES, isClose } from "./pointsets";
 
 /** A mesh object with the values of its expressions (#242). */
-type MeshCommand = Extract<Command, { command: "mesh.import" | "mesh.script" }>;
+type MeshCommand = Extract<
+  Command,
+  { command: "mesh.import" | "mesh.script" | "mesh.generate" }
+>;
 
 export interface Face {
   /** The triangles of the face in the surface of its mesh (none of a side). */
@@ -334,12 +342,12 @@ function sectionSource(
       (c.command === "cellset.from_tag" || c.command === "cellset.from_file"),
   );
   const mesh = commands.find(
-    (c): c is MeshCommand => c.name === set?.mesh && isMesh(c),
+    (c): c is MeshCommand => c.name === set?.mesh && isMeshObject(c),
   );
   if (!set || !mesh) return undefined;
   const status = meshStatus(mesh, commands, files);
   if (status?.state !== "ready") return undefined;
-  const choice = solidOf(status.info, mesh.cell_type);
+  const choice = solidOf(status.info, cellTypeOf(mesh));
   const cellType = "solid" in choice ? choice.solid.cell_type : undefined;
   const raw = cellType ? status.surfaces[cellType] : undefined;
   if (!cellType || !raw) return undefined;
@@ -365,7 +373,8 @@ export function sectionFaces(
     const source = sectionSource(sec, commands, files);
     if (!source) continue;
     const { set, mesh, cellType, raw, mask, scale } = source;
-    const key = `${sec.name}/${set.command}/${set.command === "cellset.from_tag" ? set.value : ""}/${mesh.tag ?? ""}/${scale ?? 1}`;
+    const tag = mesh.command === "mesh.generate" ? "" : (mesh.tag ?? "");
+    const key = `${sec.name}/${set.command}/${set.command === "cellset.from_tag" ? set.value : ""}/${tag}/${scale ?? 1}`;
     let cached = CACHE.get(raw);
     if (!cached) CACHE.set(raw, (cached = new Map()));
     let faces = cached.get(key);

@@ -8,7 +8,7 @@ import felupe as fem
 import numpy as np
 import pytest
 
-from felupe_studio import checks, codegen, meshtools
+from felupe_studio import checks, codegen, meshes, meshtools
 from felupe_studio.commands import errors
 from felupe_studio.expressions import resolve
 
@@ -86,3 +86,34 @@ def test_a_cube_made_by_a_tool_is_checked_like_a_file(tmp_path):
     assert report["ok"]
     assert report["cells"]["total"] == 8
     assert report["cells"]["unassigned"] == []
+
+
+@pytest.mark.parametrize(
+    ("tool", "parameters", "surface", "triangles"),
+    [
+        ("Point", {"a": 1}, "vertex", 0),
+        ("Line", {"a": 0, "b": 2, "n": 5}, "line", 0),
+        ("Rectangle", {"a": [0, 0], "b": [2, 1], "n": [3, 2]}, "quad", 4),
+        ("Cube", {"a": [0, 0, 0], "b": [2, 1, 1], "n": [3, 2, 2]}, "hexahedron", 20),
+    ],
+)
+def test_the_meshes_of_the_worker(tool, parameters, surface, triangles):
+    # summarized for the app with their dimension: meshes of 2D and 3D cells like a
+    # mesh file, lines and vertices with their lines for the viewer (ADR 0019)
+    info, surfaces = meshes.generate([made(tool, **parameters)], "mesh")
+    info = json.loads(info)
+    assert info["dimension"]["cell_type"] == surface
+    assert list(surfaces) == [surface]
+    assert len(surfaces[surface]["triangles"]) // 12 == triangles
+    lines = len(surfaces[surface]["edges"]) // 8
+    if tool == "Line":
+        assert lines == 4
+    if tool == "Point":
+        assert lines == 0 and info["points"] == 1
+
+
+def test_an_error_of_felupe_is_the_state_of_the_mesh():
+    # e.g. a number of points that is not an integer, which the validation reports
+    cube = made("Cube", a=[0, 0, 0], b=[1, 1, 1], n=[2.5, 2, 2])
+    info, surfaces = meshes.generate([cube], "mesh")
+    assert "Error" in json.loads(info)["error"] and surfaces == {}

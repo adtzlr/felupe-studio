@@ -205,6 +205,43 @@ def make(filename, parameters, item=None):
     return json.dumps(info), surfaces
 
 
+def generate(commands, name):
+    """:func:`load` of a mesh made by the tools of FElupe (ADR 0019): the mesh
+    ``name`` of the resolved commands of the tools that make it (with the values of
+    their expressions), made with the lines of the script. A mesh of 2D or 3D cells
+    is summarized like a mesh file, a mesh of lines or vertices (a construction mesh)
+    by its points and cells, with the lines for the viewer. The summary has the
+    ``dimension`` of the mesh; an error of FElupe is its ``error``."""
+    from . import meshtools
+    from .scene import wire
+
+    result = {"file": name}
+    try:
+        mesh = meshtools.generate(commands)[name]
+    except Exception as error:
+        result["error"] = f"{type(error).__name__}: {error}"
+        return json.dumps(result), {}
+    dimension = meshtools.dimensions(commands)[name]
+    if dimension["cells"] < 2:
+        result.update(
+            points=int(mesh.npoints),
+            blocks=[{"type": mesh.cell_type, "cells": int(mesh.ncells)}],
+            solids=[],
+            dimension=dimension,
+        )
+        return json.dumps(result), {mesh.cell_type: wire(mesh)}
+    made = meshio.Mesh(mesh.points, [(mesh.cell_type, mesh.cells)])
+    info, solids = _summary(made, result)
+    info["dimension"] = dimension
+    surfaces = {t: surface(solid, tags) for t, (solid, tags) in solids.items()}
+    return json.dumps(info), surfaces
+
+
+def generate_json(commands, name):
+    """:func:`generate` with the commands as JSON text, for the worker."""
+    return generate(json.loads(commands), name)
+
+
 def make_json(filename, parameters, item=None):
     """:func:`make` with the parameters as JSON text, for the worker. An item that is
     not a name is no item: JavaScript's null arrives as ``pyodide.ffi.jsnull``, not as

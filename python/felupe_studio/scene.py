@@ -45,6 +45,29 @@ def regions(cells, tags):
     return np.unique(keys, axis=0, return_inverse=True)[1].ravel()
 
 
+def wire(mesh):
+    """The points and the lines of a mesh of lines or of vertices for the viewer, like
+    :func:`surface` without triangles: the line cells are its edges. These are the
+    construction meshes of the mesh tools, e.g. a line (ADR 0019)."""
+    points = np.asarray(mesh.points, dtype=float).reshape(len(mesh.points), -1)
+    points = np.pad(points, ((0, 0), (0, 3 - points.shape[1])))
+    cells = np.asarray(mesh.cells)
+    edges = cells[:, :2] if mesh.cell_type == "line" else np.zeros((0, 2))
+    return {
+        "positions": _bytes(points, "<f4"),
+        "triangles": _bytes(np.zeros((0, 3)), "<u4"),
+        "faces": None,
+        "curved": None,
+        "edges": _bytes(edges, "<u4"),
+        "owners": _bytes(np.zeros(0), "<u4"),
+        "isnode": _bytes(np.ones(len(points)), "u1"),
+        "corners": None,
+        "tags": {},
+        "nodes": _bytes(points, "<f8"),
+        "cells": len(cells),
+    }
+
+
 def surface(solid, tags=None):
     """Triangulate the outer surface of the solid cells of a mesh, region by region.
 
