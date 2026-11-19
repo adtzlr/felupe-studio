@@ -51,6 +51,39 @@ pytest tests/golden --update-golden
 
 A new case is a new folder with a `commands.json` and its mesh files; run the command above once to create `script.py` and `results.json`. A case that is compared with a converged reference (an analytical solution or `fem.ViewMaterialIncompressible`) sets FElupe's tight tolerance `"tol": 1.49e-8` at its job; the others use the default of the app, 0.01.
 
+## Brands
+
+A build of the app has a brand (ADR 0020): a folder with a `brand.json`, given with `BRAND_DIR`. Without it, the build takes the default brand `app/brand/`, which is FElupe Studio itself.
+
+```bash
+cd app && BRAND_DIR=~/my-brand npm run build   # or npm run dev
+```
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/adtzlr/felupe-studio/main/app/src/vite/brand.schema.json",
+  "brand_version": 1,
+  "name": "ACME FEM",
+  "short_name": "ACME",
+  "accent": "#e8590c",
+  "welcome": "Simulate the rubber parts of ACME.",
+  "links": {
+    "help": "https://fem.acme.example/help",
+    "issues": "mailto:fem@acme.example",
+    "source": "https://gitlab.acme.example/fem/brand"
+  },
+  "samples": "samples",
+  "defaults": { "units": { "length": "mm", "force": "N" } }
+}
+```
+
+- `name`, `short_name` and the links `help`, `issues` and `source` are required: a brand inherits no identity of FElupe Studio. `documentation` (*Help ▸ Command reference*) and `tutorial` (the welcome panel) are optional.
+- `accent` is the accent color of the app; without it, that of FElupe Studio. `welcome` is the text below the title of the welcome panel.
+- `samples` is the folder of the samples of the brand, relative to the brand folder (see *Samples*); without it, the brand has no samples. `SAMPLES_DIR` beside `BRAND_DIR` is an error, so the brand folder is the whole configuration of a deployment.
+- `defaults.units` are the units of the model settings of a new model.
+- The schema `app/src/vite/brand.schema.json` checks the file, and an invalid brand fails the build with a message that starts with *The brand of &lt;folder&gt;:*.
+- The build writes the brand into `index.html`: the title, the accent color and a JSON block (`<script type="application/json" id="brand">`), which the app reads (`app/src/brand.ts`). *Help ▸ About* of a brand says that it is based on FElupe Studio and its version, with the license of FElupe Studio and the source of the brand.
+
 ## Samples
 
 The samples are a folder of samples, `app/samples` (#350). Every sample is a folder that describes itself, and the prefix of its name gives the order:
@@ -71,7 +104,7 @@ samples/
 - **The files** of a sample are those of its project file (`mesh.import`, `mesh.script`), and they must be in its folder. A sample without `thumbnail.svg` shows a neutral placeholder.
 - The upstream samples are made by `app/scripts/make_samples.py` (units: mm, N, MPa), also their `sample.json` and their pictures; run it from the repository root after a change and commit the files.
 
-**Other samples in a build:** `SAMPLES_DIR` builds the app with another folder of samples instead of `app/samples`, e.g. with private ones, without changing the repository:
+**Other samples in a build:** `SAMPLES_DIR` builds the app of the default brand with another folder of samples instead of `app/samples` (a brand gives its folder in its `brand.json`), e.g. with private ones, without changing the repository:
 
 ```bash
 cd app && SAMPLES_DIR=~/my-samples npm run build   # or npm run dev

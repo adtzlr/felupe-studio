@@ -1,0 +1,15 @@
+{
+  "$schema": "../src/vite/brand.schema.json",
+  "brand_version": 1,
+  "name": "FElupe Studio",
+  "short_name": "FElupe Studio",
+  "welcome": "Build models of hyperelastic solids from mesh files and solve them with FElupe.",
+  "links": {
+    "help": "https://github.com/adtzlr/felupe-studio/blob/main/docs/guide.md",
+    "documentation": "https://github.com/adtzlr/felupe-studio/blob/main/docs/reference.md",
+    "tutorial": "https://github.com/adtzlr/felupe-studio/blob/main/docs/guide.md#tutorial-a-hyperelastic-block-with-a-rigid-plate",
+    "issues": "https://github.com/adtzlr/felupe-studio/issues/new",
+    "source": "https://github.com/adtzlr/felupe-studio"
+  },
+  "samples": "../samples"
+}

@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/adtzlr/felupe-studio/brand.schema.json",
+  "title": "Brand",
+  "description": "A brand of FElupe Studio (ADR 0020): the brand.json of a brand folder, given at build time with BRAND_DIR. The default brand is app/brand.",
+  "type": "object",
+  "required": ["brand_version", "name", "short_name", "links"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "description": "The JSON schema of the file, for editors.",
+      "type": "string"
+    },
+    "brand_version": {
+      "description": "The version of this schema. An addition keeps it; a change that is not additive raises it.",
+      "const": 1
+    },
+    "name": {
+      "description": "The name of the app: the title of the page, the header, the welcome panel and the texts of the app.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 60
+    },
+    "short_name": {
+      "description": "A short name, e.g. below the icon of an installed app.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 24
+    },
+    "accent": {
+      "description": "The accent color of the app, e.g. of buttons and selections, as #rrggbb; without it, the color of FElupe Studio.",
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$"
+    },
+    "welcome": {
+      "description": "The text below the title of the welcome panel.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 400
+    },
+    "links": {
+      "description": "The links of the app. help, issues and source are required: a brand inherits no links of FElupe Studio.",
+      "type": "object",
+      "required": ["help", "issues", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "help": {
+          "description": "Help ▸ User guide and the welcome panel.",
+          "$ref": "#/$defs/Link"
+        },
+        "documentation": {
+          "description": "Help ▸ Command reference; without it, no item.",
+          "$ref": "#/$defs/Link"
+        },
+        "tutorial": {
+          "description": "The tutorial of the welcome panel; without it, no link.",
+          "$ref": "#/$defs/Link"
+        },
+        "issues": {
+          "description": "Help ▸ Report an issue.",
+          "$ref": "#/$defs/Link"
+        },
+        "source": {
+          "description": "The source of the deployed version (the GPL asks for it): Help ▸ About ▸ Source code.",
+          "$ref": "#/$defs/Link"
+        }
+      }
+    },
+    "samples": {
+      "description": "The folder of the samples of the brand (#350), relative to the brand folder; without it, the brand has no samples.",
+      "type": "string",
+      "minLength": 1
+    },
+    "defaults": {
+      "description": "Defaults of the brand.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "units": {
+          "description": "The units of the model settings of a new model (#132).",
+          "type": "object",
+          "required": ["length", "force"],
+          "additionalProperties": false,
+          "properties": {
+            "length": { "enum": ["mm", "m"] },
+            "force": { "enum": ["N", "kN"] }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "Link": {
+      "type": "string",
+      "pattern": "^(https?://|mailto:)"
+    }
+  }
+}

@@ -1,6 +1,7 @@
 // Registry of labels, hints and defaults for the commands. The structure of a form
 // (fields, types, ranges, variants) comes from the command schema, see form.ts; this
 // file only adds what the schema does not know.
+import { BRAND } from "../app";
 import { analysisOf, is2d } from "./analysis";
 import type { Command } from "./commands";
 import { needsBulk } from "./materials";
@@ -49,6 +50,12 @@ export interface CommandInfo {
 }
 
 /** The components x and y of a 2D model (#175), instead of all three. */
+/** New model settings take the units of the brand, if it has some (ADR 0020). */
+function brandUnits(draft: Record<string, unknown>): Record<string, unknown> {
+  const units = BRAND.defaults?.units;
+  return units && draft.units === undefined ? { ...draft, units } : draft;
+}
+
 function planar(
   draft: Record<string, unknown>,
   commands: readonly Command[],
@@ -489,6 +496,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     tab: "mesh",
     prefix: "settings",
     single: true,
+    initial: brandUnits,
     fields: {
       // the type of the model (#175): 3D, or 2D in the xy-plane
       analysis: {

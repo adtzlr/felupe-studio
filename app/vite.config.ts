@@ -1,5 +1,7 @@
 import { defineConfig } from "vitest/config";
 import pkg from "./package.json" with { type: "json" };
+import { fileURLToPath } from "node:url";
+import { brand, brandOptions, pageBrand } from "./src/vite/brand";
 import { samples } from "./src/vite/samples";
 
 // pure-Python wheels served from public/wheels (#40); the FElupe version must match
@@ -19,6 +21,12 @@ const LAZY_WHEELS = Object.fromEntries(
 );
 const FELUPE_VERSION = pkg.config.wheels.felupe.version;
 
+// the brand of the build (ADR 0020): BRAND_DIR, else app/brand (FElupe Studio)
+const BRAND = brandOptions(
+  process.env,
+  fileURLToPath(new URL(".", import.meta.url)),
+);
+
 // the build, e.g. the commit on GitHub Pages; written to version.json, so that an
 // open app finds out about a newer deployment
 const BUILD_ID =
@@ -34,10 +42,12 @@ export default defineConfig({
     __WHEELS__: JSON.stringify(WHEELS),
     __LAZY_WHEELS__: JSON.stringify(LAZY_WHEELS),
     __BUILD_ID__: JSON.stringify(BUILD_ID),
+    __BRAND__: JSON.stringify(pageBrand(BRAND.brand)),
   },
   plugins: [
-    // the folder of samples: app/samples, or SAMPLES_DIR=~/my-samples (#350)
-    samples(),
+    // the brand in the pages (ADR 0020), and its samples or SAMPLES_DIR (#350)
+    brand(BRAND.brand),
+    samples(BRAND.samples),
     {
       name: "version-file",
       apply: "build",
