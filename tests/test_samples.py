@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 
 from felupe_studio.commands import errors
+from felupe_studio.expressions import resolve
 from felupe_studio.project import dumps, loads
 from felupe_studio.runner import run
 
@@ -47,8 +48,10 @@ def test_sample_solves(sample, monkeypatch):
     monkeypatch.chdir(folder)
     results = run(document)
     # every job (the engine mount has two, #241): the substeps of its steps and a
-    # force (the metacone is pushed in -x)
-    steps = {c["name"]: c for c in document["commands"] if c["command"] == "step.add"}
+    # force (the metacone is pushed in -x); the values of expressions (#242), e.g.
+    # the increments of the sandwich spring
+    resolved = resolve(document)[0]["commands"]
+    steps = {c["name"]: c for c in resolved if c["command"] == "step.add"}
     for job in (c for c in document["commands"] if c["command"] == "job.add"):
         result = results[job["name"]]
         num = sum(steps[name]["ramp"]["num"] + 1 for name in job["steps"])
@@ -88,7 +91,9 @@ def test_glued_plate_moves_and_tilts(monkeypatch):
 def test_sandwich_spring_follows_its_parameters(monkeypatch):
     """The sandwich spring (#184) with 3 and 5 soft layers: the same project with
     another value of a parameter. The top follows the height of the stack (z ==
-    max), and the shear stiffness is about G A / (layers height)."""
+    max), and the shear is an expression of the parameters (#242), half of the height
+    of the soft layers: the same shear strain of 0.5 and about the same force, G A /
+    2."""
     folder = APP / "public" / "samples" / "sandwich-spring"
     document = loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
     monkeypatch.chdir(folder)
@@ -99,12 +104,14 @@ def test_sandwich_spring_follows_its_parameters(monkeypatch):
                 c["value"] = layers
         results = run(document)["job"]
         forces[layers] = np.array(results["y"])[-1, 0]
-        assert np.array(results["x"])[-1, 0] == pytest.approx(12)
-    # linear: 0.5 MPa * pi * 50² mm² / (layers * 8 mm) * 12 mm
-    for layers, force in forces.items():
-        linear = 0.5 * np.pi * 50**2 / (layers * 8) * 12
-        assert force == pytest.approx(linear, rel=0.05)
-    assert forces[3] / forces[5] == pytest.approx(5 / 3, rel=0.02)
+        assert np.array(results["x"])[-1, 0] == pytest.approx(0.5 * layers * 8)
+        # 2 * cells increments
+        assert results["substeps"] == 2 * 4 + 1
+    # linear: 0.5 MPa * pi * 50² mm² * 0.5
+    for force in forces.values():
+        assert force == pytest.approx(0.5 * np.pi * 50**2 * 0.5, rel=0.05)
+    # so the spring with 5 layers is softer by 3/5
+    assert forces[3] / forces[5] == pytest.approx(1, rel=0.02)
 
 
 def test_sandwich_spring_compressed_by_guide_z(monkeypatch):

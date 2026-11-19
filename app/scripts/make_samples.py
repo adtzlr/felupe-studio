@@ -75,8 +75,15 @@ SAMPLES = [
         "title": "Sandwich spring with parameters",
         "description": "Hyperelastic discs between steel sheets, sheared by the top "
         "sheet. A Python script makes the mesh from the radius, the number and the "
-        "height of the layers, the thickness of the sheets and the fineness.",
-        "topics": ["parameters", "mesh script", "point sets at bounds", "shear"],
+        "height of the layers, the thickness of the sheets and the fineness; the "
+        "shear and the increments are expressions of the parameters.",
+        "topics": [
+            "parameters",
+            "mesh script",
+            "expressions",
+            "point sets at bounds",
+            "shear",
+        ],
     },
     {
         "id": "sandwich-spring-axisymmetric",
@@ -527,9 +534,11 @@ mesh = {
 
 def sandwich_spring():
     """Hyperelastic discs between steel sheets (#184), made by a script with parameters
-    (#180, #182): the base sheet fixed, the top sheet sheared by 12 mm. The bottom
-    and the top are point sets at the bounds of the meshes (#181), so they follow
-    the number and the height of the layers."""
+    (#180, #182): the base sheet fixed, the top sheet sheared by half of the height of
+    the soft layers (an expression of the parameters, #242: 12 mm, a shear strain of
+    0.5), in two increments per cell of the radius. The bottom and the top are point
+    sets at the bounds of the meshes (#181), so they follow the number and the height
+    of the layers."""
 
     def parameter(name, value, description, **options):
         return {
@@ -670,7 +679,10 @@ def sandwich_spring():
         {
             "command": "step.add",
             "name": "shearing",
-            "ramp": {"num": 8, "items": [{"target": "shear", "end": 12}]},
+            "ramp": {
+                "num": "2 * cells",
+                "items": [{"target": "shear", "end": "0.5 * layers * height"}],
+            },
         },
         {"command": "job.add", "name": "job", "steps": ["shearing"], "curve": "shear"},
     ]

@@ -29,6 +29,7 @@ With real Pyodide, after the deployment of `main` has finished. Use the cases in
 - [ ] Results: the contour settings (color map, bands, range over all substeps), *Min/Max* with its labels, and playing the substeps (Space).
 - [ ] Picking: a click on a face creates a point set of its plane; a second click on the surface excludes it, a third one deselects it, also by taps on a phone or a tablet; with Nodes shown, Shift+click picks nodes and a click on a picked node deselects it; on a phone, a long press picks a single face (a ring shows it) and adds a node; *Control point at center* creates a control point.
 - [ ] Parameters and mesh scripts: *Sandwich spring with parameters* asks for its parameters when it opens; with 5 layers instead of 3 it opens with the higher stack and is softer; *Show* reads the script; *All parameters…* changes them later. An error in a mesh script (e.g. a wrong name) is an issue of the mesh with its traceback.
+- [ ] Expressions of parameters: in the sandwich spring, the step `shearing` shows `2 * cells` (*= 8*) and `0.5 * layers * height` (*End 1 = 12 mm*); with 5 layers the shear is 20 mm, with about the same force. A typo, e.g. `0.5 * layer * height`, is an issue at the field; the script shows the expressions as written. Renaming the parameter `height` renames it in the expression.
 - [ ] 2D models: *Axisymmetric sandwich spring* and *Plate with a hole in plane strain* open onto the xy-plane, solve, and show their results in 2D; the plate shows the concentration of the stress at the hole.
 - [ ] Contact: *Hyperelastic spring with end stops* solves; the point set `outer` highlights the surface, the contact `lower_stop` its points and its plane; in the results the plates move with their reference points and the force rises steeply at the end of the compression.
 - [ ] Strain-based materials: the Materials tab has the menus *Linear elasticity*, *Hyperelasticity* and *Strain-based elasticity*. The golden case `plasticity_cube` (steel pulled beyond its yield stress and unloaded) solves; its curve matches `results.json`, the force goes back to zero at a remaining strain, and the contour *Equivalent plastic strain* is above zero. With the framework *Seth-Hill* the form asks for the *Strain exponent m*.
@@ -40,13 +41,16 @@ With real Pyodide, after the deployment of `main` has finished. Use the cases in
 - [ ] A failing job (a large ramp with few substeps) shows the traceback; with cutback it runs.
 - [ ] Exports: the Python script runs next to the mesh files with FElupe; the XDMF and the VTU open in ParaView; the PNG shows the view with its scalar bar.
 - [ ] Reload: Pyodide and the wheels come from the cache (faster start).
+- [ ] Bytecode cache: `spike.html` twice on a phone; the second load says *Bytecode cache: hit*, and its FElupe step is about half of the first (`docs/benchmarks.md`).
+- [ ] Single precision: *Precision: Single* of the solver of a job (e.g. *Bar of two materials*) gives the curve of double precision. *Precision: Single* of the *Model settings*: the material test solves with a note *round-off … % of the reaction forces*; the sandwich spring warns (*may be 43 %*). `spike.html` runs the three precisions with the same force.
 
 ### Local checks
 
 - [ ] MCP server (CPython): `pip install -e ".[mcp]"` in a clone, and the wheel: `python -m build`, then `tests/check_wheel.py` with the Python of a fresh environment, from another folder (CI does both); `felupe-studio-mcp --help`; added to an agent (e.g. `claude mcp add felupe-studio -- felupe-studio-mcp`), it opens a sample, solves it and saves the project, which opens in the app.
 - [ ] Local runtime: `pip install "felupe-studio[serve]"` from the wheel (or `-e ".[serve]"` and `npm run build` in a clone), `felupe-studio serve` opens the app with *local Python* in the status bar; a sample with a mesh script shows the script first, solves and shows results; *Cancel* of a running job starts a new process; *About* lists the local versions.
+- [ ] Agent bridge: `felupe-studio serve --agent` (with `[serve,mcp]`) prints the command for Claude Code; added, and *Help ▸ Connect an agent* in the tab (*Agent connected*), the agent opens a sample, changes a value and solves with live results; its changes are in the history and undo; a mesh script of the agent asks first (*Show the script*, *Run it*); *Disconnect* ends it. A second tab that connects replaces the first.
 - [ ] Extra samples: `EXTRA_SAMPLES_DIR=<folder> npm run build` (and `npm run dev`) shows them under *More samples*; they open and solve.
-- [ ] Screenshots: `python docs/make_screenshots.py` (with the real Pyodide) makes the images of the guide and the README of this version.
+- [ ] Screenshots: `python docs/make_screenshots.py` (with the real Pyodide; `--pyodide <folder>` if the CDN is not reachable) makes the images of the guide and the README of this version, with `[serve,mcp]` also `agent.png`.
 
 ### The release
 
