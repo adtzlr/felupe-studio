@@ -86,6 +86,7 @@ async function base64(blob: Blob): Promise<string> {
 }
 
 /** The answers of the open model to the tools of an agent. */
+// eslint-disable-next-line max-lines-per-function -- the tools are its nested handlers, each of them small (#313)
 export function agentTools(host: AgentHost): Handler {
   const { store, files } = host;
 

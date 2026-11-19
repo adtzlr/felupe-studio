@@ -11,6 +11,7 @@ import type {
   CellSetFromTag,
   Command,
   FaceSetAdd,
+  SectionAdd,
 } from "../core/resolved";
 import { CELLS_2D } from "../core/analysis";
 import { toName } from "../core/importmesh";
@@ -321,6 +322,33 @@ function compute(
   return { section, mesh, surface, faces, ofTriangle, size };
 }
 
+/** The cell set, the mesh and the surface of the cells of a section, if read. */
+function sectionSource(
+  sec: SectionAdd,
+  commands: readonly Command[],
+  files: MeshFiles,
+) {
+  const set = commands.find(
+    (c): c is CellSetFromTag | CellSetFromFile =>
+      c.name === sec.cellset &&
+      (c.command === "cellset.from_tag" || c.command === "cellset.from_file"),
+  );
+  const mesh = commands.find(
+    (c): c is MeshCommand => c.name === set?.mesh && isMesh(c),
+  );
+  if (!set || !mesh) return undefined;
+  const status = meshStatus(mesh, commands, files);
+  if (status?.state !== "ready") return undefined;
+  const choice = solidOf(status.info, mesh.cell_type);
+  const cellType = "solid" in choice ? choice.solid.cell_type : undefined;
+  const raw = cellType ? status.surfaces[cellType] : undefined;
+  if (!cellType || !raw) return undefined;
+  const mask = cellMask(set, mesh, raw);
+  if (!mask) return undefined;
+  const scale = mesh.command === "mesh.import" ? mesh.scale : undefined;
+  return { set, mesh, cellType, raw, mask, scale };
+}
+
 /**
  * The faces of the boundary of the sections whose mesh file is read, by section.
  * The surfaces are the drawn ones (scaled, from `scaledSurface`), so the triangles
@@ -334,24 +362,9 @@ export function sectionFaces(
   const result = new Map<string, SectionFaces>();
   for (const sec of commands) {
     if (sec.command !== "section.add") continue;
-    const set = commands.find(
-      (c): c is CellSetFromTag | CellSetFromFile =>
-        c.name === sec.cellset &&
-        (c.command === "cellset.from_tag" || c.command === "cellset.from_file"),
-    );
-    const mesh = commands.find(
-      (c): c is MeshCommand => c.name === set?.mesh && isMesh(c),
-    );
-    if (!set || !mesh) continue;
-    const status = meshStatus(mesh, commands, files);
-    if (status?.state !== "ready") continue;
-    const choice = solidOf(status.info, mesh.cell_type);
-    const cellType = "solid" in choice ? choice.solid.cell_type : undefined;
-    const raw = cellType ? status.surfaces[cellType] : undefined;
-    if (!cellType || !raw) continue;
-    const mask = cellMask(set, mesh, raw);
-    if (!mask) continue;
-    const scale = mesh.command === "mesh.import" ? mesh.scale : undefined;
+    const source = sectionSource(sec, commands, files);
+    if (!source) continue;
+    const { set, mesh, cellType, raw, mask, scale } = source;
     const key = `${sec.name}/${set.command}/${set.command === "cellset.from_tag" ? set.value : ""}/${mesh.tag ?? ""}/${scale ?? 1}`;
     let cached = CACHE.get(raw);
     if (!cached) CACHE.set(raw, (cached = new Map()));

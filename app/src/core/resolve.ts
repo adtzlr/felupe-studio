@@ -57,48 +57,65 @@ export interface ExpressionField {
  * `fields()` of felupe_studio.expressions.
  */
 export function expressionFields(command: Command): ExpressionField[] {
-  const result: ExpressionField[] = [];
-  const seen = new Set<string>();
-  const walk = (raw: SchemaNode, instance: unknown, path: Path): void => {
+  const walker = new FieldWalker();
+  walker.walk(
+    { oneOf: (DEFS.Command as { oneOf: SchemaNode[] }).oneOf },
+    command,
+    [],
+  );
+  return walker.result;
+}
+
+/**
+ * The fields of an expression, found by walking the schema along a command, like
+ * `_Fields` of felupe_studio.expressions.
+ */
+class FieldWalker {
+  result: ExpressionField[] = [];
+  private seen = new Set<string>();
+
+  walk(raw: SchemaNode, instance: unknown, path: Path): void {
     const node = definition(raw);
-    for (const key of ["oneOf", "anyOf"] as const)
-      for (const branch of (node[key] ?? []) as SchemaNode[])
-        if (matches(branch, instance)) walk(branch, instance, path);
-    for (const branch of (node.allOf ?? []) as SchemaNode[])
-      walk(branch, instance, path);
-    for (const key of ["then", "else"] as const)
-      if (node[key]) walk(node[key] as SchemaNode, instance, path);
-    const types = node.type;
-    if (typeof instance === "string" && Array.isArray(types)) {
-      if (
-        types.includes("string") &&
-        (types.includes("number") || types.includes("integer"))
-      ) {
-        const id = JSON.stringify(path);
-        if (!seen.has(id)) {
-          seen.add(id);
-          const bounds: ExpressionField["bounds"] = {};
-          for (const key of BOUNDS)
-            if (typeof node[key] === "number") bounds[key] = node[key];
-          result.push({ path, integer: types.includes("integer"), bounds });
-        }
-      }
-      return;
-    }
+    this.branches(node, instance, path);
+    if (this.leaf(node, instance, path)) return;
     if (instance && typeof instance === "object" && !Array.isArray(instance)) {
       const object = instance as Record<string, unknown>;
       for (const [key, child] of Object.entries(
         (node.properties ?? {}) as Record<string, SchemaNode>,
       ))
-        if (key in object) walk(child, object[key], [...path, key]);
+        if (key in object) this.walk(child, object[key], [...path, key]);
     } else if (Array.isArray(instance) && node.items) {
       instance.forEach((item, i) =>
-        walk(node.items as SchemaNode, item, [...path, i]),
+        this.walk(node.items as SchemaNode, item, [...path, i]),
       );
     }
-  };
-  walk({ oneOf: (DEFS.Command as { oneOf: SchemaNode[] }).oneOf }, command, []);
-  return result;
+  }
+
+  /** The branches of a node that may describe the instance. */
+  private branches(node: SchemaNode, instance: unknown, path: Path): void {
+    for (const key of ["oneOf", "anyOf"] as const)
+      for (const branch of (node[key] ?? []) as SchemaNode[])
+        if (matches(branch, instance)) this.walk(branch, instance, path);
+    for (const branch of (node.allOf ?? []) as SchemaNode[])
+      this.walk(branch, instance, path);
+    for (const key of ["then", "else"] as const)
+      if (node[key]) this.walk(node[key] as SchemaNode, instance, path);
+  }
+
+  /** A string where the schema takes types: an expression, if one is a number. */
+  private leaf(node: SchemaNode, instance: unknown, path: Path): boolean {
+    const types = node.type;
+    if (typeof instance !== "string" || !Array.isArray(types)) return false;
+    const numeric = types.includes("number") || types.includes("integer");
+    const id = JSON.stringify(path);
+    if (!types.includes("string") || !numeric || this.seen.has(id)) return true;
+    this.seen.add(id);
+    const bounds: ExpressionField["bounds"] = {};
+    for (const key of BOUNDS)
+      if (typeof node[key] === "number") bounds[key] = node[key];
+    this.result.push({ path, integer: types.includes("integer"), bounds });
+    return true;
+  }
 }
 
 /**

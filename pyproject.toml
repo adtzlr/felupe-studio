@@ -93,4 +93,9 @@ line-length = 88
 src = ["python", "tests"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]
+select = ["E", "F", "I", "UP", "B", "C901"]
+
+# the complexity of a function (#313): a function above it is split, or explains
+# with a noqa why it is not, e.g. the tools of an MCP server as nested functions
+[tool.ruff.lint.mccabe]
+max-complexity = 15

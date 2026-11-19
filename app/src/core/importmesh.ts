@@ -99,6 +99,58 @@ export function suggestScale(
   return undefined;
 }
 
+type Solid = NonNullable<MeshInfo["solids"]>[number];
+type Tag = Solid["tags"][number];
+
+/**
+ * How many cell types each value of the chosen tag has: values of more than one
+ * cell type get the cell type in their names.
+ */
+function tagTypes(solids: readonly Solid[], mode: CellSetMode) {
+  const types = new Map<number, number>();
+  if (mode.mode !== "tag") return types;
+  for (const solid of solids) {
+    const tag = solid.tags.find((t) => t.name === mode.tag);
+    for (const v of tag?.values ?? []) {
+      types.set(v.value, (types.get(v.value) ?? 0) + 1);
+    }
+  }
+  return types;
+}
+
+/** The cell sets of the mesh of a solid: one per tag value, or all its cells. */
+function cellsetsOf(
+  solid: Solid,
+  tag: Tag | undefined,
+  meshName: string,
+  mode: CellSetMode,
+  types: ReadonlyMap<number, number>,
+  take: (text: string, fallback: string) => string,
+): Command[] {
+  if (tag) {
+    const base = tag.name.split(":").pop() ?? "cells";
+    return tag.values.map((v) => {
+      const text = v.label ?? `${base}_${v.value}`;
+      const suffix = (types.get(v.value) ?? 0) > 1 ? `_${solid.cell_type}` : "";
+      return {
+        command: "cellset.from_tag",
+        name: take(`${text}${suffix}`, "cells"),
+        mesh: meshName,
+        value: v.value,
+      };
+    });
+  }
+  // all cells, also if the tag is not offered for the cells of this type
+  if (mode.mode === "none") return [];
+  return [
+    {
+      command: "cellset.from_file",
+      name: take(`${meshName}_cells`, "cells"),
+      mesh: meshName,
+    },
+  ];
+}
+
 /**
  * The commands that import a mesh and create its cell sets (one undo step). With
  * more than one type of solid cells in the file, every mesh takes one cell type and
@@ -123,17 +175,7 @@ export function planImport(
   if (mode.mode === "tag" && !fileTags(info).some((t) => t.name === mode.tag)) {
     throw new Error(`The file has no cell tag '${mode.tag}'.`);
   }
-  // tag values of more than one cell type get the cell type in their names
-  const types = new Map<number, number>();
-  for (const solid of solids) {
-    const tag = solid.tags.find(
-      (t) => mode.mode === "tag" && t.name === mode.tag,
-    );
-    for (const v of tag?.values ?? []) {
-      types.set(v.value, (types.get(v.value) ?? 0) + 1);
-    }
-  }
-
+  const types = tagTypes(solids, mode);
   const plan: Command[] = [];
   for (const solid of solids) {
     const meshName =
@@ -152,28 +194,7 @@ export function planImport(
         : {}),
       ...(scale !== 1 ? { scale } : {}),
     };
-    plan.push(mesh);
-    if (tag) {
-      const base = tag.name.split(":").pop() ?? "cells";
-      for (const v of tag.values) {
-        const text = v.label ?? `${base}_${v.value}`;
-        const suffix =
-          (types.get(v.value) ?? 0) > 1 ? `_${solid.cell_type}` : "";
-        plan.push({
-          command: "cellset.from_tag",
-          name: take(`${text}${suffix}`, "cells"),
-          mesh: meshName,
-          value: v.value,
-        });
-      }
-    } else if (mode.mode !== "none") {
-      // all cells, also if the tag is not offered for the cells of this type
-      plan.push({
-        command: "cellset.from_file",
-        name: take(`${meshName}_cells`, "cells"),
-        mesh: meshName,
-      });
-    }
+    plan.push(mesh, ...cellsetsOf(solid, tag, meshName, mode, types, take));
   }
   return plan;
 }

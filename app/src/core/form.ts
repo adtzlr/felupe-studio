@@ -466,6 +466,20 @@ function variantInput(type: CommandType, key: string, property: Node): Input {
   return { type: "variant", options, seeds };
 }
 
+/**
+ * The texts of a property with a label in the schema (e.g. a material parameter
+ * `μ`): its label, its description as hint, and "none" as placeholder if optional.
+ */
+function schemaTexts(raw: Node | undefined, required: boolean) {
+  const labelled = raw?.["x-label"] !== undefined;
+  return {
+    labelled,
+    label: raw?.["x-label"],
+    hint: labelled ? raw!.description : undefined,
+    placeholder: labelled && !required ? "none" : undefined,
+  };
+}
+
 /** The spec of a field of a command at a path. */
 function specOf(
   type: CommandType,
@@ -477,23 +491,20 @@ function specOf(
 ): FieldSpec {
   const key = path.join(".");
   const field = key === "name" ? { label: "Name" } : info(type, key);
-  // a property with a label in the schema (e.g. a material parameter `μ`) takes
-  // its description as hint, its key as tooltip of the label (#137), and "none"
-  // as placeholder if optional
-  const labelled = raw?.["x-label"] !== undefined;
-  const schemaHint = labelled ? raw!.description : undefined;
+  const schema = schemaTexts(raw, required);
+  const unique = !!field && "unique" in field && !!field.unique;
   return {
     path,
     key,
-    label: field?.label ?? raw?.["x-label"] ?? key,
-    hint: field?.hint ?? schemaHint,
+    label: field?.label ?? schema.label ?? key,
+    hint: field?.hint ?? schema.hint,
     description,
-    ...(labelled && !field?.label ? { symbolOf: path.at(-1) } : {}),
-    placeholder:
-      field?.placeholder ?? (labelled && !required ? "none" : undefined),
+    // the key of a labelled property as the tooltip of its label (#137)
+    ...(schema.labelled && !field?.label ? { symbolOf: path.at(-1) } : {}),
+    placeholder: field?.placeholder ?? schema.placeholder,
     required,
     input,
-    ...(field && "unique" in field && field.unique ? { unique: true } : {}),
+    ...(unique ? { unique: true } : {}),
     ...(raw?.["x-quantity"] ? { quantity: raw["x-quantity"] } : {}),
   };
 }
@@ -592,6 +603,32 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
 }
 
 /**
+ * The default of a required property without a value: of the registry or the
+ * schema, the latest object of a reference, a row, all objects of a list of
+ * references, or an empty object; else none.
+ */
+function defaultOf(
+  type: CommandType,
+  key: string,
+  raw: Node,
+  context: Context,
+): unknown {
+  const property = resolve(raw);
+  const fallback = info(type, key)?.default ?? raw.default;
+  if (fallback !== undefined) return structuredClone(fallback);
+  if (refName(raw) === "Name" && key !== "name")
+    return available(context, referenceKind(type, key)).at(-1);
+  if (property.type === "array" && resolve(property.items!).type === "object")
+    return [seedRow(type, key, resolve(property.items!), [], context)];
+  if (property.type === "array" && refName(property.items!) === "Name") {
+    const all = available(context, referenceKind(type, key));
+    return all.length ? all : undefined;
+  }
+  if (property.oneOf || property.type === "object") return {};
+  return undefined;
+}
+
+/**
  * Bring a draft in line with the schema: keep only the properties of its
  * definition, remove hidden ones, and fill required ones that have a default (from
  * the registry, or the latest object for a reference). Fields in `known` are left
@@ -632,39 +669,19 @@ export function normalize(
         result[name] = raw.const;
         continue;
       }
-      if (result[name] === undefined && required.has(name) && !known.has(key)) {
-        const fallback = info(type, key)?.default ?? raw.default;
-        if (fallback !== undefined) {
-          result[name] = structuredClone(fallback);
-        } else if (refName(raw) === "Name" && key !== "name") {
-          result[name] = available(context, referenceKind(type, key)).at(-1);
-        } else if (
-          property.type === "array" &&
-          resolve(property.items!).type === "object"
-        ) {
-          result[name] = [
-            seedRow(type, key, resolve(property.items!), [], context),
-          ];
-        } else if (
-          property.type === "array" &&
-          refName(property.items!) === "Name"
-        ) {
-          const all = available(context, referenceKind(type, key));
-          if (all.length) result[name] = all;
-        } else if (property.oneOf || property.type === "object") {
-          result[name] = {};
-        }
-      }
-      const child = result[name];
-      if (isObject(child)) {
-        if (property.oneOf)
-          result[name] = fill(variantOf(property, child), child, path);
-        else if (property.type === "object")
-          result[name] = fill(property, child, path);
-      }
+      if (result[name] === undefined && required.has(name) && !known.has(key))
+        result[name] = defaultOf(type, key, raw, context);
+      result[name] = nested(result[name], property, path);
       if (result[name] === undefined) delete result[name];
     }
     return result;
+  };
+  /** An object of a variant or with properties, filled in turn. */
+  const nested = (child: unknown, property: Node, path: string[]) => {
+    if (!isObject(child)) return child;
+    if (property.oneOf) return fill(variantOf(property, child), child, path);
+    if (property.type === "object") return fill(property, child, path);
+    return child;
   };
 
   return fill(definition(type, source).node, source, []);
@@ -906,177 +923,226 @@ function numberError(input: Extract<Input, { type: "number" }>, value: number) {
   return undefined;
 }
 
+/** The error of a field with an input of a type, for its value. */
+type FieldError<T extends Input["type"]> = (
+  spec: FieldSpec,
+  input: Extract<Input, { type: T }>,
+  value: unknown,
+  context: Context,
+) => string | undefined;
+
+const isMissing = (value: unknown) => value === undefined || value === "";
+
+const nameError: FieldError<"name"> = (_, __, value, context) => {
+  if (typeof value !== "string" || value === "") return "Required.";
+  const problem = nameProblem(value);
+  if (problem) return problem.startsWith("name '") ? `The ${problem}` : problem;
+  const taken = context.commands.some(
+    (c) => c.name === value && c.name !== context.editing,
+  );
+  return taken ? `The name '${value}' is already used.` : undefined;
+};
+
+const textError: FieldError<"text"> = (spec, _, value) =>
+  isMissing(value) && spec.required ? "Required." : undefined;
+
+const numberFieldError: FieldError<"number"> = (
+  spec,
+  input,
+  value,
+  context,
+) => {
+  if (isMissing(value)) return spec.required ? "Required." : undefined;
+  return valueError(value, input.expressions, context, (v) =>
+    numberError(input, v),
+  );
+};
+
+const choiceError: FieldError<"choice"> = (spec, input, value) => {
+  if (isMissing(value)) return spec.required ? "Required." : undefined;
+  return input.options.some((o) => o.value === value)
+    ? undefined
+    : "Choose an option.";
+};
+
+const multichoiceError: FieldError<"multichoice"> = (spec, input, value) => {
+  const items = Array.isArray(value) ? value : [];
+  const unknown = items.find(
+    (item) => !input.options.some((o) => o.value === item),
+  );
+  if (unknown !== undefined) {
+    return `Unknown value '${String(unknown)}'; choose from ${input.options.map((o) => o.value).join(", ")}.`;
+  }
+  if (new Set(items).size < items.length)
+    return "Each value may appear only once.";
+  return items.length < Math.max(input.minItems, spec.required ? 1 : 0)
+    ? "Select at least one."
+    : undefined;
+};
+
+const integersError: FieldError<"integers"> = (_, input, value) => {
+  const ids = Array.isArray(value) ? (value as number[]) : [];
+  if (ids.length < input.minItems) return "Enter at least one id.";
+  const bad = (id: number) =>
+    !Number.isInteger(id) || (input.min !== undefined && id < input.min);
+  if (ids.some(bad))
+    return `Enter whole numbers from ${input.min ?? 0}, separated by commas.`;
+  return new Set(ids).size < ids.length
+    ? "Each id may appear only once."
+    : undefined;
+};
+
+/** A reference to several objects: at least one, each once and existing. */
+const referencesError: FieldError<"reference"> = (
+  spec,
+  input,
+  value,
+  context,
+) => {
+  if (value === undefined && !spec.required) return undefined;
+  const names = available(context, input.kind);
+  const kind = kindLabel(input.kind);
+  const items = Array.isArray(value) ? (value as string[]) : [];
+  if (items.length < Math.max(input.minItems, 1)) {
+    return names.length
+      ? "Select at least one."
+      : `Create ${article(kind)} ${kind} first.`;
+  }
+  const unknown = items.find((item) => !names.includes(item));
+  if (unknown) return `There is no ${kind} '${unknown}'.`;
+  return new Set(items).size < items.length
+    ? "Each object may appear only once."
+    : undefined;
+};
+
+const referenceError: FieldError<"reference"> = (
+  spec,
+  input,
+  value,
+  context,
+) => {
+  if (input.multiple) return referencesError(spec, input, value, context);
+  const names = available(context, input.kind);
+  const kind = kindLabel(input.kind);
+  if (isMissing(value)) {
+    if (!spec.required) return undefined;
+    return names.length
+      ? "Required."
+      : `Create ${article(kind)} ${kind} first.`;
+  }
+  return names.includes(value as string)
+    ? undefined
+    : `There is no ${kind} '${String(value)}'.`;
+};
+
+/** Whether a value of a list is a finite number, or an expression where allowed. */
+const isNumberOf = (x: unknown, expressions: boolean | undefined) =>
+  (typeof x === "number" && Number.isFinite(x)) ||
+  (typeof x === "string" && !!expressions);
+
+/** A list of numbers: their count and each a number, an expression or not 0. */
+const listError: FieldError<"numbers"> = (spec, input, value, context) => {
+  const numbers = Array.isArray(value) ? (value as unknown[]) : [];
+  if (!numbers.length && !spec.required) return undefined;
+  const ok =
+    numbers.length >= input.minItems &&
+    numbers.length <= (input.maxItems ?? Infinity) &&
+    numbers.every((x) => isNumberOf(x, input.expressions));
+  if (!ok) {
+    const count =
+      input.maxItems === input.minItems
+        ? `${input.minItems} numbers`
+        : "numbers";
+    const range =
+      input.maxItems !== undefined && input.maxItems !== input.minItems
+        ? ` ${input.minItems} to ${input.maxItems}`
+        : "";
+    return `Enter${range} ${count}, separated by commas, with a point as decimal separator.`;
+  }
+  // the expressions, and the values that are zero
+  for (const x of numbers) {
+    const problem = valueError(x, input.expressions, context, (v) =>
+      input.nonzero && v === 0 ? "Enter numbers other than 0." : undefined,
+    );
+    if (problem) return problem;
+  }
+  return undefined;
+};
+
+/** A list of numbers, or one number of a number or a list of numbers (#225). */
+const numbersError: FieldError<"numbers"> = (spec, input, value, context) => {
+  if (!input.collapse) return listError(spec, input, value, context);
+  if (value === undefined || (Array.isArray(value) && !value.length))
+    return spec.required ? "Required." : undefined;
+  if (typeof value === "number" || typeof value === "string")
+    return valueError(value, input.expressions, context, (v) =>
+      Number.isFinite(v) ? undefined : NOT_A_NUMBER,
+    );
+  return listError(spec, input, value, context);
+};
+
+const coordinatesError: FieldError<"coordinates"> = (
+  spec,
+  input,
+  value,
+  context,
+) => {
+  const points = Array.isArray(value) ? (value as unknown[]) : [];
+  if (points.length < Math.max(input.minItems, spec.required ? 1 : 0))
+    return "Enter at least one point.";
+  const bad = points.findIndex(
+    (p) =>
+      !Array.isArray(p) ||
+      p.length !== 3 ||
+      !p.every((x) => isNumberOf(x, input.expressions)),
+  );
+  if (bad >= 0)
+    return `Line ${bad + 1}: enter three numbers x, y, z, with a point as decimal separator.`;
+  // the expressions of the coordinates (#242)
+  for (const [line, point] of (points as unknown[][]).entries()) {
+    for (const x of point) {
+      const problem = valueError(x, true, context, () => undefined);
+      if (problem) return `Line ${line + 1}: ${problem}`;
+    }
+  }
+  return undefined;
+};
+
+const rowsError: FieldError<"rows"> = (spec, input, value) => {
+  const rows = Array.isArray(value) ? (value as Draft[]) : [];
+  if (rows.length < Math.max(input.minItems, spec.required ? 1 : 0))
+    return "Add at least one row.";
+  for (const column of input.columns) {
+    const name = column.path.at(-1)!;
+    const values = rows.map((r) => r[name]).filter((v) => v !== undefined);
+    if (column.unique && new Set(values).size < values.length)
+      return `Each ${column.label.toLowerCase()} may appear only once.`;
+  }
+  return undefined;
+};
+
+/** The errors of the fields by the type of their input. */
+const FIELD_ERRORS: { [T in Input["type"]]?: FieldError<T> } = {
+  name: nameError,
+  text: textError,
+  number: numberFieldError,
+  choice: choiceError,
+  multichoice: multichoiceError,
+  integers: integersError,
+  reference: referenceError,
+  numbers: numbersError,
+  coordinates: coordinatesError,
+  rows: rowsError,
+};
+
 function fieldError(
   spec: FieldSpec,
   value: unknown,
   context: Context,
 ): string | undefined {
-  const { input, required } = spec;
-  const missing = value === undefined || value === "";
-  switch (input.type) {
-    case "name": {
-      if (typeof value !== "string" || value === "") return "Required.";
-      const problem = nameProblem(value);
-      if (problem)
-        return problem.startsWith("name '") ? `The ${problem}` : problem;
-      const taken = context.commands.some(
-        (c) => c.name === value && c.name !== context.editing,
-      );
-      return taken ? `The name '${value}' is already used.` : undefined;
-    }
-    case "text":
-      return missing && required ? "Required." : undefined;
-    case "number":
-      if (missing) return required ? "Required." : undefined;
-      return valueError(value, input.expressions, context, (v) =>
-        numberError(input, v),
-      );
-    case "choice":
-      if (missing) return required ? "Required." : undefined;
-      return input.options.some((o) => o.value === value)
-        ? undefined
-        : "Choose an option.";
-    case "multichoice": {
-      const items = Array.isArray(value) ? value : [];
-      const unknown = items.find(
-        (item) => !input.options.some((o) => o.value === item),
-      );
-      if (unknown !== undefined) {
-        return `Unknown value '${String(unknown)}'; choose from ${input.options.map((o) => o.value).join(", ")}.`;
-      }
-      if (new Set(items).size < items.length)
-        return "Each value may appear only once.";
-      return items.length < Math.max(input.minItems, required ? 1 : 0)
-        ? "Select at least one."
-        : undefined;
-    }
-    case "integers": {
-      const ids = Array.isArray(value) ? (value as number[]) : [];
-      if (ids.length < input.minItems) return "Enter at least one id.";
-      if (
-        ids.some(
-          (id) =>
-            !Number.isInteger(id) ||
-            (input.min !== undefined && id < input.min),
-        )
-      ) {
-        return `Enter whole numbers from ${input.min ?? 0}, separated by commas.`;
-      }
-      return new Set(ids).size < ids.length
-        ? "Each id may appear only once."
-        : undefined;
-    }
-    case "reference": {
-      const names = available(context, input.kind);
-      const kind = kindLabel(input.kind);
-      if (input.multiple) {
-        if (value === undefined && !required) return undefined;
-        const items = Array.isArray(value) ? (value as string[]) : [];
-        if (items.length < Math.max(input.minItems, 1)) {
-          return names.length
-            ? "Select at least one."
-            : `Create ${article(kind)} ${kind} first.`;
-        }
-        const unknown = items.find((item) => !names.includes(item));
-        if (unknown) return `There is no ${kind} '${unknown}'.`;
-        return new Set(items).size < items.length
-          ? "Each object may appear only once."
-          : undefined;
-      }
-      if (missing) {
-        if (!required) return undefined;
-        return names.length
-          ? "Required."
-          : `Create ${article(kind)} ${kind} first.`;
-      }
-      return names.includes(value as string)
-        ? undefined
-        : `There is no ${kind} '${String(value)}'.`;
-    }
-    case "numbers": {
-      // one number of a number or a list of numbers (#225)
-      if (
-        input.collapse &&
-        (value === undefined || (Array.isArray(value) && !value.length))
-      )
-        return required ? "Required." : undefined;
-      if (
-        input.collapse &&
-        (typeof value === "number" || typeof value === "string")
-      )
-        return valueError(value, input.expressions, context, (v) =>
-          Number.isFinite(v) ? undefined : NOT_A_NUMBER,
-        );
-      const numbers = Array.isArray(value) ? (value as unknown[]) : [];
-      if (!numbers.length && !required) return undefined;
-      const count =
-        input.maxItems === input.minItems
-          ? `${input.minItems} numbers`
-          : "numbers";
-      const ok =
-        numbers.length >= input.minItems &&
-        numbers.length <= (input.maxItems ?? Infinity) &&
-        numbers.every(
-          (x) =>
-            (typeof x === "number" && Number.isFinite(x)) ||
-            (typeof x === "string" && input.expressions),
-        );
-      if (!ok) {
-        const range =
-          input.maxItems !== undefined && input.maxItems !== input.minItems
-            ? ` ${input.minItems} to ${input.maxItems}`
-            : "";
-        return `Enter${range} ${count}, separated by commas, with a point as decimal separator.`;
-      }
-      // the expressions, and the values that are zero
-      for (const x of numbers) {
-        const problem = valueError(x, input.expressions, context, (v) =>
-          input.nonzero && v === 0 ? "Enter numbers other than 0." : undefined,
-        );
-        if (problem) return problem;
-      }
-      return undefined;
-    }
-    case "coordinates": {
-      const points = Array.isArray(value) ? (value as unknown[]) : [];
-      if (points.length < Math.max(input.minItems, required ? 1 : 0))
-        return "Enter at least one point.";
-      const bad = points.findIndex(
-        (p) =>
-          !Array.isArray(p) ||
-          p.length !== 3 ||
-          !p.every(
-            (x) =>
-              (typeof x === "number" && Number.isFinite(x)) ||
-              (typeof x === "string" && input.expressions),
-          ),
-      );
-      if (bad >= 0)
-        return `Line ${bad + 1}: enter three numbers x, y, z, with a point as decimal separator.`;
-      // the expressions of the coordinates (#242)
-      for (const [line, point] of (points as unknown[][]).entries()) {
-        for (const x of point) {
-          const problem = valueError(x, true, context, () => undefined);
-          if (problem) return `Line ${line + 1}: ${problem}`;
-        }
-      }
-      return undefined;
-    }
-    case "rows": {
-      const rows = Array.isArray(value) ? (value as Draft[]) : [];
-      if (rows.length < Math.max(input.minItems, required ? 1 : 0))
-        return "Add at least one row.";
-      for (const column of input.columns) {
-        const name = column.path.at(-1)!;
-        const values = rows.map((r) => r[name]).filter((v) => v !== undefined);
-        if (column.unique && new Set(values).size < values.length)
-          return `Each ${column.label.toLowerCase()} may appear only once.`;
-      }
-      return undefined;
-    }
-    default:
-      return undefined;
-  }
+  const check = FIELD_ERRORS[spec.input.type] as
+    FieldError<Input["type"]> | undefined;
+  return check?.(spec, spec.input, value, context);
 }
 
 /** Error messages of a draft by field key; empty if the draft is a valid command. */
