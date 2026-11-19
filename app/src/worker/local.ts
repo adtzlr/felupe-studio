@@ -1,16 +1,13 @@
 // The local Python runtime of `felupe-studio serve` (#240, ADR 0014): a channel to
 // it over a WebSocket that looks like the Pyodide worker to the client. One
 // connection is one Python process; closing it ends the process, e.g. a running job.
-// The arrays of surfaces and scenes arrive as bytes, like from Pyodide, and become
-// the typed arrays of the worker (`surface.ts`).
+// The arrays of surfaces and scenes arrive as bytes, like in the Pyodide worker, and
+// become the typed arrays of the worker (`messages.ts`).
 import { decodeFrame, encodeFrame } from "./frames";
-import type { FromWorker, ResultScene, ToWorker } from "./protocol";
-import {
-  type RawResultSurface,
-  type RawSurface,
-  toResultScene,
-  toSurfaces,
-} from "./surface";
+import { toWorkerMessage } from "./messages";
+import type { FromWorker, ToWorker } from "./protocol";
+
+export { toWorkerMessage } from "./messages";
 
 /** The name of the meta tag of the page that the server of the runtime serves. */
 export const RUNTIME_META = "felupe-studio-runtime";
@@ -25,47 +22,6 @@ export interface Channel {
     listener: (event: MessageEvent<FromWorker>) => void,
   ): void;
   terminate(): void;
-}
-
-type RawScene = Omit<ResultScene, "surfaces"> & {
-  surfaces: RawResultSurface[];
-};
-
-const toScene = ({ surfaces, ...meta }: RawScene): ResultScene =>
-  toResultScene(meta, surfaces);
-
-/** A message of the server as the worker posts it: typed arrays, not bytes. */
-export function toWorkerMessage(raw: Record<string, unknown>): FromWorker {
-  switch (raw.type) {
-    case "mesh-info":
-      return {
-        ...raw,
-        surfaces: toSurfaces(raw.surfaces as Record<string, RawSurface>),
-      } as FromWorker;
-    case "result-scene":
-      return { ...raw, scene: toScene(raw.scene as RawScene) } as FromWorker;
-    case "job-progress": {
-      const event = raw.event as { scene?: RawScene };
-      return event.scene
-        ? ({
-            ...raw,
-            event: { ...event, scene: toScene(event.scene) },
-          } as FromWorker)
-        : (raw as unknown as FromWorker);
-    }
-    case "bytes": {
-      const data = raw.data as Uint8Array;
-      return {
-        ...raw,
-        data: data.buffer.slice(
-          data.byteOffset,
-          data.byteOffset + data.byteLength,
-        ),
-      } as FromWorker;
-    }
-    default:
-      return raw as unknown as FromWorker;
-  }
 }
 
 /** The message of a connection that failed or ended. */

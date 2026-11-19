@@ -1,5 +1,5 @@
 // The frames of the WebSocket of the local Python runtime (#240, ADR 0014), like
-// `encode()` and `decode()` of felupe_studio.runtime: a message without bytes is
+// `encode()` and `decode()` of felupe_studio.frames: a message without bytes is
 // JSON text; with bytes a binary frame: the length of the header (4 bytes,
 // little-endian), the header `{"message": …, "buffers": [[offset, length], …]}`
 // with `{"$bytes": i}` in place of the i-th buffer (padded with spaces), then the
@@ -71,6 +71,17 @@ export function decodeFrame(data: string | ArrayBuffer): unknown {
   const buffers = header.buffers.map(
     ([offset, size]) => new Uint8Array(data, offset, size),
   );
+  return restore(header.message, buffers);
+}
+
+/**
+ * Put the buffers in place of their `{"$bytes": i}` in a message, like `restore()`
+ * of felupe_studio.frames: a frame of its JSON text and its buffers.
+ */
+export function restore(
+  message: unknown,
+  buffers: readonly Uint8Array[],
+): unknown {
   const replace = (value: unknown): unknown => {
     if (Array.isArray(value)) return value.map(replace);
     if (value && typeof value === "object") {
@@ -83,5 +94,5 @@ export function decodeFrame(data: string | ArrayBuffer): unknown {
     }
     return value;
   };
-  return replace(header.message);
+  return replace(message);
 }

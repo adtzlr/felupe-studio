@@ -1,7 +1,11 @@
-// Web Worker that runs Pyodide and FElupe (ADR 0005).
+// Web Worker that runs Pyodide and FElupe (ADR 0005). It loads Pyodide, the wheels
+// and the package felupe_studio, keeps the bytecode cache (ADR 0017) and loads the
+// lazy wheels; the requests are answered by felupe_studio.requests (#311), like in
+// the local runtime of `felupe-studio serve`, and their arrays are transferred.
 import type { PyodideInterface } from "pyodide";
-import type { PyProxy } from "pyodide/ffi";
-import { safeName } from "./files";
+import type { PyCallable, PyProxy } from "pyodide/ffi";
+import { encodeFrame, restore } from "./frames";
+import { toWorkerMessage, transfers } from "./messages";
 import {
   type CacheFS,
   type CacheState,
@@ -11,32 +15,12 @@ import {
   openCache,
   persister,
 } from "./pycache";
-import {
-  type RawResultSurface,
-  type RawSurface,
-  resultTransferables,
-  toResultScene,
-  toSurfaces,
-  transferables,
-} from "./surface";
-import type {
-  BenchmarkResult,
-  FromWorker,
-  JobEvent,
-  JobResult,
-  LiveSettings,
-  MeshFormat,
-  MeshInfo,
-  Precision,
-  Quantity,
-  ResultScene,
-  ToWorker,
-  ValuesMethod,
-  Versions,
-} from "./protocol";
+import type { FromWorker, ToWorker, Versions } from "./protocol";
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 let pyodide: PyodideInterface | undefined;
+/** `handle_frame()` of felupe_studio.requests: answers a request. */
+let handleFrame: PyCallable | undefined;
 /** Wheels that are loaded only when they are needed (e.g. tensortrax). */
 let lazyWheels: Record<string, string> = {};
 /** Writes the bytecode cache back to IndexedDB (ADR 0017), if it is enabled. */
@@ -129,6 +113,10 @@ async function init(
   ) as Omit<Versions, "pyodide">;
 
   pyodide = py;
+  const requests = py.pyimport("felupe_studio.requests");
+  // a copy: an attribute is borrowed from the proxy of its module
+  handleFrame = (requests.handle_frame as PyCallable).copy() as PyCallable;
+  requests.destroy();
   post({
     type: "ready",
     versions: { ...versions, pyodide: py.version, runtime: "pyodide" },
@@ -157,298 +145,62 @@ function schedulePersist(delay = 2000) {
   persistTimer = setTimeout(() => void persist?.(), delay);
 }
 
-function writeFile(id: number, name: string, data: ArrayBuffer) {
-  python().FS.writeFile(`${PROJECT}/${safeName(name)}`, new Uint8Array(data));
-  post({ type: "done", id });
-}
-
-/** Inspect a mesh file and triangulate its outer surfaces (one read of the file). */
-function inspectMesh(id: number, name: string) {
-  inspected(id, (meshes) => meshes.load(safeName(name)));
-}
-
 /**
- * Run a script of the project with parameters and inspect its mesh like a mesh
- * file (#182); errors of the script are part of the info, with their traceback.
+ * Load the wheels of a run that are loaded only when they are needed: the
+ * tensortrax wheel for its models.
  */
-function makeMesh(
-  id: number,
-  file: string,
-  parameters: Record<string, number>,
-  item?: string,
-) {
-  inspected(id, (meshes) =>
-    // undefined, not null: Pyodide converts null to jsnull, which is not None
-    meshes.make_json(safeName(file), JSON.stringify(parameters), item),
-  );
-}
-
-/** Post the info and the surfaces of a mesh that Python inspected. */
-function inspected(id: number, inspect: (meshes: PyProxy) => PyProxy) {
-  const meshes = python().pyimport("felupe_studio.meshes");
-  try {
-    const result = inspect(meshes);
-    const [text, raw] = result.toJs({
-      dict_converter: Object.fromEntries,
-    }) as [string, Record<string, RawSurface>];
-    result.destroy();
-    const info = JSON.parse(text) as MeshInfo;
-    const surfaces = toSurfaces(raw);
-    post(
-      { type: "mesh-info", id, info, surfaces },
-      transferables(...Object.values(surfaces)),
-    );
-  } finally {
-    meshes.destroy();
-  }
-}
-
-/**
- * Run the jobs of a command list with progress. Models of tensortrax load the
- * tensortrax wheel first. Python runs synchronously: a job is cancelled by
- * terminating the worker.
- */
-async function run(id: number, document: string, live?: LiveSettings) {
+async function loadLazyWheels(document: string) {
+  if (!lazyWheels.tensortrax) return;
   const py = python();
   const runner = py.pyimport("felupe_studio.runner");
   try {
-    if (runner.uses_tensortrax(document) && lazyWheels.tensortrax) {
+    if (runner.uses_tensortrax(document)) {
       await py.loadPackage([lazyWheels.tensortrax]);
       // its bytecode in the cache too (ADR 0017)
       py.runPython(REFIX_SOURCE);
     }
-    const report = (text: string) =>
-      post({ type: "job-progress", id, event: JSON.parse(text) as JobEvent });
-    // a live event with the scene of the current fields (#207), its bytes
-    // transferred
-    const reportScene = (text: string, meta: string, surfaces: PyProxy) => {
-      const raw = surfaces.toJs({
-        dict_converter: Object.fromEntries,
-      }) as RawResultSurface[];
-      surfaces.destroy();
-      const scene = toResultScene(
-        JSON.parse(meta) as Omit<ResultScene, "surfaces">,
-        raw,
-      );
-      const event = { ...(JSON.parse(text) as object), scene } as JobEvent;
-      post({ type: "job-progress", id, event }, resultTransferables(scene));
-    };
-    const results = runner.run_json(
-      document,
-      report,
-      live ? JSON.stringify(live) : undefined,
-      reportScene,
-    ) as string;
-    post({
-      type: "job-result",
-      id,
-      results: JSON.parse(results) as Record<string, JobResult>,
-    });
   } finally {
     runner.destroy();
   }
 }
 
-/** The result of a substep of a job of the last run, for the viewer. */
-function result(
-  id: number,
-  job: string,
-  substep: number,
-  quantity: Quantity,
-  method: ValuesMethod = "cells",
-) {
-  const results = python().pyimport("felupe_studio.results");
-  try {
-    const proxy = results.scene(job, substep, quantity, method);
-    const [meta, raw] = proxy.toJs({ dict_converter: Object.fromEntries }) as [
-      string,
-      RawResultSurface[],
-    ];
-    proxy.destroy();
-    const scene = toResultScene(
-      JSON.parse(meta) as Omit<ResultScene, "surfaces">,
-      raw,
-    );
-    post({ type: "result-scene", id, scene }, resultTransferables(scene));
-  } finally {
-    results.destroy();
-  }
+/**
+ * Post an answer of Python: the JSON text of a message and its buffers (the parts
+ * of a frame, `felupe_studio.frames.split()`), as the message of the worker with
+ * its arrays transferred.
+ */
+function answer(text: string, buffers: PyProxy) {
+  const bytes = buffers.toJs() as Uint8Array[];
+  const raw = restore(JSON.parse(text), bytes) as Record<string, unknown>;
+  const message = toWorkerMessage(raw);
+  post(message, transfers(message));
 }
 
-/** The ranges of a quantity of every substep of a job of the last run (#139). */
-function resultRanges(
-  id: number,
-  job: string,
-  quantity: Quantity,
-  method: ValuesMethod = "cells",
-) {
-  const results = python().pyimport("felupe_studio.results");
-  try {
-    const text = results.ranges(job, quantity, method) as string;
-    post({ type: "text", id, text });
-  } finally {
-    results.destroy();
-  }
-}
-
-/** The FElupe script of a command list (validated by the app with Ajv). */
-function script(id: number, document: string, view = false) {
-  const runner = python().pyimport("felupe_studio.runner");
-  try {
-    const text = view ? runner.script_view(document) : runner.script(document);
-    post({ type: "text", id, text: text as string });
-  } finally {
-    runner.destroy();
-  }
-}
-
-/** The results of a job of the last run as a VTU file (a substep) or XDMF file. */
-function exportResults(
-  id: number,
-  job: string,
-  format: "vtu" | "xdmf" | "csv",
-  substep?: number,
-  method: ValuesMethod = "cells",
-) {
-  const results = python().pyimport("felupe_studio.results");
-  try {
-    const proxy = results.export(job, format, substep, method);
-    const bytes = proxy.toJs() as Uint8Array;
-    proxy.destroy();
-    const data = bytes.buffer.slice(
-      bytes.byteOffset,
-      bytes.byteOffset + bytes.byteLength,
-    ) as ArrayBuffer;
-    post({ type: "bytes", id, data }, [data]);
-  } finally {
-    results.destroy();
-  }
-}
-
-/** A mesh of the project as a file of another format (#230). */
-function exportMesh(
-  id: number,
-  file: string,
-  format: MeshFormat,
-  parameters?: Record<string, number>,
-  item?: string,
-  cellType?: string,
-  scale?: number,
-) {
-  const meshes = python().pyimport("felupe_studio.meshes");
-  try {
-    // undefined, not null: Pyodide converts null to jsnull, which is not None
-    const proxy = meshes.export_json(
-      safeName(file),
-      format,
-      parameters ? JSON.stringify(parameters) : undefined,
-      item,
-      cellType,
-      scale,
-    );
-    const bytes = proxy.toJs() as Uint8Array;
-    proxy.destroy();
-    const data = bytes.buffer.slice(
-      bytes.byteOffset,
-      bytes.byteOffset + bytes.byteLength,
-    ) as ArrayBuffer;
-    post({ type: "bytes", id, data }, [data]);
-  } finally {
-    meshes.destroy();
-  }
-}
-
-function benchmark(
-  id: number,
-  sizes: number[],
-  precision: Precision = "double",
-) {
-  const module = python().pyimport("felupe_studio.benchmark");
-  try {
-    for (const n of sizes) {
-      post({ type: "progress", id, message: `Running n = ${n} …` });
-      const proxy = module.benchmark.callKwargs({ n, num: 5, precision });
-      const result = proxy.toJs({
-        dict_converter: Object.fromEntries,
-      }) as BenchmarkResult;
-      proxy.destroy();
-      post({ type: "benchmark-result", id, result });
-    }
-  } finally {
-    module.destroy();
-  }
-  post({ type: "done", id });
+/**
+ * Answer a request with felupe_studio.requests, which posts its answers while it
+ * runs. Python runs synchronously: a job is cancelled by terminating the worker.
+ */
+async function request(message: Exclude<ToWorker, { type: "init" }>) {
+  if (!handleFrame) throw new Error("Pyodide is not initialized.");
+  if (message.type === "run") await loadLazyWheels(message.document);
+  const frame = encodeFrame(message);
+  handleFrame(
+    typeof frame === "string" ? frame : new Uint8Array(frame),
+    answer,
+  );
 }
 
 ctx.onmessage = async (event: MessageEvent<ToWorker>) => {
   const message = event.data;
   const id = "id" in message ? message.id : undefined;
   try {
-    switch (message.type) {
-      case "init":
-        return await init(
-          message.pyodideVersion,
-          message.wheels,
-          message.lazyWheels,
-        );
-      case "benchmark":
-        return benchmark(message.id, message.sizes, message.precision);
-      case "write-file":
-        return writeFile(message.id, message.name, message.data);
-      case "inspect-mesh":
-        return inspectMesh(message.id, message.name);
-      case "make-mesh":
-        return makeMesh(
-          message.id,
-          message.file,
-          message.parameters,
-          message.item,
-        );
-      case "run":
-        return await run(message.id, message.document, message.live);
-      case "script":
-        return script(message.id, message.document);
-      case "check":
-        // the schema check of felupe_studio.checks needs jsonschema
-        throw new Error(
-          "The checks of the mesh data need the local runtime of felupe-studio serve.",
-        );
-      case "script-view":
-        return script(message.id, message.document, true);
-      case "export-results":
-        return exportResults(
-          message.id,
-          message.job,
-          message.format,
-          message.substep,
-          message.method,
-        );
-      case "result":
-        return result(
-          message.id,
-          message.job,
-          message.substep,
-          message.quantity,
-          message.method,
-        );
-      case "result-ranges":
-        return resultRanges(
-          message.id,
-          message.job,
-          message.quantity,
-          message.method,
-        );
-      case "export-mesh":
-        return exportMesh(
-          message.id,
-          message.file,
-          message.format,
-          message.parameters,
-          message.item,
-          message.cellType,
-          message.scale,
-        );
-    }
+    if (message.type === "init")
+      return await init(
+        message.pyodideVersion,
+        message.wheels,
+        message.lazyWheels,
+      );
+    await request(message);
   } catch (error) {
     post({
       type: "error",
