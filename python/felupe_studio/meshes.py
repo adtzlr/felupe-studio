@@ -259,8 +259,6 @@ def export(
     with the parameters (and its item), as the model uses it. The file has the solid
     cells (of one cell type, if given) with their tags, and the points in 3D (z = 0
     of a 2D mesh), multiplied by the scale of a mesh file."""
-    import tempfile
-
     if format not in EXPORT_FORMATS:
         raise ValueError(
             f"Unknown format '{format}'; use one of {', '.join(EXPORT_FORMATS)}."
@@ -270,18 +268,42 @@ def export(
         mesh = meshio.read(path)
     else:
         mesh = script_mesh(path, parameters, item)
+    return _write(mesh, path.name, format, cell_type, scale)
+
+
+def export_generated(commands, name, format="vtu"):
+    """Return a mesh made by the tools of FElupe (ADR 0019) as the bytes of a file of
+    a format of :data:`EXPORT_FORMATS`, like :func:`export`: the mesh ``name`` of the
+    resolved commands of the tools that make it. A mesh of lines or vertices (a
+    construction mesh) has no solid cells to export."""
+    from . import meshtools
+
+    if format not in EXPORT_FORMATS:
+        raise ValueError(
+            f"Unknown format '{format}'; use one of {', '.join(EXPORT_FORMATS)}."
+        )
+    made = meshtools.generate(commands)[name]
+    mesh = meshio.Mesh(made.points, [(made.cell_type, made.cells)])
+    return _write(mesh, name, format)
+
+
+def _write(mesh, name, format, cell_type=None, scale=None):
+    """The solid cells of a meshio mesh (of one cell type, if given) with their tags
+    as the bytes of a file of a format, the points in 3D and multiplied by a scale."""
+    import tempfile
+
     types = [
         t
         for t in solid_types(mesh)
         if t in REGIONS and (cell_type is None or t == cell_type)
     ]
     if not types:
-        raise ValueError(f"The mesh of '{path.name}' has no solid cells to export.")
+        raise ValueError(f"The mesh of '{name}' has no solid cells to export.")
     blocks = [i for i, b in enumerate(mesh.cells) if b.type in types]
     sizes = np.cumsum([len(mesh.cells[i].data) for i in blocks])[:-1]
     cell_data = {
-        name: np.split(values.astype(np.int32), sizes)
-        for name, values in _tag_arrays(mesh, blocks).items()
+        key: np.split(values.astype(np.int32), sizes)
+        for key, values in _tag_arrays(mesh, blocks).items()
     }
     points = np.asarray(mesh.points, dtype=float)
     points = np.pad(points, ((0, 0), (0, 3 - points.shape[1])))

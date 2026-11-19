@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 import felupe as fem
+import meshio
 import numpy as np
 import pytest
 
@@ -117,3 +118,15 @@ def test_an_error_of_felupe_is_the_state_of_the_mesh():
     cube = made("Cube", a=[0, 0, 0], b=[1, 1, 1], n=[2.5, 2, 2])
     info, surfaces = meshes.generate([cube], "mesh")
     assert "Error" in json.loads(info)["error"] and surfaces == {}
+
+
+def test_a_made_mesh_is_exported_like_a_file(tmp_path):
+    # the solid cells of a made mesh as a file (ADR 0019, #230); a line has none
+    cube = made("Cube", "block", a=[0, 0, 0], b=[2, 1, 1], n=[3, 2, 2])
+    data = meshes.export_generated([cube], "block", "vtu")
+    (tmp_path / "block.vtu").write_bytes(data)
+    mesh = meshio.read(tmp_path / "block.vtu")
+    assert mesh.cells[0].type == "hexahedron" and len(mesh.cells[0].data) == 2
+    line = made("Line", "edge", a=0, b=1, n=3)
+    with pytest.raises(ValueError, match="'edge' has no solid cells"):
+        meshes.export_generated([line], "edge", "vtu")

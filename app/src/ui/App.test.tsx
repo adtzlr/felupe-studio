@@ -841,6 +841,97 @@ describe("solve", () => {
     expect(download.mock.calls[0][0]).toBe("untitled-plate.vtu");
   });
 
+  it("exports a mesh made by a tool, not a line (ADR 0019)", async () => {
+    const solid = {
+      cell_type: "hexahedron",
+      cells: 2,
+      bounds: [
+        [0, 0, 0],
+        [2, 1, 1],
+      ] as [number[], number[]],
+      tags: [],
+    };
+    const generate = vi.fn(
+      async (_commands: readonly unknown[], name: string) => ({
+        info:
+          name === "block"
+            ? {
+                file: name,
+                solids: [solid],
+                dimension: { points: 3, cells: 3, cell_type: "hexahedron" },
+              }
+            : {
+                file: name,
+                solids: [],
+                dimension: { points: 1, cells: 1, cell_type: "line" },
+              },
+      }),
+    );
+    const files = new MeshFiles(undefined, { generate });
+    const exportMesh = vi.fn(async () => new Uint8Array([1]));
+    const download = vi.fn();
+    const store = new ModelStore({
+      schema_version: 3,
+      commands: [
+        { command: "parameter.add", name: "width", value: 2 },
+        {
+          command: "mesh.generate",
+          name: "block",
+          tool: "Cube",
+          parameters: { a: [0, 0, 0], b: ["width", 1, 1], n: [3, 2, 2] },
+        },
+        {
+          command: "mesh.generate",
+          name: "edge",
+          tool: "Line",
+          parameters: { a: 0, b: 1, n: 3 },
+        },
+      ],
+    } as CommandList);
+    render(
+      <App
+        store={store}
+        files={files}
+        client={client(Promise.resolve(readyValue), { exportMesh })}
+        download={download}
+      />,
+    );
+    await waitFor(() => expect(generate).toHaveBeenCalledTimes(2));
+    const tree = screen.getByRole("tree", { name: "Model" });
+    const item = (mesh: string) => {
+      fireEvent.click(
+        within(tree).getByRole("button", { name: `Actions of ${mesh}` }),
+      );
+      return screen.getByRole("menuitem", { name: /Export mesh…/ });
+    };
+    // a construction mesh of lines has no solid cells
+    await waitFor(() =>
+      expect(item("edge").getAttribute("title")).toBe(
+        "A mesh of line cells has no solid cells to export.",
+      ),
+    );
+    fireEvent.keyDown(screen.getByRole("menuitem", { name: /Export mesh…/ }), {
+      key: "Escape",
+    });
+
+    fireEvent.click(item("block"));
+    const dialog = screen.getByRole("dialog", { name: "Export mesh block" });
+    expect(dialog.textContent).toContain("Made by the tool Cube");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Export" }));
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+    // the commands of the tools with the values of their expressions
+    expect(exportMesh).toHaveBeenCalledWith("block", "vtu", {
+      commands: [
+        {
+          command: "mesh.generate",
+          name: "block",
+          tool: "Cube",
+          parameters: { a: [0, 0, 0], b: [2, 1, 1], n: [3, 2, 2] },
+        },
+      ],
+    });
+  });
+
   it("runs the jobs with progress and shows the outcome", async () => {
     const store = new ModelStore(fixture as CommandList);
     const jobs = runner();

@@ -161,6 +161,10 @@ def test_tools_make_meshes(answers):
     [solid] = info["info"]["solids"]
     assert solid["cell_type"] == "hexahedron" and solid["cells"] == 2
     assert solid["bounds"] == [[0, 0, 0], [2, 1, 1]]
+    # exported like a mesh file, with the commands of its tools
+    export = {"type": "export-mesh", "id": 2, "file": "block", "format": "vtk"}
+    [data] = answers({**export, "commands": [{**cube, "parameters": parameters}]})
+    assert data["type"] == "bytes" and b"CELLS" in bytes(data["data"])
 
 
 def test_both_paths_give_the_same_messages(tmp_path, monkeypatch):
