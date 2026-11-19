@@ -51,43 +51,35 @@ pytest tests/golden --update-golden
 
 A new case is a new folder with a `commands.json` and its mesh files; run the command above once to create `script.py` and `results.json`. A case that is compared with a converged reference (an analytical solution or `fem.ViewMaterialIncompressible`) sets FElupe's tight tolerance `"tol": 1.49e-8` at its job; the others use the default of the app, 0.01.
 
-## Extra samples in a build
+## Samples
 
-A build can add samples from a folder outside the repository, e.g. private ones, without changing the repository (#255). One command, one folder:
+The samples are a folder of samples, `app/samples` (#350). Every sample is a folder that describes itself, and the prefix of its name gives the order:
+
+```
+samples/
+  01_two-materials/
+    model.felupe.json
+    sample.json         (optional)
+    thumbnail.svg       (optional)
+    bar.vtu
+  02_material-test/
+    ...
+```
+
+- **The id** of a sample is the name of its folder without the prefix of digits and `_`: `14_engine-mount` is the sample `engine-mount`. A new order changes the prefixes, not the ids, which the archives (`<id>.felupe.zip`), the MCP server and the tests use. Two folders with the same id are an error. Folders whose names start with `.` or `_` are left out.
+- **`sample.json`** has the `title`, the `description` and the `topics` of the sample, each optional; without a title, the title comes from the id (`seal-ring` → *Seal ring*). Other keys are errors.
+- **The files** of a sample are those of its project file (`mesh.import`, `mesh.script`), and they must be in its folder. A sample without `thumbnail.svg` shows a neutral placeholder.
+- The upstream samples are made by `app/scripts/make_samples.py` (units: mm, N, MPa), also their `sample.json` and their pictures; run it from the repository root after a change and commit the files.
+
+**Other samples in a build:** `SAMPLES_DIR` builds the app with another folder of samples instead of `app/samples`, e.g. with private ones, without changing the repository:
 
 ```bash
-cd app && EXTRA_SAMPLES_DIR=~/my-samples npm run build   # or npm run dev
+cd app && SAMPLES_DIR=~/my-samples npm run build   # or npm run dev
 ```
 
-The folder has the layout of `app/public/samples`: one folder per sample with its project file `model.felupe.json` and its mesh files or mesh scripts, optionally a picture `thumbnail.svg`. Adding a sample means copying its folder there.
+The folder has the layout above. To keep some of the upstream samples, copy their folders into it. The build copies the files of the samples to `samples/<folder>/` of `dist`, and the development server serves them. A folder that breaks the rules fails the build with a message that starts with *The samples of &lt;folder&gt;:*, e.g. *the sample 'seal-ring' has no file 'ring.vtu'.* A folder without samples gives an app without samples: the welcome panel has none and *File ▸ Samples…* is gone. The MCP server reads the same layout from `FELUPE_STUDIO_SAMPLES` (`docs/agents.md`); the rules are those of `felupe_studio.samples` and `app/src/vite/samples.ts`, tested with the shared cases `tests/data/sample_folder_cases.json`.
 
-```
-my-samples/
-  samples.json          (optional)
-  engine-mount/
-    model.felupe.json
-    engine_mount.py
-    thumbnail.svg       (optional)
-  seal-ring/
-    model.felupe.json
-    ring.vtu
-```
-
-- The id of a sample is the name of its folder, its title comes from it (`engine-mount` → *Engine mount*), and its files are those of the project file (`mesh.import`, `mesh.script`).
-- An optional `samples.json` has the format of `app/src/core/samples.json` (`id`, `title`, `description`, `topics`; `files` may be left out): better titles, descriptions, topics and the order. Folders without an entry follow the listed ones, sorted by name.
-- A sample without `thumbnail.svg` gets a neutral placeholder. The build does not need Python; `thumbnail()` of `app/scripts/make_samples.py` still makes a picture.
-- *File ▸ Samples…* and the welcome panel show the extra samples in their own section *More samples*, after the built-in ones. They open like the built-in samples. The build copies them to `samples/<id>/` of `dist`; the development server serves them.
-- Errors fail the build with a message that starts with `EXTRA_SAMPLES_DIR:`: the folder does not exist, a sample has no `model.felupe.json` or an invalid one, a mesh file or script is missing, an entry of `samples.json` has no folder, or an id is taken by a built-in sample.
-- Without `EXTRA_SAMPLES_DIR` the build is unchanged. The tests check the built-in samples only.
-- **Without the built-in samples** (#279): `BUILT_IN_SAMPLES=false` (or `0`, `no`) leaves them out of the build, e.g. for a deployment with only its own samples:
-
-  ```bash
-  cd app && BUILT_IN_SAMPLES=false EXTRA_SAMPLES_DIR=~/my-samples npm run build
-  ```
-
-  The extra samples are then the samples: the welcome panel and *File ▸ Samples…* show them without the section *More samples*, and an extra sample may take the id of a built-in one. The build leaves out the folders of the built-in samples of `public/samples`, and the development server does not serve them. Without any samples, the welcome panel has no samples and *File ▸ Samples…* is gone. Another value of `BUILT_IN_SAMPLES` fails the build.
-
-The extra samples are part of the build output: deploy a private build privately. The GitHub Pages of a private repository are public unless access control is used.
+The samples are part of the build output: deploy a private build privately. The GitHub Pages of a private repository are public unless access control is used.
 
 ## License
 

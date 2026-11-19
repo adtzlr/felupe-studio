@@ -126,7 +126,7 @@ def find_samples(dist):
     for folder in (
         Path(dist) / "samples",
         here / "data" / "samples",
-        here.parents[1] / "app" / "public" / "samples",
+        here.parents[1] / "app" / "samples",
     ):
         if folder.is_dir():
             return folder

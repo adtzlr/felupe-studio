@@ -1,0 +1,9 @@
+{
+  "title": "Bar of two materials",
+  "description": "A bar with a stiff and a soft half from a cell tag, pulled at its clamped end.",
+  "topics": [
+    "VTU cell tag",
+    "u and u-p-J",
+    "force-displacement curve"
+  ]
+}

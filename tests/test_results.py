@@ -7,7 +7,7 @@ import meshio
 import numpy as np
 import pytest
 
-from felupe_studio import results
+from felupe_studio import results, samples
 from felupe_studio.runner import LAST, run
 
 GOLDEN = Path(__file__).parent / "golden"
@@ -412,7 +412,9 @@ def test_displacements_and_forces_of_control_points(monkeypatch):
 
 def test_units_of_the_control_points(monkeypatch):
     # the columns of the control points with the units of the model settings (#132)
-    folder = Path(__file__).parents[1] / "app" / "public" / "samples" / "glued-plate"
+    folder = samples.folder_of(
+        Path(__file__).parents[1] / "app" / "samples", "glued-plate"
+    )
     document = json.loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
     monkeypatch.chdir(folder)
     run(document)
@@ -528,8 +530,9 @@ def test_invariants_of_the_tensors_at_the_points(monkeypatch):
     # quadrature points undershoots beside the soft air
     from felupe_studio.project import loads
 
-    folder = Path(__file__).parents[1] / "app" / "public" / "samples"
-    monkeypatch.chdir(folder / "engine-mount")
+    monkeypatch.chdir(
+        samples.folder_of(Path(__file__).parents[1] / "app" / "samples", "engine-mount")
+    )
     document = loads(Path("model.felupe.json").read_text(encoding="utf-8"))
     document["commands"] = [
         c
@@ -569,8 +572,11 @@ def test_projected_peak_at_a_hole(monkeypatch):
     # means of the cells, and the ranges of all substeps follow the method (#231)
     from felupe_studio.project import loads
 
-    folder = Path(__file__).parents[1] / "app" / "public" / "samples"
-    monkeypatch.chdir(folder / "plate-with-hole")
+    monkeypatch.chdir(
+        samples.folder_of(
+            Path(__file__).parents[1] / "app" / "samples", "plate-with-hole"
+        )
+    )
     run(loads(Path("model.felupe.json").read_text(encoding="utf-8")))
     last = results.substeps("job")
     peaks = {}

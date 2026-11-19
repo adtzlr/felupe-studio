@@ -1,0 +1,9 @@
+{
+  "title": "Material test: uniaxial tension",
+  "description": "An eighth of a cube with symmetry planes, stretched to twice its length; the curve is the analytical one of the incompressible Neo-Hooke model.",
+  "topics": [
+    "load case",
+    "symmetry",
+    "u-p-J"
+  ]
+}

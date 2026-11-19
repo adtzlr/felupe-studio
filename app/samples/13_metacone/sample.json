@@ -1,0 +1,10 @@
+{
+  "title": "Metacone (FElupe ex15)",
+  "description": "A conical rubber-metal spring as an axisymmetric model: two rubber layers with runouts between three steel sheets. The end of the inner sleeve is pushed along the axis, the outer sleeve is held at its other end. A script makes the section from the thickness of the sheets and the fineness.",
+  "topics": [
+    "axisymmetric",
+    "2D mesh script",
+    "clamped load case",
+    "u-p-J"
+  ]
+}

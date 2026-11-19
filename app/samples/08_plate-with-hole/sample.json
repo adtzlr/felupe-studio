@@ -1,0 +1,10 @@
+{
+  "title": "Plate with a hole in plane strain",
+  "description": "A quarter of a hyperelastic plate with a hole and two symmetry planes, pulled at its end; the stresses concentrate at the hole. A script makes the mesh from the radius of the hole, the width and the fineness.",
+  "topics": [
+    "plane strain",
+    "2D mesh script",
+    "symmetry",
+    "u-p-J"
+  ]
+}

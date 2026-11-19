@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
-// A build without the built-in samples (BUILT_IN_SAMPLES=false, #279): the extra
-// samples are the samples, and without any, there is no section and no menu item.
+// The samples of a build are the samples of its folder (#350), e.g. those of
+// SAMPLES_DIR: one list in the welcome panel, the dialog and the agent, and without
+// any samples, no section and no menu item.
 import {
   cleanup,
   fireEvent,
@@ -14,25 +15,24 @@ import { ModelStore } from "../core/store";
 
 afterEach(() => {
   cleanup();
-  vi.doUnmock("virtual:extra-samples");
+  vi.doUnmock("virtual:samples");
   vi.resetModules();
 });
 
 const ring: Sample = {
   id: "seal-ring",
+  folder: "01_seal-ring",
   title: "Seal ring",
   description: "Pressed into a groove.",
   topics: ["2D"],
   files: ["ring.vtu"],
+  thumbnail: false,
 };
 
-/** The modules of the app in a build with these extra samples only. */
-async function build(extra: Sample[]) {
+/** The modules of the app in a build with these samples. */
+async function build(list: Sample[]) {
   vi.resetModules();
-  vi.doMock("virtual:extra-samples", () => ({
-    builtIn: false,
-    default: extra,
-  }));
+  vi.doMock("virtual:samples", () => ({ default: list }));
   return {
     samples: await import("../core/samples"),
     Welcome: (await import("./Welcome")).Welcome,
@@ -65,22 +65,23 @@ function header(Header: Awaited<ReturnType<typeof build>>["Header"]) {
   return screen.queryByRole("menuitem", { name: "Samples…" });
 }
 
-describe("a build without the built-in samples (#279)", () => {
-  it("shows the extra samples as the samples", async () => {
+describe("the samples of a build (#350)", () => {
+  it("are the samples of its folder", async () => {
     const { samples, Welcome, SamplesDialog, Header } = await build([ring]);
-    expect(samples.SAMPLES).toEqual([]);
+    expect(samples.SAMPLES).toEqual([ring]);
     expect(samples.HAS_SAMPLES).toBe(true);
+    const onOpen = vi.fn(async () => {});
     render(
-      <Welcome
-        onImportMesh={vi.fn()}
-        onOpen={vi.fn()}
-        onOpenSample={vi.fn()}
-      />,
+      <Welcome onImportMesh={vi.fn()} onOpen={vi.fn()} onOpenSample={onOpen} />,
     );
     const list = screen.getByRole("list", { name: "Samples" });
     expect(within(list).getByRole("heading").textContent).toBe("Seal ring");
-    expect(screen.queryByRole("list", { name: "More samples" })).toBeNull();
-    expect(screen.getByText("Start from a sample")).toBeTruthy();
+    // a sample without a picture of its own shows the placeholder
+    const picture = list.querySelector("img.sample-thumbnail");
+    expect(picture?.getAttribute("src")).toMatch(/^data:image\/svg\+xml,/);
+    expect(screen.queryByText("More samples")).toBeNull();
+    fireEvent.click(within(list).getByRole("button"));
+    expect(onOpen).toHaveBeenCalledWith(ring);
     cleanup();
 
     render(
@@ -90,13 +91,23 @@ describe("a build without the built-in samples (#279)", () => {
     expect(
       within(dialog).getByRole("list", { name: "Samples" }).textContent,
     ).toContain("Pressed into a groove.");
-    expect(within(dialog).queryByText("More samples")).toBeNull();
     cleanup();
 
     expect(header(Header)).not.toBeNull();
   });
 
-  it("has no samples section and no menu item without any samples", async () => {
+  it("load their files from the folder of the sample", async () => {
+    const { samples } = await build([ring]);
+    expect(
+      samples.sampleUrl(ring, "ring.vtu", "https://example.org/app/"),
+    ).toBe("https://example.org/app/samples/01_seal-ring/ring.vtu");
+    const own = { ...ring, thumbnail: true };
+    expect(samples.thumbnailUrl(own, "https://example.org/app/")).toBe(
+      "https://example.org/app/samples/01_seal-ring/thumbnail.svg",
+    );
+  });
+
+  it("are no section and no menu item without any samples", async () => {
     const { samples, Welcome, Header } = await build([]);
     expect(samples.HAS_SAMPLES).toBe(false);
     render(
@@ -113,16 +124,5 @@ describe("a build without the built-in samples (#279)", () => {
     cleanup();
 
     expect(header(Header)).toBeNull();
-  });
-
-  it("puts the extra samples after the built-in ones by default", async () => {
-    const { sampleSections } = await import("../core/samples");
-    const builtIn = [{ ...ring, id: "bushing", title: "Bushing" }];
-    expect(sampleSections(builtIn, [ring])).toEqual({
-      samples: builtIn,
-      more: [ring],
-    });
-    expect(sampleSections([], [ring])).toEqual({ samples: [ring], more: [] });
-    expect(sampleSections([], [])).toEqual({ samples: [], more: [] });
   });
 });

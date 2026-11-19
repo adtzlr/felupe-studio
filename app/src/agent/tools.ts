@@ -7,7 +7,7 @@ import type { Command } from "../core/commands";
 import type { JobRun, JobRunner } from "../core/jobs";
 import { isScript, type MeshFiles } from "../core/meshfiles";
 import { type ResultView, substepsOf } from "../core/results";
-import { sampleSections, type Sample } from "../core/samples";
+import { SAMPLES, type Sample } from "../core/samples";
 import type { Edit, ModelStore } from "../core/store";
 import { type Issue, nameProblem } from "../core/validate";
 import type { RuntimeClient } from "../worker/client";
@@ -157,22 +157,19 @@ export function agentTools(host: AgentHost): Handler {
     (args: Record<string, unknown>, progress: Progress) => Promise<unknown>
   > = {
     samples: async () =>
-      Object.values(sampleSections())
-        .flat()
-        .map(({ id, title, description, topics }) => ({
-          id,
-          title,
-          description,
-          topics,
-        })),
+      SAMPLES.map(({ id, title, description, topics }) => ({
+        id,
+        title,
+        description,
+        topics,
+      })),
 
     open_sample: async (args) => {
       const id = string(args, "sample");
-      const { samples, more } = sampleSections();
-      const sample = [...samples, ...more].find((s) => s.id === id);
+      const sample = SAMPLES.find((s) => s.id === id);
       if (!sample)
         throw new Error(
-          `Unknown sample '${id}': ${[...samples, ...more].map((s) => s.id).join(", ")}.`,
+          `Unknown sample '${id}': ${SAMPLES.map((s) => s.id).join(", ")}.`,
         );
       if (host.modified())
         throw new Error(

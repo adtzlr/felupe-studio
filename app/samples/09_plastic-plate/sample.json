@@ -1,0 +1,10 @@
+{
+  "title": "Elastic-plastic plate with a hole",
+  "description": "The quarter of the plate with a hole in steel, pulled beyond its yield stress and back to the start. The stress at the hole yields first; the curve unloads elastically, crosses zero force at the remaining elongation and yields again in compression. The contour of the equivalent plastic strain shows the plastic zone.",
+  "topics": [
+    "plasticity",
+    "unloading",
+    "plane strain",
+    "strain-based"
+  ]
+}

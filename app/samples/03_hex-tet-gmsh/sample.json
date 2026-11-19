@@ -1,0 +1,9 @@
+{
+  "title": "Hexahedrons and tetrahedrons",
+  "description": "A Gmsh file with hexahedrons and tetrahedrons, one mesh per type of cells, both nearly incompressible.",
+  "topics": [
+    "Gmsh",
+    "two cell types",
+    "MINI element"
+  ]
+}

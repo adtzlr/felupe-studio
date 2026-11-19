@@ -19,13 +19,12 @@ import urllib.request
 from pathlib import Path
 
 import felupe_studio
-from felupe_studio import mcp
+from felupe_studio import mcp, samples
 
 package = Path(felupe_studio.__file__).resolve().parent
 data = package / "data"
 # installed, not the sources of a clone
 assert not (package.parents[1] / "app").exists(), package
-assert mcp.INDEX == data / "samples.json", mcp.INDEX
 assert mcp.DOCS == data / "docs", mcp.DOCS
 assert mcp._samples_folder() == data / "samples", mcp._samples_folder()
 for name in mcp.DOCUMENTS:
@@ -34,8 +33,9 @@ for name in mcp.DOCUMENTS:
 session = mcp.Session()
 ids = [sample["id"] for sample in session.samples()]
 assert "plate-with-hole" in ids and "engine-mount" in ids, ids
-for sample in ids:
-    assert (data / "samples" / sample / "model.felupe.json").is_file(), sample
+# the folders of the samples describe themselves (#350)
+for sample in samples.read(data / "samples"):
+    assert (data / "samples" / sample.folder / "sample.json").is_file(), sample
 with tempfile.TemporaryDirectory() as folder:
     session.open_sample("plate-with-hole", Path(folder) / "plate")
     assert (Path(folder) / "plate" / "plate_with_hole.py").is_file()
@@ -76,7 +76,9 @@ try:
     base = "http://127.0.0.1:8766"
     with urllib.request.urlopen(f"{base}/") as response:
         assert serve.META in response.read().decode(), "the meta tag of the runtime"
-    with urllib.request.urlopen(f"{base}/samples/plate-with-hole/model.felupe.json"):
+    # the files of a sample from its folder (#350)
+    plate = samples.folder_of(data / "samples", "plate-with-hole").name
+    with urllib.request.urlopen(f"{base}/samples/{plate}/model.felupe.json"):
         pass
     start = time.perf_counter()
     with connect(f"ws://127.0.0.1:8766/runtime?token={token}") as websocket:

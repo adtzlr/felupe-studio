@@ -2670,11 +2670,6 @@ kbd {
   overflow: auto;
 }
 
-/* the heading of the extra samples, below the built-in ones (#255) */
-.welcome-heading.samples-heading {
-  margin-top: var(--space-16);
-}
-
 .sample-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));

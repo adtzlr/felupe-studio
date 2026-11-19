@@ -1,0 +1,10 @@
+{
+  "title": "Bushing made with mesh tools",
+  "description": "The bushing of FElupe's ex05, its meshes made in the app with the mesh tools of FElupe instead of a script: two lines filled between, with runouts, revolved about the axis, and the sleeves as revolved rectangles. Change a parameter and the meshes follow.",
+  "topics": [
+    "mesh tools",
+    "parameters",
+    "expressions",
+    "revolve"
+  ]
+}

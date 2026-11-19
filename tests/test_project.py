@@ -173,7 +173,7 @@ def test_valid_projects_have_no_features_of_a_newer_version():
     "No sample and no golden case is taken for a project of a newer version."
     root = Path(__file__).parents[1]
     paths = [
-        *(root / "app" / "public" / "samples").glob("*/model.felupe.json"),
+        *(root / "app" / "samples").glob("*/model.felupe.json"),
         *(root / "tests" / "golden").glob("*/commands.json"),
     ]
     assert len(paths) > 20

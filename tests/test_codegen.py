@@ -10,7 +10,7 @@ import meshio
 import numpy as np
 import pytest
 
-from felupe_studio import items, jobs, sections, sets
+from felupe_studio import items, jobs, samples, sections, sets
 from felupe_studio.codegen import PARTS, TOL, codegen, object_lines
 from felupe_studio.commands import KINDS, ValidationError
 
@@ -1112,7 +1112,9 @@ def test_point_load(two_sections, tmp_path, monkeypatch):
 
 def test_object_lines_of_the_glued_plate():
     "The script view (#130) highlights the lines of the selected object."
-    folder = Path(__file__).parents[1] / "app" / "public" / "samples" / "glued-plate"
+    folder = samples.folder_of(
+        Path(__file__).parents[1] / "app" / "samples", "glued-plate"
+    )
     document = json.loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
     script = codegen(document)
     lines = object_lines(script, document)

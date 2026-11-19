@@ -1,0 +1,10 @@
+{
+  "title": "Bushing with steel sleeves (FElupe ex05)",
+  "description": "A hyperelastic bushing between two steel sleeves, the inner sleeve moved radially, twisted and tilted by a rigid connection. A script makes the mesh from the lengths of the sleeves, the runout and the fineness.",
+  "topics": [
+    "parameters",
+    "mesh script",
+    "point sets on cylinders",
+    "rotation point"
+  ]
+}
