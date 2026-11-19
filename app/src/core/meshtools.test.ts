@@ -33,6 +33,8 @@ describe("the mesh tools (ADR 0019)", () => {
       ["translate", "Operations", ".translate"],
       ["rotate", "Operations", ".rotate"],
       ["mirror", "Operations", ".mirror"],
+      ["fill_between", "Operations", "fem.mesh.fill_between"],
+      ["add_runouts", "Operations", ".add_runouts"],
     ]);
   });
 

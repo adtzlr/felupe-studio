@@ -25,6 +25,7 @@ def test_the_registry_of_the_tools():
     assert list(meshtools.tools()) == [
         *("Point", "Line", "Rectangle", "Cube"),
         *("expand", "revolve", "embed", "translate", "rotate", "mirror"),
+        *("fill_between", "add_runouts"),
     ]
     for name, definition in meshtools.tools().items():
         rule = definition["x-dimension"]
@@ -146,6 +147,20 @@ RECTANGLE = made("Rectangle", "face", a=[0, 0], b=[2, 1], n=[3, 2])
 CUBE = made("Cube", "block", a=[0, 0, 0], b=[2, 1, 1], n=[3, 2, 2])
 
 
+LINES = [
+    made("Line", "bottom", a=0, b=2, n=3),
+    {**made("embed", "bottom_2d", value=0), "inputs": ["bottom"]},
+    made("Line", "top", a=0, b=2, n=3),
+    {**made("embed", "top_2d", value=1), "inputs": ["top"]},
+]
+
+
+def cube_face(name, z):
+    """A rectangle embedded in 3D at the coordinate z, its name the embedded one."""
+    flat = made("Rectangle", f"{name}_flat", a=[0, 0], b=[2, 1], n=[3, 2])
+    return [flat, {**made("embed", name, value=z), "inputs": [f"{name}_flat"]}]
+
+
 def operation(tool, inputs, **parameters):
     return {**made(tool, "made", **parameters), "inputs": inputs}
 
@@ -172,6 +187,27 @@ def operation(tool, inputs, **parameters):
         [CUBE, operation("rotate", ["block"], angle_deg=30, axis="x")],
         [CUBE, operation("mirror", ["block"], axis="y", value=0.5)],
         [RECTANGLE, operation("mirror", ["face"], axis="x", value=0)],
+        [*LINES, operation("fill_between", ["bottom_2d", "top_2d"], n=4)],
+        [
+            *cube_face("low", 0),
+            *cube_face("high", 1),
+            operation("fill_between", ["low", "high"], n=3),
+        ],
+        [
+            RECTANGLE,
+            operation(
+                "add_runouts",
+                ["face"],
+                values=[0.2],
+                axis="y",
+                centerpoint=[1, 0.5],
+                normalize=True,
+            ),
+        ],
+        [
+            CUBE,
+            operation("add_runouts", ["block"], values=[0.1, 0.2], axis="x"),
+        ],
     ],
 )
 def test_the_dimensions_of_the_operations_are_those_of_felupe(chain):
@@ -195,5 +231,18 @@ def test_the_lines_of_the_operations():
     assert "face = made.expand(n=3, z=10)" in script
     assert "flipped = face.mirror(normal=[0, 1, 0], centerpoint=[0, 0.5, 0])" in script
     assert "def embed(mesh, value=0.0):" in script
+    filled = [
+        *LINES,
+        {**operation("fill_between", ["bottom_2d", "top_2d"], n=4), "name": "face"},
+        {
+            **operation(
+                "add_runouts", ["face"], values=[0.2], axis="y", normalize=True
+            ),
+            "name": "runouts",
+        },
+    ]
+    script = codegen({"schema_version": 3, "commands": filled}, evaluate=False)
+    assert "face = fem.mesh.fill_between(bottom_2d, top_2d, n=4)" in script
+    assert "runouts = face.add_runouts(values=[0.2], axis=1, normalize=True)" in script
     # the helper only in scripts with embedded meshes
     assert "def embed" not in codegen({"schema_version": 3, "commands": [LINE]})

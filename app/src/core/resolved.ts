@@ -53,7 +53,9 @@ export type MeshGenerate =
   | MeshEmbed
   | MeshTranslate
   | MeshRotate
-  | MeshMirror;
+  | MeshMirror
+  | MeshFillBetween
+  | MeshAddRunouts;
 /**
  * Add a material to the material library. Every model is a definition below (the material registry): its label, the FElupe class or tensortrax function, and its parameters with label, description, bounds and default.
  *
@@ -577,6 +579,76 @@ export interface MeshMirror {
      * The coordinate of the plane on the axis.
      */
     value: number;
+  };
+}
+/**
+ * Fill the cells between two meshes of the same cells and points (fem.mesh.fill_between): quads between two lines in a plane, hexahedrons between two quad meshes in space, with n points from the first mesh to the second.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MeshFillBetween".
+ */
+export interface MeshFillBetween {
+  command: "mesh.generate";
+  name: Name;
+  tool: "fill_between";
+  /**
+   * The two meshes made by tools before, from the first to the second, of the same cell type and number of points, e.g. two lines embedded in a plane.
+   *
+   * @minItems 2
+   * @maxItems 2
+   */
+  inputs: [Name, Name];
+  parameters: {
+    /**
+     * The number of points from the first mesh to the second (at least 2).
+     */
+    n: number;
+  };
+}
+/**
+ * Add runouts to a mesh (mesh.add_runouts), e.g. the concave free surfaces of a rubber body between metal parts: the points move perpendicular to the axis by a relative amount, most at the centerpoint.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MeshAddRunouts".
+ */
+export interface MeshAddRunouts {
+  command: "mesh.generate";
+  name: Name;
+  tool: "add_runouts";
+  /**
+   * The mesh that the tool takes: a mesh made by a tool before.
+   *
+   * @minItems 1
+   * @maxItems 1
+   */
+  inputs: [Name];
+  parameters: {
+    /**
+     * The relative amount of the runouts, one per coordinate perpendicular to the axis (one of 2D points, two of 3D points).
+     *
+     * @minItems 1
+     * @maxItems 2
+     */
+    values: [number] | [number, number];
+    /**
+     * The axis of the runouts.
+     */
+    axis: "x" | "y" | "z";
+    /**
+     * The center of the runouts, one coordinate per dimension of the points (default: the origin).
+     *
+     * @minItems 2
+     * @maxItems 3
+     */
+    centerpoint?: [number, number] | [number, number, number];
+    /**
+     * The shape of the runouts: the higher, the steeper the transition (default 5).
+     */
+    exponent?: number;
+    /**
+     * Keep the shape of the ends, the runouts become indents.
+     */
+    normalize?: boolean;
   };
 }
 /**
