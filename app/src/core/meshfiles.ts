@@ -6,7 +6,8 @@
 // they make with the parameters of the model are kept by their file, item and
 // parameter values.
 import { analysisOf, CELLS_2D, is2d } from "./analysis";
-import type { Command, MeshImport, MeshScript } from "./commands";
+import type { Command, MeshGenerate, MeshImport, MeshScript } from "./commands";
+import { evaluate } from "./expressions";
 import { solidOf } from "./meshinfo";
 import type { MeshInfo, MeshSurface } from "../worker/protocol";
 import { safeName } from "../worker/files";
@@ -51,26 +52,47 @@ export type Maker = (
   item?: string,
 ) => Promise<Inspection & { info: { traceback?: string } }>;
 
-/** A mesh object of the model: imported from a file or made by a script. */
+/**
+ * Makes a mesh with the tools of FElupe (ADR 0019): the commands of the tools that
+ * make it, with the values of their expressions, and its name.
+ */
+export type Generator = (
+  commands: readonly unknown[],
+  name: string,
+) => Promise<Inspection>;
+
+/** A mesh object of a file: imported from a file or made by a script. */
 export type MeshCommand = MeshImport | MeshScript;
 
-/** Whether a command is a mesh object, also with the values of expressions. */
+/** A mesh object of the model: of a file, or made by a tool (ADR 0019). */
+export type MeshObject = MeshCommand | MeshGenerate;
+
+/** Whether a command is a mesh object of a file, also with the values of expressions. */
 export const isMesh = <C extends Command>(c: C): c is Extract<C, MeshCommand> =>
   c.command === "mesh.import" || c.command === "mesh.script";
+
+/** Whether a command is a mesh object: of a file, or made by a tool (ADR 0019). */
+export const isMeshObject = <C extends Command>(
+  c: C,
+): c is Extract<C, MeshObject> => isMesh(c) || c.command === "mesh.generate";
 
 /** A Python script of the project, by its name (#182). */
 export const isScript = (name: string) => name.toLowerCase().endsWith(".py");
 
 export class MeshFiles {
   private files = new Map<string, { data: Uint8Array; file: MeshFile }>();
-  // the meshes made by scripts, by their key (scriptKey)
-  private made = new Map<string, { file: string; status: FileState }>();
+  // the meshes made by scripts (scriptKey) and by tools (generateKey), by their key
+  private made = new Map<string, { file?: string; status: FileState }>();
   private listeners = new Set<() => void>();
   private version = 0;
 
   constructor(
     private inspector?: Inspector,
-    private scripts: { write?: Writer; make?: Maker } = {},
+    private scripts: {
+      write?: Writer;
+      make?: Maker;
+      generate?: Generator;
+    } = {},
   ) {}
 
   /** Changes with every change of the files, for re-rendering. */
@@ -114,6 +136,37 @@ export class MeshFiles {
     parameters: Record<string, number>,
     item?: string,
   ): Promise<FileState> {
+    const { make } = this.scripts;
+    return this.produce(
+      key,
+      file,
+      make && (() => make(file, parameters, item)),
+    );
+  }
+
+  /**
+   * Make the mesh of tools (ADR 0019), once per key (`generateKey`): resolves with
+   * its final state; an error of FElupe is part of it.
+   */
+  async generate(
+    key: string,
+    commands: readonly unknown[],
+    name: string,
+  ): Promise<FileState> {
+    const { generate } = this.scripts;
+    return this.produce(
+      key,
+      undefined,
+      generate && (() => generate(commands, name)),
+    );
+  }
+
+  /** Make a mesh once per key with a maker of Python, and keep its state. */
+  private async produce(
+    key: string,
+    file: string | undefined,
+    maker: (() => Promise<Inspection>) | undefined,
+  ): Promise<FileState> {
     const existing = this.made.get(key);
     if (existing) return existing.status;
     const entry = { file, status: { state: "reading" } as FileState };
@@ -126,14 +179,10 @@ export class MeshFiles {
       this.notify();
       return status;
     };
-    if (!this.scripts.make)
+    if (!maker)
       return set({ state: "error", message: "Python is not available." });
     try {
-      const { info, surfaces = {} } = await this.scripts.make(
-        file,
-        parameters,
-        item,
-      );
+      const { info, surfaces = {} } = await maker();
       return info.error
         ? set({
             state: "error",
@@ -263,12 +312,16 @@ export function sectionCellType(
   )
     return undefined;
   const mesh = commands.find((c) => c.name === set.mesh);
-  if (!mesh || !isMesh(mesh)) return undefined;
+  if (!mesh || !isMeshObject(mesh)) return undefined;
   const status = meshStatus(mesh, commands, files);
   if (status?.state !== "ready") return undefined;
-  const choice = solidOf(status.info, mesh.cell_type);
+  const choice = solidOf(status.info, cellTypeOf(mesh));
   return "solid" in choice ? choice.solid.cell_type : undefined;
 }
+
+/** The cell type that a mesh object takes, if it names one (not of a tool). */
+export const cellTypeOf = (mesh: MeshObject): string | undefined =>
+  mesh.command === "mesh.generate" ? undefined : mesh.cell_type;
 
 /**
  * Problems of face sets that need the mesh files (#142): faces of tetrahedrons have
@@ -341,29 +394,77 @@ export function scriptKey(
   ]);
 }
 
+/** The values of the expressions of a value of a command, e.g. of the parameters of a tool. */
+function valuesOf(value: unknown, values: Record<string, number>): unknown {
+  if (typeof value === "string") {
+    try {
+      return evaluate(value, values);
+    } catch {
+      return null;
+    }
+  }
+  if (Array.isArray(value)) return value.map((v) => valuesOf(v, values));
+  return value;
+}
+
 /**
- * The state of the mesh of a mesh object: the read file of an import, or the mesh
- * a script made with the parameters of the model (undefined if the file is not
- * loaded or the mesh is not asked for yet).
+ * The commands of the tools that make a mesh (ADR 0019), with the values of their
+ * expressions: the mesh itself; the meshes that a tool takes follow with the
+ * operations (#314).
+ */
+export function generateChain(
+  mesh: MeshGenerate,
+  commands: readonly Command[],
+): MeshGenerate[] {
+  const values = parameterValues(commands);
+  const parameters = Object.fromEntries(
+    Object.entries(mesh.parameters).map(([k, v]) => [k, valuesOf(v, values)]),
+  );
+  return [{ ...mesh, parameters } as MeshGenerate];
+}
+
+/** The key of the mesh of tools: its name and its chain with values. */
+export function generateKey(
+  mesh: MeshGenerate,
+  commands: readonly Command[],
+): string {
+  return JSON.stringify([mesh.name, generateChain(mesh, commands)]);
+}
+
+/**
+ * The state of the mesh of a mesh object: the read file of an import, the mesh a
+ * script made with the parameters of the model, or the mesh of tools (undefined if
+ * the file is not loaded or the mesh is not asked for yet).
  */
 export function meshStatus(
-  mesh: MeshCommand,
+  mesh: MeshObject,
   commands: readonly Command[],
   files: MeshFiles,
 ): FileState | undefined {
+  if (mesh.command === "mesh.generate")
+    return files.madeStatus(generateKey(mesh, commands));
   const status = files.get(mesh.file)?.status;
   if (mesh.command === "mesh.import" || status?.state !== "script")
     return status;
   return files.madeStatus(scriptKey(mesh, commands));
 }
 
-/** Make the meshes of the scripts of a model that are not made yet (#182). */
+/**
+ * Make the meshes of the scripts (#182) and of the tools (ADR 0019) of a model that
+ * are not made yet.
+ */
 export function makeMeshes(
   commands: readonly Command[],
   files: MeshFiles,
 ): void {
   const keys = new Set<string>();
   for (const mesh of commands) {
+    if (mesh.command === "mesh.generate") {
+      const key = generateKey(mesh, commands);
+      keys.add(key);
+      void files.generate(key, generateChain(mesh, commands), mesh.name);
+      continue;
+    }
     if (mesh.command !== "mesh.script") continue;
     if (files.get(mesh.file)?.status.state !== "script") continue;
     const key = scriptKey(mesh, commands);
@@ -385,50 +486,71 @@ export function fileNotes(
 ): Map<string, string[]> {
   const notes = new Map<string, string[]>();
   for (const command of commands) {
-    if (!isMesh(command)) continue;
-    const file = files.get(command.file);
-    const script = command.command === "mesh.script";
-    if (!file) {
-      notes.set(command.name, [
-        `The ${script ? "script" : "file"} '${command.file}' is not loaded. Choose it in the properties.`,
-      ]);
-      continue;
-    }
-    if (script && file.status.state === "ready") {
-      // a mesh file named like a script
-      notes.set(command.name, [`'${command.file}' is not a Python script.`]);
-      continue;
-    }
-    const status = meshStatus(command, commands, files);
-    if (status?.state === "error") {
-      notes.set(command.name, [`${command.file}: ${status.message}`]);
-    } else if (status?.state === "ready") {
-      const choice = solidOf(status.info, command.cell_type);
-      const source = script
-        ? `The mesh of '${command.file}'${command.item ? ` ['${command.item}']` : ""}`
-        : `The file '${command.file}'`;
-      // the cells of the type of the analysis (#175)
-      const analysis = analysisOf(commands);
-      const planar =
-        !("problem" in choice) && CELLS_2D.includes(choice.solid.cell_type);
-      if ("problem" in choice) {
-        notes.set(command.name, [choice.problem]);
-      } else if (planar !== is2d(analysis)) {
-        notes.set(command.name, [
-          planar
-            ? `${source} has ${choice.solid.cell_type} cells, which are 2D cells: set the analysis of the settings to plane strain or axisymmetric.`
-            : `${source} has ${choice.solid.cell_type} cells, but a 2D model has 2D cells (triangles or quads).`,
-        ]);
-      } else if (
-        command.tag &&
-        !choice.solid.tags.some((t) => t.name === command.tag)
-      ) {
-        const subject = command.cell_type
-          ? `The ${command.cell_type} cells of ${source.replace("The ", "the ")} have`
-          : `${source} has`;
-        notes.set(command.name, [`${subject} no cell tag '${command.tag}'.`]);
-      }
-    }
+    const note =
+      command.command === "mesh.generate"
+        ? toolNote(command, commands, files)
+        : isMesh(command)
+          ? fileNote(command, commands, files)
+          : undefined;
+    if (note) notes.set(command.name, [note]);
   }
   return notes;
+}
+
+/** An error of FElupe in the tool of a made mesh (ADR 0019). */
+function toolNote(
+  command: MeshGenerate,
+  commands: readonly Command[],
+  files: MeshFiles,
+): string | undefined {
+  const status = meshStatus(command, commands, files);
+  return status?.state === "error"
+    ? `${command.tool}: ${status.message}`
+    : undefined;
+}
+
+/** Why the file of a mesh is not loaded or not usable. */
+function fileNote(
+  command: MeshCommand,
+  commands: readonly Command[],
+  files: MeshFiles,
+): string | undefined {
+  const file = files.get(command.file);
+  const script = command.command === "mesh.script";
+  if (!file)
+    return `The ${script ? "script" : "file"} '${command.file}' is not loaded. Choose it in the properties.`;
+  // a mesh file named like a script
+  if (script && file.status.state === "ready")
+    return `'${command.file}' is not a Python script.`;
+  const status = meshStatus(command, commands, files);
+  if (status?.state === "error") return `${command.file}: ${status.message}`;
+  if (status?.state !== "ready") return undefined;
+  return cellsNote(command, commands, status.info);
+}
+
+/** Why the cells of a read mesh do not fit the model. */
+function cellsNote(
+  command: MeshCommand,
+  commands: readonly Command[],
+  info: MeshInfo,
+): string | undefined {
+  const choice = solidOf(info, command.cell_type);
+  if ("problem" in choice) return choice.problem;
+  const source =
+    command.command === "mesh.script"
+      ? `The mesh of '${command.file}'${command.item ? ` ['${command.item}']` : ""}`
+      : `The file '${command.file}'`;
+  // the cells of the type of the analysis (#175)
+  const cellType = choice.solid.cell_type;
+  const planar = CELLS_2D.includes(cellType);
+  if (planar !== is2d(analysisOf(commands)))
+    return planar
+      ? `${source} has ${cellType} cells, which are 2D cells: set the analysis of the settings to plane strain or axisymmetric.`
+      : `${source} has ${cellType} cells, but a 2D model has 2D cells (triangles or quads).`;
+  if (!command.tag || choice.solid.tags.some((t) => t.name === command.tag))
+    return undefined;
+  const subject = command.cell_type
+    ? `The ${command.cell_type} cells of ${source.replace("The ", "the ")} have`
+    : `${source} has`;
+  return `${subject} no cell tag '${command.tag}'.`;
 }

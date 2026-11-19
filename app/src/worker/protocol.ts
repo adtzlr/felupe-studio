@@ -91,6 +91,8 @@ export interface MeshInfo {
   error?: string;
   /** The traceback of an error of a script that makes a mesh (#182). */
   traceback?: string;
+  /** The dimensions of the points and the cells of a mesh made by tools (ADR 0019). */
+  dimension?: { points: number; cells: number; cell_type: string };
 }
 
 /**
@@ -312,6 +314,16 @@ export type ToWorker =
       file: string;
       parameters: Record<string, number>;
       item?: string;
+    }
+  /**
+   * Make a mesh with the tools of FElupe (ADR 0019): the commands of the tools that
+   * make it, with the values of their expressions, and its name.
+   */
+  | {
+      type: "generate-mesh";
+      id: number;
+      commands: readonly unknown[];
+      name: string;
     }
   | { type: "run"; id: number; document: string; live?: LiveSettings }
   | { type: "script"; id: number; document: string }

@@ -157,15 +157,17 @@ export function Viewport({
 
   // the viewer (and its WebGL context) is created when there is a mesh to show
   useEffect(() => {
+    // the meshes of the model, and the construction meshes of tools (ADR 0019)
+    const drawn = [...content.meshes, ...content.construction];
     if (!viewer.current) {
-      if (content.meshes.length === 0 || !host.current) return;
+      if (drawn.length + content.vertices.length === 0 || !host.current) return;
       viewer.current = new Viewer(host.current, createViewer);
       viewer.current.onPick(picking.onPick);
       setAvailable(viewer.current.available);
     }
-    viewer.current.setMeshes(content.meshes);
+    viewer.current.setMeshes(drawn);
     viewer.current.setLegend(content.legend);
-    viewer.current.setMarkers(markers);
+    viewer.current.setMarkers([...content.vertices, ...markers]);
     viewer.current.setLines(lines);
     viewer.current.setPlane(picking.picked);
     viewer.current.setFaces([...rigid.faces, ...faces]);
@@ -205,7 +207,11 @@ export function Viewport({
         })),
   };
   const model = { commands, nodes, sections };
-  const shown = content.meshes.length > 0;
+  const shown =
+    content.meshes.length +
+      content.construction.length +
+      content.vertices.length >
+    0;
   const settled = shown && content.reading.length === 0;
   return (
     <main class="viewport" aria-label="Viewport" hidden={!active}>

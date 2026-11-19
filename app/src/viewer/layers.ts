@@ -8,14 +8,27 @@ import type {
   Command,
   SectionAdd,
 } from "../core/resolved";
-import { isMesh, type MeshFiles, meshStatus } from "../core/meshfiles";
+import { analysisOf, is2d } from "../core/analysis";
+import {
+  cellTypeOf,
+  isMeshObject,
+  type MeshFiles,
+  meshStatus,
+} from "../core/meshfiles";
 import { solidOf } from "../core/meshinfo";
+import { modelMesh } from "../core/meshtools";
 import type { MeshSurface } from "../worker/protocol";
-import { categorical, UNASSIGNED } from "./palette";
-import type { CellGroup, LegendEntry, MeshLayer } from "./scene";
+import { categorical, CONSTRUCTION, UNASSIGNED } from "./palette";
+import type { CellGroup, LegendEntry, Markers, MeshLayer } from "./scene";
 
-/** A mesh object with the values of its expressions (#242). */
-type MeshCommand = Extract<Command, { command: "mesh.import" | "mesh.script" }>;
+/**
+ * A mesh object with the values of its expressions (#242): of a file or made by a
+ * tool (ADR 0019).
+ */
+type MeshCommand = Extract<
+  Command,
+  { command: "mesh.import" | "mesh.script" | "mesh.generate" }
+>;
 
 export type ColorBy = "mesh" | "cellset" | "section";
 
@@ -27,6 +40,13 @@ export const COLOR_BY: readonly { id: ColorBy; label: string }[] = [
 
 export interface ViewportContent {
   meshes: MeshLayer[];
+  /**
+   * The construction meshes of the mesh tools (ADR 0019), e.g. a line in a 3D
+   * model: drawn as lines and light faces, not part of the model.
+   */
+  construction: MeshLayer[];
+  /** The vertices of construction meshes of points. */
+  vertices: Markers[];
   /** The legend; undefined for the names of the meshes (if more than one). */
   legend?: LegendEntry[];
   /** Files of meshes of the model that are being read. */
@@ -82,7 +102,8 @@ export function cellMask(
 ): Uint8Array | undefined {
   const mask = new Uint8Array(surface.cells);
   if (cellset.command === "cellset.from_file") return mask.fill(1);
-  const values = mesh.tag ? surface.tags?.[mesh.tag] : undefined;
+  const tag = mesh.command === "mesh.generate" ? undefined : mesh.tag;
+  const values = tag ? surface.tags?.[tag] : undefined;
   if (!values) return undefined;
   for (let cell = 0; cell < mask.length; cell++) {
     mask[cell] = values[cell] === cellset.value ? 1 : 0;
@@ -205,9 +226,12 @@ export function viewportContent(
   hidden: ReadonlySet<string>,
   colorBy: ColorBy = defaultColorBy(commands),
 ): ViewportContent {
-  // imported meshes and meshes made by scripts (#182)
-  const imports = commands.filter(isMesh);
+  // imported meshes, meshes made by scripts (#182) and by tools (ADR 0019)
+  const imports = commands.filter(isMeshObject);
   const meshes: MeshLayer[] = [];
+  const construction: MeshLayer[] = [];
+  const vertices: Markers[] = [];
+  const dim = is2d(analysisOf(commands)) ? 2 : 3;
   const reading = new Set<string>();
   // legend entries with visible cells, by their position in the model
   const shown = new Map<string, LegendEntry & { order: number }>();
@@ -215,9 +239,27 @@ export function viewportContent(
 
   imports.forEach((mesh, index) => {
     const status = meshStatus(mesh, commands, files);
-    if (status?.state === "reading") reading.add(mesh.file);
+    if (status?.state === "reading")
+      reading.add(mesh.command === "mesh.generate" ? mesh.name : mesh.file);
     if (hidden.has(mesh.name) || status?.state !== "ready") return;
-    const choice = solidOf(status.info, mesh.cell_type);
+    // a mesh of tools below the dimension of the model (ADR 0019)
+    const { dimension } = status.info;
+    if (dimension && !modelMesh(dimension, dim)) {
+      const surface = status.surfaces[dimension.cell_type];
+      if (!surface) return;
+      if (dimension.cells === 0)
+        vertices.push({ positions: surface.positions, color: CONSTRUCTION });
+      else
+        construction.push({
+          name: mesh.name,
+          surface,
+          color: CONSTRUCTION,
+          opacity: 0.35,
+          edgeColor: CONSTRUCTION,
+        });
+      return;
+    }
+    const choice = solidOf(status.info, cellTypeOf(mesh));
     const raw =
       "solid" in choice ? status.surfaces[choice.solid.cell_type] : undefined;
     if (!raw) return;
@@ -245,13 +287,18 @@ export function viewportContent(
     meshes.push(layer);
   });
 
-  const content: ViewportContent = { meshes, reading: [...reading] };
+  const content: ViewportContent = {
+    meshes,
+    construction,
+    vertices,
+    reading: [...reading],
+  };
   if (colorBy !== "mesh") {
     content.legend = [...shown.values()]
       .sort((a, b) => a.order - b.order)
       .map(({ label, color }) => ({ label, color }));
   }
-  if (meshes.length > 0) return content;
+  if (meshes.length + construction.length + vertices.length > 0) return content;
   if (imports.length === 0) {
     content.message = "Import a mesh to see it here.";
   } else if (reading.size > 0) {

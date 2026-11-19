@@ -357,6 +357,25 @@ export class RuntimeClient {
     return { info, surfaces };
   }
 
+  /**
+   * Make a mesh with the tools of FElupe (ADR 0019) and inspect it: the commands of
+   * the tools that make it, with the values of their expressions.
+   */
+  async generateMesh(
+    commands: readonly unknown[],
+    name: string,
+  ): Promise<{ info: MeshInfo; surfaces: Record<string, MeshSurface> }> {
+    const message = await this.request(
+      { type: "generate-mesh", commands, name },
+      "mesh-info",
+    );
+    const { info, surfaces } = message as Extract<
+      FromWorker,
+      { type: "mesh-info" }
+    >;
+    return { info, surfaces };
+  }
+
   terminate(): void {
     this.worker.terminate();
   }
