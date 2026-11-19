@@ -20,6 +20,8 @@ export type Quantity =
   | "stress"
   | "moment"
   | "rotation"
+  /** An angle in degrees, e.g. of an operation of the mesh tools (ADR 0019). */
+  | "angle"
   | "strain"
   | "ramped"
   | "parameter";
@@ -43,6 +45,7 @@ export function unitOf(
   units: Units | undefined,
 ): string | undefined {
   if (quantity === "rotation") return "rad";
+  if (quantity === "angle") return "°";
   if (!units || !quantity) return undefined;
   switch (quantity) {
     case "length":

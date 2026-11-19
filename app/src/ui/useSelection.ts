@@ -1,9 +1,10 @@
 // The selected object and the hidden objects of the model (#312): selecting,
 // the properties panel (#83), showing and hiding, renaming, duplicating (#138)
 // and deleting an object, and the context menu of an object in the browser.
-import { useState } from "preact/hooks";
+import { useMemo, useState } from "preact/hooks";
 import { duplicateBlocker } from "../core/duplicate";
 import { isMeshObject } from "../core/meshfiles";
+import { hiddenObjects } from "../core/meshtools";
 import { ariaKeys, hint, type ShortcutId } from "../core/shortcuts";
 import type { ModelStore } from "../core/store";
 import { KINDS } from "../core/validate";
@@ -24,11 +25,17 @@ export function useSelection(
     setSelection(id);
     setInspecting(id !== undefined);
   };
-  const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
+  // the objects whose visibility the user changed: hidden, or a mesh that another
+  // tool uses (hidden by default, ADR 0019) shown
+  const [toggled, setToggled] = useState<ReadonlySet<string>>(new Set());
+  const hidden: ReadonlySet<string> = useMemo(
+    () => hiddenObjects(store.commands, toggled),
+    [store.commands, toggled],
+  );
   // a selection that was removed (or renamed) is gone
   const selected = selection && store.get(selection) ? selection : undefined;
   const toggleVisible = (id: string) =>
-    setHidden((current) => {
+    setToggled((current) => {
       const next = new Set(current);
       if (!next.delete(id)) next.add(id);
       return next;
@@ -91,7 +98,7 @@ export function useSelection(
     /** A project was opened or started: nothing is selected or hidden. */
     reset: () => {
       setSelection(undefined);
-      setHidden(new Set());
+      setToggled(new Set());
     },
   };
 }

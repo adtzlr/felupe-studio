@@ -225,6 +225,19 @@ def test_cube_made_by_a_tool_like_the_file():
     assert "import meshio" not in script
 
 
+def test_cube_expanded_from_a_rectangle_like_the_file():
+    # the cube of cube_yeoh as a rectangle expanded by the operation expand (ADR
+    # 0019): the same mesh, the same curve
+    tool, file = (
+        json.loads((HERE / case / "results.json").read_text(encoding="utf-8"))
+        for case in ("cube_expanded_from_rectangle", "cube_yeoh")
+    )
+    for key in ("displacement", "force"):
+        np.testing.assert_allclose(
+            tool["jobs"]["job_1"][key], file["jobs"]["job_1"][key], rtol=1e-10
+        )
+
+
 def test_pardiso_like_superlu():
     # the bar of two materials with PARDISO of Intel oneMKL (#308): the curve of
     # SuperLU, stored where pypardiso is installed

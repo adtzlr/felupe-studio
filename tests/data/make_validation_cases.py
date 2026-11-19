@@ -59,6 +59,28 @@ def tool(document, tool="Cube", tags=False, **parameters):
             cellset["command"] = "cellset.from_file"
 
 
+def operation(document, kind, inputs, before=(), **parameters):
+    """The specimen made by an operation of the mesh tools (ADR 0019) of meshes made
+    before it, its cell sets all of its cells."""
+    tool(document)
+    index = document["commands"].index(find(document, "specimen"))
+    document["commands"][index:index] = list(before)
+    specimen = find(document, "specimen")
+    specimen.update(tool=kind, inputs=inputs, parameters=parameters)
+
+
+def made(name, tool, inputs=None, **parameters):
+    """A mesh made by a tool, an input of an operation."""
+    command = {"command": "mesh.generate", "name": name, "tool": tool}
+    if inputs:
+        command["inputs"] = inputs
+    return {**command, "parameters": parameters}
+
+
+RECTANGLE = made("face", "Rectangle", a=[0, 0], b=[3, 1], n=[4, 2])
+CUBE = made("block", "Cube", a=[0, 0, 0], b=[3, 1, 1], n=[4, 2, 2])
+
+
 def planar(document):
     """A plane strain model whose boundaries have no z."""
     document["commands"].insert(
@@ -1058,6 +1080,43 @@ CHANGES = {
     "a cube with expressions": lambda d: (
         tool(d, b=["length", 1, 1], n=["cells", 2, 2]),
         parameters(d),
+    ),
+    "a block expanded from a rectangle": lambda d: operation(
+        d, "expand", ["face"], [RECTANGLE], n=2, z=1
+    ),
+    "expand of a cube": lambda d: operation(d, "expand", ["block"], [CUBE], n=2, z=1),
+    "an operation of an imported mesh": lambda d: operation(
+        d,
+        "translate",
+        ["part"],
+        [{"command": "mesh.import", "name": "part", "file": "part.vtu"}],
+        move=1,
+        axis="x",
+    ),
+    "revolve of an embedded rectangle": lambda d: operation(
+        d,
+        "revolve",
+        ["plane"],
+        [RECTANGLE, made("plane", "embed", ["face"], value=1)],
+        n=3,
+        phi=90,
+        axis="x",
+    ),
+    "a rectangle moved along z": lambda d: operation(
+        d, "translate", ["face"], [RECTANGLE], move=1, axis="z"
+    ),
+    "a rectangle rotated about x": lambda d: operation(
+        d, "rotate", ["face"], [RECTANGLE], angle_deg=30, axis="x"
+    ),
+    "a cube rotated about a center of two coordinates": lambda d: operation(
+        d, "rotate", ["block"], [CUBE], angle_deg=30, axis="z", center=[1, 1]
+    ),
+    "a cube mirrored at a plane": lambda d: operation(
+        d, "mirror", ["block"], [CUBE], axis="y", value=0.5
+    ),
+    "an operation of a later mesh": lambda d: (
+        operation(d, "translate", ["block"], move=1, axis="x"),
+        d["commands"].insert(d["commands"].index(find(d, "specimen")) + 1, CUBE),
     ),
     "a cube with a number of points that is not an integer": lambda d: (
         tool(d, n=["stroke", 2, 2]),

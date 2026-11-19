@@ -272,19 +272,23 @@ function MultiChoiceControl({
 
 /** A reference to one object: a select of the objects of its kind. */
 function ReferenceControl(args: Args<"reference">) {
-  if (args.input.multiple) return <ReferencesControl {...args} />;
+  // a list of at most one, e.g. the mesh of an operation (ADR 0019): one select
+  const one = args.input.maxItems === 1;
+  if (args.input.multiple && !one) return <ReferencesControl {...args} />;
   const { form, spec, input, common, value } = args;
   const names = offered(spec, form.draft, form.context);
   const kind = kindLabel(input.kind);
-  const current = typeof value === "string" ? value : "";
+  const raw = one && Array.isArray(value) ? value[0] : value;
+  const current = typeof raw === "string" ? raw : "";
   const missing = current !== "" && !names.includes(current);
   return (
     <select
       {...common}
       value={current}
-      onChange={(event) =>
-        form.change(spec, event.currentTarget.value || undefined)
-      }
+      onChange={(event) => {
+        const name = event.currentTarget.value || undefined;
+        form.change(spec, one && name ? [name] : name);
+      }}
     >
       {(!spec.required || current === "") && (
         <option value="">

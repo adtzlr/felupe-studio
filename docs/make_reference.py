@@ -265,6 +265,12 @@ def _variants(name, node, command):
             out.append(
                 f"Strain exponent (`strain_exponent`): {exponent['description']}"
             )
+        inputs = resolved.get("properties", {}).get("inputs")
+        if inputs:
+            # the meshes of an operation of the mesh tools (ADR 0019)
+            count = inputs.get("maxItems")
+            noun = "one mesh" if count == 1 else f"{count} meshes"
+            out.append(f"Inputs (`inputs`): {noun}. {inputs['description']}")
         params = resolved.get("properties", {}).get("parameters")
         if params:
             rows = []
@@ -278,6 +284,9 @@ def _variants(name, node, command):
                     kind = _array(p, command, key)
                     if p["items"].get("not") == {"const": 0}:
                         kind = kind.replace("numbers", "numbers ≠ 0")
+                elif "$ref" in p:
+                    # e.g. the axis of an operation of the mesh tools (ADR 0019)
+                    kind = _type(p, command, key)
                 else:
                     integer = "integer" in p.get("type", [])
                     kind = " ".join(["integer" if integer else "number", *_bounds(p)])

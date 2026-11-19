@@ -74,6 +74,8 @@ export type Input =
       kind: RefKind;
       multiple: boolean;
       minItems: number;
+      /** At most this many, e.g. the one mesh of an operation (ADR 0019). */
+      maxItems?: number;
     }
   /**
    * A list of objects, edited as rows; `columns` are the fields of a row, with
@@ -409,7 +411,16 @@ function arrayLeaf(type: CommandType, key: string, property: Node): Leaf {
   }
   if (refName(property.items!) === "Name") {
     const kind = referenceKind(type, key);
-    return { input: { type: "reference", kind, multiple: true, minItems } };
+    const { maxItems } = property;
+    return {
+      input: {
+        type: "reference",
+        kind,
+        multiple: true,
+        minItems,
+        ...(maxItems !== undefined ? { maxItems } : {}),
+      },
+    };
   }
   if (items.enum) {
     const options = items.enum.map((v) => option(type, key, v));

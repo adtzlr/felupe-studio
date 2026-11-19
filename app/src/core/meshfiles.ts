@@ -7,7 +7,7 @@
 // parameter values.
 import { analysisOf, CELLS_2D, is2d } from "./analysis";
 import type { Command, MeshGenerate, MeshImport, MeshScript } from "./commands";
-import { evaluate } from "./expressions";
+import { resolveCommands } from "./resolve";
 import { solidOf } from "./meshinfo";
 import type { MeshInfo, MeshSurface } from "../worker/protocol";
 import { safeName } from "../worker/files";
@@ -394,34 +394,52 @@ export function scriptKey(
   ]);
 }
 
-/** The values of the expressions of a value of a command, e.g. of the parameters of a tool. */
-function valuesOf(value: unknown, values: Record<string, number>): unknown {
-  if (typeof value === "string") {
-    try {
-      return evaluate(value, values);
-    } catch {
-      return null;
-    }
+// the commands with the values of their expressions, once per command list
+const RESOLVED = new WeakMap<readonly Command[], readonly Command[]>();
+
+/** The commands with the values of their expressions (#242), by the schema. */
+function resolvedOf(commands: readonly Command[]): readonly Command[] {
+  let resolved = RESOLVED.get(commands);
+  if (!resolved) {
+    resolved = resolveCommands(commands).commands as unknown as Command[];
+    RESOLVED.set(commands, resolved);
   }
-  if (Array.isArray(value)) return value.map((v) => valuesOf(v, values));
-  return value;
+  return resolved;
 }
 
 /**
  * The commands of the tools that make a mesh (ADR 0019), with the values of their
- * expressions: the mesh itself; the meshes that a tool takes follow with the
- * operations (#314).
+ * expressions: the mesh and the meshes that it takes, recursively, in the order of
+ * the model; none if an expression of them has a problem.
  */
 export function generateChain(
   mesh: MeshGenerate,
   commands: readonly Command[],
 ): MeshGenerate[] {
-  const values = parameterValues(commands);
-  const parameters = Object.fromEntries(
-    Object.entries(mesh.parameters).map(([k, v]) => [k, valuesOf(v, values)]),
+  const resolved = resolvedOf(commands);
+  const made = new Map(
+    resolved.flatMap((c) =>
+      c.command === "mesh.generate" ? [[c.name, c] as const] : [],
+    ),
   );
-  return [{ ...mesh, parameters } as MeshGenerate];
+  const needed = new Set<string>();
+  const visit = (name: string) => {
+    const command = made.get(name);
+    if (!command || needed.has(name)) return;
+    needed.add(name);
+    for (const input of inputsOf(command)) visit(input);
+  };
+  visit(mesh.name);
+  if (!needed.has(mesh.name)) return [];
+  return resolved.filter(
+    (c): c is MeshGenerate =>
+      c.command === "mesh.generate" && needed.has(c.name),
+  );
 }
+
+/** The meshes that a tool takes (ADR 0019), none of a primitive. */
+export const inputsOf = (mesh: MeshGenerate): readonly string[] =>
+  "inputs" in mesh ? mesh.inputs : [];
 
 /** The key of the mesh of tools: its name and its chain with values. */
 export function generateKey(
@@ -460,9 +478,11 @@ export function makeMeshes(
   const keys = new Set<string>();
   for (const mesh of commands) {
     if (mesh.command === "mesh.generate") {
+      const chain = generateChain(mesh, commands);
+      if (!chain.length) continue;
       const key = generateKey(mesh, commands);
       keys.add(key);
-      void files.generate(key, generateChain(mesh, commands), mesh.name);
+      void files.generate(key, chain, mesh.name);
       continue;
     }
     if (mesh.command !== "mesh.script") continue;

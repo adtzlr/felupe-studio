@@ -25,7 +25,7 @@ from functools import cached_property
 from importlib.resources import files
 from textwrap import dedent
 
-from . import items, jobs, sections, sets
+from . import items, jobs, meshtools, sections, sets
 from .__about__ import __version__
 from .analysis import analysis_of
 from .commands import SCHEMA_VERSION, ValidationError, validate
@@ -87,6 +87,7 @@ BLOCKS = _blocks(
             "\n\n# --- embedded in generated scripts with meshes of scripts ---\n"
         ),
         "solvers": "\n\n# --- embedded in generated scripts with linear solvers ---\n",
+        "embed": "\n\n# --- embedded in generated scripts with embedded meshes ---\n",
     }
 )
 
@@ -98,6 +99,7 @@ HELPERS = (
     ("surfaces", lambda context: context.surface_points),
     ("scripts", lambda context: bool(context.get("mesh.script"))),
     ("solvers", lambda context: jobs.uses_solver_helpers(context.get("job.add"))),
+    ("embed", lambda context: meshtools.uses_embed(context.commands)),
 )
 
 AXES = ("x", "y", "z")
@@ -295,6 +297,11 @@ class Context:
     @cached_property
     def constraints(self):
         return self.get("mpc.add")
+
+    @cached_property
+    def dimensions(self):
+        """The dimensions of the meshes made by tools (ADR 0019)."""
+        return meshtools.dimensions(self.commands)
 
     @cached_property
     def rotations(self):

@@ -100,6 +100,11 @@ class Model:
         return cls(commands, analysis_of(commands))
 
     @cached_property
+    def dimensions(self):
+        """The dimensions of the meshes made by tools, by their names (ADR 0019)."""
+        return meshtools.dimensions(self.commands)
+
+    @cached_property
     def selects(self):
         """The selections of the point sets, by their names."""
         return {
@@ -256,9 +261,9 @@ def cellset_model_mesh(model, cmd):
     mesh = model.before(cmd["mesh"])
     if mesh is None or mesh["command"] != "mesh.generate":
         return []
-    dimension = meshtools.dimensions([mesh])[mesh["name"]]
+    dimension = model.dimensions.get(mesh["name"])
     dim = len(model.axes)
-    if meshtools.model_mesh(dimension, dim):
+    if dimension is None or meshtools.model_mesh(dimension, dim):
         return []
     return [
         f"cell set '{cmd['name']}' takes mesh '{mesh['name']}' of "
@@ -270,6 +275,20 @@ def cellset_model_mesh(model, cmd):
 def mesh_tool(model, cmd):
     """The values of a mesh tool (ADR 0019)."""
     return [f"mesh '{cmd['name']}': {p}" for p in meshtools.problems(cmd)]
+
+
+def mesh_inputs(model, cmd):
+    """The inputs of an operation of the mesh tools are meshes made by tools before,
+    whose dimensions fit the operation (ADR 0019)."""
+    problems = []
+    for name in cmd.get("inputs", []):
+        mesh = model.before(name)
+        if mesh is not None and mesh["command"] != "mesh.generate":
+            problems.append(
+                f"{cmd['tool']} takes meshes made by tools; '{name}' is not."
+            )
+    problems.extend(meshtools.input_problems(cmd, model.dimensions))
+    return [f"mesh '{cmd['name']}': {p}" for p in problems]
 
 
 def material_of(model, section):
@@ -432,7 +451,7 @@ LAST = (single, reserved_name, duplicate_name)
 RULES = {
     "step.add": (ramp_targets, ramp_twice, ramp_values),
     "boundary.add": (boundary_values,),
-    "mesh.generate": (mesh_tool,),
+    "mesh.generate": (mesh_tool, mesh_inputs),
     "cellset.from_tag": (cellset_tag, cellset_model_mesh),
     "cellset.from_file": (cellset_model_mesh,),
     "section.add": (section_bulk, section_isochoric, section_strain_based),

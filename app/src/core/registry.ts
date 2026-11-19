@@ -189,6 +189,8 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     prefix: "mesh",
     fields: {
       tool: { label: "Tool", default: "Cube" },
+      inputs: { label: "Mesh", hint: "A mesh made by a tool before" },
+      "parameters.axis": { label: "Axis" },
     },
   },
   "mesh.script": {

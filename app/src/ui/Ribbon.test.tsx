@@ -61,6 +61,7 @@ describe("ribbon commands", () => {
       "Import mesh",
       // the mesh tools in a menu (ADR 0019)
       "Primitives ▾",
+      "Operations ▾",
       "Mesh script",
       "Merge points",
       "Cell set from tag",

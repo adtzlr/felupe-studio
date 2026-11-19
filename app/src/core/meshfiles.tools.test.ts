@@ -133,6 +133,25 @@ describe("meshes made by tools (ADR 0019)", () => {
     expect(made.slice(3).map(([, name]) => name)).toEqual(["block", "edge"]);
   });
 
+  it("take the meshes of their inputs, choices as they are", () => {
+    const chain = [
+      ...model,
+      {
+        command: "mesh.generate",
+        name: "ring",
+        tool: "revolve",
+        inputs: ["edge"],
+        parameters: { n: 5, phi: "45 * width", axis: "x" },
+      },
+    ] as Command[];
+    const ring = chain.at(-1) as MeshGenerate;
+    expect(generateChain(ring, chain).map((c) => c.parameters)).toEqual([
+      { a: 0, b: 4, n: 5 },
+      // the axis is a choice, not an expression
+      { n: 5, phi: 90, axis: "x" },
+    ]);
+  });
+
   it("are drawn: the model meshes, and the construction meshes lighter", async () => {
     const { files } = tools();
     makeMeshes(model, files);

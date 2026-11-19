@@ -38,12 +38,22 @@ export type Command =
  */
 export type Name = string;
 /**
- * A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh.
+ * A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes made by tools before, like expand or revolve. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "MeshGenerate".
  */
-export type MeshGenerate = MeshPoint | MeshLine | MeshRectangle | MeshCube;
+export type MeshGenerate =
+  | MeshPoint
+  | MeshLine
+  | MeshRectangle
+  | MeshCube
+  | MeshExpand
+  | MeshRevolve
+  | MeshEmbed
+  | MeshTranslate
+  | MeshRotate
+  | MeshMirror;
 /**
  * Add a material to the material library. Every model is a definition below (the material registry): its label, the FElupe class or tensortrax function, and its parameters with label, description, bounds and default.
  *
@@ -392,6 +402,183 @@ export interface MeshCube {
      * @maxItems 3
      */
     n: [number | string, number | string, number | string];
+  };
+}
+/**
+ * Expand a mesh along a new axis (mesh.expand): a point to a line, a line to quads in the xy-plane, quads to hexahedrons along z, with n points over the length z.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MeshExpand".
+ */
+export interface MeshExpand {
+  command: "mesh.generate";
+  name: Name;
+  tool: "expand";
+  /**
+   * The mesh that the tool takes: a mesh made by a tool before.
+   *
+   * @minItems 1
+   * @maxItems 1
+   */
+  inputs: [Name];
+  parameters: {
+    /**
+     * The number of points along the new axis (at least 2).
+     */
+    n: number | string;
+    /**
+     * The length along the new axis.
+     */
+    z: number | string;
+  };
+}
+/**
+ * Revolve a mesh about an axis (mesh.revolve): a point to a line, a line to quads, quads to hexahedrons, with n points over the angle phi.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MeshRevolve".
+ */
+export interface MeshRevolve {
+  command: "mesh.generate";
+  name: Name;
+  tool: "revolve";
+  /**
+   * The mesh that the tool takes: a mesh made by a tool before.
+   *
+   * @minItems 1
+   * @maxItems 1
+   */
+  inputs: [Name];
+  parameters: {
+    /**
+     * The number of points over the angle (at least 2).
+     */
+    n: number | string;
+    /**
+     * The angle of revolution in degrees, at most 360.
+     */
+    phi: number | string;
+    /**
+     * The axis of revolution.
+     */
+    axis: "x" | "y" | "z";
+  };
+}
+/**
+ * Embed a mesh into one dimension more (embed, e.g. np.pad of the points): its points get the coordinate value of the new axis, its cells stay, e.g. a line into the plane y = value.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MeshEmbed".
+ */
+export interface MeshEmbed {
+  command: "mesh.generate";
+  name: Name;
+  tool: "embed";
+  /**
+   * The mesh that the tool takes: a mesh made by a tool before.
+   *
+   * @minItems 1
+   * @maxItems 1
+   */
+  inputs: [Name];
+  parameters: {
+    /**
+     * The coordinate of the points on the new axis.
+     */
+    value: number | string;
+  };
+}
+/**
+ * Move a mesh along an axis (mesh.translate).
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MeshTranslate".
+ */
+export interface MeshTranslate {
+  command: "mesh.generate";
+  name: Name;
+  tool: "translate";
+  /**
+   * The mesh that the tool takes: a mesh made by a tool before.
+   *
+   * @minItems 1
+   * @maxItems 1
+   */
+  inputs: [Name];
+  parameters: {
+    /**
+     * The distance along the axis.
+     */
+    move: number | string;
+    /**
+     * The axis of the move.
+     */
+    axis: "x" | "y" | "z";
+  };
+}
+/**
+ * Rotate a mesh about an axis through a center (mesh.rotate); a mesh of 2D points turns about z.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MeshRotate".
+ */
+export interface MeshRotate {
+  command: "mesh.generate";
+  name: Name;
+  tool: "rotate";
+  /**
+   * The mesh that the tool takes: a mesh made by a tool before.
+   *
+   * @minItems 1
+   * @maxItems 1
+   */
+  inputs: [Name];
+  parameters: {
+    /**
+     * The angle of rotation in degrees.
+     */
+    angle_deg: number | string;
+    /**
+     * The axis of rotation.
+     */
+    axis: "x" | "y" | "z";
+    /**
+     * The center of rotation, one coordinate per dimension of the points (default: the origin).
+     *
+     * @minItems 2
+     * @maxItems 3
+     */
+    center?:
+      | [number | string, number | string]
+      | [number | string, number | string, number | string];
+  };
+}
+/**
+ * Mirror a mesh at a plane normal to an axis (mesh.mirror), at the coordinate value of the axis.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MeshMirror".
+ */
+export interface MeshMirror {
+  command: "mesh.generate";
+  name: Name;
+  tool: "mirror";
+  /**
+   * The mesh that the tool takes: a mesh made by a tool before.
+   *
+   * @minItems 1
+   * @maxItems 1
+   */
+  inputs: [Name];
+  parameters: {
+    /**
+     * The axis normal to the plane of the mirror.
+     */
+    axis: "x" | "y" | "z";
+    /**
+     * The coordinate of the plane on the axis.
+     */
+    value: number | string;
   };
 }
 /**
