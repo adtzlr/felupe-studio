@@ -189,6 +189,8 @@ In the app, the store keeps the commands as written and gives `resolved`, the co
 
 Generated scripts pass `ruff check` and `ruff format --check`. The tests run them with FElupe and compare with hand-written FElupe models.
 
+The code generation follows ADR 0018: the script is a fixed sequence of parts (`PARTS` of `felupe_studio.codegen`), each a function of a `Context` that returns its lines. The context is computed once from the resolved commands: the type of the analysis, the precision, the units and the sets that several parts use, e.g. the load cases or the rotation points of the constraints. Within a part, the lines of an object are made by the emitter of its command type, a function `(context, command) -> lines` of a registry of the part, in the order of the commands. The parts and their emitters are in `sections.py`, `sets.py`, `items.py` and `jobs.py`, the Python source formatted like ruff in `formatting.py`. A new command type is a new emitter in the registry of its part; a test checks that every command type has one.
+
 ## Model store (app)
 
 `app/src/core/store.ts` holds the command list in the browser:

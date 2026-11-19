@@ -38,9 +38,10 @@ The script itself is fine. It is what users read and export, and the golden test
   Emitters read it and do not compute it again.
 - **The helpers that a script embeds** are a table of blocks, each with its condition on the context, e.g. the helpers of the mixed fields if a section is `u-p-J`. Their text stays in `_helpers.py`.
 - **Flat modules:** the Pyodide worker copies `python/felupe_studio/*.py` flat into the browser, and the wheel lists them, so there are no subpackages.
-  - `codegen.py` keeps the public API: `codegen`, `object_lines`, `solver_source`, `solver_rtol`, `evaluate_options`, `TOL`, `parameter_value`, `parameter_line`, `analysis_of`, `MARKER`. It also holds the context and the sequence of the parts.
-  - `formatting.py` has the Python source formatted like ruff would (`_str`, `_wrap`, `_call`, `_List`, `_Dict`, the line length of 88).
-  - Modules by topic have the parts and their emitters, e.g. meshes and sections, sets and boundaries, items, steps and jobs. `materials.py` and `loadcases.py` stay as they are.
+  - `codegen.py` keeps the public API: `codegen`, `object_lines`, `solver_source`, `solver_rtol`, `evaluate_options`, `TOL`, `parameter_value`, `parameter_line`, `analysis_of`, `MARKER`. It also holds the context (`Context`) and the sequence of the parts (`PARTS`).
+  - `formatting.py` has the Python source formatted like ruff would (`quote`, `wrap`, `call`, `List`, `Dict`, `Call`, the line length of 88).
+  - Modules by topic have the parts and their emitters: `sections.py` (the meshes, the materials and the sections), `sets.py` (the point sets, the face sets, the load cases and the boundaries), `items.py` (the constraints, the contacts, the point loads and the pressures) and `jobs.py` (the steps and the jobs). `materials.py` and `loadcases.py` stay as they are.
+  - `lines.py` has `object_lines()`, the lines of the objects in the syntax tree of the script.
   - No module above about 400 lines.
 - **Limits:** no function of the code generation above a complexity of 15 (#313).
 - **The script does not change:** the golden scripts stay byte-identical, and the refactoring is done in steps that each keep them so. `object_lines()` (the lines of an object in the script view) keeps working on the syntax tree of the script, independent of the parts.

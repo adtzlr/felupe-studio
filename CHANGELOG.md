@@ -2,6 +2,12 @@
 
 All notable changes of FElupe Studio (the web app and the Python package `felupe_studio`, released together with the same version).
 
+## [Unreleased]
+
+### Changed
+
+- The code generation in parts (ADR 0018): `codegen()`, one function of 559 lines with a complexity of 105, is a fixed sequence of parts (`PARTS`), each a function of a `Context` that is computed once from the resolved commands, with an emitter per command type in a registry of its part. The parts are in the modules `sections`, `sets`, `items` and `jobs`, the formatting like ruff in `formatting` and `object_lines()` in `lines`; `felupe_studio.codegen` keeps its public API. No function of the code generation has a complexity above 15, and the scripts are byte-identical: the golden scripts and the scripts of all 333 command lists of the tests (#309).
+
 ## [0.6.0] - 2026-11-19
 
 A local Python runtime, the agent bridge, large models and expressions of parameters:
