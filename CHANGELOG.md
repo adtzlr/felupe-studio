@@ -4,6 +4,10 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ## [Unreleased]
 
+### Added
+
+- The token of `felupe-studio serve` from the environment variable `FELUPE_STUDIO_TOKEN`: it stays the same at every start, so a `.mcp.json` of VS Code or Claude Code takes it as `"Authorization": "Bearer ${FELUPE_STUDIO_TOKEN}"` without a secret in the file, and the link of the app stays the same. A token needs at least 16 letters, digits, `_` or `-`; with it, `serve --agent` prints the header of the `.mcp.json`. The guide for agents shows the `.mcp.json` in the root of the workspace for the stdio server and for the agent bridge.
+
 ### Changed
 
 - The code generation in parts (ADR 0018): `codegen()`, one function of 559 lines with a complexity of 105, is a fixed sequence of parts (`PARTS`), each a function of a `Context` that is computed once from the resolved commands, with an emitter per command type in a registry of its part. The parts are in the modules `sections`, `sets`, `items` and `jobs`, the formatting like ruff in `formatting` and `object_lines()` in `lines`; `felupe_studio.codegen` keeps its public API. No function of the code generation has a complexity above 15, and the scripts are byte-identical: the golden scripts and the scripts of all 333 command lists of the tests (#309).

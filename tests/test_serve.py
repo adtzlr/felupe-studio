@@ -16,7 +16,13 @@ from starlette.testclient import TestClient  # noqa: E402
 from starlette.websockets import WebSocketDisconnect  # noqa: E402
 
 from felupe_studio.cli import main  # noqa: E402
-from felupe_studio.serve import META, create_app, find_app  # noqa: E402
+from felupe_studio.serve import (  # noqa: E402
+    META,
+    agent_message,
+    create_app,
+    find_app,
+    token_of,
+)
 
 GOLDEN = Path(__file__).parent / "golden" / "cube_yeoh"
 DOCUMENT = (GOLDEN / "commands.json").read_text(encoding="utf-8")
@@ -330,3 +336,31 @@ def test_the_command(capsys):
     assert error.value.code == 0
     with pytest.raises(SystemExit, match="npm run build"):
         main(["serve", "--app", "/nonexistent", "--no-browser"])
+
+
+def test_the_token_of_the_environment():
+    """A token that stays the same at every start, e.g. for a .mcp.json."""
+    assert token_of({"FELUPE_STUDIO_TOKEN": "my-token_of-the-user"}) == (
+        "my-token_of-the-user"
+    )
+    assert token_of({}) != token_of({})
+    assert token_of({"FELUPE_STUDIO_TOKEN": ""}) != ""
+    for token in ("too-short", "a token with spaces", "ümlaut-token-1234567"):
+        with pytest.raises(ValueError, match="FELUPE_STUDIO_TOKEN needs at least"):
+            token_of({"FELUPE_STUDIO_TOKEN": token})
+
+
+def test_the_message_of_the_agent_endpoint():
+    endpoint = "http://127.0.0.1:8765/mcp"
+    fixed = agent_message(endpoint, "my-token_of-the-user", fixed=True)
+    assert '"Authorization": "Bearer ${FELUPE_STUDIO_TOKEN}"' in fixed
+    assert "my-token_of-the-user" not in fixed
+    new = agent_message(endpoint, "abc", fixed=False)
+    assert '--header "Authorization: Bearer abc"' in new
+    assert "set FELUPE_STUDIO_TOKEN to keep one" in new
+
+
+def test_the_command_refuses_a_weak_token(dist, monkeypatch):
+    monkeypatch.setenv("FELUPE_STUDIO_TOKEN", "1234")
+    with pytest.raises(SystemExit, match="FELUPE_STUDIO_TOKEN needs at least 16"):
+        main(["serve", "--app", str(dist), "--no-browser"])

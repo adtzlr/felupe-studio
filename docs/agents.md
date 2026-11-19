@@ -21,15 +21,21 @@ Claude Code:
 claude mcp add felupe-studio -- felupe-studio-mcp
 ```
 
-VS Code (GitHub Copilot, agent mode), `.vscode/mcp.json`:
+VS Code (GitHub Copilot, agent mode) and Claude Code read a `.mcp.json` in the root of the workspace (in VS Code still experimental, the setting `chat.mcp.workspaceRootConfig.enabled`):
 
 ```json
 {
-  "servers": {
-    "felupe-studio": { "type": "stdio", "command": "felupe-studio-mcp" }
+  "mcpServers": {
+    "felupe-studio": {
+      "type": "stdio",
+      "command": "felupe-studio-mcp",
+      "tools": ["*"]
+    }
   }
 }
 ```
+
+`tools` are the tools of the server that GitHub Copilot may use, `*` for all. VS Code's own file `.vscode/mcp.json` has the servers under `servers` instead of `mcpServers`.
 
 Other clients start the command `felupe-studio-mcp` with the transport stdio. Options: `--project <file>` opens a project at the start, `--allow-scripts` lets the mesh scripts of opened projects run (see below).
 
@@ -68,7 +74,41 @@ pip install "felupe-studio[serve,mcp]"
 felupe-studio serve --agent
 ```
 
-It prints the endpoint and the command that adds it to Claude Code, e.g. `claude mcp add --transport http felupe-studio http://127.0.0.1:8765/mcp --header "Authorization: Bearer <token>"` (a new token at every start). In the app, *Help ▸ Connect an agent* connects the tab; the status bar says *Agent connected*, and *Disconnect* ends it. One tab at a time: connecting another tab replaces it.
+It prints the endpoint and the command that adds it to Claude Code, e.g. `claude mcp add --transport http felupe-studio http://127.0.0.1:8765/mcp --header "Authorization: Bearer <token>"`. In the app, *Help ▸ Connect an agent* connects the tab; the status bar says *Agent connected*, and *Disconnect* ends it. One tab at a time: connecting another tab replaces it.
+
+### The token in a .mcp.json
+
+The token is new at every start, unless you give it at the start: then the environment variable `FELUPE_STUDIO_TOKEN` is the token of every start, at least 16 letters, digits, `_` or `-`. The `.mcp.json` in the root of the workspace takes it from the environment, so the file has no secret and stays valid:
+
+```json
+{
+  "mcpServers": {
+    "felupe-studio": {
+      "type": "http",
+      "url": "http://127.0.0.1:8765/mcp",
+      "headers": {
+        "Authorization": "Bearer ${FELUPE_STUDIO_TOKEN}"
+      },
+      "tools": ["*"]
+    }
+  }
+}
+```
+
+Make a token once and set the variable for your user, so that `felupe-studio serve` and VS Code both see it. VS Code reads the environment when it starts, so start it again after you set the variable.
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(24))"  # a token, once
+export FELUPE_STUDIO_TOKEN=<the token>  # e.g. in ~/.bashrc or ~/.zshrc
+```
+
+On Windows (PowerShell), for your user:
+
+```powershell
+[Environment]::SetEnvironmentVariable("FELUPE_STUDIO_TOKEN", "<the token>", "User")
+```
+
+With the variable, `felupe-studio serve --agent` prints the header of the `.mcp.json` instead of the token, and the link of the app stays the same at every start, so a bookmark works. A token that is too short or has other characters stops the start with a message. In `.vscode/mcp.json`, the header takes the variable as `${env:FELUPE_STUDIO_TOKEN}`.
 
 - The tools have the names and answers above, on the open model: `list_commands`, `add_command`, `update_command`, `delete_command` (each change is an undo step that you see in the history), `samples` and `open_sample` (only without unsaved changes), `parameters` and `set_parameters` (one undo step), `write_file`, `check`, `script`, `solve` (in the app, with its live results and progress) and `results`.
 - Only with the bridge: `selection` (what you selected, and the view), `select`, `show` (the model, or the results of a job at a substep with a quantity) and `picture` (the view as an image).
