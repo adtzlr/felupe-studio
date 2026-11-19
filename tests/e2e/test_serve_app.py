@@ -123,9 +123,11 @@ def test_pardiso_of_the_local_python(url, page):
     page.get_by_text("Created job_pardiso.").wait_for()
     page.get_by_role("button", name="Help").click()
     page.get_by_role("menuitem", name="About").click()
-    versions = page.get_by_label("Versions").inner_text()
+    about = page.get_by_role("dialog")
+    versions = about.get_by_label("Versions").inner_text()
     assert ("PyPardiso\nnot installed" in versions) != installed
-    page.keyboard.press("Escape")
+    about.get_by_role("button", name="Close").click()
+    about.wait_for(state="hidden")
     if installed:
         page.get_by_text("0 issues", exact=True).wait_for()
         page.get_by_role("button", name="Solve").click()
