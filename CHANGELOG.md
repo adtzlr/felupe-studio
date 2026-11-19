@@ -10,6 +10,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Changed
 
+- One request layer for the Pyodide worker and `felupe-studio serve` (#311): `felupe_studio.requests` answers the 12 requests of the app (`write-file`, `inspect-mesh`, `make-mesh`, `run`, `script`, `script-view`, `check`, `result`, `result-ranges`, `export-results`, `export-mesh`, `benchmark`) for both runtimes, instead of a second implementation in the worker. The worker passes the frame of a request to `handle_frame()` and gets the JSON text and the buffers of every answer, the parts of a frame (`felupe_studio.frames`), so both runtimes get the same messages; it keeps loading Pyodide and the wheels, the bytecode cache and the transfer of the arrays (`pyodide.worker.ts`: 214 instead of 462 lines). The protocol of the app is unchanged.
 - The code generation in parts (ADR 0018): `codegen()`, one function of 559 lines with a complexity of 105, is a fixed sequence of parts (`PARTS`), each a function of a `Context` that is computed once from the resolved commands, with an emitter per command type in a registry of its part. The parts are in the modules `sections`, `sets`, `items` and `jobs`, the formatting like ruff in `formatting` and `object_lines()` in `lines`; `felupe_studio.codegen` keeps its public API. No function of the code generation has a complexity above 15, and the scripts are byte-identical: the golden scripts and the scripts of all 333 command lists of the tests (#309).
 
 ## [0.6.0] - 2026-11-19
