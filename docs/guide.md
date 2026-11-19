@@ -51,6 +51,7 @@ An empty model shows a welcome panel with *Import mesh*, *Open project* and the 
 | Plate with a hole in plane strain | a plane strain model, two symmetry planes, the concentration of the stress at a hole |
 | Elastic-plastic plate with a hole | a strain-based elastic-plastic material (steel), loading beyond the yield stress and unloading, the equivalent plastic strain |
 | Bushing with steel sleeves (FElupe ex05) | a mesh script with the fineness of the mesh as parameters, point sets on cylinders, a rotation point for torsion and tilt |
+| Bushing made with mesh tools | the bushing with its meshes made by the mesh tools in the app: lines filled between, runouts, revolved sections, expressions of the parameters |
 | Hyperelastic spring with end stops (FElupe ex06) | rigid surfaces, contacts with friction, a point set on the outer surface, a symmetry plane |
 | Metacone (FElupe ex15) | an axisymmetric rubber-metal spring, its section made by a 2D mesh script with runouts, the clamped uniaxial load case |
 | Engine mount (FElupe ex07) | plane strain, air as a third medium (`u-isochoric`), rigid metal parts by point sets of sections, two jobs |
@@ -74,6 +75,8 @@ The **elastic-plastic plate with a hole** is the same quarter of a plate in stee
 ![The results of the sample "Elastic-plastic plate with a hole" back at the start: the equivalent plastic strain at the hole and the force-displacement curve of the loading and the unloading](images/plasticity.png)
 
 The **bushing with steel sleeves** is the example ex05 of FElupe: a hyperelastic body between two steel sleeves, made by `bushing.py` with the lengths of the sleeves, their thickness, the runout of the free faces and the fineness of the mesh (cells along the axis, through the soft body and around it) as parameters. The outside of the outer sleeve (`r = 65`) is fixed; the inside of the inner sleeve (`r = 25`) is connected to a control point at the axis with a rotation point, which moves it by 8 mm in z, twists it by 30° about x and tilts it by −5° about y. The curve is the moment of the torsion over its angle. The multiplier of the connection (100000) is large compared with the steel, so the moment of the torsion agrees with ex05, which prescribes the rotated positions, within 0.1 %; a finer mesh is a change of three parameters.
+
+The **bushing made with mesh tools** is the same bushing without a script: its meshes are made in the app with the mesh tools (see 1. Mesh). The section of the soft body is filled between two lines, embedded at the radii of the sleeves (`25 + sleeve` and `65 - sleeve`), gets its runouts and is revolved about the x axis; the sleeves are revolved rectangles. The browser shows each mesh with the meshes it is made of below it, hidden in the viewport. Change a parameter, e.g. *cells_around*, and the meshes are made again; select a tool to see its line in the script.
 
 ## Building a model
 

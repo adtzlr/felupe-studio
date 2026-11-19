@@ -1,0 +1,410 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "model.settings",
+      "name": "settings",
+      "units": {
+        "length": "mm",
+        "force": "N"
+      }
+    },
+    {
+      "command": "parameter.add",
+      "name": "inner_length",
+      "value": 100,
+      "quantity": "length",
+      "min": 60,
+      "max": 140,
+      "step": 10,
+      "description": "Length of the inner sleeve"
+    },
+    {
+      "command": "parameter.add",
+      "name": "outer_length",
+      "value": 60,
+      "quantity": "length",
+      "min": 30,
+      "max": 100,
+      "step": 10,
+      "description": "Length of the outer sleeve"
+    },
+    {
+      "command": "parameter.add",
+      "name": "sleeve",
+      "value": 5,
+      "quantity": "length",
+      "min": 2,
+      "max": 10,
+      "step": 1,
+      "description": "Thickness of the sleeves"
+    },
+    {
+      "command": "parameter.add",
+      "name": "runout",
+      "value": 0.2,
+      "min": 0,
+      "max": 0.4,
+      "step": 0.05,
+      "description": "Runout of the free faces of the soft body"
+    },
+    {
+      "command": "parameter.add",
+      "name": "cells_axial",
+      "value": 5,
+      "min": 2,
+      "max": 20,
+      "integer": true,
+      "description": "Cells along the axis"
+    },
+    {
+      "command": "parameter.add",
+      "name": "cells_radial",
+      "value": 7,
+      "min": 2,
+      "max": 20,
+      "integer": true,
+      "description": "Cells through the soft body"
+    },
+    {
+      "command": "parameter.add",
+      "name": "cells_around",
+      "value": 18,
+      "min": 8,
+      "max": 72,
+      "integer": true,
+      "description": "Cells around the axis"
+    },
+    {
+      "command": "mesh.generate",
+      "name": "bottom",
+      "tool": "Line",
+      "parameters": {
+        "a": "-inner_length / 2",
+        "b": "inner_length / 2",
+        "n": "cells_axial + 1"
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "bottom_plane",
+      "tool": "embed",
+      "inputs": [
+        "bottom"
+      ],
+      "parameters": {
+        "value": "25 + sleeve"
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "top",
+      "tool": "Line",
+      "parameters": {
+        "a": "-outer_length / 2",
+        "b": "outer_length / 2",
+        "n": "cells_axial + 1"
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "top_plane",
+      "tool": "embed",
+      "inputs": [
+        "top"
+      ],
+      "parameters": {
+        "value": "65 - sleeve"
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "section",
+      "tool": "fill_between",
+      "inputs": [
+        "bottom_plane",
+        "top_plane"
+      ],
+      "parameters": {
+        "n": "cells_radial + 1"
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "runouts",
+      "tool": "add_runouts",
+      "inputs": [
+        "section"
+      ],
+      "parameters": {
+        "values": [
+          "runout"
+        ],
+        "axis": "y",
+        "centerpoint": [
+          0,
+          45
+        ],
+        "normalize": true
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "soft_mesh",
+      "tool": "revolve",
+      "inputs": [
+        "runouts"
+      ],
+      "parameters": {
+        "n": "cells_around + 1",
+        "phi": 360,
+        "axis": "x"
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "inner_section",
+      "tool": "Rectangle",
+      "parameters": {
+        "a": [
+          "-inner_length / 2",
+          25
+        ],
+        "b": [
+          "inner_length / 2",
+          "25 + sleeve"
+        ],
+        "n": [
+          "cells_axial + 1",
+          3
+        ]
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "inner_sleeve",
+      "tool": "revolve",
+      "inputs": [
+        "inner_section"
+      ],
+      "parameters": {
+        "n": "cells_around + 1",
+        "phi": 360,
+        "axis": "x"
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "outer_section",
+      "tool": "Rectangle",
+      "parameters": {
+        "a": [
+          "-outer_length / 2",
+          "65 - sleeve"
+        ],
+        "b": [
+          "outer_length / 2",
+          65
+        ],
+        "n": [
+          "cells_axial + 1",
+          3
+        ]
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "outer_sleeve",
+      "tool": "revolve",
+      "inputs": [
+        "outer_section"
+      ],
+      "parameters": {
+        "n": "cells_around + 1",
+        "phi": 360,
+        "axis": "x"
+      }
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "soft_cells",
+      "mesh": "soft_mesh"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "inner_cells",
+      "mesh": "inner_sleeve"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "outer_cells",
+      "mesh": "outer_sleeve"
+    },
+    {
+      "command": "material.add",
+      "name": "hyperelastic",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 1
+      }
+    },
+    {
+      "command": "material.add",
+      "name": "steel",
+      "model": "LinearElasticLargeStrain",
+      "parameters": {
+        "E": 210000,
+        "nu": 0.3
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "soft_body",
+      "cellset": "soft_cells",
+      "material": "hyperelastic",
+      "formulation": "u-p-J",
+      "bulk": 5000
+    },
+    {
+      "command": "section.add",
+      "name": "inner_steel",
+      "cellset": "inner_cells",
+      "material": "steel",
+      "formulation": "u"
+    },
+    {
+      "command": "section.add",
+      "name": "outer_steel",
+      "cellset": "outer_cells",
+      "material": "steel",
+      "formulation": "u"
+    },
+    {
+      "command": "pointset.add",
+      "name": "inner",
+      "select": {
+        "radius": 25,
+        "axis": "x"
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "outer",
+      "select": {
+        "radius": 65,
+        "axis": "x"
+      }
+    },
+    {
+      "command": "point.add",
+      "name": "center",
+      "coordinates": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "command": "point.add",
+      "name": "turn",
+      "coordinates": [
+        0,
+        0,
+        10
+      ]
+    },
+    {
+      "command": "mpc.add",
+      "name": "connect",
+      "points": "inner",
+      "center": "center",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ],
+      "multiplier": 100000,
+      "rotation": "turn"
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "outer",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "radial",
+      "pointset": "center",
+      "constrained": [
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "hold",
+      "pointset": "center",
+      "constrained": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "torsion",
+      "pointset": "turn",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "cardanic",
+      "pointset": "turn",
+      "constrained": [
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "lock",
+      "pointset": "turn",
+      "constrained": [
+        "z"
+      ]
+    },
+    {
+      "command": "step.add",
+      "name": "loading",
+      "ramp": {
+        "num": 6,
+        "items": [
+          {
+            "target": "radial",
+            "end": 8
+          },
+          {
+            "target": "torsion",
+            "end": 0.5236
+          },
+          {
+            "target": "cardanic",
+            "end": -0.0873
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job",
+      "steps": [
+        "loading"
+      ],
+      "curve": "torsion"
+    }
+  ]
+}

@@ -126,6 +126,15 @@ SAMPLES = [
         ],
     },
     {
+        "id": "bushing-tools",
+        "title": "Bushing made with mesh tools",
+        "description": "The bushing of FElupe's ex05, its meshes made in the app with "
+        "the mesh tools of FElupe instead of a script: two lines filled between, with "
+        "runouts, revolved about the axis, and the sleeves as revolved rectangles. "
+        "Change a parameter and the meshes follow.",
+        "topics": ["mesh tools", "parameters", "expressions", "revolve"],
+    },
+    {
         "id": "hyperelastic-spring",
         "title": "Hyperelastic spring with end stops (FElupe ex06)",
         "description": "A half of a hyperelastic spring bonded to two plates, "
@@ -1304,6 +1313,95 @@ def bushing():
     write("bushing", commands, {"bushing.py": BUSHING})
 
 
+def made(name, tool, inputs=None, **parameters):
+    """A mesh made by a tool of FElupe (ADR 0019)."""
+    command = {"command": "mesh.generate", "name": name, "tool": tool}
+    if inputs:
+        command["inputs"] = inputs
+    return {**command, "parameters": parameters}
+
+
+def bushing_tools():
+    """The bushing of the sample ``bushing`` (#185), its meshes made by the mesh tools
+    of FElupe in the app (#314, ADR 0019) instead of a script: the section of the soft
+    body between two lines embedded in the xy-plane, with runouts, revolved about the
+    x axis, and the sleeves as revolved rectangles. The sleeves are two meshes of one
+    material instead of one stacked mesh; the curve is that of the sample of the
+    script."""
+    commands = loads_project(HERE / "bushing")["commands"]
+    first = next(i for i, c in enumerate(commands) if c["command"] == "mesh.script")
+    around = {"n": "cells_around + 1", "phi": 360, "axis": "x"}
+    axial = "cells_axial + 1"
+    meshes = [
+        # the section of the soft body: from the inner sleeve (r = 25 + sleeve) to
+        # the outer one (r = 65 - sleeve), with runouts of its free faces
+        made("bottom", "Line", a="-inner_length / 2", b="inner_length / 2", n=axial),
+        made("bottom_plane", "embed", ["bottom"], value="25 + sleeve"),
+        made("top", "Line", a="-outer_length / 2", b="outer_length / 2", n=axial),
+        made("top_plane", "embed", ["top"], value="65 - sleeve"),
+        made(
+            "section",
+            "fill_between",
+            ["bottom_plane", "top_plane"],
+            n="cells_radial + 1",
+        ),
+        made(
+            "runouts",
+            "add_runouts",
+            ["section"],
+            values=["runout"],
+            axis="y",
+            centerpoint=[0, 45],
+            normalize=True,
+        ),
+        made("soft_mesh", "revolve", ["runouts"], **around),
+        # the sleeves: rectangles of two cells through their thickness, revolved
+        made(
+            "inner_section",
+            "Rectangle",
+            a=["-inner_length / 2", 25],
+            b=["inner_length / 2", "25 + sleeve"],
+            n=[axial, 3],
+        ),
+        made("inner_sleeve", "revolve", ["inner_section"], **around),
+        made(
+            "outer_section",
+            "Rectangle",
+            a=["-outer_length / 2", "65 - sleeve"],
+            b=["outer_length / 2", 65],
+            n=[axial, 3],
+        ),
+        made("outer_sleeve", "revolve", ["outer_section"], **around),
+    ]
+    cells = [
+        {"command": "cellset.from_file", "name": "soft_cells", "mesh": "soft_mesh"},
+        {"command": "cellset.from_file", "name": "inner_cells", "mesh": "inner_sleeve"},
+        {"command": "cellset.from_file", "name": "outer_cells", "mesh": "outer_sleeve"},
+    ]
+    rest = [
+        c
+        for c in commands[first:]
+        if c["command"] not in ("mesh.script", "cellset.from_file")
+        and c["name"] != "sleeves"
+    ]
+    sections = [
+        {
+            "command": "section.add",
+            "name": name,
+            "cellset": cellset,
+            "material": "steel",
+            "formulation": "u",
+        }
+        for name, cellset in (
+            ("inner_steel", "inner_cells"),
+            ("outer_steel", "outer_cells"),
+        )
+    ]
+    body = next(i for i, c in enumerate(rest) if c["name"] == "soft_body")
+    rest[body + 1 : body + 1] = sections
+    write("bushing-tools", [*commands[:first], *meshes, *cells, *rest], {})
+
+
 def hyperelastic_spring():
     """A hyperelastic spring with end stops like the example ex06 of FElupe (#222):
     a half of the spring (a symmetry plane y = 0) bonded to two steel plates, the top
@@ -1944,6 +2042,7 @@ def main():
     plate_with_hole()
     plastic_plate()
     bushing()
+    bushing_tools()
     hyperelastic_spring()
     metacone()
     engine_mount()

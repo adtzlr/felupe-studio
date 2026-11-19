@@ -296,6 +296,47 @@ def test_bushing_matches_ex05(monkeypatch):
     assert tilt == pytest.approx(moment[1], rel=0.01)
 
 
+def test_bushing_of_the_mesh_tools_like_the_script(monkeypatch):
+    """The bushing made with the mesh tools in the app (#314, ADR 0019): the meshes
+    of its tools are those of the script of the sample bushing (the soft body, and
+    the sleeves as two meshes instead of one stacked mesh), and its curve is the
+    curve of that sample."""
+    import runpy
+
+    from felupe_studio import meshtools
+
+    folder = APP / "public" / "samples"
+    tools = loads((folder / "bushing-tools" / "model.felupe.json").read_text("utf-8"))
+    resolved = resolve(tools)[0]["commands"]
+    values = {
+        c["name"]: c["value"] for c in resolved if c["command"] == "parameter.add"
+    }
+    made = meshtools.generate(resolved, values)
+    monkeypatch.chdir(folder / "bushing")
+    script = runpy.run_path("bushing.py")["mesh"]
+    np.testing.assert_allclose(made["soft_mesh"].points, script["soft"].points)
+    np.testing.assert_array_equal(made["soft_mesh"].cells, script["soft"].cells)
+    sleeves = np.vstack([made["inner_sleeve"].points, made["outer_sleeve"].points])
+    np.testing.assert_allclose(
+        np.unique(sleeves.round(8), axis=0),
+        np.unique(script["metal"].points.round(8), axis=0),
+    )
+
+    curves = {}
+    for sample, document in (
+        (
+            "bushing",
+            loads((folder / "bushing" / "model.felupe.json").read_text("utf-8")),
+        ),
+        ("bushing-tools", tools),
+    ):
+        monkeypatch.chdir(folder / sample)
+        curves[sample] = np.array(run(document)["job"]["y"])
+    np.testing.assert_allclose(
+        curves["bushing-tools"], curves["bushing"], rtol=1e-6, atol=1e-6
+    )
+
+
 def test_hyperelastic_spring_matches_ex06(monkeypatch):
     """The hyperelastic spring with end stops (#222), compared with the example ex06
     of FElupe on the same mesh: the forces of the lower plate (the bonded face and
