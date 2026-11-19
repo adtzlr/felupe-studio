@@ -3,7 +3,8 @@
 The same module runs in CPython (tests, native reference) and in Pyodide (browser).
 It times a uniaxial tension test of a hyperelastic cube for several mesh sizes, in
 double precision, with the linear equation system in single precision, or with the
-model in single precision (ADR 0016).
+model in single precision (ADR 0016), with SuperLU of FElupe or, in CPython with the
+package pypardiso, with PARDISO of Intel oneMKL (#308).
 """
 
 from time import perf_counter
@@ -11,7 +12,7 @@ from time import perf_counter
 import numpy as np
 
 
-def benchmark(n=5, num=5, precision="double"):
+def benchmark(n=5, num=5, precision="double", solver="superlu"):
     r"""Run a uniaxial tension test of a unit cube with ``n`` points per edge.
 
     Parameters
@@ -25,12 +26,17 @@ def benchmark(n=5, num=5, precision="double"):
         precision (``float32``, the model in double precision) or ``"model"`` for the
         model in single precision (the region and the field in ``float32``, #297),
         see ADR 0016.
+    solver : str, optional
+        ``"superlu"`` (default, ``fem.solve.SuperLUSolver``) or ``"pardiso"``
+        (``pypardiso.spsolve``, #308). PARDISO in single precision needs a
+        PyPardiso that factorizes in ``float32``, e.g. adtzlr/PyPardiso.
 
     Returns
     -------
     dict
-        Number of points, cells and degrees of freedom, the precision, timings in
-        seconds for the model setup and the solution, and the final reaction force.
+        Number of points, cells and degrees of freedom, the precision, the solver,
+        timings in seconds for the model setup and the solution, and the final
+        reaction force.
     """
     import felupe as fem
 
@@ -51,14 +57,19 @@ def benchmark(n=5, num=5, precision="double"):
     )
     job = fem.CharacteristicCurve(steps=[step], boundary=boundaries["move"])
 
-    solver = fem.solve.SuperLUSolver()
+    if solver == "pardiso":
+        import pypardiso
+
+        solve = pypardiso.spsolve
+    else:
+        solve = fem.solve.SuperLUSolver()
     if precision == "single":
         from ._helpers import single_precision
 
-        solver = single_precision(solver)
+        solve = single_precision(solve)
 
     t1 = perf_counter()
-    job.evaluate(verbose=0, solver=solver)
+    job.evaluate(verbose=0, solver=solve)
     t2 = perf_counter()
 
     return {
@@ -68,6 +79,7 @@ def benchmark(n=5, num=5, precision="double"):
         "dofs": int(field[0].values.size),
         "increments": num,
         "precision": precision,
+        "solver": solver,
         "setup": t1 - t0,
         "solve": t2 - t1,
         "force": float(np.array(job.y)[-1, 0]),

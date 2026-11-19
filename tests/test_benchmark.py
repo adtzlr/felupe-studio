@@ -35,3 +35,13 @@ def test_benchmark_in_single_precision():
     ]
     assert abs(single["force"] - double["force"]) < 1e-6 * double["force"]
     assert abs(model["force"] - double["force"]) < 1e-4 * double["force"]
+
+
+def test_benchmark_with_pardiso():
+    # PARDISO of Intel oneMKL (#308), where pypardiso is installed: the force of
+    # SuperLU
+    pytest.importorskip("pypardiso")
+    superlu = benchmark(n=3, num=2)
+    pardiso = benchmark(n=3, num=2, solver="pardiso")
+    assert (superlu["solver"], pardiso["solver"]) == ("superlu", "pardiso")
+    assert abs(pardiso["force"] - superlu["force"]) < 1e-10 * superlu["force"]

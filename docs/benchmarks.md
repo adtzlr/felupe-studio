@@ -296,3 +296,35 @@ The start of the same run with FElupe 12.1.1, which imports `scipy.interpolate` 
 | **Total**                          |            **5.839** |     **5.368** |
 
 Both runs hit the bytecode cache. `import felupe` takes 0.14 s instead of 0.34 s; without the cache and with FElupe 12.1.0 (#296) the FElupe step took 3.60 s, now 1.25 s.
+
+## PARDISO of Intel oneMKL (#308)
+
+`solver.type: "pardiso"` of a job solves with `pypardiso.spsolve` in Python on the computer (`felupe-studio serve`); MKL has no build for WebAssembly, so not in the browser. The benchmark of the spike runs it with `solver="pardiso"` in CPython (`felupe_studio.benchmark.benchmark(n, precision=..., solver=...)`).
+
+Container with 2 cores (x86_64), CPython 3.13, FElupe 12.1.1, NumPy 2.5.3, SciPy 1.18.1, MKL 2026.2.1; PyPardiso 0.4.7 in double precision, adtzlr/PyPardiso for single precision (PyPardiso 0.4 factorizes only in `float64`). Every configuration in a fresh process, best of two runs, times in seconds.
+
+**The benchmark of the spike**, solve times:
+
+|   n |   DOF | SuperLU, double | SuperLU, linear system in single | SuperLU, model in single | PARDISO, double | PARDISO, linear system in single | PARDISO, model in single | PARDISO / SuperLU, double |  Force |
+| --: | ----: | --------------: | -------------------------------: | -----------------------: | --------------: | -------------------------------: | -----------------------: | ------------------------: | -----: |
+|   9 |  2187 |           0.667 |                            0.539 |                    0.327 |           0.595 |                            0.521 |                    0.304 |                       1.1 | 1.7940 |
+|  13 |  6591 |           5.402 |                            3.202 |                    1.996 |           1.586 |                            1.520 |                    0.991 |                       3.4 | 1.7925 |
+|  17 | 14739 |          23.489 |                           14.098 |                    8.902 |           5.402 |                            4.468 |                    2.998 |                       4.3 | 1.7919 |
+|  21 | 27783 |         104.782 |                           58.830 |                   36.548 |          14.811 |                           10.148 |                    7.333 |                       7.1 | 1.7916 |
+
+Peak memory of a process (the resident set; Python with FElupe takes about 63 MB, MKL about 25 MB more):
+
+|   n | SuperLU: double / linear system / model | PARDISO: double / linear system / model |
+| --: | --------------------------------------: | --------------------------------------: |
+|  17 |                  382 MB / 326 MB / 273 MB |                384 MB / 349 MB / 317 MB |
+|  21 |                  824 MB / 656 MB / 520 MB |                701 MB / 617 MB / 544 MB |
+
+**A cube with u-p-J** (`fem.SolidBodyNearlyIncompressible`, `fem.NeoHooke(mu=1)`, K = 5000, n = 21: 27,783 DOF, uniaxial tension to a stretch of 1.2 in five increments, tolerance 0.01), best of two runs:
+
+| Precision                               | SuperLU | PARDISO | Peak memory, SuperLU / PARDISO |
+| --------------------------------------- | ------: | ------: | -----------------------------: |
+| double                                  |   109 s |    13 s |               1124 MB / 799 MB |
+| the linear equation system in `float32` |    58 s |    10 s |                844 MB / 711 MB |
+| the model in `float32`                  |    44 s |     9 s |                620 MB / 589 MB |
+
+The forces of PARDISO are those of SuperLU in every precision (four digits; the golden case `bar_pardiso` agrees within 1e-10). PARDISO factorizes with less fill-in and on both cores: the larger the model, the larger its lead, 7 to 8 times at 27,783 DOF in double precision, with less memory than SuperLU. Single precision adds less with PARDISO than with SuperLU (1.5 times at n = 21 instead of 1.8 for the linear system, 2.0 instead of 2.9 for the model), as the factorization is no longer most of the time: the assembly and the material take the rest. PARDISO factorizes on all cores of the computer, SuperLU of SciPy on one.
