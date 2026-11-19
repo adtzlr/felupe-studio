@@ -1,20 +1,5 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { useViewKeys } from "./hooks";
-import { withHint } from "../core/shortcuts";
-import { NodesButton, useShowNodes } from "./NodesButton";
-import { CONTROL_COLOR, EXTREME_COLORS } from "../viewer/palette";
-import { extremeShape } from "../viewer/extremes";
-import { outlined } from "../viewer/pointsets";
-import { rigidShapes } from "../viewer/rigid";
-import {
-  constraintLines,
-  constraintShapes,
-  resultPlacement,
-} from "../viewer/constraints";
-import type { Command } from "../core/resolved";
-
-const NO_COMMANDS: readonly Command[] = [];
 import {
   type ContourSettings,
   contourLook,
@@ -22,50 +7,34 @@ import {
   DEFAULT_CONTOUR,
   methodOf,
 } from "../core/contour";
-import { formatValue, type ResultView } from "../core/results";
-import { SceneCache } from "../core/scenecache";
-import {
-  resultUnit,
-  type Units,
-  unitOf,
-  unitsOf,
-  valueWithUnit,
-  withUnit,
-} from "../core/units";
-import { type ProbeInfo, probeInfo } from "../viewer/probe";
+import type { Command } from "../core/resolved";
+import type { ResultView } from "../core/results";
+import { resultUnit, unitsOf, withUnit } from "../core/units";
+import { withHint } from "../core/shortcuts";
 import {
   type Capture,
   type CreateViewer,
-  HIGHLIGHT,
   Viewer,
   VIEWS,
 } from "../viewer/viewer";
-import type { Vec3 } from "../viewer/picking";
-import type { Lines } from "../viewer/scene";
-import { formatTick } from "../viewer/scalarbar";
-import type {
-  Quantity,
-  ResultExtreme,
-  ResultPoint,
-  ResultScene,
-  ValuesMethod,
-} from "../worker/protocol";
+import type { ResultScene } from "../worker/protocol";
+import { useViewKeys } from "./hooks";
+import { NodesButton, useShowNodes } from "./NodesButton";
+import { type Extreme, PointsCard, ProbeTooltip } from "./ResultsCards";
+import { drawResults } from "./resultsDrawing";
+import {
+  type Loaded,
+  type ResultSource,
+  useJobRange,
+  useResultScene,
+  type Wanted,
+} from "./useResultScene";
+import { useHover, usePinnedPick } from "./useResultsPointer";
 
-/** Loads the result scenes of substeps (the worker client). */
-export interface ResultSource {
-  resultScene(
-    job: string,
-    substep: number,
-    quantity: Quantity,
-    method?: ValuesMethod,
-  ): Promise<ResultScene>;
-  /** The ranges of a quantity of every substep of a job (#139). */
-  resultRanges?(
-    job: string,
-    quantity: Quantity,
-    method?: ValuesMethod,
-  ): Promise<([number, number] | null)[]>;
-}
+export type { ResultSource } from "./useResultScene";
+
+const NO_COMMANDS: readonly Command[] = [];
+const NO_SUBSTEPS: readonly number[] = [];
 
 interface Props {
   source?: ResultSource;
@@ -104,325 +73,172 @@ interface Props {
   live?: { scene?: ResultScene; view: ResultView; status: string };
 }
 
-const NO_SUBSTEPS: readonly number[] = [];
-
-/** The range over all substeps of a job (#139), from the ranges of its substeps. */
-function useJobRange(
-  source: ResultSource | undefined,
-  key: string | undefined,
-  job: string,
-  quantity: Quantity,
-  method: ValuesMethod,
-): readonly [number, number] | undefined {
-  const [ranges, setRanges] = useState<{
-    key: string;
-    range?: [number, number];
-  }>();
-  useEffect(() => {
-    if (!key || !source?.resultRanges || ranges?.key === key) return;
-    let alive = true;
-    source.resultRanges(job, quantity, method).then(
-      (list) => {
-        const finite = list.filter((r): r is [number, number] => r !== null);
-        const range: [number, number] | undefined = finite.length
-          ? [
-              Math.min(...finite.map((r) => r[0])),
-              Math.max(...finite.map((r) => r[1])),
-            ]
-          : undefined;
-        if (alive) setRanges({ key, range });
-      },
-      () => alive && setRanges({ key }),
-    );
-    return () => {
-      alive = false;
+/** The wanted scene of a substep of the view; none while it is not shown. */
+function wantedOf(
+  view: ResultView | undefined,
+  substep: number,
+  {
+    shown,
+    generation,
+    method,
+  }: { shown: boolean; generation: number; method: Wanted["method"] },
+): Wanted {
+  if (!view || !shown)
+    return {
+      key: "",
+      job: "",
+      substep: 0,
+      quantity: "displacement",
+      method: "cells",
     };
-  }, [source, key]);
-  return key && ranges?.key === key ? ranges.range : undefined;
-}
-
-/** The value under the pointer, at a position of the view. */
-interface Hover {
-  x: number;
-  y: number;
-  /** The width of the view, to keep the tooltip inside. */
-  width: number;
-  /** The value of a surface, or a control point (#101). */
-  info?: ProbeInfo;
-  point?: ResultPoint;
-  /** The position of the point of a value at the points, in the view. */
-  ring?: [number, number];
-}
-
-const value = (v: number | null) => (v === null ? "–" : formatValue(v));
-
-/** The minimum and the maximum of a contour (#140). */
-type Extreme = "min" | "max";
-const EXTREMES: readonly Extreme[] = ["min", "max"];
-
-/** The value of an extreme like the value under the pointer. */
-function extremeInfo(scene: ResultScene, extreme: ResultExtreme): ProbeInfo {
-  const point = extreme.at === "point";
   return {
-    label: scene.label,
-    value: extreme.value,
-    where: `${point ? "Node" : "Cell"} ${extreme.index} of ${extreme.section}`,
-    ...(point ? { displacement: extreme.displacement } : {}),
-    atPoint: point,
+    // (the quantity last, for its unit)
+    key: `${generation}/${view.job}/${substep}/${method}/${view.quantity}`,
+    job: view.job,
+    substep,
+    quantity: view.quantity,
+    method,
   };
 }
 
-/** The symbols of the values of a control point: of a rotation point φ and M. */
-const symbols = (point: ResultPoint) =>
-  point.rotation ? (["φ", "M"] as const) : (["u", "F"] as const);
-
-/** The units of the values of a control point (#132); rotations are in rad. */
-const pointUnits = (point: ResultPoint, units: Units | undefined) =>
-  point.rotation
-    ? [unitOf("rotation", units), unitOf("moment", units)]
-    : [unitOf("displacement", units), unitOf("force", units)];
-
-/** A vector, without the round-off noise of components near zero. */
-const vector = (v: readonly number[] | undefined) => {
-  if (!v) return "–";
-  const max = Math.max(...v.map(Math.abs));
-  const clean = v.map((c) => (Math.abs(c) <= 1e-9 * max ? 0 : c));
-  return `(${clean.map((c) => value(c)).join(", ")})`;
-};
-
-/**
- * The tooltip of the value under the pointer, and the ring of its point, with the
- * units of the model (#132).
- */
-function ProbeTooltip({
-  hover,
-  units,
-  unit,
-}: {
-  hover: Hover;
-  units?: Units;
-  /** The unit of the quantity of the contour. */
-  unit?: string;
-}) {
-  const { x, y, width, info, point, ring } = hover;
-  const left = x + 14 + 240 > width ? Math.max(x - 254, 0) : x + 14;
-  return (
-    <>
-      {ring && (
-        <div
-          class="probe-ring"
-          style={{ left: `${ring[0]}px`, top: `${ring[1]}px` }}
-        />
-      )}
-      <div
-        class="probe-tooltip"
-        role="tooltip"
-        style={{ left: `${left}px`, top: `${y + 14}px` }}
-      >
-        {point ? (
-          <>
-            <strong>{point.name}</strong>
-            <br />
-            {symbols(point)[0]} ={" "}
-            {valueWithUnit(
-              vector(point.displacement),
-              pointUnits(point, units)[0],
-            )}
-            <br />
-            {symbols(point)[1]} ={" "}
-            {valueWithUnit(vector(point.force), pointUnits(point, units)[1])}
-            <br />
-            <span class="muted">
-              {point.rotation ? "Rotation point" : "Control point"}
-            </span>
-          </>
-        ) : (
-          info && (
-            <>
-              <strong>
-                {info.label} ={" "}
-                {valueWithUnit(
-                  value(info.value),
-                  info.value === null ? undefined : unit,
-                )}
-              </strong>
-              {info.displacement && (
-                <>
-                  <br />u ={" "}
-                  {valueWithUnit(
-                    `(${info.displacement.map((c) => value(c)).join(", ")})`,
-                    unitOf("displacement", units),
-                  )}
-                </>
-              )}
-              <br />
-              <span class="muted">{info.where}</span>
-            </>
-          )
-        )}
-      </div>
-    </>
-  );
+/** The shown scene: the live one, or a loaded one of the run (not of an older run). */
+function sceneOf(
+  live: Props["live"],
+  view: ResultView | undefined,
+  loaded: Loaded,
+  generation: number,
+): ResultScene | undefined {
+  if (live) return live.scene;
+  if (!view || !loaded || !("scene" in loaded)) return undefined;
+  return loaded.key.startsWith(`${generation}/`) ? loaded.scene : undefined;
 }
 
-/** The displacements and forces of the control points of the substep (#101). */
-function PointsCard({
+/** The error of the wanted scene, if it failed. */
+function errorOf(
+  view: ResultView | undefined,
+  loaded: Loaded,
+  wanted: Wanted,
+): string | undefined {
+  if (!view || !loaded || !("error" in loaded)) return undefined;
+  return loaded.key === wanted.key ? loaded.error : undefined;
+}
+
+/** The unit of the quantity of the shown scene (the key of a scene ends with it). */
+function unitOf(
+  live: Props["live"],
+  scene: ResultScene | undefined,
+  loaded: Loaded,
+  units: ReturnType<typeof unitsOf>,
+): string | undefined {
+  if (live?.scene) return resultUnit(live.view.quantity, units);
+  if (!scene || !loaded) return undefined;
+  return resultUnit(loaded.key.slice(loaded.key.lastIndexOf("/") + 1), units);
+}
+
+/** A toggle of the toolbar: whether it is on, and its switch. */
+type Toggle = readonly [boolean, () => void];
+
+/** Fit, the standard views, and the toggles of the parts of the results. */
+function ResultsToolbar({
+  viewer,
+  nodes,
+  edges,
+  extremes,
   points,
-  units,
-  onClose,
 }: {
-  points: readonly ResultPoint[];
-  units?: Units;
-  onClose: () => void;
+  viewer: { current: Viewer | null };
+  nodes: Toggle;
+  edges: Toggle;
+  /** The minimum and the maximum, if the scene has them (#140). */
+  extremes?: Toggle;
+  /** The card of the control points, if the scene has them (#101). */
+  points?: Toggle;
 }) {
   return (
-    <section class="points-card" aria-label="Control points">
-      <div class="curve-head">
-        <h2>Control points</h2>
+    <div class="view-toolbar" role="toolbar" aria-label="View">
+      <button
+        type="button"
+        title={withHint("Fit the model into the view", "fit")}
+        onClick={() => viewer.current?.fit()}
+      >
+        Fit
+      </button>
+      {VIEWS.map((v) => (
+        <button
+          key={v.id}
+          type="button"
+          title={withHint(v.title, v.shortcut)}
+          aria-label={v.title}
+          onClick={() => viewer.current?.setView(v.id)}
+        >
+          {v.label}
+        </button>
+      ))}
+      <span class="toolbar-separator" aria-hidden="true" />
+      <NodesButton pressed={nodes[0]} onToggle={nodes[1]} />
+      <button
+        type="button"
+        aria-pressed={edges[0]}
+        title="Show the edges of the cells on the deformed shape"
+        onClick={edges[1]}
+      >
+        Edges
+      </button>
+      {extremes && (
         <button
           type="button"
-          class="icon-button"
-          aria-label="Close the control points"
-          onClick={onClose}
+          aria-pressed={extremes[0]}
+          title="Show the minimum and the maximum of the contour"
+          onClick={extremes[1]}
         >
-          ×
+          Min/Max
         </button>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">Point</th>
-            <th scope="col">Displacement</th>
-            <th scope="col">Force</th>
-          </tr>
-        </thead>
-        <tbody>
-          {points.map((p) => (
-            <tr key={p.name}>
-              <th scope="row">{p.name}</th>
-              <td>
-                {symbols(p)[0]} ={" "}
-                {valueWithUnit(vector(p.displacement), pointUnits(p, units)[0])}
-              </td>
-              <td>
-                {symbols(p)[1]} ={" "}
-                {valueWithUnit(vector(p.force), pointUnits(p, units)[1])}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p class="muted">
-        Of a rotation point: the rotation φ in rad and the moment M. All
-        substeps: Export ▸ Control points (CSV).
-      </p>
-    </section>
+      )}
+      {points && (
+        <button
+          type="button"
+          aria-pressed={points[0]}
+          title="Show the displacements and forces of the control points"
+          onClick={points[1]}
+        >
+          Points
+        </button>
+      )}
+    </div>
   );
 }
 
-type Loaded =
-  | { key: string; scene: ResultScene }
-  | { key: string; error: string }
-  | undefined;
-
-/** A wanted scene: of a substep of a job and a quantity, keyed with the run. */
-interface Wanted {
-  key: string;
-  job: string;
-  substep: number;
-  quantity: Quantity;
-  method: ValuesMethod;
+/** The message of the view instead of a scene, if any. */
+function messageOf({
+  live,
+  running,
+  view,
+  error,
+  loading,
+  scene,
+}: {
+  live: Props["live"];
+  running: boolean;
+  view?: ResultView;
+  error?: string;
+  loading: boolean;
+  scene?: ResultScene;
+}): string | undefined {
+  if (live)
+    return live.scene
+      ? undefined
+      : "Solving … the view follows the converged substeps.";
+  if (running) return "Solving …";
+  if (!view) return "Solve the model to see its results.";
+  if (error) return `The results could not be shown: ${error}`;
+  return !scene && loading ? "Loading the results …" : undefined;
 }
 
 /**
- * The scene of a substep, loaded from the worker: one request at a time, and the
- * latest wanted scene wins (e.g. while dragging the slider of the substeps). Loaded
- * scenes are kept (#141), and the scenes ahead (while playing) are loaded after the
- * wanted one.
+ * The view of the results (#312): the scene of the shown substep, loaded with
+ * `useResultScene`, drawn by `drawResults`, with the value under the pointer and
+ * the cards of `ResultsCards`.
  */
-function useResultScene(
-  source: ResultSource | undefined,
-  wanted: Wanted,
-  ahead: readonly Wanted[],
-): { loaded: Loaded; loading: boolean } {
-  const [loaded, setLoaded] = useState<Loaded>();
-  const latest = useRef({ wanted, ahead });
-  latest.current = { wanted, ahead };
-  const cache = useRef(new SceneCache());
-  // the run of the kept scenes, and scenes that failed (not loaded ahead again)
-  const run = useRef("");
-  const failed = useRef(new Set<string>());
-  const busy = useRef(false);
-  const alive = useRef(true);
-  useEffect(
-    () => () => {
-      alive.current = false;
-    },
-    [],
-  );
-
-  // show the wanted scene if it is kept
-  const show = () => {
-    const { key } = latest.current.wanted;
-    const scene = key ? cache.current.get(key) : undefined;
-    if (scene) setLoaded((l) => (l?.key === key ? l : { key, scene }));
-  };
-
-  const pump = async () => {
-    if (!source || busy.current || !alive.current) return;
-    const { wanted, ahead } = latest.current;
-    const next = [wanted, ...ahead].find(
-      (w) => w.key && !cache.current.has(w.key) && !failed.current.has(w.key),
-    );
-    if (!next) return;
-    busy.current = true;
-    try {
-      const scene = await source.resultScene(
-        next.job,
-        next.substep,
-        next.quantity,
-        next.method,
-      );
-      if (next.key.startsWith(`${run.current}/`)) {
-        cache.current.set(next.key, scene);
-      }
-    } catch (error) {
-      failed.current.add(next.key);
-      const message = error instanceof Error ? error.message : String(error);
-      if (alive.current && next.key === latest.current.wanted.key) {
-        setLoaded({ key: next.key, error: message });
-      }
-    } finally {
-      busy.current = false;
-    }
-    if (!alive.current) return;
-    show();
-    void pump();
-  };
-
-  // a scene that failed is loaded again when it is wanted again
-  useEffect(() => {
-    failed.current.delete(wanted.key);
-  }, [wanted.key]);
-
-  useEffect(() => {
-    // the scenes of an older run are dropped
-    const current = wanted.key.slice(0, wanted.key.indexOf("/"));
-    if (wanted.key && current !== run.current) {
-      run.current = current;
-      cache.current.clear();
-      failed.current.clear();
-    }
-    show();
-    void pump();
-  }, [source, wanted.key, ahead.map((w) => w.key).join()]);
-
-  return {
-    loaded,
-    loading: !!wanted.key && loaded?.key !== wanted.key,
-  };
-}
-
 export function ResultsView({
   source,
   view: loadedView,
@@ -451,9 +267,6 @@ export function ResultsView({
   const [edgesShown, setEdgesShown] = useState(true);
   // the minimum and the maximum of the contour, one of them selected (#140)
   const [extremesShown, setExtremesShown] = useState(false);
-  const [pinned, setPinned] = useState<Extreme>();
-  const pinnedNow = useRef(pinned);
-  pinnedNow.current = pinned;
   const host = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
   useViewKeys(active, viewer, toggleNodes);
@@ -463,50 +276,19 @@ export function ResultsView({
   const [available, setAvailable] = useState(true);
   // the values of the strains and the stresses at the cells or the points (#231)
   const method = view ? methodOf(view.quantity, contour) : "cells";
-  const wantedOf = (substep: number): Wanted =>
-    view && active && !running && !live
-      ? {
-          // (the quantity last, for its unit)
-          key: `${generation}/${view.job}/${substep}/${method}/${view.quantity}`,
-          job: view.job,
-          substep,
-          quantity: view.quantity,
-          method,
-        }
-      : {
-          key: "",
-          job: "",
-          substep: 0,
-          quantity: "displacement",
-          method: "cells",
-        };
-  const wanted = wantedOf(view?.substep ?? 0);
+  // scenes are loaded only while the view is shown, not during a run
+  const loads = { shown: active && !running && !live, generation, method };
+  const wanted = wantedOf(view, view?.substep ?? 0, loads);
   const { loaded, loading } = useResultScene(
     source,
     wanted,
-    wanted.key ? ahead.map(wantedOf) : [],
+    wanted.key ? ahead.map((substep) => wantedOf(view, substep, loads)) : [],
   );
-  // a scene of an older run is not shown
-  const scene = live
-    ? live.scene
-    : view &&
-        loaded &&
-        "scene" in loaded &&
-        loaded.key.startsWith(`${generation}/`)
-      ? loaded.scene
-      : undefined;
-  const error =
-    !live && view && loaded && "error" in loaded && loaded.key === wanted.key
-      ? loaded.error
-      : undefined;
+  const scene = sceneOf(live, view, loaded, generation);
+  const error = live ? undefined : errorOf(view, loaded, wanted);
   // the units of the model (#132): the title of the scalar bar and the tooltips
   const units = unitsOf(commands);
-  // of the quantity of the shown scene (the key ends with it)
-  const unit = live?.scene
-    ? resultUnit(live.view.quantity, units)
-    : scene && loaded
-      ? resultUnit(loaded.key.slice(loaded.key.lastIndexOf("/") + 1), units)
-      : undefined;
+  const unit = unitOf(live, scene, loaded, units);
   const titled = useMemo(
     () => scene && unit && { ...scene, label: withUnit(scene.label, unit) },
     [scene, unit],
@@ -516,7 +298,7 @@ export function ResultsView({
   // substep, of all substeps of the job or manual
   const jobRange = useJobRange(
     source,
-    view && active && !running && !live && contour.range === "job"
+    view && loads.shown && contour.range === "job"
       ? `${generation}/${view.job}/${method}/${view.quantity}`
       : undefined,
     view?.job ?? "",
@@ -535,6 +317,8 @@ export function ResultsView({
   }, [scene, contour, jobRange?.[0], jobRange?.[1]]);
   useEffect(() => onRange?.(values ?? undefined), [values?.[0], values?.[1]]);
   useEffect(() => onShift?.(scene?.shift), [scene?.shift]);
+  const pin = useState<Extreme>();
+  const [pinned, setPinned] = pin;
 
   // the viewer (and its WebGL context) is created when there is a scene to show
   useEffect(() => {
@@ -543,125 +327,20 @@ export function ResultsView({
       viewer.current = new Viewer(host.current, createViewer);
       setAvailable(viewer.current.available);
     }
-    viewer.current.setResult(
-      scene && view
-        ? {
-            scene: titled || scene,
-            scale: view.scale,
-            undeformed: view.undeformed,
-            edges: edgesShown,
-            look,
-          }
-        : undefined,
-    );
-    viewer.current.setNodes(nodesShown);
-    // the control points, displaced like the surfaces (#95)
-    const scale = view?.scale ?? 1;
-    const points = (scene?.points ?? []).flatMap((p) =>
-      p.position.map((x, k) => x + scale * p.displacement[k]),
-    );
-    // the minimum and the maximum, displaced like the surfaces (#140)
-    const extremes =
-      scene?.extremes && view && extremesShown ? scene.extremes : undefined;
-    // a dot at a node or a cell inside, the outlines of the outer faces of a cell
-    const shapes = extremes
-      ? Object.fromEntries(
-          EXTREMES.map((name) => [
-            name,
-            extremeShape(scene!, extremes[name], scale),
-          ]),
-        )
-      : undefined;
-    viewer.current.setMarkers(
-      scene && view
-        ? [
-            ...outlined(Float64Array.from(points), CONTROL_COLOR, 10),
-            ...(shapes
-              ? EXTREMES.flatMap((name) => {
-                  const dot = shapes[name].dot;
-                  return dot
-                    ? outlined(Float64Array.from(dot), EXTREME_COLORS[name], 11)
-                    : [];
-                })
-              : []),
-          ]
-        : [],
-    );
-    viewer.current.setTargets([
-      ...(scene && view ? (scene.points ?? []) : []).map((p, i) => ({
-        name: p.name,
-        position: points.slice(3 * i, 3 * i + 3) as [number, number, number],
-      })),
-      ...(shapes
-        ? EXTREMES.flatMap((name) =>
-            shapes[name].anchors.map((position) => ({
-              name: `@${name}`,
-              position,
-            })),
-          )
-        : []),
-    ]);
-    viewer.current.setLabels(
-      extremes
-        ? EXTREMES.map((name) => {
-            const extreme = extremes[name];
-            const info = extremeInfo(scene!, extreme);
-            return {
-              id: name,
-              position: shapes![name].anchors[0],
-              anchors: shapes![name].anchors,
-              tone: name,
-              text: `${name === "min" ? "Min." : "Max."} ${valueWithUnit(formatTick(extreme.value), unit)}`,
-              detail: [
-                `${info.where}${extreme.surface ? "" : " (inside)"}`,
-                ...(info.displacement
-                  ? [
-                      `u = ${valueWithUnit(`(${info.displacement.map((c) => value(c)).join(", ")})`, unitOf("displacement", units))}`,
-                    ]
-                  : []),
-              ],
-              expanded: pinned === name,
-              onClick: () => setPinned(pinned === name ? undefined : name),
-            };
-          })
-        : [],
-    );
-    // the outlines of the extremes at cells, and the constraints, displaced like
-    // the surfaces (#99)
-    const outlines: Lines[] = shapes
-      ? EXTREMES.flatMap((name) => {
-          const outline = shapes[name].outline;
-          return outline
-            ? [{ positions: outline, color: EXTREME_COLORS[name], width: 3 }]
-            : [];
-        })
-      : [];
-    // the rigid surfaces, moved by the displacements of their reference points
-    // (#219)
-    const rigid =
-      scene && view && commands.some((c) => c.command === "rigid.add")
-        ? rigidShapes(commands, resultPlacement(scene, scale).nodes, {
-            highlight: HIGHLIGHT,
-            offsets: new Map(
-              (scene.points ?? []).map((p) => [
-                p.name,
-                p.displacement.map((u) => scale * u),
-              ]),
-            ),
-          })
-        : { faces: [], lines: [] };
-    viewer.current.setFaces(rigid.faces);
-    if (scene && view && commands.some((c) => c.command === "mpc.add")) {
-      const { nodes, place } = resultPlacement(scene, scale);
-      viewer.current.setLines([
-        ...constraintLines(constraintShapes(commands, nodes), {
-          highlight: HIGHLIGHT,
-          place,
-        }),
-        ...rigid.lines,
-        ...outlines,
-      ]);
-    } else viewer.current.setLines([...rigid.lines, ...outlines]);
+    drawResults(viewer.current, {
+      scene,
+      view,
+      titled: titled || undefined,
+      look,
+      edges: edgesShown,
+      nodes: nodesShown,
+      extremesShown,
+      pinned,
+      onPin: setPinned,
+      commands,
+      units,
+      unit,
+    });
   }, [
     scene,
     titled,
@@ -675,6 +354,8 @@ export function ResultsView({
     commands,
     createViewer,
   ]);
+
+  usePinnedPick(viewer, extremesShown, scene, pin);
 
   // the scene of the view is shown (or failed), e.g. to play on (#141)
   useEffect(() => {
@@ -690,185 +371,39 @@ export function ResultsView({
     [],
   );
 
-  // a click on the marker of the minimum or the maximum selects it, a click
-  // elsewhere into the view or Esc unselects it (#140)
-  useEffect(() => {
-    if (!extremesShown || !viewer.current) return;
-    const off = viewer.current.onPick((_, click) => {
-      const name = click.target?.startsWith("@")
-        ? (click.target.slice(1) as Extreme)
-        : undefined;
-      setPinned((current) => (name && current !== name ? name : undefined));
-    });
-    const escape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented) return;
-      if (!pinnedNow.current) return;
-      event.preventDefault();
-      setPinned(undefined);
-    };
-    window.addEventListener("keydown", escape, true);
-    return () => {
-      off();
-      window.removeEventListener("keydown", escape, true);
-    };
-  }, [extremesShown, scene]);
-
-  // the value under the pointer, once per frame; none while the view is moved
-  const [hover, setHover] = useState<Hover>();
-  useEffect(() => {
-    setHover(undefined);
-    const element = host.current;
-    if (!element || !scene) return;
-    let frame = 0;
-    let last: { x: number; y: number } | undefined;
-    const update = () => {
-      frame = 0;
-      const canvas = element.querySelector("canvas");
-      if (!last || !canvas || !viewer.current) return;
-      const { width, height } = canvas.getBoundingClientRect();
-      // a control point under the pointer (#101)
-      const target = viewer.current.targetAt(last.x, last.y, width, height);
-      // the minimum or the maximum under the pointer (#140)
-      const extreme =
-        target === "@min" || target === "@max"
-          ? scene.extremes?.[target.slice(1) as Extreme]
-          : undefined;
-      if (extreme) {
-        const scale = view?.scale ?? 1;
-        const position = extreme.position.map(
-          (x, k) => x + scale * extreme.displacement[k],
-        ) as Vec3;
-        // a ring at a node, the outlines of a cell are drawn already
-        const ring =
-          extreme.at === "point"
-            ? viewer.current.project(position, width, height)
-            : undefined;
-        return setHover({
-          ...last,
-          width,
-          info: extremeInfo(scene, extreme),
-          ...(ring ? { ring } : {}),
-        });
-      }
-      const point = scene.points?.find((p) => p.name === target);
-      if (point) {
-        const scale = view?.scale ?? 1;
-        const at = point.position.map(
-          (x, k) => x + scale * point.displacement[k],
-        ) as [number, number, number];
-        const ring = viewer.current.project(at, width, height);
-        return setHover({ ...last, width, point, ring });
-      }
-      const probe = viewer.current.probeAt(last.x, last.y, width, height);
-      if (!probe) return setHover(undefined);
-      const info = probeInfo(scene, probe);
-      const ring = info.atPoint
-        ? viewer.current.project(probe.position, width, height)
-        : undefined;
-      setHover({ ...last, width, info, ring });
-    };
-    const clear = () => {
-      last = undefined;
-      setHover(undefined);
-    };
-    const move = (event: PointerEvent) => {
-      if (event.buttons) return clear();
-      const rect = element.getBoundingClientRect();
-      last = { x: event.clientX - rect.left, y: event.clientY - rect.top };
-      frame ||= requestAnimationFrame(update);
-    };
-    element.addEventListener("pointermove", move);
-    element.addEventListener("pointerleave", clear);
-    element.addEventListener("pointerdown", clear);
-    element.addEventListener("wheel", clear, { passive: true });
-    return () => {
-      cancelAnimationFrame(frame);
-      element.removeEventListener("pointermove", move);
-      element.removeEventListener("pointerleave", clear);
-      element.removeEventListener("pointerdown", clear);
-      element.removeEventListener("wheel", clear);
-    };
-  }, [scene, view?.scale]);
-
-  const message = live
-    ? live.scene
-      ? undefined
-      : "Solving … the view follows the converged substeps."
-    : running
-      ? "Solving …"
-      : !view
-        ? "Solve the model to see its results."
-        : error
-          ? `The results could not be shown: ${error}`
-          : !scene && loading
-            ? "Loading the results …"
-            : undefined;
+  const hover = useHover(host, viewer, scene, view?.scale);
+  const message = messageOf({ live, running, view, error, loading, scene });
   const shown = !!scene && !message;
+  const points = shown && scene.points?.length ? scene.points : undefined;
   return (
     <main class="viewport" aria-label="Results" hidden={!active}>
       <div class="viewer" ref={host} hidden={!shown} />
       {shown && available && (
-        <div class="view-toolbar" role="toolbar" aria-label="View">
-          <button
-            type="button"
-            title={withHint("Fit the model into the view", "fit")}
-            onClick={() => viewer.current?.fit()}
-          >
-            Fit
-          </button>
-          {VIEWS.map((v) => (
-            <button
-              key={v.id}
-              type="button"
-              title={withHint(v.title, v.shortcut)}
-              aria-label={v.title}
-              onClick={() => viewer.current?.setView(v.id)}
-            >
-              {v.label}
-            </button>
-          ))}
-          <span class="toolbar-separator" aria-hidden="true" />
-          <NodesButton pressed={nodesShown} onToggle={toggleNodes} />
-          <button
-            type="button"
-            aria-pressed={edgesShown}
-            title="Show the edges of the cells on the deformed shape"
-            onClick={() => setEdgesShown(!edgesShown)}
-          >
-            Edges
-          </button>
-          {scene?.extremes && (
-            <button
-              type="button"
-              aria-pressed={extremesShown}
-              title="Show the minimum and the maximum of the contour"
-              onClick={() => {
-                setExtremesShown(!extremesShown);
-                setPinned(undefined);
-              }}
-            >
-              Min/Max
-            </button>
-          )}
-          {scene?.points && scene.points.length > 0 && (
-            <button
-              type="button"
-              aria-pressed={pointsShown}
-              title="Show the displacements and forces of the control points"
-              onClick={() => setPointsShown(!pointsShown)}
-            >
-              Points
-            </button>
-          )}
-        </div>
+        <ResultsToolbar
+          viewer={viewer}
+          nodes={[nodesShown, toggleNodes]}
+          edges={[edgesShown, () => setEdgesShown(!edgesShown)]}
+          extremes={
+            scene.extremes
+              ? [
+                  extremesShown,
+                  () => {
+                    setExtremesShown(!extremesShown);
+                    setPinned(undefined);
+                  },
+                ]
+              : undefined
+          }
+          points={points && [pointsShown, () => setPointsShown(!pointsShown)]}
+        />
       )}
       {message && <p class="viewport-message muted">{message}</p>}
       {/* the cards of the results in one column on the right (#128) */}
       <div class="overlay-side">
         {view && (!running || live) && children}
-        {shown && pointsShown && scene.points && scene.points.length > 0 && (
+        {pointsShown && points && (
           <PointsCard
-            points={scene.points}
+            points={points}
             units={units}
             onClose={() => setPointsShown(false)}
           />
