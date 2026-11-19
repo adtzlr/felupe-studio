@@ -1,5 +1,5 @@
-"""The sample models of the app (app/public/samples, made by
-app/scripts/make_samples.py) are valid project files and solve with FElupe."""
+"""The sample models of the app (app/samples, made by app/scripts/make_samples.py)
+are valid project files and solve with FElupe."""
 
 import json
 import sys
@@ -9,28 +9,41 @@ import felupe as fem
 import numpy as np
 import pytest
 
+import felupe_studio
+from felupe_studio import samples
 from felupe_studio.commands import errors
 from felupe_studio.expressions import resolve
 from felupe_studio.project import dumps, loads
 from felupe_studio.runner import run
 
 APP = Path(__file__).parents[1] / "app"
-SAMPLES = json.loads((APP / "src" / "core" / "samples.json").read_text())
+SAMPLES = samples.read(APP / "samples")
+IDS = [s.id for s in SAMPLES]
+
+
+def folder_of(sample_id):
+    """The folder of a sample by its id, e.g. app/samples/05_glued-plate (#350)."""
+    return APP / "samples" / samples.find(SAMPLES, sample_id).folder
+
+
 sys.path.insert(0, str(APP / "scripts"))
 
 from make_samples import thumbnail  # noqa: E402
 
 
-def test_index_lists_every_sample():
-    folders = {p.name for p in (APP / "public" / "samples").iterdir() if p.is_dir()}
-    assert {s["id"] for s in SAMPLES} == folders
+def test_every_sample_describes_itself():
+    "Every folder is a sample in the order of its prefix, with its sample.json."
+    folders = sorted(p.name for p in (APP / "samples").iterdir() if p.is_dir())
+    assert [s.folder for s in SAMPLES] == folders
+    assert IDS[0] == "two-materials" and IDS[-1] == "engine-mount"
     for sample in SAMPLES:
-        assert sample["title"] and sample["description"] and sample["topics"]
+        assert sample.title and sample.description and sample.topics
+        assert sample.thumbnail
 
 
-@pytest.mark.parametrize("sample", SAMPLES, ids=[s["id"] for s in SAMPLES])
+@pytest.mark.parametrize("sample", SAMPLES, ids=IDS)
 def test_sample_solves(sample, monkeypatch):
-    folder = APP / "public" / "samples" / sample["id"]
+    folder = APP / "samples" / sample.folder
     text = (folder / "model.felupe.json").read_text(encoding="utf-8")
     document = loads(text)
     # a canonical project file, as the app saves it
@@ -42,7 +55,7 @@ def test_sample_solves(sample, monkeypatch):
         for c in document["commands"]
         if c["command"] in ("mesh.import", "mesh.script")
     }
-    assert sorted(files) == sample["files"]
+    assert sorted(files) == list(sample.files)
     assert all((folder / name).is_file() for name in files)
 
     monkeypatch.chdir(folder)
@@ -62,7 +75,7 @@ def test_sample_solves(sample, monkeypatch):
 
 def test_material_test_is_analytical(monkeypatch):
     "Uniaxial tension of the incompressible Neo-Hooke model: P = mu (λ - 1 / λ²)."
-    folder = APP / "public" / "samples" / "material-test"
+    folder = folder_of("material-test")
     monkeypatch.chdir(folder)
     results = run(loads((folder / "model.felupe.json").read_text()))["job"]
     stretch = 1 + np.array(results["x"])[:, 0]
@@ -75,7 +88,7 @@ def test_glued_plate_moves_and_tilts(monkeypatch):
     "The plate of the glued plate is moved by 8 mm and tilted by 0.1 rad (#102)."
     from felupe_studio import results
 
-    folder = APP / "public" / "samples" / "glued-plate"
+    folder = folder_of("glued-plate")
     monkeypatch.chdir(folder)
     run(loads((folder / "model.felupe.json").read_text()))
     meta, _ = results.scene("job", results.substeps("job"), "displacement")
@@ -94,7 +107,7 @@ def test_sandwich_spring_follows_its_parameters(monkeypatch):
     max), and the shear is an expression of the parameters (#242), half of the height
     of the soft layers: the same shear strain of 0.5 and about the same force, G A /
     2."""
-    folder = APP / "public" / "samples" / "sandwich-spring"
+    folder = folder_of("sandwich-spring")
     document = loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
     monkeypatch.chdir(folder)
     forces = {}
@@ -117,7 +130,7 @@ def test_sandwich_spring_follows_its_parameters(monkeypatch):
 def test_sandwich_spring_compressed_by_guide_z(monkeypatch):
     """The top sheet of the sandwich spring is guided in y and z by two boundaries,
     so a ramp of guide_z compresses the spring while it is sheared."""
-    folder = APP / "public" / "samples" / "sandwich-spring"
+    folder = folder_of("sandwich-spring")
     document = loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
     for c in document["commands"]:
         if c["command"] == "step.add":
@@ -149,7 +162,7 @@ def test_sandwich_springs_have_cells_through_the_soft_layers(sample, script):
     through a soft layer; a sheet keeps one cell through its thickness."""
     import runpy
 
-    folder = APP / "public" / "samples" / sample
+    folder = folder_of(sample)
     document = loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
     names = [c["name"] for c in document["commands"] if c["command"] == "parameter.add"]
     assert "cells_height" in names
@@ -167,7 +180,7 @@ def test_axisymmetric_sandwich_spring_follows_its_parameters(monkeypatch):
     """The axisymmetric sandwich spring (#175) with 3 and 5 soft layers, pressed by
     0.04 mm: the first sheet follows the stack (x == min), the stiffness of the
     stack of bonded layers is inversely proportional to the number of layers."""
-    folder = APP / "public" / "samples" / "sandwich-spring-axisymmetric"
+    folder = folder_of("sandwich-spring-axisymmetric")
     document = loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
     monkeypatch.chdir(folder)
     forces = {}
@@ -190,7 +203,7 @@ def test_plate_with_hole_concentrates_the_stress(monkeypatch):
     the end (the force per unit thickness over the width) in the cell there."""
     from felupe_studio import results
 
-    folder = APP / "public" / "samples" / "plate-with-hole"
+    folder = folder_of("plate-with-hole")
     document = loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
     for c in document["commands"]:
         if c["command"] == "step.add":
@@ -213,7 +226,7 @@ def test_plastic_plate_unloads_elastically(monkeypatch):
     hole (x = 0, y = radius)."""
     from felupe_studio import results
 
-    folder = APP / "public" / "samples" / "plastic-plate"
+    folder = folder_of("plastic-plate")
     document = loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
     monkeypatch.chdir(folder)
     result = run(document)["job"]
@@ -259,7 +272,7 @@ def test_bushing_matches_ex05(monkeypatch):
 
     import felupe as fem
 
-    folder = APP / "public" / "samples" / "bushing"
+    folder = folder_of("bushing")
     monkeypatch.chdir(folder)
     results = run(loads((folder / "model.felupe.json").read_text(encoding="utf-8")))
     torsion, tilt = np.array(results["job"]["y"])[-1, :2]
@@ -305,14 +318,14 @@ def test_bushing_of_the_mesh_tools_like_the_script(monkeypatch):
 
     from felupe_studio import meshtools
 
-    folder = APP / "public" / "samples"
-    tools = loads((folder / "bushing-tools" / "model.felupe.json").read_text("utf-8"))
+    folder = folder_of("bushing-tools")
+    tools = loads((folder / "model.felupe.json").read_text("utf-8"))
     resolved = resolve(tools)[0]["commands"]
     values = {
         c["name"]: c["value"] for c in resolved if c["command"] == "parameter.add"
     }
     made = meshtools.generate(resolved, values)
-    monkeypatch.chdir(folder / "bushing")
+    monkeypatch.chdir(folder_of("bushing"))
     script = runpy.run_path("bushing.py")["mesh"]
     np.testing.assert_allclose(made["soft_mesh"].points, script["soft"].points)
     np.testing.assert_array_equal(made["soft_mesh"].cells, script["soft"].cells)
@@ -326,11 +339,11 @@ def test_bushing_of_the_mesh_tools_like_the_script(monkeypatch):
     for sample, document in (
         (
             "bushing",
-            loads((folder / "bushing" / "model.felupe.json").read_text("utf-8")),
+            loads((folder_of("bushing") / "model.felupe.json").read_text("utf-8")),
         ),
         ("bushing-tools", tools),
     ):
-        monkeypatch.chdir(folder / sample)
+        monkeypatch.chdir(folder_of(sample))
         curves[sample] = np.array(run(document)["job"]["y"])
     np.testing.assert_allclose(
         curves["bushing-tools"], curves["bushing"], rtol=1e-6, atol=1e-6
@@ -343,7 +356,7 @@ def test_hyperelastic_spring_matches_ex06(monkeypatch):
     the contact of the end stop) in z and x."""
     import felupe as fem
 
-    folder = APP / "public" / "samples" / "hyperelastic-spring"
+    folder = folder_of("hyperelastic-spring")
     monkeypatch.chdir(folder)
     results = run(loads((folder / "model.felupe.json").read_text(encoding="utf-8")))
     x, y = np.array(results["job"]["x"]), np.array(results["job"]["y"])
@@ -393,10 +406,10 @@ def test_hyperelastic_spring_matches_ex06(monkeypatch):
     assert y[4, 2] / y[2, 2] > 2.5
 
 
-@pytest.mark.parametrize("sample", SAMPLES, ids=[s["id"] for s in SAMPLES])
+@pytest.mark.parametrize("sample", SAMPLES, ids=IDS)
 def test_thumbnail_is_up_to_date(sample):
     "The picture of a sample (#127) is made from its project by make_samples.py."
-    folder = APP / "public" / "samples" / sample["id"]
+    folder = APP / "samples" / sample.folder
     svg = (folder / "thumbnail.svg").read_text(encoding="utf-8")
     assert svg == thumbnail(folder), "Run python app/scripts/make_samples.py."
     assert svg.startswith('<svg xmlns="http://www.w3.org/2000/svg"')
@@ -466,7 +479,7 @@ def ex15():
 def test_metacone_like_ex15(monkeypatch):
     # the mesh of the script and the force of the sample (with FElupe's tolerance)
     # are those of the example ex15 of FElupe (#241)
-    folder = APP / "public" / "samples" / "metacone"
+    folder = folder_of("metacone")
     mesh, x, y = ex15()
     namespace = {}
     exec((folder / "metacone.py").read_text(encoding="utf-8"), namespace)
@@ -523,7 +536,7 @@ def test_engine_mount_like_ex07(monkeypatch):
     # the vertical force of the sample (with FElupe's tolerance) is the one of the
     # example ex07 of FElupe (#241): air without a volumetric part (u-isochoric) and
     # rigid metal parts, whose points (of their sections) are moved by boundaries
-    folder = APP / "public" / "samples" / "engine-mount"
+    folder = folder_of("engine-mount")
     x, y = ex07()
     monkeypatch.chdir(folder)
     document = loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
@@ -539,3 +552,33 @@ def test_engine_mount_like_ex07(monkeypatch):
     np.testing.assert_allclose(np.array(results["x"])[:, 1], x)
     np.testing.assert_allclose(np.array(results["y"])[:, 1], y, rtol=1e-8)
     assert y[-1] == pytest.approx(19.773, rel=1e-4)
+
+
+CASES = json.loads(
+    (Path(__file__).parent / "data" / "sample_folder_cases.json").read_text("utf-8")
+)
+
+
+@pytest.mark.parametrize("case", CASES, ids=[c["name"] for c in CASES])
+def test_folder_of_samples(case, tmp_path):
+    "The shared cases of a folder of samples (#350), also of the build of the app."
+    for name, text in case["files"].items():
+        (tmp_path / name).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / name).write_text(text, encoding="utf-8")
+    if "error" not in case:
+        assert [s.as_dict() for s in samples.read(tmp_path)] == case["samples"]
+        return
+    with pytest.raises(samples.SamplesError) as error:
+        samples.read(tmp_path)
+    expected = case["error"].replace("{version}", felupe_studio.__version__)
+    if case.get("prefix"):
+        assert str(error.value).startswith(expected), str(error.value)
+    else:
+        assert str(error.value) == expected
+
+
+def test_a_folder_that_does_not_exist(tmp_path):
+    with pytest.raises(samples.SamplesError, match="does not exist"):
+        samples.read(tmp_path / "missing")
+    assert samples.folder_of(APP / "samples", "glued-plate").name == "05_glued-plate"
+    assert samples.folder_of(APP / "samples", "unknown") is None

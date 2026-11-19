@@ -52,7 +52,7 @@ With real Pyodide, after the deployment of `main` has finished. Use the cases in
 - [ ] Agent bridge: `felupe-studio serve --agent` (with `[serve,mcp]`) prints the command for Claude Code; added, and *Help ▸ Connect an agent* in the tab (*Agent connected*), the agent opens a sample, changes a value and solves with live results; its changes are in the history and undo; a mesh script of the agent asks first (*Show the script*, *Run it*); *Disconnect* ends it. A second tab that connects replaces the first.
 - [ ] PARDISO: `pip install "felupe-studio[serve,pardiso]"` on x86-64; *About* lists pypardiso; a job with *Linear solver* *PARDISO (local Python)* solves with the curve of SuperLU. In the browser the same job is an issue (*PARDISO needs Python on your computer*). `benchmark(n, solver="pardiso")` of `felupe_studio.benchmark` runs.
 - [ ] A fixed token: with `FELUPE_STUDIO_TOKEN` set, two starts of `felupe-studio serve` print the same link.
-- [ ] Extra samples: `EXTRA_SAMPLES_DIR=<folder> npm run build` (and `npm run dev`) shows them under *More samples*; they open and solve.
+- [ ] Other samples: `SAMPLES_DIR=<folder> npm run build` (and `npm run dev`) with a folder of two samples, one of them without `sample.json` and `thumbnail.svg`, shows only them (the second with its title from the id and the placeholder); they open and solve.
 - [ ] Screenshots: `python docs/make_screenshots.py` (with the real Pyodide; `--pyodide <folder>` if the CDN is not reachable) makes the images of the guide and the README of this version, with `[serve,mcp]` also `agent.png`.
 
 ### The release

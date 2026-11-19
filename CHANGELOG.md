@@ -8,6 +8,10 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 - A project of a newer version says so (#344): if a project uses what this version does not know, a command type, a tool of `mesh.generate`, a material model, a value of an enumeration (e.g. the solver `pardiso` of v0.7 in v0.6) or a property, the first message names it before the errors of the schema, e.g. *This project uses the tool `Circle` of `mesh.generate`, which FElupe Studio 0.8.0 does not know. It may have been saved with a newer version: please update FElupe Studio.* The schema version rises only with changes that are not additive, so such a project usually has the same schema version. The app, `felupe_studio.project.loads()` and so the MCP server give the same message, tested with the shared cases `tests/data/newer_version_cases.json`; the parts that are new follow from the schema, without a list of them.
 
+### Changed
+
+- The samples are folders that describe themselves (#350, part 1): `app/samples/NN_<id>` with the project, the mesh files, the picture and a `sample.json` with the title, the description and the topics; the prefix `NN_` gives the order and is not a part of the id, so the ids, the archives (`<id>.felupe.zip`) and `open_sample` of the MCP server stay. `app/src/core/samples.json` is gone: the build lists the samples of the folder (`app/src/vite/samples.ts`), and Python reads them with the same rules and messages (`felupe_studio.samples`, the shared cases `tests/data/sample_folder_cases.json`). **A build takes one folder of samples:** `SAMPLES_DIR=<folder>` replaces `EXTRA_SAMPLES_DIR` (#255) and `BUILT_IN_SAMPLES=false` (#279), and there is no section *More samples* any more; to keep some samples of upstream, copy their folders. A sample may leave out its `sample.json` (the title follows from the id) and its picture (a placeholder). The MCP server reads a folder of `FELUPE_STUDIO_SAMPLES` in the same layout, lists its samples and copies only the files of a project; a folder that breaks the rules stops it at the start with the message.
+
 ## [0.7.0] - 2026-11-19
 
 The mesh tools of FElupe, PARDISO and a cleaner base:

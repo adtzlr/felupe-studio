@@ -1,0 +1,10 @@
+{
+  "title": "Hyperelastic block with a rigid plate",
+  "description": "A hyperelastic block on a fixed base, its top face glued to a rigid plate that is moved sideways and tilted at the same time.",
+  "topics": [
+    "control points",
+    "multi-point constraint",
+    "rotation point",
+    "ramps with their own values"
+  ]
+}

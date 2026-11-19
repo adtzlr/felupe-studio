@@ -1,17 +1,18 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { parse } from "./project";
-import { SAMPLES, sampleFiles, sampleUrl } from "./samples";
+import { type Sample, SAMPLES, sampleFiles, sampleUrl } from "./samples";
 
-const folder = (id: string) =>
-  new URL(`../../public/samples/${id}/`, import.meta.url);
+// the samples of app/samples, which describe themselves (#350)
+const folder = (sample: Sample) =>
+  new URL(`../../samples/${sample.folder}/`, import.meta.url);
 
 describe("samples", () => {
   it("are project files with their mesh files", () => {
     expect(SAMPLES.length).toBeGreaterThanOrEqual(4);
     for (const sample of SAMPLES) {
       const text = readFileSync(
-        new URL("model.felupe.json", folder(sample.id)),
+        new URL("model.felupe.json", folder(sample)),
         "utf8",
       );
       const document = parse(text);
@@ -23,7 +24,7 @@ describe("samples", () => {
         .map((c) => (c as { file: string }).file);
       expect([...new Set(files)].sort()).toEqual(sample.files);
       for (const file of sample.files) {
-        expect(existsSync(new URL(file, folder(sample.id)))).toBe(true);
+        expect(existsSync(new URL(file, folder(sample)))).toBe(true);
       }
     }
   });
@@ -32,7 +33,7 @@ describe("samples", () => {
     const sample = SAMPLES[0];
     const base = "https://example.org/app/";
     expect(sampleUrl(sample, "bar.vtu", base)).toBe(
-      `https://example.org/app/samples/${sample.id}/bar.vtu`,
+      `https://example.org/app/samples/${sample.folder}/bar.vtu`,
     );
     const get = vi.fn(
       async (url: string | URL | Request) => new Response(`content of ${url}`),
@@ -43,7 +44,7 @@ describe("samples", () => {
       ...sample.files,
     ]);
     expect(await files[0].text()).toBe(
-      `content of https://example.org/app/samples/${sample.id}/model.felupe.json`,
+      `content of https://example.org/app/samples/${sample.folder}/model.felupe.json`,
     );
 
     const missing = vi.fn(async () => new Response("", { status: 404 }));

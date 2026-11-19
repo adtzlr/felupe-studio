@@ -1,9 +1,10 @@
 """Create the sample models of the app (``File ▸ Samples``, #32).
 
-Every sample is a folder in ``app/public/samples`` with a project file
-``model.felupe.json`` and its mesh files; ``app/src/core/samples.json`` lists them for
-the app (title, description, topics and files). The samples are committed; this
-script documents how they were made and writes them again. Run it from the
+Every sample is a folder ``app/samples/NN_<id>`` (#350) with a project file
+``model.felupe.json``, its mesh files, its picture ``thumbnail.svg`` and its
+``sample.json`` (title, description and topics); the prefix ``NN_`` is the order of
+the list below. The samples are committed; this script documents how they were made
+and writes them again. Run it from the
 repository root with ``python app/scripts/make_samples.py``.
 ``tests/test_samples.py`` solves every sample with FElupe.
 
@@ -23,8 +24,7 @@ from felupe_studio.codegen import codegen
 from felupe_studio.commands import SCHEMA_VERSION
 from felupe_studio.project import dumps
 
-HERE = Path(__file__).parents[1] / "public" / "samples"
-INDEX = Path(__file__).parents[1] / "src" / "core" / "samples.json"
+HERE = Path(__file__).parents[1] / "samples"
 PALETTE = Path(__file__).parents[1] / "src" / "viewer" / "palette.ts"
 
 # the samples of the app, in the order of the list
@@ -175,12 +175,21 @@ SAMPLES = [
 ]
 
 
-def write(folder, commands, meshes):
-    """Write the project file and the mesh files (name: meshio.Mesh, or the text of a
-    script that makes meshes, #182) of a sample."""
-    folder = HERE / folder
+def folder_of(sample):
+    """The folder of a sample: its id with the prefix of its place in the list."""
+    number = next(i for i, s in enumerate(SAMPLES, 1) if s["id"] == sample)
+    return HERE / f"{number:02d}_{sample}"
+
+
+def write(sample, commands, meshes):
+    """Write the project file, the mesh files (name: meshio.Mesh, or the text of a
+    script that makes meshes, #182), the picture and the description of a sample."""
+    folder = folder_of(sample)
     folder.mkdir(parents=True, exist_ok=True)
-    next(s for s in SAMPLES if s["id"] == folder.name)["files"] = sorted(meshes)
+    entry = next(s for s in SAMPLES if s["id"] == sample)
+    description = {k: entry[k] for k in ("title", "description", "topics")}
+    text = json.dumps(description, indent=2, ensure_ascii=False) + "\n"
+    (folder / "sample.json").write_text(text, encoding="utf-8")
     for name, mesh in meshes.items():
         if isinstance(mesh, str):
             (folder / name).write_text(mesh, encoding="utf-8")
@@ -1017,7 +1026,7 @@ def plastic_plate():
     round-off, and in Pyodide the tenth substep of the loading did not converge."""
     commands = [
         c
-        for c in loads_project(HERE / "plate-with-hole")["commands"]
+        for c in loads_project(folder_of("plate-with-hole"))["commands"]
         if c["command"]
         in ("model.settings", "parameter.add", "mesh.script", "cellset.from_file")
     ]
@@ -1328,7 +1337,7 @@ def bushing_tools():
     x axis, and the sleeves as revolved rectangles. The sleeves are two meshes of one
     material instead of one stacked mesh; the curve is that of the sample of the
     script."""
-    commands = loads_project(HERE / "bushing")["commands"]
+    commands = loads_project(folder_of("bushing"))["commands"]
     first = next(i for i, c in enumerate(commands) if c["command"] == "mesh.script")
     around = {"n": "cells_around + 1", "phi": 360, "axis": "x"}
     axial = "cells_axial + 1"
@@ -1417,7 +1426,7 @@ def hyperelastic_spring():
 
     The mesh ``spring.vtu`` is the mesh of ex06 (``ex06_rubber-metal-spring_mesh.vtk``)
     with flipped cells (their volumes were negative), ``mesh.flip()`` of FElupe."""
-    folder = HERE / "hyperelastic-spring"
+    folder = folder_of("hyperelastic-spring")
     mesh = meshio.read(folder / "spring.vtu")
     commands = [
         {
@@ -2046,7 +2055,6 @@ def main():
     hyperelastic_spring()
     metacone()
     engine_mount()
-    INDEX.write_text(json.dumps(SAMPLES, indent=2) + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":

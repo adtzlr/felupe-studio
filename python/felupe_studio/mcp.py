@@ -38,6 +38,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from . import __version__, checks, meshes, runner
 from . import commands as commands_
 from . import results as results_
+from . import samples as samples_
 from .capabilities import capability_errors
 from .codegen import codegen, parameter_value
 from .commands import SCHEMA_VERSION
@@ -56,7 +57,6 @@ def _of_clone(path, data):
 
 
 DOCS = _of_clone(ROOT / "docs", DATA / "docs")
-INDEX = _of_clone(ROOT / "app" / "src" / "core" / "samples.json", DATA / "samples.json")
 
 DOCUMENTS = {
     "guide": "The user guide",
@@ -124,13 +124,24 @@ DESCRIPTIONS = {
 
 
 def _samples_folder():
-    """The folder of the samples, or None."""
+    """The folder of the samples (#350), or None."""
     folder = os.environ.get("FELUPE_STUDIO_SAMPLES")
     if folder:
-        folder = Path(folder)
+        folder = Path(folder).expanduser()
     else:
-        folder = _of_clone(ROOT / "app" / "public" / "samples", DATA / "samples")
+        folder = _of_clone(ROOT / "app" / "samples", DATA / "samples")
     return folder if folder.is_dir() else None
+
+
+def _samples():
+    """The folder of the samples and its samples, checked (#350)."""
+    source = _samples_folder()
+    if source is None:
+        return None, []
+    try:
+        return source, samples_.read(source)
+    except samples_.SamplesError as error:
+        raise ToolError(f"The samples of {source}: {error}") from error
 
 
 def _digest(path):
@@ -237,43 +248,38 @@ class Session:
         return self.summary()
 
     def open_sample(self, sample, folder):
-        source = _samples_folder()
-        if source is None or not (source / sample).is_dir():
-            available = [s["id"] for s in self.samples()] if source else []
+        source, samples = _samples()
+        found = samples_.find(samples, sample)
+        if found is None:
+            available = ", ".join(s.id for s in samples) or "none"
             raise ToolError(
-                f"No sample '{sample}'. Samples: {', '.join(available) or 'none'} "
-                "(the samples of the package or of a clone of the repository of "
-                "FElupe Studio, or of the folder of FELUPE_STUDIO_SAMPLES)."
+                f"No sample '{sample}'. Samples: {available} (the samples of the "
+                "package or of a clone of the repository of FElupe Studio, or of the "
+                "folder of FELUPE_STUDIO_SAMPLES)."
             )
         folder = Path(folder).expanduser().resolve()
         if folder.exists() and any(folder.iterdir()):
             raise ToolError(f"The folder {folder} is not empty.")
         folder.mkdir(parents=True, exist_ok=True)
-        for file in (source / sample).iterdir():
-            # only files: e.g. not the __pycache__ of a mesh script, which pip
-            # compiles in an installed package (#275)
-            if not file.is_file() or file.name in (
-                "model.felupe.json",
-                "thumbnail.svg",
-            ):
-                continue
-            shutil.copy(file, folder / file.name)
-            if file.suffix == ".py":
-                # the scripts of the samples are those of the app
-                self.trusted[(folder / file.name).resolve()] = _digest(file)
+        origin = source / found.folder
+        # only the files of the project: e.g. not the __pycache__ of a mesh script,
+        # which pip compiles in an installed package (#275)
+        for name in found.files:
+            shutil.copy(origin / name, folder / name)
+            if name.endswith(".py"):
+                # the scripts of the samples are those of the app, or of the folder
+                # that the user chose (#350)
+                self.trusted[(folder / name).resolve()] = _digest(origin / name)
         trusted = self.trusted
         project = folder / f"{sample}{SUFFIX}"
-        shutil.copy(source / sample / "model.felupe.json", project)
+        shutil.copy(origin / samples_.PROJECT, project)
         summary = self.open_project(project)
         self.trusted = trusted
         return summary
 
     def samples(self):
-        if not INDEX.is_file() or _samples_folder() is None:
-            return []
-        index = json.loads(INDEX.read_text(encoding="utf-8"))
         keys = ("id", "title", "description", "topics")
-        return [{k: s[k] for k in keys if k in s} for s in index]
+        return [{k: s.as_dict()[k] for k in keys} for s in _samples()[1]]
 
     def save_project(self, path=None, archive=False):
         self._need_folder()
@@ -728,6 +734,10 @@ def main(argv=None):
     )
     parser.add_argument("--project", help="a project file to open at the start")
     args = parser.parse_args(argv)
+    try:
+        _samples()  # a folder of samples that breaks the rules fails at once (#350)
+    except ToolError as error:
+        parser.exit(2, f"felupe-studio-mcp: {error}\n")
     session = Session(allow_scripts=args.allow_scripts)
     if args.project:
         session.open_project(args.project)

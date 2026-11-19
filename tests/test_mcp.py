@@ -17,10 +17,11 @@ from mcp import Client, StdioServerParameters  # noqa: E402
 from mcp.server.mcpserver.exceptions import ToolError  # noqa: E402
 
 from felupe_studio import capabilities, codegen  # noqa: E402
-from felupe_studio.mcp import Session, schema, server  # noqa: E402
+from felupe_studio.mcp import Session, main, schema, server  # noqa: E402
 
 GOLDEN = Path(__file__).parent / "golden"
-SAMPLES = Path(__file__).parents[1] / "app" / "public" / "samples"
+SAMPLES = Path(__file__).parents[1] / "app" / "samples"
+PLATE = SAMPLES / "08_plate-with-hole"
 
 
 def test_schema_of_the_commands():
@@ -100,11 +101,9 @@ def test_a_sample_of_an_installed_package(tmp_path, monkeypatch):
     # pip compiles the mesh script of a sample in the package: its folder has a
     # __pycache__, which is not copied (#275)
     samples = tmp_path / "samples"
-    shutil.copytree(SAMPLES / "plate-with-hole", samples / "plate-with-hole")
-    (samples / "plate-with-hole" / "__pycache__").mkdir()
-    (samples / "plate-with-hole" / "__pycache__" / "plate_with_hole.pyc").write_bytes(
-        b""
-    )
+    shutil.copytree(PLATE, samples / PLATE.name)
+    (samples / PLATE.name / "__pycache__").mkdir()
+    (samples / PLATE.name / "__pycache__" / "plate_with_hole.pyc").write_bytes(b"")
     monkeypatch.setenv("FELUPE_STUDIO_SAMPLES", str(samples))
     session = Session()
     session.open_sample("plate-with-hole", tmp_path / "plate")
@@ -146,7 +145,7 @@ def test_files_stay_in_the_project_folder(tmp_path):
 def test_mesh_scripts_run_only_if_trusted(tmp_path):
     # the plate with a hole, copied by hand: its script came from elsewhere
     folder = tmp_path / "plate"
-    shutil.copytree(SAMPLES / "plate-with-hole", folder)
+    shutil.copytree(PLATE, folder)
     (folder / "model.felupe.json").rename(folder / "plate.felupe.json")
     session = Session()
     session.open_project(folder / "plate.felupe.json")
@@ -246,3 +245,42 @@ def test_tool_cases_are_up_to_date():
     assert stored == [
         {"name": name, "steps": case(steps)} for name, steps in CASES.items()
     ], "Run python tests/data/make_tool_cases.py and commit the result."
+
+
+def test_the_samples_of_a_folder_that_describe_themselves(tmp_path, monkeypatch):
+    # e.g. the samples of a brand (#350): ordered by the prefixes of their folders,
+    # a title from the id without a sample.json, only the files of the project
+    samples = tmp_path / "samples"
+    shutil.copytree(PLATE, samples / "02_plate")
+    shutil.copytree(SAMPLES / "05_glued-plate", samples / "01_block")
+    (samples / "01_block" / "sample.json").unlink()
+    (samples / "02_plate" / "notes.txt").write_text("not a file of the project")
+    monkeypatch.setenv("FELUPE_STUDIO_SAMPLES", str(samples))
+    session = Session()
+    listed = session.samples()
+    assert [s["id"] for s in listed] == ["block", "plate"]
+    assert listed[0]["title"] == "Block" and listed[0]["topics"] == []
+    assert listed[1]["title"] == "Plate with a hole in plane strain"
+    session.open_sample("plate", tmp_path / "plate")
+    assert sorted(p.name for p in (tmp_path / "plate").iterdir()) == [
+        "plate.felupe.json",
+        "plate_with_hole.py",
+    ]
+    with pytest.raises(
+        ToolError, match="No sample 'plate-with-hole'. Samples: block, plate"
+    ):
+        session.open_sample("plate-with-hole", tmp_path / "other")
+
+
+def test_a_folder_of_samples_that_breaks_the_rules(tmp_path, monkeypatch, capsys):
+    samples = tmp_path / "samples"
+    shutil.copytree(PLATE, samples / "01_plate")
+    (samples / "01_plate" / "plate_with_hole.py").unlink()
+    monkeypatch.setenv("FELUPE_STUDIO_SAMPLES", str(samples))
+    with pytest.raises(ToolError, match="has no file 'plate_with_hole.py'"):
+        Session().samples()
+    # the server does not start (#350)
+    with pytest.raises(SystemExit) as exit_:
+        main([])
+    assert exit_.value.code == 2
+    assert "has no file 'plate_with_hole.py'" in capsys.readouterr().err

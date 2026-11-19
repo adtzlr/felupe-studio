@@ -1,0 +1,10 @@
+{
+  "title": "Axisymmetric sandwich spring",
+  "description": "The hyperelastic discs between steel sheets as an axisymmetric model: the section in the xy-plane, x is the axis. The first sheet is pressed along the axis against the fixed last one; the force is the total over the circumference.",
+  "topics": [
+    "axisymmetric",
+    "2D mesh script",
+    "parameters",
+    "compression"
+  ]
+}

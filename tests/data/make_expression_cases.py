@@ -11,6 +11,7 @@ message.
 """
 
 import json
+import re
 from pathlib import Path
 
 from felupe_studio.expressions import ExpressionError, evaluate, fields
@@ -118,7 +119,9 @@ def field_cases():
     """The commands of the golden cases and the samples with every number as text,
     one of each, and their fields that may hold an expression."""
     files = sorted((ROOT / "tests" / "golden").glob("*/commands.json"))
-    files += sorted((ROOT / "app" / "public" / "samples").glob("*/*.felupe.json"))
+    # the samples by their ids, without the prefixes of their folders (#350)
+    samples = (ROOT / "app" / "samples").glob("*/*.felupe.json")
+    files += sorted(samples, key=lambda p: re.sub(r"^\d+_", "", p.parent.name))
     result, seen = [], set()
     for file in files:
         for command in json.loads(file.read_text(encoding="utf-8"))["commands"]:

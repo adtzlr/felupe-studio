@@ -2063,9 +2063,9 @@ describe("solve", () => {
 
 describe("samples", () => {
   const serve = (async (url: string | URL | Request) => {
-    // the files of public/ (the working directory of the tests is app/)
+    // the files of app/samples (#350; the working directory of the tests is app/)
     const path = new URL(String(url)).pathname.replace(/^\//, "");
-    const file = resolve("public", path);
+    const file = resolve(path);
     return existsSync(file)
       ? new Response(readFileSync(file))
       : new Response("", { status: 404 });
@@ -2092,7 +2092,11 @@ describe("samples", () => {
       expect(screen.queryByRole("dialog", { name: "Samples" })).toBeNull(),
     );
     const text = readFileSync(
-      resolve("public/samples/shear-mount/model.felupe.json"),
+      resolve(
+        "samples",
+        SAMPLES.find((s) => s.id === "shear-mount")!.folder,
+        "model.felupe.json",
+      ),
       "utf8",
     );
     expect(store.commands).toEqual(JSON.parse(text).commands);
@@ -2217,11 +2221,9 @@ describe("samples", () => {
     for (const [i, card] of cards.entries()) {
       const src = card.querySelector("img")?.getAttribute("src") ?? "";
       expect(src).toMatch(
-        new RegExp(`samples/${SAMPLES[i].id}/thumbnail.svg$`),
+        new RegExp(`samples/${SAMPLES[i].folder}/thumbnail.svg$`),
       );
-      expect(
-        existsSync(resolve("public", new URL(src).pathname.slice(1))),
-      ).toBe(true);
+      expect(existsSync(resolve(new URL(src).pathname.slice(1)))).toBe(true);
     }
     const plate = cards.find((card) =>
       card.textContent?.includes("Hyperelastic block with a rigid plate"),

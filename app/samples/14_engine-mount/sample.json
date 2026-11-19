@@ -1,0 +1,10 @@
+{
+  "title": "Engine mount (FElupe ex07)",
+  "description": "An engine mount in plane strain: rubber between an inner and an outer metal part, with air in its cavities. The inner metal part is moved vertically and then horizontally, there and back; the metal parts are rigid, all of their points move with boundaries.",
+  "topics": [
+    "plane strain",
+    "air as a third medium",
+    "rigid parts",
+    "two jobs"
+  ]
+}

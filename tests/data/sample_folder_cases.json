@@ -1,0 +1,199 @@
+[
+  {
+    "name": "ordered by the prefixes of their folders, ids without them",
+    "files": {
+      "10_ring/model.felupe.json": "{\"schema_version\": 3, \"commands\": []}",
+      "02_plate/model.felupe.json": "{\"schema_version\": 3, \"commands\": [{\"command\": \"mesh.import\", \"name\": \"block\", \"file\": \"block.vtu\"}]}",
+      "02_plate/block.vtu": "",
+      "02_plate/thumbnail.svg": "<svg/>",
+      "02_plate/sample.json": "{\"title\": \"Plate\", \"description\": \"A plate.\", \"topics\": [\"2D\", \"symmetry\"]}",
+      "01_block/model.felupe.json": "{\"schema_version\": 3, \"commands\": [{\"command\": \"mesh.import\", \"name\": \"block\", \"file\": \"block.vtu\"}]}",
+      "01_block/block.vtu": "",
+      "01_block/notes.txt": "not a file of the project",
+      "zeta/model.felupe.json": "{\"schema_version\": 3, \"commands\": []}"
+    },
+    "samples": [
+      {
+        "id": "block",
+        "folder": "01_block",
+        "title": "Block",
+        "description": "",
+        "topics": [],
+        "files": [
+          "block.vtu"
+        ],
+        "thumbnail": false
+      },
+      {
+        "id": "plate",
+        "folder": "02_plate",
+        "title": "Plate",
+        "description": "A plate.",
+        "topics": [
+          "2D",
+          "symmetry"
+        ],
+        "files": [
+          "block.vtu"
+        ],
+        "thumbnail": true
+      },
+      {
+        "id": "ring",
+        "folder": "10_ring",
+        "title": "Ring",
+        "description": "",
+        "topics": [],
+        "files": [],
+        "thumbnail": false
+      },
+      {
+        "id": "zeta",
+        "folder": "zeta",
+        "title": "Zeta",
+        "description": "",
+        "topics": [],
+        "files": [],
+        "thumbnail": false
+      }
+    ]
+  },
+  {
+    "name": "hidden and private folders are left out",
+    "files": {
+      ".git/model.felupe.json": "{",
+      "_drafts/model.felupe.json": "{",
+      "__pycache__/x.pyc": "",
+      "01_ring/model.felupe.json": "{\"schema_version\": 3, \"commands\": []}"
+    },
+    "samples": [
+      {
+        "id": "ring",
+        "folder": "01_ring",
+        "title": "Ring",
+        "description": "",
+        "topics": [],
+        "files": [],
+        "thumbnail": false
+      }
+    ]
+  },
+  {
+    "name": "a title from the id",
+    "files": {
+      "03_seal_ring--2/model.felupe.json": "{\"schema_version\": 3, \"commands\": []}",
+      "03_seal_ring--2/sample.json": "{\"topics\": []}"
+    },
+    "samples": [
+      {
+        "id": "seal_ring--2",
+        "folder": "03_seal_ring--2",
+        "title": "Seal ring 2",
+        "description": "",
+        "topics": [],
+        "files": [],
+        "thumbnail": false
+      }
+    ]
+  },
+  {
+    "name": "no folders, no samples",
+    "files": {
+      "README.md": "the samples"
+    },
+    "samples": []
+  },
+  {
+    "name": "a folder without a project",
+    "files": {
+      "01_block/block.vtu": ""
+    },
+    "error": "the sample 'block' has no model.felupe.json."
+  },
+  {
+    "name": "a missing mesh file",
+    "files": {
+      "01_block/model.felupe.json": "{\"schema_version\": 3, \"commands\": [{\"command\": \"mesh.import\", \"name\": \"block\", \"file\": \"block.vtu\"}]}"
+    },
+    "error": "the sample 'block' has no file 'block.vtu'."
+  },
+  {
+    "name": "an invalid project",
+    "files": {
+      "01_block/model.felupe.json": "{\"schema_version\": 3, \"commands\": [{\"command\": \"mesh.import\"}]}"
+    },
+    "error": "the model.felupe.json of the sample 'block' is invalid: ",
+    "prefix": true
+  },
+  {
+    "name": "a project of a newer version",
+    "files": {
+      "01_block/model.felupe.json": "{\"schema_version\": 3, \"commands\": [{\"command\": \"mesh.circle\", \"name\": \"disc\"}]}"
+    },
+    "error": "the model.felupe.json of the sample 'block' is invalid: This project uses `mesh.circle`, which FElupe Studio {version} does not know.",
+    "prefix": true
+  },
+  {
+    "name": "a sample.json that is no JSON",
+    "files": {
+      "01_block/model.felupe.json": "{\"schema_version\": 3, \"commands\": []}",
+      "01_block/sample.json": "{title"
+    },
+    "error": "the sample.json of the sample 'block' is not valid JSON: ",
+    "prefix": true
+  },
+  {
+    "name": "a sample.json that is no object",
+    "files": {
+      "01_block/model.felupe.json": "{\"schema_version\": 3, \"commands\": []}",
+      "01_block/sample.json": "[]"
+    },
+    "error": "the sample.json of the sample 'block' is not an object."
+  },
+  {
+    "name": "an unknown key of a sample.json",
+    "files": {
+      "01_block/model.felupe.json": "{\"schema_version\": 3, \"commands\": []}",
+      "01_block/sample.json": "{\"title\": \"Block\", \"order\": 1}"
+    },
+    "error": "the sample.json of the sample 'block' has the unknown key 'order'; it may have title, description and topics."
+  },
+  {
+    "name": "a title that is no text",
+    "files": {
+      "01_block/model.felupe.json": "{\"schema_version\": 3, \"commands\": []}",
+      "01_block/sample.json": "{\"title\": 1}"
+    },
+    "error": "the title of the sample 'block' is not a text."
+  },
+  {
+    "name": "topics that are no texts",
+    "files": {
+      "01_block/model.felupe.json": "{\"schema_version\": 3, \"commands\": []}",
+      "01_block/sample.json": "{\"topics\": \"2D\"}"
+    },
+    "error": "the topics of the sample 'block' is not a list of texts."
+  },
+  {
+    "name": "two folders with the same id",
+    "files": {
+      "01_block/model.felupe.json": "{\"schema_version\": 3, \"commands\": []}",
+      "02_block/model.felupe.json": "{\"schema_version\": 3, \"commands\": []}"
+    },
+    "error": "the folders '01_block' and '02_block' have the same id 'block'."
+  },
+  {
+    "name": "a folder without an id",
+    "files": {
+      "01_/model.felupe.json": "{\"schema_version\": 3, \"commands\": []}"
+    },
+    "error": "the folder '01_' has no valid id: after the prefix of digits and _, it needs letters, digits, ., _ or -."
+  },
+  {
+    "name": "a folder with a space",
+    "files": {
+      "01_seal ring/model.felupe.json": "{\"schema_version\": 3, \"commands\": []}"
+    },
+    "error": "the folder '01_seal ring' has no valid id: after the prefix of digits and _, it needs letters, digits, ., _ or -."
+  }
+]

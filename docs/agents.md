@@ -11,7 +11,7 @@ pip install "felupe-studio[mcp]"   # from PyPI
 felupe-studio-mcp --help           # or: python -m felupe_studio.mcp
 ```
 
-In a clone of the repository, `pip install -e ".[mcp]"` installs it from the sources. The server offers the samples and the documentation (the user guide, the commands and the command reference as resources): those of the package, or those of a clone (#275). `FELUPE_STUDIO_SAMPLES` sets another folder of samples (with the layout of `app/public/samples`).
+In a clone of the repository, `pip install -e ".[mcp]"` installs it from the sources. The server offers the samples and the documentation (the user guide, the commands and the command reference as resources): those of the package, or those of a clone (#275). `FELUPE_STUDIO_SAMPLES` sets another folder of samples, in the layout of `app/samples` (a folder per sample with its `model.felupe.json` and optionally its `sample.json`, see [CONTRIBUTING.md](../CONTRIBUTING.md#samples)). The server checks the folder when it starts; `open_sample` copies the project and its mesh files, and the mesh scripts of the samples run without asking, since you chose the folder.
 
 ## Add it to an agent
 
