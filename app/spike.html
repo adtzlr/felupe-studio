@@ -35,10 +35,11 @@
         <form id="form">
           <label for="sizes">Points per edge (comma-separated)</label>
           <input id="sizes" name="sizes" inputmode="numeric" />
-          <label for="precision">Linear equation system</label>
+          <label for="precision">Precision</label>
           <select id="precision" name="precision">
-            <option value="double">Double precision</option>
-            <option value="single">Single precision (float32)</option>
+            <option value="double">Double</option>
+            <option value="single">Linear system in single (float32)</option>
+            <option value="model">Model in single (float32)</option>
           </select>
           <button id="run" type="submit" disabled>Run benchmark</button>
         </form>

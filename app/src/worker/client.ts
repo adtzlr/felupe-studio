@@ -165,7 +165,7 @@ export class RuntimeClient {
 
   /**
    * Run the benchmark of the spike (#9) for the given mesh sizes, with the linear
-   * equation system in double or single precision (ADR 0016).
+   * equation system or the model in single precision (ADR 0016).
    */
   async benchmark(
     sizes: number[],

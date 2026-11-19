@@ -24,8 +24,14 @@ def test_benchmark_force_similar_for_coarse_and_fine_mesh():
 
 def test_benchmark_in_single_precision():
     # the linear equation system in float32 gives the force of double precision
-    # (ADR 0016)
+    # (ADR 0016), the model in float32 nearly (#297)
     double = benchmark(n=3, num=2)
     single = benchmark(n=3, num=2, precision="single")
-    assert double["precision"] == "double" and single["precision"] == "single"
+    model = benchmark(n=3, num=2, precision="model")
+    assert [r["precision"] for r in (double, single, model)] == [
+        "double",
+        "single",
+        "model",
+    ]
     assert abs(single["force"] - double["force"]) < 1e-6 * double["force"]
+    assert abs(model["force"] - double["force"]) < 1e-4 * double["force"]

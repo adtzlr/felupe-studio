@@ -155,7 +155,7 @@ Per Newton iteration, the assembly of the condensed system is about 20 % faster 
 
 ## The linear equation system in single precision (ADR 0016)
 
-`solver.precision: "single"` of a job casts the matrix and the right-hand side to `float32`, factorizes them in `float32` and returns the increment in `float64`; the model, the residual forces and the convergence check stay in double precision. The page `spike.html` has *Linear equation system: Double precision / Single precision (float32)*; runs of both are listed one after another, with a column *Precision*.
+`solver.precision: "single"` of a job casts the matrix and the right-hand side to `float32`, factorizes them in `float32` and returns the increment in `float64`; the model, the residual forces and the convergence check stay in double precision. The page `spike.html` has *Precision: Double / Linear system in single (float32) / Model in single (float32)* (`precision` of the benchmark: `double`, `single`, `model`); runs of the precisions are listed one after another, with a column *Precision*.
 
 Container with 2 cores (x86_64), CPython 3.13, FElupe 12.1.0, SuperLU. Peak memory of a process (the resident set; Python with FElupe takes 84 MB).
 
@@ -173,7 +173,7 @@ Container with 2 cores (x86_64), CPython 3.13, FElupe 12.1.0, SuperLU. Peak memo
 | ------------------------------------------------- | --------: | ----------: |
 | double                                            |        45 |     1083 MB |
 | the linear equation system in `float32`           |        22 |      826 MB |
-| the model in `float32` (regions, fields, prototype) |        13 |      595 MB |
+| the model in `float32` (regions, fields; FElupe 12.1.1, see below) |        17 |      575 MB |
 
 **The samples and the golden cases** with the linear equation system in `float32` give the curves of double precision within 2e-5 of the largest force (the bar with cutbacks within 1.2e-4, at its tolerance of 0.01), with the same number of Newton iterations; at the tight tolerance 1.49e-8, the linear elastic and the plasticity cube take a few more. The samples are up to 1.4 times faster (the sandwich spring 2.0 s instead of 2.8 s). u-p-J fields of tetrahedrons (`fem.FieldsMixed`, an indefinite system) are slower: SuperLU of FElupe falls back to a factorization with pivoting in 11 of 16 solves (the hex-tet sample 2.3 s instead of 0.75 s).
 
@@ -255,3 +255,19 @@ The solve times of the same run (double precision, three runs of n = 9, 11, 13):
 | with the bytecode cache  |    0.39–0.55 |    0.12–0.19 |
 
 The FElupe step of the start without the cache takes 2.9–3.2 s instead of 3.7–3.9 s, and with the cache 1.2–1.4 s (imports) instead of 1.5–1.8 s.
+
+## The model in single precision (#297)
+
+`model.settings.precision: "single"` builds the regions and the fields in `float32` (ADR 0016), so the stresses, the tangents, the matrix and the factorization are in `float32` too. The benchmark of the spike runs it with `precision="model"` (*Model in single (float32)* on `spike.html`).
+
+Container with 2 cores (x86_64), CPython 3.13, FElupe 12.1.1, SuperLU. Best of two runs, times in seconds; peak memory of a process (Python with FElupe takes 84 MB):
+
+|   n |   DOF | Solve, double | Linear system in single | Model in single | Speedup of the model | Peak memory, double / linear system / model |  Force |
+| --: | ----: | ------------: | ----------------------: | --------------: | -------------------: | ------------------------------------------: | -----: |
+|   9 |  2187 |         0.665 |                   0.568 |           0.348 |                 1.91 |                                             | 1.7940 |
+|  13 |  6591 |         6.063 |                   4.027 |           2.388 |                 2.54 |                                             | 1.7925 |
+|  17 | 14739 |        27.974 |                  17.028 |           9.871 |                 2.83 |                     401 MB / 341 MB / 272 MB | 1.7919 |
+
+The forces are those of double precision (four digits). Without Python and FElupe, the model in single precision takes 188 MB at n = 17 instead of 317 MB in double precision (and 257 MB with the linear system in single precision). The cube with u-p-J of the section above (n = 21, 27,783 DOF) takes 17 s and 575 MB with FElupe 12.1.1, instead of 45 s and 1083 MB.
+
+**Pyodide:** to be measured on the phone with `spike.html` (*Model in single (float32)*, n = 9, 11 and 13).

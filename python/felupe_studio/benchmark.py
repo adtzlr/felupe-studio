@@ -1,8 +1,9 @@
 """Benchmark of FElupe for the Pyodide spike (#9).
 
 The same module runs in CPython (tests, native reference) and in Pyodide (browser).
-It times a uniaxial tension test of a hyperelastic cube for several mesh sizes, with
-the linear equation system in double or single precision (ADR 0016).
+It times a uniaxial tension test of a hyperelastic cube for several mesh sizes, in
+double precision, with the linear equation system in single precision, or with the
+model in single precision (ADR 0016).
 """
 
 from time import perf_counter
@@ -20,8 +21,10 @@ def benchmark(n=5, num=5, precision="double"):
     num : int, optional
         Number of load increments (default is 5).
     precision : str, optional
-        The precision of the linear equation system, ``"double"`` (default) or
-        ``"single"`` (``float32``, the model in double precision, ADR 0016).
+        ``"double"`` (default), ``"single"`` for the linear equation system in single
+        precision (``float32``, the model in double precision) or ``"model"`` for the
+        model in single precision (the region and the field in ``float32``, #297),
+        see ADR 0016.
 
     Returns
     -------
@@ -34,7 +37,11 @@ def benchmark(n=5, num=5, precision="double"):
     t0 = perf_counter()
     mesh = fem.Cube(n=n)
     region = fem.RegionHexahedron(mesh)
-    field = fem.FieldContainer([fem.Field(region, dim=3)])
+    dtype = None
+    if precision == "model":
+        dtype = np.float32
+        region = region.astype(dtype)
+    field = fem.FieldContainer([fem.Field(region, dim=3, dtype=dtype)])
     boundaries = fem.dof.uniaxial(field, clamped=True)
     umat = fem.NeoHookeCompressible(mu=1.0, lmbda=2.0)
     solid = fem.SolidBody(umat, field)

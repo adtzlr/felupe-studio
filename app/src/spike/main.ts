@@ -102,7 +102,7 @@ form.addEventListener("submit", async (event) => {
     errorBox.textContent = (error as Error).message;
     return;
   }
-  // runs of both precisions are listed one after another (ADR 0016)
+  // runs of the precisions are listed one after another (ADR 0016)
   const precision = precisionInput.value as Precision;
   runButton.disabled = true;
   try {
