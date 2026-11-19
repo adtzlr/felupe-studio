@@ -1,0 +1,306 @@
+[
+  {
+    "name": "a command type",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "block",
+          "file": "block.vtu"
+        },
+        {
+          "command": "mesh.circle",
+          "name": "disc",
+          "radius": 1
+        }
+      ]
+    },
+    "features": [
+      "`mesh.circle`"
+    ],
+    "message": "This project uses `mesh.circle`, which FElupe Studio {version} does not know. It may have been saved with a newer version: please update FElupe Studio."
+  },
+  {
+    "name": "a property of a command",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "block",
+          "file": "block.vtu",
+          "color": "#7f8c8d"
+        }
+      ]
+    },
+    "features": [
+      "the property `color` of `mesh.import`"
+    ],
+    "message": "This project uses the property `color` of `mesh.import`, which FElupe Studio {version} does not know. It may have been saved with a newer version: please update FElupe Studio."
+  },
+  {
+    "name": "a tool of mesh.generate",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.generate",
+          "name": "block",
+          "tool": "Circle",
+          "parameters": {
+            "radius": 1
+          }
+        }
+      ]
+    },
+    "features": [
+      "the tool `Circle` of `mesh.generate`"
+    ],
+    "message": "This project uses the tool `Circle` of `mesh.generate`, which FElupe Studio {version} does not know. It may have been saved with a newer version: please update FElupe Studio."
+  },
+  {
+    "name": "a material model",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "material.add",
+          "name": "rubber",
+          "model": "OgdenRoxburgh",
+          "parameters": {
+            "mu": 1
+          }
+        }
+      ]
+    },
+    "features": [
+      "the model `OgdenRoxburgh` of `material.add`"
+    ],
+    "message": "This project uses the model `OgdenRoxburgh` of `material.add`, which FElupe Studio {version} does not know. It may have been saved with a newer version: please update FElupe Studio."
+  },
+  {
+    "name": "a value of an enumeration",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "step.add",
+          "name": "pull",
+          "ramp": {
+            "num": 4,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 1
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job",
+          "steps": [
+            "pull"
+          ],
+          "solver": {
+            "type": "mumps"
+          }
+        }
+      ]
+    },
+    "features": [
+      "the value `mumps` of `solver.type` of `job.add`"
+    ],
+    "message": "This project uses the value `mumps` of `solver.type` of `job.add`, which FElupe Studio {version} does not know. It may have been saved with a newer version: please update FElupe Studio."
+  },
+  {
+    "name": "a value of an enumeration of a command",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "block",
+          "file": "block.vtu"
+        },
+        {
+          "command": "pointset.add",
+          "name": "base",
+          "select": {
+            "axis": "w",
+            "value": 0
+          }
+        }
+      ]
+    },
+    "features": [
+      "the value `w` of `select.axis` of `pointset.add`"
+    ],
+    "message": "This project uses the value `w` of `select.axis` of `pointset.add`, which FElupe Studio {version} does not know. It may have been saved with a newer version: please update FElupe Studio."
+  },
+  {
+    "name": "a property of a nested object",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "step.add",
+          "name": "pull",
+          "ramp": {
+            "num": 4,
+            "items": [
+              {
+                "target": "move",
+                "end": 1,
+                "curve": "sine"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "features": [
+      "the property `ramp.items.curve` of `step.add`"
+    ],
+    "message": "This project uses the property `ramp.items.curve` of `step.add`, which FElupe Studio {version} does not know. It may have been saved with a newer version: please update FElupe Studio."
+  },
+  {
+    "name": "a property of a select",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "pointset.add",
+          "name": "base",
+          "select": {
+            "sphere": [
+              0,
+              0,
+              0
+            ],
+            "radius": 1
+          }
+        }
+      ]
+    },
+    "features": [
+      "the property `select.sphere` of `pointset.add`"
+    ],
+    "message": "This project uses the property `select.sphere` of `pointset.add`, which FElupe Studio {version} does not know. It may have been saved with a newer version: please update FElupe Studio."
+  },
+  {
+    "name": "a property of the project",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "block",
+          "file": "block.vtu"
+        }
+      ],
+      "saved_with": "0.9.0"
+    },
+    "features": [
+      "the property `saved_with` of the project"
+    ],
+    "message": "This project uses the property `saved_with` of the project, which FElupe Studio {version} does not know. It may have been saved with a newer version: please update FElupe Studio."
+  },
+  {
+    "name": "several, once each",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "block",
+          "file": "block.vtu",
+          "color": "#000000"
+        },
+        {
+          "command": "mesh.import",
+          "name": "other",
+          "file": "block.vtu",
+          "color": "#ffffff"
+        },
+        {
+          "command": "material.add",
+          "name": "rubber",
+          "model": "OgdenRoxburgh",
+          "parameters": {
+            "mu": 1
+          }
+        }
+      ]
+    },
+    "features": [
+      "the property `color` of `mesh.import`",
+      "the model `OgdenRoxburgh` of `material.add`"
+    ],
+    "message": "This project uses the property `color` of `mesh.import` and the model `OgdenRoxburgh` of `material.add`, which FElupe Studio {version} does not know. It may have been saved with a newer version: please update FElupe Studio."
+  },
+  {
+    "name": "an invalid value",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "block",
+          "file": "block.vtu",
+          "scale": -1
+        }
+      ]
+    },
+    "features": [],
+    "message": null
+  },
+  {
+    "name": "a missing property",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "block"
+        }
+      ]
+    },
+    "features": [],
+    "message": null
+  },
+  {
+    "name": "a tool that is no string",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.generate",
+          "name": "block",
+          "tool": 3,
+          "parameters": {
+            "a": [
+              0,
+              0,
+              0
+            ],
+            "b": [
+              1,
+              1,
+              1
+            ],
+            "n": [
+              3,
+              3,
+              3
+            ]
+          }
+        }
+      ]
+    },
+    "features": [],
+    "message": null
+  }
+]

@@ -1,9 +1,17 @@
 import { afterEach, describe, expect, it } from "vitest";
 import twoSections from "../../../tests/data/two_sections.felupe.json?raw";
 import numbers from "../../../tests/data/numbers.felupe.json?raw";
+import newerCases from "../../../tests/data/newer_version_cases.json";
 import fixture from "../../../tests/data/two_sections.json";
 import type { CommandList } from "./commands";
-import { MIGRATIONS, parse, ProjectError, serialize } from "./project";
+import {
+  MIGRATIONS,
+  newerFeatures,
+  newerMessage,
+  parse,
+  ProjectError,
+  serialize,
+} from "./project";
 import { ModelStore } from "./store";
 
 describe("project files", () => {
@@ -153,5 +161,49 @@ describe("migrations", () => {
     expect(() => parse('{"schema_version": 0, "commands": []}')).toThrow(
       "No migration from schema version 0",
     );
+  });
+});
+
+describe("projects of a newer version (#344)", () => {
+  // the same cases as felupe_studio.project (tests/data/newer_version_cases.json)
+  type Case = (typeof newerCases)[number];
+  it.each(newerCases.map((c) => [c.name, c] as [string, Case]))(
+    "%s",
+    (_, c) => {
+      const document = c.document as Record<string, unknown>;
+      expect(newerFeatures(document)).toEqual(c.features);
+      try {
+        parse(JSON.stringify(document));
+        expect.unreachable();
+      } catch (error) {
+        const errors = (error as ProjectError).errors;
+        if (c.message) {
+          expect(errors[0]).toBe(
+            c.message.replace("{version}", __APP_VERSION__),
+          );
+          expect(errors.length).toBeGreaterThan(1);
+        } else {
+          expect(errors[0]).not.toMatch(/^This project uses/);
+        }
+      }
+    },
+  );
+
+  it("lists the features in one sentence", () => {
+    expect(newerMessage([])).toBeUndefined();
+    expect(newerMessage(["`a`", "`b`", "`c`"], "1.2.3")).toMatch(
+      /^This project uses `a`, `b` and `c`, which FElupe Studio 1\.2\.3 does not/,
+    );
+  });
+
+  it("names no version outside of the app", () => {
+    expect(newerMessage(["`a`"], null)).toContain(
+      "which this version of FElupe Studio does not know",
+    );
+  });
+
+  it("finds nothing in valid projects", () => {
+    for (const text of [twoSections, numbers])
+      expect(newerFeatures(JSON.parse(text))).toEqual([]);
   });
 });
