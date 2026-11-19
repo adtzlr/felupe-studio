@@ -36,7 +36,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.command == "serve":
         try:
-            from .serve import find_app, token_of
+            from .serve import find_app, read_samples, token_of
             from .serve import serve as run
         except ImportError as error:
             sys.exit(
@@ -51,7 +51,8 @@ def main(argv=None):
                     "pip install 'felupe-studio[serve,mcp]'"
                 )
         try:
-            find_app(args.app)
+            # the folder of samples of the app, checked at the start (#350)
+            read_samples(find_app(args.app))
             # the token of FELUPE_STUDIO_TOKEN, or a new one
             token = token_of()
         except (FileNotFoundError, ValueError) as error:

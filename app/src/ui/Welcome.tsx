@@ -1,7 +1,7 @@
 // The welcome panel of an empty model (#127): how to start, and the samples with
 // their pictures.
 import { APP_NAME, LINKS } from "../app";
-import { type Sample, SAMPLES } from "../core/samples";
+import type { Sample } from "../core/samples";
 import { Icon } from "./icons";
 import { SampleCard } from "./SampleCard";
 import { useOpening } from "./SamplesDialog";
@@ -10,6 +10,8 @@ interface Props {
   onImportMesh: () => void;
   onOpen: () => void;
   onOpenSample: (sample: Sample) => Promise<void>;
+  /** The samples of the app (#350). */
+  samples: readonly Sample[];
   /** Python runs on this computer (`felupe-studio serve`, #240). */
   local?: boolean;
 }
@@ -18,6 +20,7 @@ export function Welcome({
   onImportMesh,
   onOpen,
   onOpenSample,
+  samples,
   local = false,
 }: Props) {
   const { opening, open } = useOpening(onOpenSample);
@@ -43,11 +46,11 @@ export function Welcome({
         <span class="muted">or drop mesh files or a project file here</span>
       </div>
       {/* without samples in the build, no section (#279, #350) */}
-      {SAMPLES.length > 0 && (
+      {samples.length > 0 && (
         <>
           <h3 class="welcome-heading">Start from a sample</h3>
           <ul class="sample-grid" aria-label="Samples">
-            {SAMPLES.map((sample) => (
+            {samples.map((sample) => (
               <SampleCard
                 key={sample.id}
                 sample={sample}

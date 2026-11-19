@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-// The samples of a build are the samples of its folder (#350), e.g. those of
+// The samples of an app are its list samples/index.json (#350), e.g. of a build with
 // SAMPLES_DIR: one list in the welcome panel, the dialog and the agent, and without
 // any samples, no section and no menu item.
 import {
@@ -7,17 +7,17 @@ import {
   fireEvent,
   render,
   screen,
+  waitFor,
   within,
 } from "@testing-library/preact";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Sample } from "../core/samples";
+import { INDEX, type Sample } from "../core/samples";
 import { ModelStore } from "../core/store";
+import { App } from "./App";
+import { SamplesDialog } from "./SamplesDialog";
+import { Welcome } from "./Welcome";
 
-afterEach(() => {
-  cleanup();
-  vi.doUnmock("virtual:samples");
-  vi.resetModules();
-});
+afterEach(cleanup);
 
 const ring: Sample = {
   id: "seal-ring",
@@ -29,100 +29,78 @@ const ring: Sample = {
   thumbnail: false,
 };
 
-/** The modules of the app in a build with these samples. */
-async function build(list: Sample[]) {
-  vi.resetModules();
-  vi.doMock("virtual:samples", () => ({ default: list }));
-  return {
-    samples: await import("../core/samples"),
-    Welcome: (await import("./Welcome")).Welcome,
-    SamplesDialog: (await import("./SamplesDialog")).SamplesDialog,
-    Header: (await import("./Header")).Header,
-  };
-}
+/** A server of the app with this list of samples, or without one. */
+const server = (list?: Sample[]) =>
+  vi.fn(async (url: string | URL | Request) =>
+    list && String(url).endsWith(INDEX)
+      ? new Response(JSON.stringify(list))
+      : new Response("", { status: 404 }),
+  ) as unknown as typeof fetch;
 
-function header(Header: Awaited<ReturnType<typeof build>>["Header"]) {
-  render(
-    <Header
-      store={new ModelStore()}
-      fileName="model.felupe.json"
-      modified={false}
-      onNew={vi.fn()}
-      onOpen={vi.fn()}
-      onSamples={vi.fn()}
-      onSave={vi.fn()}
-      onSaveAs={vi.fn()}
-      onRename={vi.fn()}
-      onShortcuts={vi.fn()}
-      onAbout={vi.fn()}
-      browserOpen={false}
-      onBrowser={vi.fn()}
-      exports={[]}
-      solve={{ running: false, onSolve: vi.fn(), onCancel: vi.fn() }}
-    />,
-  );
+/** The item File ▸ Samples… of the header, if there is one. */
+function samplesItem() {
   fireEvent.click(screen.getByRole("button", { name: "File" }));
-  return screen.queryByRole("menuitem", { name: "Samples…" });
+  const item = screen.queryByRole("menuitem", { name: "Samples…" });
+  fireEvent.click(screen.getByRole("button", { name: "File" }));
+  return item;
 }
 
-describe("the samples of a build (#350)", () => {
-  it("are the samples of its folder", async () => {
-    const { samples, Welcome, SamplesDialog, Header } = await build([ring]);
-    expect(samples.SAMPLES).toEqual([ring]);
-    expect(samples.HAS_SAMPLES).toBe(true);
-    const onOpen = vi.fn(async () => {});
-    render(
-      <Welcome onImportMesh={vi.fn()} onOpen={vi.fn()} onOpenSample={onOpen} />,
+describe("the samples of an app (#350)", () => {
+  it("are the samples of its list", async () => {
+    const get = server([ring]);
+    render(<App store={new ModelStore()} fetchSample={get} />);
+    const list = await screen.findByRole("list", { name: "Samples" });
+    expect(get).toHaveBeenCalledWith(
+      expect.stringMatching(/\/samples\/index\.json$/),
     );
-    const list = screen.getByRole("list", { name: "Samples" });
     expect(within(list).getByRole("heading").textContent).toBe("Seal ring");
     // a sample without a picture of its own shows the placeholder
     const picture = list.querySelector("img.sample-thumbnail");
     expect(picture?.getAttribute("src")).toMatch(/^data:image\/svg\+xml,/);
     expect(screen.queryByText("More samples")).toBeNull();
+    expect(samplesItem()).not.toBeNull();
+  });
+
+  it("are no section and no menu item without a list", async () => {
+    const get = server();
+    render(<App store={new ModelStore()} fetchSample={get} />);
+    await waitFor(() => expect(get).toHaveBeenCalled());
+    expect(screen.queryByRole("list", { name: "Samples" })).toBeNull();
+    expect(screen.queryByText("Start from a sample")).toBeNull();
+    // still the actions and the links of the welcome panel
+    const welcome = screen.getByRole("region", { name: /^Welcome/ });
+    expect(
+      within(welcome).getByRole("button", { name: "Import mesh" }),
+    ).toBeTruthy();
+    expect(samplesItem()).toBeNull();
+  });
+
+  it("are shown by the welcome panel and the dialog", () => {
+    const onOpen = vi.fn(async () => {});
+    render(
+      <Welcome
+        onImportMesh={vi.fn()}
+        onOpen={vi.fn()}
+        onOpenSample={onOpen}
+        samples={[ring]}
+      />,
+    );
+    const list = screen.getByRole("list", { name: "Samples" });
     fireEvent.click(within(list).getByRole("button"));
     expect(onOpen).toHaveBeenCalledWith(ring);
     cleanup();
 
     render(
-      <SamplesDialog modified={false} onOpen={vi.fn()} onClose={vi.fn()} />,
+      <SamplesDialog
+        modified={false}
+        samples={[ring]}
+        onOpen={vi.fn()}
+        onClose={vi.fn()}
+      />,
     );
     const dialog = screen.getByRole("dialog", { name: "Samples" });
     expect(
       within(dialog).getByRole("list", { name: "Samples" }).textContent,
     ).toContain("Pressed into a groove.");
-    cleanup();
-
-    expect(header(Header)).not.toBeNull();
-  });
-
-  it("load their files from the folder of the sample", async () => {
-    const { samples } = await build([ring]);
-    expect(
-      samples.sampleUrl(ring, "ring.vtu", "https://example.org/app/"),
-    ).toBe("https://example.org/app/samples/01_seal-ring/ring.vtu");
-    const own = { ...ring, thumbnail: true };
-    expect(samples.thumbnailUrl(own, "https://example.org/app/")).toBe(
-      "https://example.org/app/samples/01_seal-ring/thumbnail.svg",
-    );
-  });
-
-  it("are no section and no menu item without any samples", async () => {
-    const { samples, Welcome, Header } = await build([]);
-    expect(samples.HAS_SAMPLES).toBe(false);
-    render(
-      <Welcome
-        onImportMesh={vi.fn()}
-        onOpen={vi.fn()}
-        onOpenSample={vi.fn()}
-      />,
-    );
-    expect(screen.queryByRole("list", { name: "Samples" })).toBeNull();
-    expect(screen.queryByText("Start from a sample")).toBeNull();
-    // still the actions and the links of the welcome panel
-    expect(screen.getByRole("button", { name: "Import mesh" })).toBeTruthy();
-    cleanup();
-
-    expect(header(Header)).toBeNull();
   });
 });

@@ -16,6 +16,7 @@ function host(): AgentHost {
     files: new MeshFiles(),
     notes: () => symmetryNotes(resolveCommands(store.commands).commands),
     modified: () => false,
+    samples: async () => [],
     openSample: async () => {},
     solveBlocker: () => undefined,
     solve: async () => {},

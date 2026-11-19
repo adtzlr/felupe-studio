@@ -33,6 +33,7 @@ from starlette.routing import Mount, Route, WebSocketRoute
 from starlette.staticfiles import StaticFiles
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
+from . import samples as samples_
 from .runtime import decode, encode, session
 
 HOSTS = ["127.0.0.1", "localhost"]
@@ -131,6 +132,19 @@ def find_samples(dist):
         if folder.is_dir():
             return folder
     return None
+
+
+def read_samples(dist):
+    """The samples of the folder of samples of the app (#350), checked. A folder that
+    breaks the rules raises a :class:`~felupe_studio.samples.SamplesError` that names
+    the folder."""
+    folder = find_samples(dist)
+    if folder is None:
+        return []
+    try:
+        return samples_.read(folder)
+    except samples_.SamplesError as error:
+        raise samples_.SamplesError(f"The samples of {folder}: {error}") from error
 
 
 class Session:
@@ -308,13 +322,21 @@ def create_app(dist, token, agent=False):
     async def not_found(request, exc):
         return PlainTextResponse("Not found.", status_code=404)
 
+    # the list of the samples of the folder that the server serves (#350), made at
+    # the start: the app loads it, and the wheel needs no list of its own
     samples = find_samples(dist)
+    listed = [sample.as_dict() for sample in read_samples(dist)]
+
+    async def sample_index(request):
+        return JSONResponse(listed, headers={"Cache-Control": "no-store"})
+
     app = Starlette(
         routes=[
             Route("/", index),
             Route("/index.html", index),
             WebSocketRoute("/runtime", runtime),
             *agent_routes,
+            Route("/samples/index.json", sample_index),
             *([Mount("/samples", StaticFiles(directory=samples))] if samples else []),
             Mount("/", StaticFiles(directory=dist)),
         ],

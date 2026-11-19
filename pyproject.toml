@@ -45,12 +45,12 @@ path = "python/felupe_studio/__about__.py"
 [tool.hatch.build.targets.wheel]
 packages = ["python/felupe_studio"]
 
-# the built app for felupe-studio serve (#240), see hatch_build.py
+# the built app for felupe-studio serve (#240) and the samples of the build (#350),
+# see hatch_build.py
 [tool.hatch.build.targets.wheel.hooks.custom]
 
-# the samples and the documents of the MCP server, outside of a clone (#275)
+# the documents of the MCP server, outside of a clone (#275)
 [tool.hatch.build.targets.wheel.force-include]
-"app/samples" = "felupe_studio/data/samples"
 "docs/guide.md" = "felupe_studio/data/docs/guide.md"
 "docs/commands.md" = "felupe_studio/data/docs/commands.md"
 "docs/reference.md" = "felupe_studio/data/docs/reference.md"
@@ -66,9 +66,9 @@ include = [
   "/CHANGELOG.md",
   "/hatch_build.py",
 ]
-# the built app, if there is one (ignored by git), without the wheels of Pyodide
-# and the samples: the wheel of the sdist gets it (#240)
-artifacts = ["/app/dist/*.*", "/app/dist/assets"]
+# the built app with its samples, if there is one (ignored by git), without the
+# wheels of Pyodide: the wheel of the sdist gets it (#240, #350)
+artifacts = ["/app/dist/*.*", "/app/dist/assets", "/app/dist/samples"]
 
 # the README on PyPI: the relative links and pictures of the repository point to
 # GitHub (#275)

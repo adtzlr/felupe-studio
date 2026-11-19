@@ -35,6 +35,7 @@ import { useAppAgent } from "./useAgent";
 import { useExports } from "./useExports";
 import { useProject } from "./useProject";
 import { useResults } from "./useResults";
+import { useSamples } from "./useSamples";
 import { objectMenu, useSelection } from "./useSelection";
 import { useShortcuts } from "./useShortcuts";
 import { Viewport } from "./Viewport";
@@ -52,7 +53,7 @@ interface Props {
   updates?: UpdateWatcher;
   /** Reload the page; the default reloads the browser window. */
   reload?: () => void;
-  /** Fetch the files of the samples; the default is the fetch of the browser. */
+  /** Fetch the list and the files of the samples; the default is the browser's. */
   fetchSample?: typeof fetch;
   /** Keeps the session in the browser, so that a reload restores it (#57). */
   session?: SessionStorage;
@@ -91,6 +92,7 @@ export function App({
   session,
 }: Props) {
   useStore(store);
+  const samples = useSamples(fetchSample);
   const [files] = useState(() => given ?? new MeshFiles());
   useMeshFiles(files);
   const runtime = useRuntime(client);
@@ -187,6 +189,7 @@ export function App({
     jobs,
     notes,
     modified,
+    samples: () => samples.loaded,
     openSample,
     blocker,
     results,
@@ -247,7 +250,9 @@ export function App({
         modified={modified}
         onNew={project.requestNew}
         onOpen={openFile}
-        onSamples={() => dialogs.setSamplesOpen(true)}
+        onSamples={
+          samples.list.length ? () => dialogs.setSamplesOpen(true) : undefined
+        }
         onSave={() => void project.save()}
         onSaveAs={() => dialogs.setSavingAs(true)}
         // a new name without saving: the next save and the exports take it (#205)
@@ -375,6 +380,7 @@ export function App({
                   onImportMesh={() => dialogs.importMesh()}
                   onOpen={openFile}
                   onOpenSample={openSample}
+                  samples={samples.list}
                   local={client?.local}
                 />
               ) : undefined
@@ -451,6 +457,7 @@ export function App({
         project={project}
         exports={exports}
         script={agent.script}
+        samples={samples.list}
         onOpenSample={openSample}
         onSelect={select}
       />

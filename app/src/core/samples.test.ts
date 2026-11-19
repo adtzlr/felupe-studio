@@ -1,7 +1,18 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { parse } from "./project";
-import { type Sample, SAMPLES, sampleFiles, sampleUrl } from "./samples";
+import { join } from "node:path";
+import { readSamples } from "../vite/samples";
+import {
+  loadSamples,
+  type Sample,
+  sampleFiles,
+  sampleUrl,
+  thumbnailUrl,
+} from "./samples";
+
+// the samples of app/samples, read like the build does (#350)
+const SAMPLES = readSamples(join(__dirname, "../../samples"));
 
 // the samples of app/samples, which describe themselves (#350)
 const folder = (sample: Sample) =>
@@ -52,6 +63,38 @@ describe("samples", () => {
       sampleFiles(sample, base, missing as typeof fetch),
     ).rejects.toThrow(
       "model.felupe.json of the sample could not be loaded (404).",
+    );
+  });
+
+  it("are the list of the app (#350)", async () => {
+    const base = "https://example.org/app/";
+    const answer = (body: string, status = 200) =>
+      vi.fn(
+        async () => new Response(body, { status }),
+      ) as unknown as typeof fetch;
+    const ok = answer(JSON.stringify(SAMPLES));
+    expect(await loadSamples(base, ok)).toEqual(SAMPLES);
+    expect(ok).toHaveBeenCalledWith(
+      "https://example.org/app/samples/index.json",
+    );
+    // without a list, or with one that is no list, no samples
+    expect(await loadSamples(base, answer("", 404))).toEqual([]);
+    expect(await loadSamples(base, answer("{"))).toEqual([]);
+    expect(await loadSamples(base, answer('{"id": "a"}'))).toEqual([]);
+    const offline = vi.fn(async () => {
+      throw new TypeError("Failed to fetch");
+    }) as unknown as typeof fetch;
+    expect(await loadSamples(base, offline)).toEqual([]);
+  });
+
+  it("show their picture or a placeholder", () => {
+    const base = "https://example.org/app/";
+    const sample = SAMPLES[0];
+    expect(thumbnailUrl(sample, base)).toBe(
+      `https://example.org/app/samples/${sample.folder}/thumbnail.svg`,
+    );
+    expect(thumbnailUrl({ ...sample, thumbnail: false }, base)).toMatch(
+      /^data:image\/svg\+xml,/,
     );
   });
 });
