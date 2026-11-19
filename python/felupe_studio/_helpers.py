@@ -359,3 +359,13 @@ def single_precision(solver):
         return solver(A.astype(np.float32), b.astype(np.float32)).astype(b.dtype)
 
     return solve
+
+
+# --- embedded in generated scripts with embedded meshes ---
+
+
+def embed(mesh, value=0.0):
+    """Return a mesh with one dimension more of its points, with the coordinate value
+    on the new axis, e.g. a line in the plane y = value (ADR 0019)."""
+    points = np.pad(mesh.points, ((0, 0), (0, 1)), constant_values=value)
+    return fem.Mesh(points, mesh.cells, mesh.cell_type)

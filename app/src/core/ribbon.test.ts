@@ -19,7 +19,19 @@ describe("ribbonGroups", () => {
     expect(labels("mesh")).toEqual([
       ["Import mesh"],
       // the mesh tools of the registry of the schema (ADR 0019)
-      ["Point", "Line", "Rectangle", "Cube"],
+      // in one group with the menus Primitives and Operations
+      [
+        "Point",
+        "Line",
+        "Rectangle",
+        "Cube",
+        "Expand",
+        "Revolve",
+        "Embed",
+        "Translate",
+        "Rotate",
+        "Mirror",
+      ],
       ["Mesh script"],
       ["Merge points"],
       ["Cell set from tag"],

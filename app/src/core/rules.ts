@@ -7,7 +7,13 @@
 // constraints, and the objects of the commands before. Every command is checked by
 // the rules of all commands (its type of analysis, its references, and its name)
 // and by the rules of its command type (`RULES`), in this order.
-import { dimensions, modelMesh, toolProblems } from "./meshtools";
+import {
+  dimensions,
+  inputProblems,
+  type MeshDimension,
+  modelMesh,
+  toolProblems,
+} from "./meshtools";
 import type { Command as ResolvedCommand, PointSetAdd } from "./resolved";
 import { type Analysis, analysisOf, analysisProblems, is2d } from "./analysis";
 import {
@@ -120,6 +126,7 @@ export class Model {
   /** Name → [index, command] of the commands before, the first of a name. */
   readonly defined = new Map<string, [number, ResolvedCommand]>();
   private selections?: Map<string, PointSetAdd["select"]>;
+  private made?: Map<string, MeshDimension>;
 
   constructor(readonly commands: readonly ResolvedCommand[]) {
     this.analysis = analysisOf(commands);
@@ -132,6 +139,12 @@ export class Model {
   }
 
   /** The selections of the point sets, by their names. */
+  /** The dimensions of the meshes made by tools, by their names (ADR 0019). */
+  get dimensions(): Map<string, MeshDimension> {
+    this.made ??= dimensions(this.commands);
+    return this.made;
+  }
+
   get selects(): Map<string, PointSetAdd["select"]> {
     this.selections ??= new Map(
       this.commands.flatMap((c) =>
@@ -324,9 +337,9 @@ const cellsetModelMesh: Rule<
 > = (model, cmd) => {
   const mesh = model.before(cmd.mesh);
   if (mesh?.command !== "mesh.generate") return [];
-  const dimension = dimensions([mesh]).get(mesh.name)!;
+  const dimension = model.dimensions.get(mesh.name);
   const dim = model.axes.length;
-  if (modelMesh(dimension, dim)) return [];
+  if (!dimension || modelMesh(dimension, dim)) return [];
   return [
     {
       message: `cell set '${cmd.name}' takes mesh '${mesh.name}' of ${dimension.cell_type} cells (${dimension.cells}D), but a cell set of a ${dim}D model needs ${dim}D cells with ${dim}D points.`,
@@ -341,6 +354,28 @@ const meshTool: Rule<CommandOf<"mesh.generate">> = (_, cmd) =>
     message: `mesh '${cmd.name}': ${problem}`,
     field: "parameters.b",
   }));
+
+/**
+ * The inputs of an operation of the mesh tools are meshes made by tools before,
+ * whose dimensions fit the operation (ADR 0019).
+ */
+const meshInputs: Rule<CommandOf<"mesh.generate">> = (model, cmd) => {
+  const inputs = (cmd as { inputs?: string[] }).inputs ?? [];
+  const problems = inputs.flatMap((name) => {
+    const mesh = model.before(name);
+    return mesh && mesh.command !== "mesh.generate"
+      ? [`${cmd.tool} takes meshes made by tools; '${name}' is not.`]
+      : [];
+  });
+  problems.push(...inputProblems(cmd, model.dimensions));
+  return problems.map((problem) => ({
+    message: `mesh '${cmd.name}': ${problem}`,
+    field:
+      problem.includes("axis") || problem.includes("rotate")
+        ? "parameters.axis"
+        : "inputs",
+  }));
+};
 
 /** The material of a section, if it is defined before. */
 function materialOf(model: Model, section: CommandOf<"section.add">) {
@@ -545,7 +580,7 @@ export const LAST: readonly Rule[] = [single, reservedName, duplicateName];
 export const RULES: Rules = {
   "step.add": [rampTargets, rampTwice, rampValues],
   "boundary.add": [boundaryValues],
-  "mesh.generate": [meshTool],
+  "mesh.generate": [meshTool, meshInputs],
   "cellset.from_tag": [cellsetTag, cellsetModelMesh],
   "cellset.from_file": [cellsetModelMesh],
   "section.add": [sectionBulk, sectionIsochoric, sectionStrainBased],

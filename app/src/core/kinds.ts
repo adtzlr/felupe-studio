@@ -95,6 +95,8 @@ export const REFERENCES: Partial<
   Record<CommandType, Record<string, [RefKind, boolean]>>
 > = {
   "mesh.script": { parameters: ["parameter", true] },
+  // the meshes that an operation of the mesh tools takes (ADR 0019)
+  "mesh.generate": { inputs: ["mesh", true] },
   "cellset.from_tag": { mesh: ["mesh", false] },
   "cellset.from_file": { mesh: ["mesh", false] },
   "section.add": { cellset: ["cellset", false], material: ["material", false] },

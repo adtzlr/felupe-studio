@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { deriveTree } from "./tree";
 import { draftErrors, fieldSpecs, initialDraft, setValue } from "./form";
-import { MESH_TOOLS, dimensions, modelMesh, toolProblems } from "./meshtools";
+import {
+  MESH_TOOLS,
+  dimensions,
+  hiddenObjects,
+  inputProblems,
+  modelMesh,
+  toolProblems,
+} from "./meshtools";
 import type { Command } from "./resolved";
 
 type MeshGenerate = Extract<Command, { command: "mesh.generate" }>;
@@ -20,6 +27,12 @@ describe("the mesh tools (ADR 0019)", () => {
       ["Line", "Primitives", "fem.mesh.Line"],
       ["Rectangle", "Primitives", "fem.Rectangle"],
       ["Cube", "Primitives", "fem.Cube"],
+      ["expand", "Operations", ".expand"],
+      ["revolve", "Operations", ".revolve"],
+      ["embed", "Operations", "embed"],
+      ["translate", "Operations", ".translate"],
+      ["rotate", "Operations", ".rotate"],
+      ["mirror", "Operations", ".mirror"],
     ]);
   });
 
@@ -115,5 +128,45 @@ describe("the mesh tools (ADR 0019)", () => {
       // a point is a construction mesh of a 3D model
       ["corner", "Point · construction"],
     ]);
+  });
+});
+
+describe("the operations of the mesh tools (ADR 0019)", () => {
+  const face = made("Rectangle", { a: [0, 0], b: [1, 1], n: [3, 2] }, "face");
+  const block = {
+    ...made("expand", { n: 3, z: 1 }, "block"),
+    inputs: ["face"],
+  } as MeshGenerate;
+
+  it("know the dimensions of their meshes from their inputs, like Python", () => {
+    const meshes = dimensions([face, block]);
+    expect(meshes.get("block")).toEqual({
+      points: 3,
+      cells: 3,
+      cell_type: "hexahedron",
+    });
+    const twice = {
+      ...block,
+      name: "twice",
+      inputs: ["block"],
+    } as MeshGenerate;
+    expect(dimensions([face, block, twice]).has("twice")).toBe(false);
+    expect(inputProblems(twice, meshes)).toEqual([
+      "expand needs a mesh of vertex, line or quad cells; 'block' has hexahedron cells.",
+    ]);
+  });
+
+  it("are shown below the mesh that uses them, hidden by default", () => {
+    const tree = deriveTree([face, block]);
+    const [mesh] = tree.find((g) => g.id === "group:mesh")!.children;
+    expect([mesh.label, mesh.detail]).toEqual(["block", "expand face · n = 3"]);
+    expect(mesh.children.map((c) => [c.label, c.detail])).toEqual([
+      ["face", "Rectangle · n = 3 × 2 · construction"],
+    ]);
+    expect([...hiddenObjects([face, block], new Set())]).toEqual(["face"]);
+    // shown by the user, and another object hidden
+    expect([
+      ...hiddenObjects([face, block], new Set(["face", "block"])),
+    ]).toEqual(["block"]);
   });
 });

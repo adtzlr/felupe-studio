@@ -11,7 +11,7 @@ A project file is a JSON document `{"schema_version": 3, "commands": [...]}`. Ev
 
 Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
 
-A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `DIMENSIONS`, `EDGES`, `REGIONS`, `SimpleNamespace`, `boundaries`, `boundary_faces`, `control_points`, `fem`, `field`, `iterative_solver`, `meshio`, `mixed_field`, `mixed_region`, `nearly_incompressible`, `np`, `points`, `points_at`, `run_mesh_script`, `script_mesh`, `single_point`, `single_precision`, `solid_points`, `solid_types`, `spsolve`, `surface_points`, `vertex_region`, `volume_cells`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
+A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `DIMENSIONS`, `EDGES`, `REGIONS`, `SimpleNamespace`, `boundaries`, `boundary_faces`, `control_points`, `embed`, `fem`, `field`, `iterative_solver`, `meshio`, `mixed_field`, `mixed_region`, `nearly_incompressible`, `np`, `points`, `points_at`, `pypardiso`, `run_mesh_script`, `script_mesh`, `single_point`, `single_precision`, `solid_points`, `solid_types`, `spsolve`, `surface_points`, `vertex_region`, `volume_cells`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
 
 ## Expressions
 
@@ -23,7 +23,7 @@ A number of a command (*or an expression* below) may be an expression of the par
 - [`parameter.add`](#parameteradd): A parameter of the model: a number, e.g. a dimension or the number of cells of a mesh made by a script.
 - [`mesh.import`](#meshimport): Import a mesh file (read with meshio).
 - [`mesh.script`](#meshscript): A mesh made by a Python script next to the project, e.g. with the mesh tools of FElupe.
-- [`mesh.generate`](#meshgenerate): A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube.
+- [`mesh.generate`](#meshgenerate): A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes made by tools before, like expand or revolve.
 - [`mesh.merge`](#meshmerge): Merge points of the sections whose coordinates agree to the given number of decimals (fem.field.merge(..., decimals)).
 - [`cellset.from_tag`](#cellsetfrom_tag): Cell set of all cells of a mesh with the given tag value.
 - [`cellset.from_file`](#cellsetfrom_file): Cell set of all cells of a mesh.
@@ -98,7 +98,7 @@ A mesh made by a Python script next to the project, e.g. with the mesh tools of 
 
 ### `mesh.generate`
 
-A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh.
+A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes made by tools before, like expand or revolve. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh.
 
 Every variant has a `name`, the name of the object.
 
@@ -139,6 +139,73 @@ A cube (fem.Cube): hexahedrons between the corners a and b, with n points per ax
 | `a` (a) | list of 3 numbers | yes | The corner with the smallest coordinates x, y and z. Default `[0, 0, 0]`. |
 | `b` (b) | list of 3 numbers | yes | The corner with the largest coordinates x, y and z. Default `[1, 1, 1]`. |
 | `n` (n) | list of 3 integers ≥ 2 | yes | The number of points per axis x, y and z (at least 2). Default `[2, 2, 2]`. |
+
+#### Expand (`tool: "expand"`)
+
+Expand a mesh along a new axis (mesh.expand): a point to a line, a line to quads in the xy-plane, quads to hexahedrons along z, with n points over the length z.
+
+Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool before.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `n` (n) | integer ≥ 2 | yes | The number of points along the new axis (at least 2). Default `11`. |
+| `z` (z) | number > 0 | yes | The length along the new axis. Default `1`. |
+
+#### Revolve (`tool: "revolve"`)
+
+Revolve a mesh about an axis (mesh.revolve): a point to a line, a line to quads, quads to hexahedrons, with n points over the angle phi.
+
+Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool before.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `n` (n) | integer ≥ 2 | yes | The number of points over the angle (at least 2). Default `11`. |
+| `phi` (φ) | number > 0, ≤ 360 | yes | The angle of revolution in degrees, at most 360. Default `180`. |
+| `axis` (axis) | axis: `x`, `y` or `z` | yes | The axis of revolution. Default `x`. |
+
+#### Embed (`tool: "embed"`)
+
+Embed a mesh into one dimension more (embed, e.g. np.pad of the points): its points get the coordinate value of the new axis, its cells stay, e.g. a line into the plane y = value.
+
+Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool before.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `value` (value) | number | yes | The coordinate of the points on the new axis. Default `0`. |
+
+#### Translate (`tool: "translate"`)
+
+Move a mesh along an axis (mesh.translate).
+
+Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool before.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `move` (move) | number | yes | The distance along the axis. Default `0`. |
+| `axis` (axis) | axis: `x`, `y` or `z` | yes | The axis of the move. Default `x`. |
+
+#### Rotate (`tool: "rotate"`)
+
+Rotate a mesh about an axis through a center (mesh.rotate); a mesh of 2D points turns about z.
+
+Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool before.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `angle_deg` (angle) | number | yes | The angle of rotation in degrees. Default `0`. |
+| `axis` (axis) | axis: `x`, `y` or `z` | yes | The axis of rotation. Default `z`. |
+| `center` (center) | list of 2 to 3 numbers |  | The center of rotation, one coordinate per dimension of the points (default: the origin). |
+
+#### Mirror (`tool: "mirror"`)
+
+Mirror a mesh at a plane normal to an axis (mesh.mirror), at the coordinate value of the axis.
+
+Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool before.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `axis` (axis) | axis: `x`, `y` or `z` | yes | The axis normal to the plane of the mirror. Default `x`. |
+| `value` (value) | number | yes | The coordinate of the plane on the axis. Default `0`. |
 
 ### `mesh.merge`
 

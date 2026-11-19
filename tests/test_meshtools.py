@@ -22,11 +22,20 @@ def made(tool, name="mesh", **parameters):
 
 
 def test_the_registry_of_the_tools():
-    assert list(meshtools.tools()) == ["Point", "Line", "Rectangle", "Cube"]
+    assert list(meshtools.tools()) == [
+        *("Point", "Line", "Rectangle", "Cube"),
+        *("expand", "revolve", "embed", "translate", "rotate", "mirror"),
+    ]
     for name, definition in meshtools.tools().items():
-        assert definition["x-label"] == name
-        assert definition["x-felupe"].startswith("fem.")
-        assert set(definition["x-dimension"]) == {"points", "cells", "cell_type"}
+        rule = definition["x-dimension"]
+        if "inputs" in rule:
+            # an operation: a method of its input, or a function of its inputs
+            assert definition["x-group"] == "Operations"
+            assert set(rule) == {"inputs", "cell_type", "points"}
+        else:
+            assert definition["x-label"] == name
+            assert definition["x-felupe"].startswith("fem.")
+            assert set(rule) == {"points", "cells", "cell_type"}
 
 
 @pytest.mark.parametrize(
@@ -130,3 +139,61 @@ def test_a_made_mesh_is_exported_like_a_file(tmp_path):
     line = made("Line", "edge", a=0, b=1, n=3)
     with pytest.raises(ValueError, match="'edge' has no solid cells"):
         meshes.export_generated([line], "edge", "vtu")
+
+
+LINE = made("Line", "line", a=0, b=2, n=3)
+RECTANGLE = made("Rectangle", "face", a=[0, 0], b=[2, 1], n=[3, 2])
+CUBE = made("Cube", "block", a=[0, 0, 0], b=[2, 1, 1], n=[3, 2, 2])
+
+
+def operation(tool, inputs, **parameters):
+    return {**made(tool, "made", **parameters), "inputs": inputs}
+
+
+@pytest.mark.parametrize(
+    "chain",
+    [
+        [made("Point", "point", a=1), operation("expand", ["point"], n=3, z=2)],
+        [LINE, operation("expand", ["line"], n=3, z=2)],
+        [RECTANGLE, operation("expand", ["face"], n=3, z=2)],
+        [
+            made("Point", "point", a=1),
+            operation("revolve", ["point"], n=3, phi=90, axis="x"),
+        ],
+        [LINE, operation("revolve", ["line"], n=3, phi=90, axis="x")],
+        [RECTANGLE, operation("revolve", ["face"], n=4, phi=90, axis="x")],
+        [LINE, operation("embed", ["line"], value=3)],
+        [RECTANGLE, operation("embed", ["face"], value=3)],
+        [CUBE, operation("translate", ["block"], move=2, axis="z")],
+        [
+            RECTANGLE,
+            operation("rotate", ["face"], angle_deg=30, axis="z", center=[1, 0]),
+        ],
+        [CUBE, operation("rotate", ["block"], angle_deg=30, axis="x")],
+        [CUBE, operation("mirror", ["block"], axis="y", value=0.5)],
+        [RECTANGLE, operation("mirror", ["face"], axis="x", value=0)],
+    ],
+)
+def test_the_dimensions_of_the_operations_are_those_of_felupe(chain):
+    # known from the commands, and the same as of the mesh that FElupe makes
+    assert errors({"schema_version": 3, "commands": chain}) == []
+    known = meshtools.dimensions(chain)["made"]
+    mesh = meshtools.generate(chain)["made"]
+    assert mesh.points.shape[1] == known["points"]
+    assert mesh.cell_type == known["cell_type"]
+
+
+def test_the_lines_of_the_operations():
+    chain = [
+        LINE,
+        operation("embed", ["line"], value=30.0),
+        {**operation("expand", ["made"], n=3, z=10), "name": "face"},
+        {**operation("mirror", ["face"], axis="y", value=0.5), "name": "flipped"},
+    ]
+    script = codegen({"schema_version": 3, "commands": chain}, evaluate=False)
+    assert "made = embed(line, value=30.0)" in script
+    assert "face = made.expand(n=3, z=10)" in script
+    assert "flipped = face.mirror(normal=[0, 1, 0], centerpoint=[0, 0.5, 0])" in script
+    assert "def embed(mesh, value=0.0):" in script
+    # the helper only in scripts with embedded meshes
+    assert "def embed" not in codegen({"schema_version": 3, "commands": [LINE]})

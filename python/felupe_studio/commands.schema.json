@@ -72,6 +72,7 @@
           "boundaries",
           "boundary_faces",
           "control_points",
+          "embed",
           "fem",
           "field",
           "iterative_solver",
@@ -82,6 +83,7 @@
           "np",
           "points",
           "points_at",
+          "pypardiso",
           "run_mesh_script",
           "script_mesh",
           "single_point",
@@ -280,7 +282,7 @@
       }
     },
     "MeshGenerate": {
-      "description": "A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh.",
+      "description": "A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes made by tools before, like expand or revolve. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh.",
       "oneOf": [
         {
           "$ref": "#/$defs/MeshPoint"
@@ -293,6 +295,24 @@
         },
         {
           "$ref": "#/$defs/MeshCube"
+        },
+        {
+          "$ref": "#/$defs/MeshExpand"
+        },
+        {
+          "$ref": "#/$defs/MeshRevolve"
+        },
+        {
+          "$ref": "#/$defs/MeshEmbed"
+        },
+        {
+          "$ref": "#/$defs/MeshTranslate"
+        },
+        {
+          "$ref": "#/$defs/MeshRotate"
+        },
+        {
+          "$ref": "#/$defs/MeshMirror"
         }
       ]
     },
@@ -519,6 +539,362 @@
                 "minimum": 2
               },
               "default": [2, 2, 2]
+            }
+          }
+        }
+      }
+    },
+    "MeshExpand": {
+      "description": "Expand a mesh along a new axis (mesh.expand): a point to a line, a line to quads in the xy-plane, quads to hexahedrons along z, with n points over the length z.",
+      "x-label": "Expand",
+      "x-group": "Operations",
+      "x-felupe": ".expand",
+      "x-dimension": {
+        "inputs": 1,
+        "cell_type": {
+          "vertex": "line",
+          "line": "quad",
+          "quad": "hexahedron"
+        },
+        "points": {
+          "vertex": 0,
+          "line": 1,
+          "quad": 1
+        }
+      },
+      "type": "object",
+      "required": ["command", "name", "tool", "inputs", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "mesh.generate"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "tool": {
+          "const": "expand"
+        },
+        "inputs": {
+          "description": "The mesh that the tool takes: a mesh made by a tool before.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "$ref": "#/$defs/Name"
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["n", "z"],
+          "additionalProperties": false,
+          "properties": {
+            "n": {
+              "x-label": "n",
+              "description": "The number of points along the new axis (at least 2).",
+              "type": ["integer", "string"],
+              "minimum": 2,
+              "default": 11
+            },
+            "z": {
+              "x-label": "z",
+              "x-quantity": "length",
+              "description": "The length along the new axis.",
+              "type": ["number", "string"],
+              "exclusiveMinimum": 0,
+              "default": 1
+            }
+          }
+        }
+      }
+    },
+    "MeshRevolve": {
+      "description": "Revolve a mesh about an axis (mesh.revolve): a point to a line, a line to quads, quads to hexahedrons, with n points over the angle phi.",
+      "x-label": "Revolve",
+      "x-group": "Operations",
+      "x-felupe": ".revolve",
+      "x-dimension": {
+        "inputs": 1,
+        "cell_type": {
+          "vertex": "line",
+          "line": "quad",
+          "quad": "hexahedron"
+        },
+        "points": {
+          "vertex": 1,
+          "line": 1,
+          "quad": 1
+        }
+      },
+      "type": "object",
+      "required": ["command", "name", "tool", "inputs", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "mesh.generate"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "tool": {
+          "const": "revolve"
+        },
+        "inputs": {
+          "description": "The mesh that the tool takes: a mesh made by a tool before.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "$ref": "#/$defs/Name"
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["n", "phi", "axis"],
+          "additionalProperties": false,
+          "properties": {
+            "n": {
+              "x-label": "n",
+              "description": "The number of points over the angle (at least 2).",
+              "type": ["integer", "string"],
+              "minimum": 2,
+              "default": 11
+            },
+            "phi": {
+              "x-label": "φ",
+              "x-quantity": "angle",
+              "description": "The angle of revolution in degrees, at most 360.",
+              "type": ["number", "string"],
+              "exclusiveMinimum": 0,
+              "maximum": 360,
+              "default": 180
+            },
+            "axis": {
+              "x-label": "axis",
+              "description": "The axis of revolution.",
+              "$ref": "#/$defs/Axis",
+              "default": "x"
+            }
+          }
+        }
+      }
+    },
+    "MeshEmbed": {
+      "description": "Embed a mesh into one dimension more (embed, e.g. np.pad of the points): its points get the coordinate value of the new axis, its cells stay, e.g. a line into the plane y = value.",
+      "x-label": "Embed",
+      "x-group": "Operations",
+      "x-felupe": "embed",
+      "x-dimension": {
+        "inputs": 1,
+        "cell_type": "same",
+        "points": 1
+      },
+      "type": "object",
+      "required": ["command", "name", "tool", "inputs", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "mesh.generate"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "tool": {
+          "const": "embed"
+        },
+        "inputs": {
+          "description": "The mesh that the tool takes: a mesh made by a tool before.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "$ref": "#/$defs/Name"
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["value"],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "x-label": "value",
+              "x-quantity": "length",
+              "description": "The coordinate of the points on the new axis.",
+              "type": ["number", "string"],
+              "default": 0
+            }
+          }
+        }
+      }
+    },
+    "MeshTranslate": {
+      "description": "Move a mesh along an axis (mesh.translate).",
+      "x-label": "Translate",
+      "x-group": "Operations",
+      "x-felupe": ".translate",
+      "x-dimension": {
+        "inputs": 1,
+        "cell_type": "same",
+        "points": 0
+      },
+      "type": "object",
+      "required": ["command", "name", "tool", "inputs", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "mesh.generate"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "tool": {
+          "const": "translate"
+        },
+        "inputs": {
+          "description": "The mesh that the tool takes: a mesh made by a tool before.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "$ref": "#/$defs/Name"
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["move", "axis"],
+          "additionalProperties": false,
+          "properties": {
+            "move": {
+              "x-label": "move",
+              "x-quantity": "length",
+              "description": "The distance along the axis.",
+              "type": ["number", "string"],
+              "default": 0
+            },
+            "axis": {
+              "x-label": "axis",
+              "description": "The axis of the move.",
+              "$ref": "#/$defs/Axis",
+              "default": "x"
+            }
+          }
+        }
+      }
+    },
+    "MeshRotate": {
+      "description": "Rotate a mesh about an axis through a center (mesh.rotate); a mesh of 2D points turns about z.",
+      "x-label": "Rotate",
+      "x-group": "Operations",
+      "x-felupe": ".rotate",
+      "x-dimension": {
+        "inputs": 1,
+        "cell_type": "same",
+        "points": 0
+      },
+      "type": "object",
+      "required": ["command", "name", "tool", "inputs", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "mesh.generate"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "tool": {
+          "const": "rotate"
+        },
+        "inputs": {
+          "description": "The mesh that the tool takes: a mesh made by a tool before.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "$ref": "#/$defs/Name"
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["angle_deg", "axis"],
+          "additionalProperties": false,
+          "properties": {
+            "angle_deg": {
+              "x-label": "angle",
+              "x-quantity": "angle",
+              "description": "The angle of rotation in degrees.",
+              "type": ["number", "string"],
+              "default": 0
+            },
+            "axis": {
+              "x-label": "axis",
+              "description": "The axis of rotation.",
+              "$ref": "#/$defs/Axis",
+              "default": "z"
+            },
+            "center": {
+              "x-label": "center",
+              "x-quantity": "length",
+              "description": "The center of rotation, one coordinate per dimension of the points (default: the origin).",
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 3,
+              "items": {
+                "type": ["number", "string"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "MeshMirror": {
+      "description": "Mirror a mesh at a plane normal to an axis (mesh.mirror), at the coordinate value of the axis.",
+      "x-label": "Mirror",
+      "x-group": "Operations",
+      "x-felupe": ".mirror",
+      "x-dimension": {
+        "inputs": 1,
+        "cell_type": "same",
+        "points": 0
+      },
+      "type": "object",
+      "required": ["command", "name", "tool", "inputs", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "mesh.generate"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "tool": {
+          "const": "mirror"
+        },
+        "inputs": {
+          "description": "The mesh that the tool takes: a mesh made by a tool before.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "$ref": "#/$defs/Name"
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["axis", "value"],
+          "additionalProperties": false,
+          "properties": {
+            "axis": {
+              "x-label": "axis",
+              "description": "The axis normal to the plane of the mirror.",
+              "$ref": "#/$defs/Axis",
+              "default": "x"
+            },
+            "value": {
+              "x-label": "value",
+              "x-quantity": "length",
+              "description": "The coordinate of the plane on the axis.",
+              "type": ["number", "string"],
+              "default": 0
             }
           }
         }

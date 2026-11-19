@@ -66,6 +66,8 @@ RAMPED = ("boundary", "load", "pressure")
 # is a list)
 REFERENCES = {
     "mesh.script": {"parameters": ("parameter", True)},
+    # the meshes that an operation of the mesh tools takes (ADR 0019)
+    "mesh.generate": {"inputs": ("mesh", True)},
     "cellset.from_tag": {"mesh": ("mesh", False)},
     "cellset.from_file": {"mesh": ("mesh", False)},
     "section.add": {"cellset": ("cellset", False), "material": ("material", False)},

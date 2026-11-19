@@ -18,7 +18,7 @@ import {
 import { MATERIAL_MODELS } from "./materials";
 import { describeParameter } from "./parameters";
 import { analysisOf, is2d } from "./analysis";
-import { dimensions, modelMesh } from "./meshtools";
+import { dimensions, modelMesh, usersOf } from "./meshtools";
 
 export interface TreeNode {
   /** Unique id: the object name, or `group:<kind>` for a group. */
@@ -178,15 +178,16 @@ const DETAILS: { [C in Command["command"]]: Detail<C> } = {
       cmd.item ? `${cmd.file} [${cmd.item}]` : cmd.file,
       cmd.tag && `tag ${cmd.tag}`,
     ),
-  // a mesh made by a tool (ADR 0019): the tool, its points per axis, and whether
-  // it is a construction mesh below the dimension of the model
+  // a mesh made by a tool (ADR 0019): the tool with its inputs, its points per
+  // axis, and whether it is a construction mesh below the dimension of the model
   "mesh.generate": (cmd, { commands }) => {
     const n = (cmd.parameters as { n?: unknown }).n;
     const points = Array.isArray(n) ? n.join(" × ") : n;
-    const dimension = dimensions([cmd]).get(cmd.name);
+    const inputs = (cmd as { inputs?: string[] }).inputs ?? [];
+    const dimension = dimensions(commands).get(cmd.name);
     const dim = is2d(analysisOf(commands)) ? 2 : 3;
     return joined(
-      cmd.tool,
+      inputs.length ? `${cmd.tool} ${inputs.join(", ")}` : cmd.tool,
       points !== undefined && `n = ${points}`,
       dimension && !modelMesh(dimension, dim) && "construction",
     );
@@ -334,11 +335,19 @@ export function deriveTree(
     ]),
   );
 
+  // a made mesh below the one mesh that uses it (ADR 0019)
+  const users = usersOf(commands);
   const placed = new Set<string>();
   for (const cmd of commands) {
     if (placed.has(cmd.name)) continue;
     placed.add(cmd.name);
     const child = nodes.get(cmd.name)!;
+    const [user, ...others] = users.get(cmd.name) ?? [];
+    const parent = user && !others.length ? nodes.get(user) : undefined;
+    if (cmd.command === "mesh.generate" && parent?.kind === "mesh") {
+      parent.children.push(child);
+      continue;
+    }
     const mesh = cmd.command.startsWith("cellset.")
       ? nodes.get((cmd as { mesh: string }).mesh)
       : undefined;
