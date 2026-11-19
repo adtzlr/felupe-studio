@@ -6,6 +6,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Added
 
+- PARDISO of Intel oneMKL as the linear solver of a job (#308, part 1), for large 3D models in Python on your computer (`felupe-studio serve`): `solver.type` `pardiso`, *PARDISO (local Python)* in the job form, `solver=pypardiso.spsolve` in the script with `import pypardiso` only where a job uses it, also in single precision with a PyPardiso that factorizes in float32 (e.g. adtzlr/PyPardiso). The extra `felupe-studio[pardiso]` installs PyPardiso. The runtime says what it has in its `ready` message (`felupe_studio.capabilities`): in the browser, or without PyPardiso, a job with PARDISO has an issue (*PARDISO needs Python on your computer*), also in the MCP server and before a run; the model stays valid in every runtime. *Help ▸ About* of the local runtime shows the version of PyPardiso. The golden case `bar_pardiso` gives the curve of SuperLU.
 - The token of `felupe-studio serve` from the environment variable `FELUPE_STUDIO_TOKEN`: it stays the same at every start, so a `.mcp.json` of VS Code or Claude Code takes it as `"Authorization": "Bearer ${FELUPE_STUDIO_TOKEN}"` without a secret in the file, and the link of the app stays the same. A token needs at least 16 letters, digits, `_` or `-`; with it, `serve --agent` prints the header of the `.mcp.json`. The guide for agents shows the `.mcp.json` in the root of the workspace for the stdio server and for the agent bridge.
 
 ### Changed

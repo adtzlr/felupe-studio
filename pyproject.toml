@@ -25,6 +25,9 @@ test = ["pytest", "ruff"]
 mcp = ["mcp>=2.3"]
 # the app with a local Python runtime: felupe-studio serve (#240)
 serve = ["starlette>=0.40", "uvicorn>=0.30", "websockets>=13"]
+# PARDISO of Intel oneMKL as the linear solver of a job (#308), in Python on the
+# computer: Intel oneMKL has wheels for x86-64 (Linux, Windows), not for Apple silicon
+pardiso = ["pypardiso"]
 
 [project.scripts]
 felupe-studio = "felupe_studio.cli:main"

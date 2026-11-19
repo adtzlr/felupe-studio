@@ -1,4 +1,5 @@
 // Model store: the command list with undo and redo, and the state derived from it.
+import { type Capabilities, capabilityIssues } from "./capabilities";
 import type { CheckReport } from "./checks";
 import type { Command, CommandList } from "./commands";
 import { duplicateBlocker, duplicateCommand } from "./duplicate";
@@ -31,9 +32,11 @@ export class ModelStore {
   private future: Commands[] = [];
   private listeners = new Set<() => void>();
   private checkReport: CheckReport | undefined;
+  private runtime: Capabilities | undefined;
   private cache: {
     list: Commands;
     report?: CheckReport;
+    runtime?: Capabilities;
     issues: Issue[];
     tree: TreeNode[];
   } = { list: [], issues: [], tree: deriveTree([]) };
@@ -186,6 +189,16 @@ export class ModelStore {
     this.notify();
   }
 
+  /**
+   * Store what the runtime has, from its `ready` message (#308): the jobs with a
+   * linear solver it does not have, e.g. PARDISO in the browser, are issues.
+   */
+  setCapabilities(capabilities: Capabilities | undefined): void {
+    if (this.runtime === capabilities) return;
+    this.runtime = capabilities;
+    this.notify();
+  }
+
   /** Call the listener after every change; returns a function to unsubscribe. */
   subscribe(listener: () => void): () => void {
     this.listeners.add(listener);
@@ -212,12 +225,19 @@ export class ModelStore {
   private derived() {
     if (
       this.cache.list !== this.list ||
-      this.cache.report !== this.checkReport
+      this.cache.report !== this.checkReport ||
+      this.cache.runtime !== this.runtime
     ) {
-      const issues = validateResolution(this.resolve());
+      const resolution = this.resolve();
+      const errors = validateResolution(resolution);
+      // the issues of the runtime after the errors of the model (#308)
+      const issues = errors.length
+        ? errors
+        : capabilityIssues(resolution.commands, this.runtime);
       this.cache = {
         list: this.list,
         report: this.checkReport,
+        runtime: this.runtime,
         issues,
         tree: deriveTree(this.list, issues, this.checkReport),
       };

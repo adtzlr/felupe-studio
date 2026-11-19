@@ -1,6 +1,7 @@
 // Help ▸ About (#126): the versions of the app and of the Python packages, the load
 // time, the license and the links of the project.
 import { APP_NAME, formatVersion, LINKS, REPOSITORY } from "../app";
+import type { Capabilities } from "../core/capabilities";
 import { Dialog } from "./Dialog";
 import { otherVersion, type Runtime } from "./hooks";
 
@@ -22,6 +23,13 @@ export function wheelVersion(
   return undefined;
 }
 
+/** The version of PyPardiso of the local runtime, e.g. "0.4.7 (double precision)". */
+export function pardisoText(capabilities: Capabilities | undefined): string {
+  const pardiso = capabilities?.pardiso;
+  if (!pardiso) return "not installed";
+  return `${pardiso.version} (${pardiso.single ? "single and double" : "double"} precision)`;
+}
+
 export function AboutDialog({ runtime, onClose }: Props) {
   const ready = runtime.state === "ready" ? runtime.ready : undefined;
   const other = otherVersion(runtime);
@@ -34,6 +42,8 @@ export function AboutDialog({ runtime, onClose }: Props) {
         ["Python", ready?.versions.python],
         ["NumPy", ready?.versions.numpy],
         ["SciPy", ready?.versions.scipy],
+        // the solver PARDISO of a job (#308), with or without single precision
+        ["PyPardiso", ready && pardisoText(ready.capabilities)],
       ]
     : [
         ["FElupe", ready?.versions.felupe ?? __FELUPE_VERSION__],

@@ -763,6 +763,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       "solver.type": {
         superlu: "SuperLU (FElupe)",
         spsolve: "spsolve (SciPy)",
+        pardiso: "PARDISO (local Python)",
         iterative: "Iterative (SciPy)",
       },
       "solver.precision": {

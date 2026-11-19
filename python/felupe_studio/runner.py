@@ -21,6 +21,7 @@ import felupe as fem
 import numpy as np
 
 from . import results as results_
+from .capabilities import capability_errors
 from .codegen import (
     analysis_of,
     codegen,
@@ -28,6 +29,7 @@ from .codegen import (
     object_lines,
     solver_source,
 )
+from .commands import ValidationError
 from .expressions import resolve
 from .materials import models
 
@@ -322,6 +324,10 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
     # the values of the expressions of the parameters (#242), which the script shows
     # as written
     document = resolve(document)[0]
+    # the linear solvers of the jobs that this runtime has (#308), e.g. PARDISO
+    unavailable = capability_errors(document["commands"])
+    if unavailable:
+        raise ValidationError(unavailable)
     namespace = {"__name__": "felupe_studio_model"}
     exec(compile(script, "model.py", "exec"), namespace)
     LAST.clear()

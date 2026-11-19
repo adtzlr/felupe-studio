@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { cleanup, render, screen } from "@testing-library/preact";
 import { afterEach, describe, expect, it } from "vitest";
-import { AboutDialog, wheelVersion } from "./AboutDialog";
+import { AboutDialog, pardisoText, wheelVersion } from "./AboutDialog";
 import { type Runtime, runtimeText } from "./hooks";
 
 afterEach(cleanup);
@@ -15,6 +15,25 @@ describe("about", () => {
     expect(wheelVersion("meshio", wheels)).toBe("5.3.5");
     expect(wheelVersion("tensortrax", wheels)).toBeUndefined();
     expect(wheelVersion("tensortrax")).toMatch(/^\d+\.\d+/);
+  });
+});
+
+describe("PyPardiso of the local runtime (#308)", () => {
+  it("says its version and its precisions", () => {
+    expect(pardisoText(undefined)).toBe("not installed");
+    expect(pardisoText({ runtime: "python" })).toBe("not installed");
+    expect(
+      pardisoText({
+        runtime: "python",
+        pardiso: { version: "0.4.7", single: false },
+      }),
+    ).toBe("0.4.7 (double precision)");
+    expect(
+      pardisoText({
+        runtime: "python",
+        pardiso: { version: "0.5.0", single: true },
+      }),
+    ).toBe("0.5.0 (single and double precision)");
   });
 });
 
@@ -61,6 +80,8 @@ describe("the local runtime (#240)", () => {
       "RuntimePython of this computer (felupe-studio serve)",
     );
     expect(versions).toContain("felupe-studio0.0.1");
+    // the solver PARDISO of a job (#308)
+    expect(versions).toContain("PyPardisonot installed");
     expect(versions).not.toContain("Pyodide");
     expect(screen.getByRole("note").textContent).toContain(
       "The package felupe-studio 0.0.1 of the runtime differs from this app",

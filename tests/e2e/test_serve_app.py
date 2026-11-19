@@ -94,3 +94,47 @@ def test_a_sample_solved_with_the_local_python(url, page):
     page.reload()
     page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
     assert page.errors == []
+
+
+def test_pardiso_of_the_local_python(url, page):
+    # the linear solver PARDISO of a job (#308): with pypardiso it solves, without
+    # it (e.g. in CI) the job has an issue, and Help ▸ About says so
+    try:
+        import pypardiso  # noqa: F401
+    except ImportError:
+        installed = False
+    else:
+        installed = True
+    page.goto(url)
+    page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
+    card = page.locator(".sample-card").filter(
+        has_text="Hyperelastic block with a rigid plate"
+    )
+    card.get_by_role("button", name="Open").click()
+    # the sample, not the empty model before it
+    page.get_by_text("17 commands", exact=True).wait_for(timeout=60_000)
+    page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)
+    line = page.get_by_label("Command", exact=True)
+    line.fill(
+        'job.add {"name": "job_pardiso", "steps": ["shift_and_tilt"], '
+        '"solver": {"type": "pardiso"}}'
+    )
+    line.press("Enter")
+    page.get_by_text("Created job_pardiso.").wait_for()
+    page.get_by_role("button", name="Help").click()
+    page.get_by_role("menuitem", name="About").click()
+    versions = page.get_by_label("Versions").inner_text()
+    assert ("PyPardiso\nnot installed" in versions) != installed
+    page.keyboard.press("Escape")
+    if installed:
+        page.get_by_text("0 issues", exact=True).wait_for()
+        page.get_by_role("button", name="Solve").click()
+        page.get_by_role("button", name="Show results").wait_for(timeout=120_000)
+        assert "PARDISO" in page.locator("body").inner_text()
+    else:
+        page.get_by_text("1 issue", exact=True).wait_for()
+        # the issue at the solver of the job
+        page.get_by_role("treeitem", name="job_pardiso").first.click()
+        properties = page.get_by_role("region", name="Properties")
+        properties.get_by_text("PARDISO needs the package pypardiso").wait_for()
+    assert page.errors == []

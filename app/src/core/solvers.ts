@@ -1,6 +1,7 @@
 // The linear solver of a job (#203): SuperLU of FElupe (the default), spsolve of
-// SciPy (both also in single precision, ADR 0016) or an iterative method of SciPy,
-// like felupe_studio.codegen.solver_source().
+// SciPy, PARDISO of Intel oneMKL in Python on the computer (#308), all three also in
+// single precision (ADR 0016), or an iterative method of SciPy, like
+// felupe_studio.codegen.solver_source().
 import type { Command } from "./commands";
 import type { Command as ResolvedCommand } from "./resolved";
 
@@ -36,6 +37,7 @@ export function describeSolver(job: Job): string | undefined {
   const single = solver.precision === "single" ? ", single precision" : "";
   if (solver.type === "superlu") return `SuperLU${single}`;
   if (solver.type === "spsolve") return `spsolve${single}`;
+  if (solver.type === "pardiso") return `PARDISO${single}`;
   const rtol =
     typeof solver.rtol === "string"
       ? solver.rtol

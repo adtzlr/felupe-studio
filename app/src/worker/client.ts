@@ -28,6 +28,7 @@ import type {
   ToWorker,
   ValuesMethod,
   Versions,
+  Capabilities,
 } from "./protocol";
 
 /** A generated script and the line ranges [first, last] (from 1) of its objects. */
@@ -39,6 +40,8 @@ export interface ScriptView {
 export interface Ready {
   versions: Versions;
   timings: LoadTimings;
+  /** The linear solvers of the runtime, e.g. PARDISO (#308). */
+  capabilities?: Capabilities;
 }
 
 type Request = Extract<ToWorker, { id: number }>;
@@ -131,7 +134,8 @@ export class RuntimeClient {
         const message = event.data;
         if (message.type === "ready") {
           started = true;
-          resolve({ versions: message.versions, timings: message.timings });
+          const { versions, timings, capabilities } = message;
+          resolve({ versions, timings, capabilities });
         } else if (message.type === "error" && message.id === undefined) {
           // Python could not start, or the connection to the local runtime ended
           const error = new Error(message.message);

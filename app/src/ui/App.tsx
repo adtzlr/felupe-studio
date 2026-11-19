@@ -18,7 +18,13 @@ import { ErrorBanner, UpdateBanner } from "./Banners";
 import { Dialogs, useDialogs } from "./Dialogs";
 import { Footer } from "./Footer";
 import { Header } from "./Header";
-import { useMedia, useMeshFiles, useRuntime, useStore } from "./hooks";
+import {
+  useCapabilities,
+  useMedia,
+  useMeshFiles,
+  useRuntime,
+  useStore,
+} from "./hooks";
 import { Inspector } from "./Inspector";
 import { JobPanel } from "./JobPanel";
 import { ResultsPane, ResultsRibbon } from "./ResultsPane";
@@ -88,6 +94,7 @@ export function App({
   const [files] = useState(() => given ?? new MeshFiles());
   useMeshFiles(files);
   const runtime = useRuntime(client);
+  useCapabilities(store, runtime);
   const [jobs] = useState(() => client && new JobRunner(client));
   const [workspace, setWorkspace] = useState<Workspace>("model");
   const results = useResults({ store, jobs, workspace });

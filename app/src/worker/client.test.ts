@@ -27,6 +27,7 @@ const ready: FromWorker = {
     scipy: "1",
   },
   timings: { pyodide: 1, packages: 2, felupe: 3, total: 6 },
+  capabilities: { runtime: "pyodide" },
 };
 
 const start = () => {
@@ -62,6 +63,8 @@ describe("RuntimeClient", () => {
     worker.reply(ready);
     await expect(client.ready).resolves.toMatchObject({
       versions: { felupe: "12.0.0" },
+      // the linear solvers of the runtime (#308)
+      capabilities: { runtime: "pyodide" },
     });
 
     const onResult = vi.fn();

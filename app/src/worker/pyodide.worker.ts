@@ -15,7 +15,7 @@ import {
   openCache,
   persister,
 } from "./pycache";
-import type { FromWorker, ToWorker, Versions } from "./protocol";
+import type { Capabilities, FromWorker, ToWorker, Versions } from "./protocol";
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 let pyodide: PyodideInterface | undefined;
@@ -112,6 +112,15 @@ async function init(
     ),
   ) as Omit<Versions, "pyodide">;
 
+  // the linear solvers of Pyodide: no PARDISO (#308)
+  const capabilities = JSON.parse(
+    py.runPython(
+      "import json\n" +
+        "from felupe_studio.capabilities import capabilities\n" +
+        "json.dumps(capabilities())",
+    ),
+  ) as Capabilities;
+
   pyodide = py;
   const requests = py.pyimport("felupe_studio.requests");
   // a copy: an attribute is borrowed from the proxy of its module
@@ -120,6 +129,7 @@ async function init(
   post({
     type: "ready",
     versions: { ...versions, pyodide: py.version, runtime: "pyodide" },
+    capabilities,
     timings: {
       pyodide: t1 - t0,
       packages: t2 - t1,

@@ -171,6 +171,8 @@ def test_a_session(client):
         assert ready["type"] == "ready"
         assert ready["versions"]["runtime"] == "python"
         assert ready["versions"]["felupe_studio"]
+        # the linear solvers of this Python, e.g. PARDISO (#308)
+        assert ready["capabilities"]["runtime"] == "python"
         file = {"type": "write-file", "id": 1, "name": "cube.vtu", "data": MESH}
         websocket.send_bytes(encode(file))
         assert receive(websocket) == {"type": "done", "id": 1}

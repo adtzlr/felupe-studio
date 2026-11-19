@@ -40,6 +40,13 @@ describe("the linear solver of a job (#203)", () => {
     expect(
       describeSolver(job({ solver: { type: "superlu", precision: "double" } })),
     ).toBe("SuperLU");
+    // PARDISO of Intel oneMKL in Python on the computer (#308)
+    expect(describeSolver(job({ solver: { type: "pardiso" } }))).toBe(
+      "PARDISO",
+    );
+    expect(
+      describeSolver(job({ solver: { type: "pardiso", precision: "single" } })),
+    ).toBe("PARDISO, single precision");
     expect(
       describeSolver(
         job({

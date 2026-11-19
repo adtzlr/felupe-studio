@@ -4,6 +4,7 @@ of the job; the direct solvers also in single precision (ADR 0016)."""
 
 import copy
 import json
+import sys
 from pathlib import Path
 
 import felupe as fem
@@ -11,9 +12,11 @@ import numpy as np
 import pytest
 from scipy import sparse
 
+from felupe_studio import capabilities as capabilities_
 from felupe_studio._helpers import single_precision
+from felupe_studio.capabilities import capability_errors, capability_issues
 from felupe_studio.codegen import codegen, solver_rtol, solver_source
-from felupe_studio.commands import errors
+from felupe_studio.commands import ValidationError, errors
 from felupe_studio.runner import run
 
 GOLDEN = Path(__file__).parent / "golden"
@@ -58,6 +61,11 @@ def test_sources_of_the_solvers():
     )
     assert solver_source({"solver": {"type": "superlu", "precision": "double"}}) == (
         "fem.solve.SuperLUSolver()"
+    )
+    # PARDISO of Intel oneMKL (#308)
+    assert solver_source({"solver": {"type": "pardiso"}}) == "pypardiso.spsolve"
+    assert solver_source({"solver": {"type": "pardiso", **single}}) == (
+        "single_precision(pypardiso.spsolve)"
     )
 
 
@@ -145,3 +153,96 @@ def test_single_precision_solves_in_float32():
     x = single_precision(solver)(A, b)
     assert calls == [(np.float32, np.float32)] and x.dtype == np.float64
     np.testing.assert_allclose(A @ x, b, rtol=1e-5)
+
+
+def test_scripts_import_pypardiso_only_when_needed():
+    # PARDISO of Intel oneMKL (#308): the package only in scripts that use it
+    assert "pypardiso" not in codegen(with_solver({"type": "superlu"}))
+    script = codegen(with_solver({"type": "pardiso"}))
+    assert "import numpy as np\nimport pypardiso\n" in script
+    assert "job_1.evaluate(x0=field, tol=0.01, solver=pypardiso.spsolve)" in script
+    assert "def spsolve" not in script
+    single = codegen(with_solver({"type": "pardiso", "precision": "single"}))
+    assert "solver=single_precision(pypardiso.spsolve))" in single
+    assert "def single_precision(solver):" in single
+    # the model does not depend on the runtime
+    assert errors(with_solver({"type": "pardiso"})) == []
+
+
+BROWSER = {"runtime": "pyodide"}
+PYTHON = {"runtime": "python"}
+
+
+def pardiso(single):
+    return {"runtime": "python", "pardiso": {"version": "0.4.7", "single": single}}
+
+
+def test_issues_of_the_runtime():
+    # like capabilityIssues() of the app (app/src/core/capabilities.test.ts)
+    def issues(solver, available, precision=None):
+        document = with_solver(solver)
+        if precision:
+            settings = {"command": "model.settings", "name": "settings"}
+            document["commands"].insert(0, {**settings, "precision": precision})
+        return capability_issues(document["commands"], available)
+
+    assert issues({"type": "superlu"}, BROWSER) == []
+    assert issues(None, BROWSER) == []
+    (issue,) = issues({"type": "pardiso"}, BROWSER)
+    assert issue == {
+        "index": 9,
+        "name": "job_1",
+        "field": "solver.type",
+        "message": "PARDISO needs Python on your computer (felupe-studio serve): "
+        "Intel oneMKL has no build for the browser.",
+    }
+    (issue,) = issues({"type": "pardiso"}, PYTHON)
+    assert issue["message"] == (
+        "PARDISO needs the package pypardiso: pip install pypardiso."
+    )
+    assert issues({"type": "pardiso"}, pardiso(False)) == []
+    # single precision needs a PyPardiso that factorizes in float32
+    single = {"type": "pardiso", "precision": "single"}
+    (issue,) = issues(single, pardiso(False))
+    assert issue["field"] == "solver.precision"
+    assert issue["message"] == (
+        "PyPardiso 0.4.7 solves only in double precision: choose double precision, "
+        "or install a PyPardiso that factorizes in float32 (e.g. adtzlr/PyPardiso)."
+    )
+    # a model in single precision (#297): the matrix is in float32 anyway
+    (issue,) = issues({"type": "pardiso"}, pardiso(False), precision="single")
+    assert issue["field"] == "solver.type"
+    assert issues(single, pardiso(True)) == []
+    assert issues({"type": "pardiso"}, pardiso(True), precision="single") == []
+    commands = with_solver({"type": "pardiso"})["commands"]
+    assert capability_errors(commands, PYTHON) == [
+        "commands/9: PARDISO needs the package pypardiso: pip install pypardiso."
+    ]
+
+
+def test_capabilities_of_this_python():
+    available = capabilities_.capabilities()
+    assert available["runtime"] == "python"
+    try:
+        import pypardiso  # noqa: F401
+    except ImportError:
+        assert "pardiso" not in available
+    else:
+        assert set(available["pardiso"]) == {"version", "single"}
+
+
+def test_a_broken_pypardiso_is_not_installed(monkeypatch):
+    # e.g. without the library of MKL: the runtime starts without PARDISO
+    monkeypatch.setattr(capabilities_, "find_spec", lambda name: object())
+    monkeypatch.setitem(sys.modules, "pypardiso", None)
+    assert capabilities_.capabilities.__wrapped__() == PYTHON
+
+
+def test_a_run_needs_the_solver_of_the_runtime(tmp_path, monkeypatch):
+    monkeypatch.setattr(capabilities_, "capabilities", lambda: PYTHON)
+    for path in (GOLDEN / "bar_single_body").iterdir():
+        if path.suffix in (".vtu", ".msh", ".xdmf", ".h5"):
+            (tmp_path / path.name).write_bytes(path.read_bytes())
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(ValidationError, match="needs the package pypardiso"):
+        run(with_solver({"type": "pardiso"}))
