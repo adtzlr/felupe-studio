@@ -376,7 +376,7 @@ The app keeps the current project in the browser, so that a reload (or a crash o
 
 ## Agent bridge
 
-`felupe-studio serve --agent` (#258, ADR 0015, `pip install "felupe-studio[serve,mcp]"`) also offers an MCP endpoint for AI agents at `http://127.0.0.1:<port>/mcp` (Streamable HTTP of the SDK) and prints how to add it, e.g. `claude mcp add --transport http felupe-studio http://127.0.0.1:8765/mcp --header "Authorization: Bearer <token>"`. Its tools act on the model of one tab of the app.
+`felupe-studio serve --agent` (#258, ADR 0015, `pip install "felupe-studio[serve,mcp]"`) also offers an MCP endpoint for AI agents at `http://127.0.0.1:<port>/mcp` (Streamable HTTP of the SDK) and prints how to add it, e.g. `claude mcp add --transport http felupe-studio http://127.0.0.1:8765/mcp --header "Authorization: Bearer <token>"`. The token is new at every start, or the one of the environment variable `FELUPE_STUDIO_TOKEN` (`token_of()`, at least 16 letters, digits, `_` or `-`), which a `.mcp.json` takes as `"Authorization": "Bearer ${FELUPE_STUDIO_TOKEN}"`. Its tools act on the model of one tab of the app.
 
 - `/mcp` (`TokenGuard`): the token as `Authorization: Bearer` (else 401), no `Origin` header (no website, else 403), the hosts of the loopback interface (`TrustedHostMiddleware` and the DNS rebinding protection of the SDK). The served `index.html` has `<meta name="felupe-studio-agent" content="on" />`.
 - `/agent`: the WebSocket of the tab, with `?token=` and the own origin like `/runtime`. The tab starts with `{"type": "hello", "version": 1}`; the server answers `{"type": "welcome", "version": 1}`, or `refused` (another version) and closes. A newly connected tab replaces the former one, which gets `{"type": "replaced"}`; its pending calls fail.

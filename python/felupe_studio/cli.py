@@ -17,7 +17,9 @@ def main(argv=None):
         "serve",
         help="serve the app on 127.0.0.1 with the Python of this computer",
         description="Serve the app on 127.0.0.1 and run its models with the Python "
-        "of this computer instead of Pyodide. Mesh scripts run with your rights.",
+        "of this computer instead of Pyodide. Mesh scripts run with your rights. The "
+        "token of the link is new at every start, or the one of the environment "
+        "variable FELUPE_STUDIO_TOKEN (at least 16 letters, digits, _ or -).",
     )
     serve.add_argument("--port", type=int, default=8765, help="the port (8765)")
     serve.add_argument(
@@ -34,7 +36,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if args.command == "serve":
         try:
-            from .serve import find_app
+            from .serve import find_app, token_of
             from .serve import serve as run
         except ImportError as error:
             sys.exit(
@@ -50,13 +52,16 @@ def main(argv=None):
                 )
         try:
             find_app(args.app)
-        except FileNotFoundError as error:
+            # the token of FELUPE_STUDIO_TOKEN, or a new one
+            token = token_of()
+        except (FileNotFoundError, ValueError) as error:
             sys.exit(str(error))
         try:
             run(
                 port=args.port,
                 app=args.app,
                 browser=not args.no_browser,
+                token=token,
                 agent=args.agent,
             )
         except KeyboardInterrupt:

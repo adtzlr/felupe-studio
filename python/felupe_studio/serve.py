@@ -4,9 +4,10 @@ The server serves the built app on ``127.0.0.1`` and answers its requests over a
 WebSocket at ``/runtime``, with the messages of the Pyodide worker. Every connection
 gets a Python process of its own (:func:`felupe_studio.runtime.session`) with a
 temporary folder; a closed connection ends it, e.g. to cancel a job. The WebSocket
-needs the token of the URL that the server prints; it accepts the hosts
-``127.0.0.1`` and ``localhost`` only, and WebSockets of its own origin. Needs
-``felupe-studio[serve]``.
+needs the token of the URL that the server prints, a new one at every start or the
+one of the environment variable ``FELUPE_STUDIO_TOKEN`` (:func:`token_of`); it
+accepts the hosts ``127.0.0.1`` and ``localhost`` only, and WebSockets of its own
+origin. Needs ``felupe-studio[serve]``.
 
 With ``agent=True`` (``--agent``, #258, ADR 0015) the server also offers an MCP
 endpoint at ``/mcp`` for AI agents (with the token as ``Authorization: Bearer``,
@@ -17,6 +18,8 @@ answers its tools (:mod:`felupe_studio.bridge`, needs ``felupe-studio[mcp]`` too
 import asyncio
 import contextlib
 import multiprocessing
+import os
+import re
 import secrets
 import shutil
 import tempfile
@@ -43,6 +46,58 @@ AGENT_META = '<meta name="felupe-studio-agent" content="on" />'
 
 POLICY = 1008
 """The close code of a WebSocket without the token or of a foreign origin."""
+
+TOKEN_VARIABLE = "FELUPE_STUDIO_TOKEN"
+"""The environment variable of a token that stays the same at every start, e.g. for
+the configuration of an agent (``.mcp.json``)."""
+
+TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_-]{16,}")
+"""A token of the environment: at least 16 letters, digits, ``_`` or ``-`` (it is a
+parameter of the URL of the app)."""
+
+
+def token_of(environ=None):
+    """Return the token of the environment variable ``FELUPE_STUDIO_TOKEN``, or a new
+    one if it is not set. Raise a :class:`ValueError` for a token that is too short
+    or has other characters.
+
+    Examples
+    --------
+    >>> token_of({"FELUPE_STUDIO_TOKEN": "a-token-of-the-user"})
+    'a-token-of-the-user'
+    >>> len(token_of({}))
+    32
+    """
+    token = (os.environ if environ is None else environ).get(TOKEN_VARIABLE, "")
+    if not token:
+        return secrets.token_urlsafe(24)
+    if not TOKEN_PATTERN.fullmatch(token):
+        raise ValueError(
+            f"{TOKEN_VARIABLE} needs at least 16 letters, digits, _ or -, e.g. "
+            f"{secrets.token_urlsafe(24)}"
+        )
+    return token
+
+
+def agent_message(endpoint, token, fixed):
+    """The lines that ``serve --agent`` prints about the MCP endpoint: with a token
+    of ``FELUPE_STUDIO_TOKEN`` (``fixed``) the header of a ``.mcp.json``, else the
+    command of Claude Code with the token of this start."""
+    lines = [f"The MCP endpoint for agents: {endpoint}"]
+    if fixed:
+        lines.append(
+            f'  .mcp.json: "url": "{endpoint}", '
+            f'"headers": {{"Authorization": "Bearer ${{{TOKEN_VARIABLE}}}"}}'
+        )
+    else:
+        lines += [
+            "  Claude Code: claude mcp add --transport http felupe-studio "
+            f'{endpoint} --header "Authorization: Bearer {token}"',
+            f"  A new token at every start; set {TOKEN_VARIABLE} to keep one, e.g. "
+            "for a .mcp.json.",
+        ]
+    lines.append("  Then connect the app: Help ▸ Connect an agent.")
+    return "\n".join(lines)
 
 
 def find_app(app=None):
@@ -273,7 +328,8 @@ def create_app(dist, token, agent=False):
 
 def serve(port=8765, app=None, browser=True, token=None, agent=False):
     """Serve the app with the local runtime on ``127.0.0.1`` until Ctrl+C; with
-    ``agent`` also the MCP endpoint of the agent bridge."""
+    ``agent`` also the MCP endpoint of the agent bridge. Without a ``token``, the
+    token of the environment or a new one (:func:`token_of`)."""
     import threading
     import time
     import webbrowser
@@ -281,7 +337,7 @@ def serve(port=8765, app=None, browser=True, token=None, agent=False):
     import uvicorn
 
     dist = find_app(app)
-    token = token or secrets.token_urlsafe(24)
+    token = token or token_of()
     url = f"http://127.0.0.1:{port}/?token={token}"
     config = uvicorn.Config(
         create_app(dist, token, agent=agent),
@@ -301,13 +357,8 @@ def serve(port=8765, app=None, browser=True, token=None, agent=False):
             print(f"FElupe Studio runs at {url}", flush=True)
             if agent:
                 endpoint = f"http://127.0.0.1:{port}/mcp"
-                print(
-                    f"The MCP endpoint for agents: {endpoint}\n"
-                    "  Claude Code: claude mcp add --transport http felupe-studio "
-                    f'{endpoint} --header "Authorization: Bearer {token}"\n'
-                    "  Then connect the app: Help ▸ Connect an agent.",
-                    flush=True,
-                )
+                fixed = os.environ.get(TOKEN_VARIABLE) == token
+                print(agent_message(endpoint, token, fixed), flush=True)
             print("Press Ctrl+C to stop it.", flush=True)
             if browser:
                 webbrowser.open(url)
