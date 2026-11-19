@@ -1,13 +1,15 @@
 // The sample models (#32): a list of samples, each opened like a project file with
 // its mesh files.
 import { useState } from "preact/hooks";
-import { type Sample, SAMPLES } from "../core/samples";
+import type { Sample } from "../core/samples";
 import { Dialog } from "./Dialog";
 import { SampleCard } from "./SampleCard";
 
 interface Props {
   /** The current model has unsaved changes, which a sample replaces. */
   modified: boolean;
+  /** The samples of the app (#350). */
+  samples: readonly Sample[];
   onOpen: (sample: Sample) => Promise<void>;
   onClose: () => void;
 }
@@ -26,7 +28,7 @@ export function useOpening(onOpen: (sample: Sample) => Promise<void>) {
   return { opening, open };
 }
 
-export function SamplesDialog({ modified, onOpen, onClose }: Props) {
+export function SamplesDialog({ modified, samples, onOpen, onClose }: Props) {
   const { opening, open } = useOpening(onOpen);
   return (
     <Dialog
@@ -42,7 +44,7 @@ export function SamplesDialog({ modified, onOpen, onClose }: Props) {
       )}
       <div class="samples-scroll">
         <ul class="samples" aria-label="Samples">
-          {SAMPLES.map((sample) => (
+          {samples.map((sample) => (
             <SampleCard
               key={sample.id}
               sample={sample}

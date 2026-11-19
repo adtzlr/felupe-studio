@@ -7,7 +7,7 @@ import type { Command } from "../core/commands";
 import type { JobRun, JobRunner } from "../core/jobs";
 import { isScript, type MeshFiles } from "../core/meshfiles";
 import { type ResultView, substepsOf } from "../core/results";
-import { SAMPLES, type Sample } from "../core/samples";
+import type { Sample } from "../core/samples";
 import type { Edit, ModelStore } from "../core/store";
 import { type Issue, nameProblem } from "../core/validate";
 import type { RuntimeClient } from "../worker/client";
@@ -27,6 +27,8 @@ export interface AgentHost {
   notes(): readonly Pick<Issue, "name" | "message">[];
   /** The open model has changes that are not saved. */
   modified(): boolean;
+  /** The samples of the app (#350), once they are loaded. */
+  samples(): Promise<readonly Sample[]>;
   openSample(sample: Sample): Promise<void>;
   /** Why the model cannot be solved now, if it cannot. */
   solveBlocker(): string | undefined;
@@ -157,7 +159,7 @@ export function agentTools(host: AgentHost): Handler {
     (args: Record<string, unknown>, progress: Progress) => Promise<unknown>
   > = {
     samples: async () =>
-      SAMPLES.map(({ id, title, description, topics }) => ({
+      (await host.samples()).map(({ id, title, description, topics }) => ({
         id,
         title,
         description,
@@ -166,10 +168,11 @@ export function agentTools(host: AgentHost): Handler {
 
     open_sample: async (args) => {
       const id = string(args, "sample");
-      const sample = SAMPLES.find((s) => s.id === id);
+      const samples = await host.samples();
+      const sample = samples.find((s) => s.id === id);
       if (!sample)
         throw new Error(
-          `Unknown sample '${id}': ${SAMPLES.map((s) => s.id).join(", ")}.`,
+          `Unknown sample '${id}': ${samples.map((s) => s.id).join(", ")}.`,
         );
       if (host.modified())
         throw new Error(

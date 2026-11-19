@@ -1,6 +1,7 @@
 """The local Python runtime: felupe-studio serve (#240, ADR 0014)."""
 
 import json
+import shutil
 import struct
 import time
 from pathlib import Path
@@ -9,6 +10,7 @@ import numpy as np
 import pytest
 
 from felupe_studio.runtime import decode, encode, safe_name
+from felupe_studio.samples import SamplesError
 
 pytest.importorskip("starlette.testclient")
 
@@ -141,6 +143,10 @@ def test_the_app_is_served(client):
     # the samples of the package, if the app has none (the app of the wheel)
     model = client.get("/samples/08_plate-with-hole/model.felupe.json")
     assert model.status_code == 200 and "commands" in model.json()
+    # their list, made from their folder (#350)
+    listed = client.get("/samples/index.json").json()
+    assert listed[0]["id"] == "two-materials" and listed[-1]["id"] == "engine-mount"
+    assert listed[7]["folder"] == "08_plate-with-hole"
     assert client.get("/missing.js").status_code == 404
     # only the hosts of the loopback interface (against DNS rebinding)
     other = client.get("/", headers={"host": "example.com"})
@@ -271,3 +277,25 @@ def test_the_command_refuses_a_weak_token(dist, monkeypatch):
     monkeypatch.setenv("FELUPE_STUDIO_TOKEN", "1234")
     with pytest.raises(SystemExit, match="FELUPE_STUDIO_TOKEN needs at least 16"):
         main(["serve", "--app", str(dist), "--no-browser"])
+
+
+def test_the_samples_of_the_build(dist):
+    # the samples of a build with SAMPLES_DIR, e.g. of a brand (#350)
+    plate = Path(__file__).parents[1] / "app" / "samples" / "08_plate-with-hole"
+    shutil.copytree(plate, dist / "samples" / "01_plate")
+    (dist / "samples" / "index.json").write_text("[]")  # the list of the build
+    with TestClient(create_app(dist, TOKEN), base_url=ORIGIN) as client:
+        listed = client.get("/samples/index.json").json()
+        assert [s["id"] for s in listed] == ["plate"]
+        assert listed[0]["files"] == ["plate_with_hole.py"]
+        script = client.get("/samples/01_plate/plate_with_hole.py")
+        assert script.status_code == 200
+
+
+def test_samples_that_break_the_rules_stop_the_server(dist, capsys):
+    (dist / "samples" / "01_plate").mkdir(parents=True)
+    with pytest.raises(SamplesError, match="The samples of .*has no model"):
+        create_app(dist, TOKEN)
+    with pytest.raises(SystemExit) as exit_:
+        main(["serve", "--app", str(dist), "--no-browser"])
+    assert "has no model.felupe.json" in str(exit_.value.code)

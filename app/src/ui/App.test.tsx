@@ -16,7 +16,7 @@ import type { Command, CommandList } from "../core/commands";
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { MeshFiles } from "../core/meshfiles";
-import { SAMPLES } from "../core/samples";
+import { INDEX } from "../core/samples";
 import { IndexedDBSession, type SessionStorage } from "../core/session";
 import { ModelStore } from "../core/store";
 import type {
@@ -32,9 +32,24 @@ import type {
   ResultScene,
   ValuesMethod,
 } from "../worker/protocol";
+import { readSamples } from "../vite/samples";
 import { App, NARROW } from "./App";
 
 afterEach(cleanup);
+
+// the samples of app/samples (#350), read like the build does; the working
+// directory of the tests is app/
+const SAMPLES = readSamples(resolve("samples"));
+
+/** The list and the files of the samples, like the app on a server serves them. */
+const serve = (async (url: string | URL | Request) => {
+  const path = new URL(String(url)).pathname.replace(/^\//, "");
+  if (path === INDEX) return new Response(JSON.stringify(SAMPLES));
+  const file = resolve(path);
+  return existsSync(file)
+    ? new Response(readFileSync(file))
+    : new Response("", { status: 404 });
+}) as typeof fetch;
 
 const material = {
   command: "material.add",
@@ -69,8 +84,8 @@ const fileMenu = (name: string | RegExp) => {
 };
 
 describe("App shell", () => {
-  it("has the regions of the layout", () => {
-    render(<App store={new ModelStore()} />);
+  it("has the regions of the layout", async () => {
+    render(<App store={new ModelStore()} fetchSample={serve} />);
     expect(screen.getByRole("banner")).toBeTruthy();
     expect(screen.getByRole("group", { name: "Workspace" })).toBeTruthy();
     expect(screen.getByRole("tablist", { name: "Ribbon" })).toBeTruthy();
@@ -86,11 +101,14 @@ describe("App shell", () => {
     const welcome = screen.getByRole("region", {
       name: "Welcome to FElupe Studio",
     });
-    expect(
-      within(welcome)
-        .getAllByRole("button")
-        .map((b) => b.textContent),
-    ).toEqual(["Import mesh", "Open project", ...SAMPLES.map(() => "Open")]);
+    // the samples of the list of the app (#350), once it is loaded
+    await waitFor(() =>
+      expect(
+        within(welcome)
+          .getAllByRole("button")
+          .map((b) => b.textContent),
+      ).toEqual(["Import mesh", "Open project", ...SAMPLES.map(() => "Open")]),
+    );
     expect(screen.getByText("untitled.felupe.json")).toBeTruthy();
   });
 
@@ -505,8 +523,10 @@ describe("keyboard shortcuts (#129)", () => {
 });
 
 describe("menus of the header", () => {
-  it("has File and Help menus, operated with the keyboard", () => {
-    render(<App store={new ModelStore()} />);
+  it("has File and Help menus, operated with the keyboard", async () => {
+    render(<App store={new ModelStore()} fetchSample={serve} />);
+    // the samples of the app, once their list is loaded (#350)
+    await screen.findAllByRole("listitem");
     const file = screen.getByRole("button", { name: "File" });
     expect(file.getAttribute("aria-haspopup")).toBe("menu");
     fireEvent.keyDown(file, { key: "ArrowDown" });
@@ -2062,19 +2082,17 @@ describe("solve", () => {
 });
 
 describe("samples", () => {
-  const serve = (async (url: string | URL | Request) => {
-    // the files of app/samples (#350; the working directory of the tests is app/)
-    const path = new URL(String(url)).pathname.replace(/^\//, "");
-    const file = resolve(path);
-    return existsSync(file)
-      ? new Response(readFileSync(file))
-      : new Response("", { status: 404 });
-  }) as typeof fetch;
+  /** File ▸ Samples… once the app has loaded the list of its samples (#350). */
+  async function openSamples() {
+    fireEvent.click(screen.getByRole("button", { name: "File" }));
+    const item = await screen.findByRole("menuitem", { name: "Samples…" });
+    fireEvent.click(item);
+  }
 
   it("opens a sample like a project with its mesh files", async () => {
     const store = new ModelStore();
     render(<App store={store} fetchSample={serve} />);
-    fileMenu("Samples…");
+    await openSamples();
     const dialog = screen.getByRole("dialog", { name: "Samples" });
     expect(within(dialog).queryByRole("note")).toBeNull();
     const samples = within(dialog)
@@ -2123,7 +2141,7 @@ describe("samples", () => {
       />,
     );
     const sample = SAMPLES.find((s) => s.id === "shear-mount")!;
-    fileMenu("Samples…");
+    await openSamples();
     const dialog = screen.getByRole("dialog", { name: "Samples" });
     const card = within(dialog)
       .getAllByRole("listitem")
@@ -2214,7 +2232,7 @@ describe("samples", () => {
     const welcome = screen.getByRole("region", {
       name: "Welcome to FElupe Studio",
     });
-    const cards = within(welcome).getAllByRole("listitem");
+    const cards = await within(welcome).findAllByRole("listitem");
     expect(cards.map((card) => card.querySelector("h3")?.textContent)).toEqual(
       SAMPLES.map((sample) => sample.title),
     );
@@ -2240,11 +2258,14 @@ describe("samples", () => {
 
   it("warns before replacing changes and reports a missing file", async () => {
     const store = new ModelStore(fixture as CommandList);
-    const missing = (async () =>
-      new Response("", { status: 404 })) as typeof fetch;
+    // the list of the samples, but not their files
+    const missing = (async (url: string | URL | Request) =>
+      String(url).endsWith(INDEX)
+        ? serve(url)
+        : new Response("", { status: 404 })) as typeof fetch;
     render(<App store={store} fetchSample={missing} />);
     act(() => store.apply({ type: "remove", name: "job_1" }));
-    fileMenu("Samples…");
+    await openSamples();
     const dialog = screen.getByRole("dialog", { name: "Samples" });
     expect(within(dialog).getByRole("note").textContent).toContain(
       "unsaved changes",

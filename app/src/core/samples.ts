@@ -1,8 +1,8 @@
 // The sample models of the app (#32, #350): the folder of samples of the build,
 // app/samples or SAMPLES_DIR, where every sample describes itself (its sample.json)
-// and the prefix of its folder gives the order. The plugin src/vite/samples.ts reads
-// it and lists the samples in the virtual module.
-import list from "virtual:samples";
+// and the prefix of its folder gives the order. The app loads their list at runtime,
+// `samples/index.json`, which the build writes (src/vite/samples.ts) and
+// `felupe-studio serve` makes from the folder it serves; no list is compiled in.
 import { SUFFIX } from "./files";
 
 export interface Sample {
@@ -19,11 +19,26 @@ export interface Sample {
   thumbnail: boolean;
 }
 
-/** The samples of the build, none without a folder of samples. */
-export const SAMPLES: readonly Sample[] = list;
+/** The list of the samples, next to their folders. */
+export const INDEX = "samples/index.json";
 
-/** The build has samples. */
-export const HAS_SAMPLES = SAMPLES.length > 0;
+/**
+ * The samples of the app: its `samples/index.json`. Without one, or with one that
+ * cannot be read, the app has no samples (#279).
+ */
+export async function loadSamples(
+  base: string,
+  get: typeof fetch = (...args) => fetch(...args),
+): Promise<readonly Sample[]> {
+  try {
+    const response = await get(new URL(INDEX, base).href);
+    if (!response.ok) return [];
+    const list: unknown = await response.json();
+    return Array.isArray(list) ? (list as Sample[]) : [];
+  } catch {
+    return [];
+  }
+}
 
 /** The URL of a file of a sample. */
 export const sampleUrl = (sample: Sample, file: string, base: string) =>

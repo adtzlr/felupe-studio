@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { APP_NAME, formatVersion, LINKS } from "../app";
 import { projectNameProblem, stemOf, suffixOf } from "../core/files";
-import { HAS_SAMPLES } from "../core/samples";
 import { ariaKeys, hint, withHint } from "../core/shortcuts";
 import type { ModelStore } from "../core/store";
 import { Icon } from "./icons";
@@ -16,7 +15,8 @@ interface Props {
   modified: boolean;
   onNew: () => void;
   onOpen: () => void;
-  onSamples: () => void;
+  /** Open the dialog of the samples; without it, the app has no samples (#279). */
+  onSamples?: () => void;
   onSave: () => void;
   onSaveAs: () => void;
   /** Rename the project: the new file name with the suffix of its format (#205). */
@@ -213,8 +213,8 @@ export function Header({
                     shortcut: { text: hint("open"), aria: ariaKeys("open") },
                     onSelect: onOpen,
                   },
-                  // not in a build without samples (#279)
-                  ...(HAS_SAMPLES
+                  // not in an app without samples (#279, #350)
+                  ...(onSamples
                     ? [
                         {
                           id: "samples",

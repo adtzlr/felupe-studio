@@ -57,6 +57,8 @@ app = data / "app"
 assert serve.find_app() == app, serve.find_app()
 assert serve.find_samples(app) == data / "samples", serve.find_samples(app)
 assert not (app / "wheels").exists() and not (app / "samples").exists()
+# the samples of the build, without their list, which serve makes (#350)
+assert not (data / "samples" / "index.json").exists()
 # the command of the package
 command = Path(sys.executable).parent / "felupe-studio"
 version = subprocess.run(
@@ -77,6 +79,10 @@ try:
     with urllib.request.urlopen(f"{base}/") as response:
         assert serve.META in response.read().decode(), "the meta tag of the runtime"
     # the files of a sample from its folder (#350)
+    # the list of the samples, made from their folder (#350)
+    with urllib.request.urlopen(f"{base}/samples/index.json") as response:
+        listed = json.loads(response.read())
+    assert [s["id"] for s in listed] == ids, listed
     plate = samples.folder_of(data / "samples", "plate-with-hole").name
     with urllib.request.urlopen(f"{base}/samples/{plate}/model.felupe.json"):
         pass

@@ -83,7 +83,7 @@ export function useAgent(
 
 interface AppOptions extends Pick<
   AgentHost,
-  "store" | "files" | "client" | "jobs" | "openSample" | "picture"
+  "store" | "files" | "client" | "jobs" | "samples" | "openSample" | "picture"
 > {
   /** The notes of the objects, by their names. */
   notes: ReadonlyMap<string, readonly string[]>;

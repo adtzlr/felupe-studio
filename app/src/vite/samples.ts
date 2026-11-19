@@ -9,18 +9,16 @@
 // start with `.` or `_` are left out. The rules and the messages are those of
 // `felupe_studio.samples`, tested with tests/data/sample_folder_cases.json.
 //
-// The plugin copies the files of the samples to `samples/<folder>/` of the build (and
-// serves them in dev), and the virtual module `virtual:samples` lists them. This
-// module runs in Node (the config of Vite), not in the app.
+// The plugin copies the files of the samples to `samples/<folder>/` of the build and
+// writes their list `samples/index.json`, which the app loads at runtime; in dev, it
+// serves both. This module runs in Node (the config of Vite), not in the app.
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import type { Plugin } from "vite";
 import { parse, ProjectError } from "../core/project";
-import type { Sample } from "../core/samples";
+import { INDEX, type Sample } from "../core/samples";
 
-const VIRTUAL = "virtual:samples";
-const RESOLVED = `\0${VIRTUAL}`;
 export const PROJECT = "model.felupe.json";
 export const DESCRIPTION = "sample.json";
 export const THUMBNAIL = "thumbnail.svg";
@@ -168,7 +166,7 @@ export const filesToCopy = (sample: Sample, root: string): string[] =>
   );
 
 /**
- * The plugin of Vite: the virtual module, the files in the build and in dev. The
+ * The plugin of Vite: the list and the files in the build and in dev. The
  * folder is SAMPLES_DIR, else `samples/` of the app.
  */
 export function samples(
@@ -190,13 +188,12 @@ export function samples(
         this.error(`The samples of ${root}: ${(error as Error).message}`);
       }
     },
-    resolveId: (id) => (id === VIRTUAL ? RESOLVED : undefined),
-    load(id) {
-      return id === RESOLVED
-        ? `export default ${JSON.stringify(list)};`
-        : undefined;
-    },
     generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: INDEX,
+        source: JSON.stringify(list, null, 2) + "\n",
+      });
       for (const sample of list)
         for (const file of filesToCopy(sample, root))
           this.emitFile({
@@ -208,6 +205,10 @@ export function samples(
     configureServer(server) {
       server.middlewares.use((request, response, next) => {
         const path = decodeURIComponent((request.url ?? "").split("?")[0]);
+        if (path.endsWith(`/${INDEX}`)) {
+          response.setHeader("Content-Type", "application/json");
+          return response.end(JSON.stringify(list));
+        }
         const match = /\/samples\/([^/]+)\/([^/]+)$/.exec(path);
         const sample = list.find((s) => s.folder === match?.[1]);
         if (!match || !sample || !filesToCopy(sample, root).includes(match[2]))

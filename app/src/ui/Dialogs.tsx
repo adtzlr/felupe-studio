@@ -70,6 +70,8 @@ interface Props {
   project: Project;
   exports: Exports;
   script?: ScriptRequest;
+  /** The samples of the app (#350). */
+  samples: readonly Sample[];
   onOpenSample: (sample: Sample) => Promise<void>;
   onSelect: (name: string) => void;
 }
@@ -83,6 +85,7 @@ export function Dialogs({
   project,
   exports,
   script,
+  samples,
   onOpenSample,
   onSelect,
 }: Props) {
@@ -147,6 +150,7 @@ export function Dialogs({
       {dialogs.samplesOpen && (
         <SamplesDialog
           modified={store.commands.length > 0 && project.modified}
+          samples={samples}
           onOpen={onOpenSample}
           onClose={() => dialogs.setSamplesOpen(false)}
         />

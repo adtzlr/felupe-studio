@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import fixture from "../../../tests/data/two_sections.json";
 import type { Command, CommandList } from "../core/commands";
@@ -5,6 +6,7 @@ import { MeshFiles } from "../core/meshfiles";
 import { ModelStore } from "../core/store";
 import type { RuntimeClient } from "../worker/client";
 import type { Progress } from "./connection";
+import { readSamples } from "../vite/samples";
 import { type AgentHost, agentTools } from "./tools";
 
 const noProgress: Progress = () => {};
@@ -25,6 +27,8 @@ function setup(overrides: Partial<AgentHost> = {}) {
     files,
     notes: () => [{ name: "right", message: "A note." }],
     modified: () => false,
+    // the samples of app/samples (#350)
+    samples: async () => readSamples(join(__dirname, "../../samples")),
     openSample: vi.fn(async () => {}),
     solveBlocker: () => undefined,
     solve: async () => {},

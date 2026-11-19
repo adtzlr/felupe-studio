@@ -107,13 +107,13 @@ describe("the plugin of the samples (#350)", () => {
     const plugin = samples(dir);
     const { call, emitted } = driver(plugin, "/somewhere/app");
     call(plugin.buildStart);
-    const resolved = call(plugin.resolveId, "virtual:samples") as string;
-    const module = call(plugin.load, resolved) as string;
-    const list = JSON.parse(module.replace("export default ", "").slice(0, -1));
+    call(plugin.generateBundle);
+    // the list of the samples, which the app loads at runtime (#350)
+    expect(emitted[0].fileName).toBe("samples/index.json");
+    const list = JSON.parse(String(emitted[0].source));
     expect(list.map((s: { id: string }) => s.id)).toEqual(["ring", "plate"]);
     expect(list[1]).toMatchObject({ folder: "02_plate", files: ["plate.py"] });
-    call(plugin.generateBundle);
-    expect(emitted.map((f) => f.fileName)).toEqual([
+    expect(emitted.slice(1).map((f) => f.fileName)).toEqual([
       "samples/01_ring/model.felupe.json",
       "samples/01_ring/thumbnail.svg",
       "samples/02_plate/model.felupe.json",
@@ -139,6 +139,7 @@ describe("the plugin of the samples (#350)", () => {
       );
       return { passed, body: body ? String(body) : undefined };
     };
+    expect(JSON.parse(get("/app/samples/index.json").body!)).toEqual(list);
     expect(get("/app/samples/02_plate/plate.py")).toEqual({
       passed: false,
       body: "mesh = None",
@@ -157,10 +158,10 @@ describe("the plugin of the samples (#350)", () => {
       writeFileSync(join(dir, name), text);
     }
     const plugin = samples(undefined);
-    const { call } = driver(plugin, app);
+    const { call, emitted } = driver(plugin, app);
     call(plugin.buildStart);
-    const module = call(plugin.load, "\0virtual:samples") as string;
-    expect(module).toContain('"id":"ring"');
+    call(plugin.generateBundle);
+    expect(String(emitted[0].source)).toContain('"id": "ring"');
   });
 
   it("fails the build with the message of the folder", () => {
