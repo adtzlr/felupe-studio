@@ -125,7 +125,8 @@
         "loading",
         "unloading"
       ],
-      "curve": "pull"
+      "curve": "pull",
+      "cutback": {}
     }
   ]
 }

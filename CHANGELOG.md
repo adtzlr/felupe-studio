@@ -28,6 +28,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Fixed
 
+- The sample *Elastic-plastic plate with a hole* did not solve in the browser: in Pyodide, the Newton iterations of the tenth substep of the loading did not converge (the spreading yield zone is sensitive to the round-off, which differs from CPython). Its job cuts back a substep that does not converge now, and the curve is the same within the tolerance of the job.
 - A form with an error in a row, e.g. in the end value of a ramp, is not applied; it was applied before, and the validation reported the value (#242).
 
 ## [0.5.0] - 2026-11-18

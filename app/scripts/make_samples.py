@@ -991,7 +991,9 @@ def plastic_plate():
     (strain-based, small strain), the end pulled by 0.1 mm beyond the yield stress and
     back to the start. The stress at the hole yields first; the unloading is elastic,
     crosses zero force at the remaining elongation and yields again in compression.
-    The force is per unit thickness."""
+    The force is per unit thickness. The job cuts back a substep that does not
+    converge: the Newton iterations of the spreading yield zone are sensitive to the
+    round-off, and in Pyodide the tenth substep of the loading did not converge."""
     commands = [
         c
         for c in loads_project(HERE / "plate-with-hole")["commands"]
@@ -1042,6 +1044,7 @@ def plastic_plate():
             "name": "job",
             "steps": ["loading", "unloading"],
             "curve": "pull",
+            "cutback": {},
         },
     ]
     write("plastic-plate", commands, {"plate_with_hole.py": PLATE_WITH_HOLE})
