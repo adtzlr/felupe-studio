@@ -269,6 +269,8 @@ export class RuntimeClient {
       item?: string;
       cellType?: string;
       scale?: number;
+      /** The commands of the tools of a made mesh (ADR 0019). */
+      commands?: readonly unknown[];
     } = {},
   ): Promise<Uint8Array> {
     const message = await this.request(

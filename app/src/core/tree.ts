@@ -17,6 +17,8 @@ import {
 } from "./units";
 import { MATERIAL_MODELS } from "./materials";
 import { describeParameter } from "./parameters";
+import { analysisOf, is2d } from "./analysis";
+import { dimensions, modelMesh } from "./meshtools";
 
 export interface TreeNode {
   /** Unique id: the object name, or `group:<kind>` for a group. */
@@ -176,11 +178,18 @@ const DETAILS: { [C in Command["command"]]: Detail<C> } = {
       cmd.item ? `${cmd.file} [${cmd.item}]` : cmd.file,
       cmd.tag && `tag ${cmd.tag}`,
     ),
-  // a mesh made by a tool (ADR 0019): the tool and its points per axis
-  "mesh.generate": (cmd) => {
+  // a mesh made by a tool (ADR 0019): the tool, its points per axis, and whether
+  // it is a construction mesh below the dimension of the model
+  "mesh.generate": (cmd, { commands }) => {
     const n = (cmd.parameters as { n?: unknown }).n;
     const points = Array.isArray(n) ? n.join(" × ") : n;
-    return joined(cmd.tool, points !== undefined && `n = ${points}`);
+    const dimension = dimensions([cmd]).get(cmd.name);
+    const dim = is2d(analysisOf(commands)) ? 2 : 3;
+    return joined(
+      cmd.tool,
+      points !== undefined && `n = ${points}`,
+      dimension && !modelMesh(dimension, dim) && "construction",
+    );
   },
   "mesh.merge": (cmd) => `decimals = ${cmd.decimals}`,
   "cellset.from_tag": (cmd) => `tag = ${cmd.value}`,

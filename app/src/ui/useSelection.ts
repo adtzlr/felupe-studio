@@ -3,7 +3,7 @@
 // and deleting an object, and the context menu of an object in the browser.
 import { useState } from "preact/hooks";
 import { duplicateBlocker } from "../core/duplicate";
-import { isMesh } from "../core/meshfiles";
+import { isMeshObject } from "../core/meshfiles";
 import { ariaKeys, hint, type ShortcutId } from "../core/shortcuts";
 import type { ModelStore } from "../core/store";
 import { KINDS } from "../core/validate";
@@ -117,7 +117,7 @@ export function objectMenu(
   const dependents = store.dependents(name);
   const keys = (id: ShortcutId) => ({ text: hint(id), aria: ariaKeys(id) });
   const blocker = duplicateBlocker(command);
-  const meshBlocker = isMesh(command) ? exportBlocker(name) : undefined;
+  const meshBlocker = isMeshObject(command) ? exportBlocker(name) : undefined;
   return [
     {
       id: "duplicate",
@@ -126,7 +126,7 @@ export function objectMenu(
       ...(blocker ? { blocker } : {}),
       onSelect: () => selection.duplicate(name),
     },
-    ...(isMesh(command)
+    ...(isMeshObject(command)
       ? [
           {
             id: "export-mesh",

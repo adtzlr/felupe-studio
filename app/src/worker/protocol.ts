@@ -365,6 +365,11 @@ export type ToWorker =
       cellType?: string;
       /** The factor of the points of a mesh file. */
       scale?: number;
+      /**
+       * The commands of the tools of a mesh made by tools (ADR 0019), with the
+       * values of their expressions; `file` is then the name of the mesh.
+       */
+      commands?: readonly unknown[];
     }
   | {
       type: "result";

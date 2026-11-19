@@ -153,6 +153,13 @@ def _export_results(request, send):
 def _export_mesh(request, send):
     from . import meshes
 
+    # a mesh made by the tools of FElupe: the commands of its tools (ADR 0019)
+    if request.get("commands") is not None:
+        data = meshes.export_generated(
+            request["commands"], request["file"], request["format"]
+        )
+        send({"type": "bytes", "id": request["id"], "data": data})
+        return
     parameters = request.get("parameters")
     data = meshes.export_json(
         safe_name(request["file"]),

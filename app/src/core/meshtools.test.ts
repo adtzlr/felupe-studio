@@ -112,7 +112,8 @@ describe("the mesh tools (ADR 0019)", () => {
     const meshes = tree.find((g) => g.id === "group:mesh")!.children;
     expect(meshes.map((m) => [m.label, m.detail])).toEqual([
       ["block", "Cube · n = 3 × 3 × 2"],
-      ["corner", "Point"],
+      // a point is a construction mesh of a 3D model
+      ["corner", "Point · construction"],
     ]);
   });
 });

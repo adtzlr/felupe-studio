@@ -4,12 +4,21 @@
 import { useRef, useState } from "preact/hooks";
 import { exportName, mediaType, stemOf } from "../core/files";
 import {
-  isMesh,
+  generateChain,
+  isMeshObject,
   type MeshFiles,
   meshStatus,
   scriptParameters,
 } from "../core/meshfiles";
+import { dimensions } from "../core/meshtools";
+import type { Command as ResolvedCommand } from "../core/resolved";
 import type { ModelStore } from "../core/store";
+
+/** A mesh of a file or a script, with the values of its expressions (#242). */
+type ResolvedMesh = Extract<
+  ResolvedCommand,
+  { command: "mesh.import" | "mesh.script" }
+>;
 import type { Capture } from "../viewer/viewer";
 import type { RuntimeClient } from "../worker/client";
 import type { MeshFormat } from "../worker/protocol";
@@ -64,9 +73,20 @@ export function useExports({
   ) => {
     // with the values of the expressions of its scale (#242)
     const mesh = store.getResolved(name);
-    if (!client || !mesh || !isMesh(mesh)) return;
+    if (!client || !mesh || !isMeshObject(mesh)) return;
     setMeshFormat(format);
-    const data = await client.exportMesh(mesh.file, format, {
+    // a mesh made by tools: the commands of its tools (ADR 0019)
+    const data = await (mesh.command === "mesh.generate"
+      ? client.exportMesh(mesh.name, format, {
+          commands: generateChain(mesh, store.commands),
+        })
+      : exportFileMesh(mesh, format));
+    download(file, new Blob([data as BlobPart], { type: mediaType(file) }));
+  };
+
+  /** Export the mesh of a file or a script (#230). */
+  const exportFileMesh = (mesh: ResolvedMesh, format: MeshFormat) =>
+    client!.exportMesh(mesh.file, format, {
       ...(mesh.command === "mesh.script"
         ? {
             parameters: scriptParameters(mesh, store.commands),
@@ -77,13 +97,13 @@ export function useExports({
           : {}),
       ...(mesh.cell_type ? { cellType: mesh.cell_type } : {}),
     });
-    download(file, new Blob([data as BlobPart], { type: mediaType(file) }));
-  };
 
   /** Where the mesh to export comes from, for the export dialog (#230). */
   const meshSource = (name: string): string => {
     const mesh = store.get(name);
-    if (!mesh || !isMesh(mesh)) return "";
+    if (!mesh || !isMeshObject(mesh)) return "";
+    if (mesh.command === "mesh.generate")
+      return `Made by the tool ${mesh.tool}`;
     if (mesh.command === "mesh.import")
       return mesh.scale !== undefined && mesh.scale !== 1
         ? `From ${mesh.file}, scaled by ${mesh.scale}`
@@ -96,7 +116,11 @@ export function useExports({
   /** Why a mesh cannot be exported, if so (#230). */
   const meshBlocker = (name: string): string | undefined => {
     const mesh = store.get(name);
-    if (!mesh || !isMesh(mesh)) return "Not a mesh.";
+    if (!mesh || !isMeshObject(mesh)) return "Not a mesh.";
+    // a construction mesh of lines or points (ADR 0019)
+    const made = dimensions([mesh]).get(name);
+    if (made && made.cells < 2)
+      return `A mesh of ${made.cell_type} cells has no solid cells to export.`;
     if (!client) return "Python is not available.";
     if (runtime.state === "loading") return "Python is still loading.";
     if (runtime.state === "error") return "Python could not be loaded.";
@@ -105,9 +129,11 @@ export function useExports({
     if (status?.state === "error")
       return `The mesh has an error: ${status.message}`;
     if (status?.state !== "ready")
-      return mesh.command === "mesh.script"
-        ? `Choose the script ${mesh.file} first.`
-        : `Choose the mesh file ${mesh.file} first.`;
+      return mesh.command === "mesh.generate"
+        ? "The mesh is not made yet."
+        : mesh.command === "mesh.script"
+          ? `Choose the script ${mesh.file} first.`
+          : `Choose the mesh file ${mesh.file} first.`;
     return undefined;
   };
 
