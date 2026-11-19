@@ -54,6 +54,8 @@ export interface BenchmarkResult {
   increments: number;
   /** The precision (ADR 0016). */
   precision: Precision;
+  /** The linear solver: SuperLU, or PARDISO in CPython (#308). */
+  solver?: "superlu" | "pardiso";
   setup: number;
   solve: number;
   force: number;
