@@ -314,39 +314,245 @@ export const kindLabel = (kind: RefKind): string =>
     .map((k) => KIND_LABELS[k].toLowerCase())
     .join(" or ");
 
+/**
+ * The input of a property of a command (#312): its kind and constraints, whether
+ * the field is required (if not as in the schema), and whether the field takes the
+ * description of the property and its labels of the schema (`raw`).
+ */
+interface Leaf {
+  input: Input;
+  required?: boolean;
+  described?: boolean;
+  labelled?: boolean;
+}
+
+/** The input of a property that is not an array, an object or variants. */
+function scalarLeaf(
+  type: CommandType,
+  key: string,
+  raw: Node,
+  property: Node,
+): Leaf | undefined {
+  if (refName(raw) === "Name") {
+    if (key === "name") return { input: { type: "name" }, required: true };
+    const kind = referenceKind(type, key);
+    return {
+      input: { type: "reference", kind, multiple: false, minItems: 0 },
+    };
+  }
+  if (property.enum) {
+    const options = property.enum.map((v) => option(type, key, v));
+    return { input: { type: "choice", options }, described: true };
+  }
+  if (Array.isArray(property.type)) {
+    // a number or a list of numbers, e.g. one value per component of a boundary
+    // (#225): numbers separated by commas, one number is a number
+    const input: Input = {
+      type: "numbers",
+      minItems: property.minItems ?? 1,
+      maxItems: property.maxItems,
+      collapse: true,
+      ...expressions(property),
+    };
+    return { input, described: true, labelled: true };
+  }
+  if (property.type === "string")
+    return { input: { type: "text" }, described: true };
+  if (property.type === "boolean")
+    return {
+      input: { type: "boolean", default: raw.default === true },
+      described: true,
+    };
+  if (property.type === "number" || property.type === "integer") {
+    const input: Input = {
+      type: "number",
+      integer: property.type === "integer",
+      min: property.minimum,
+      max: property.maximum,
+      exclusiveMin: property.exclusiveMinimum,
+      exclusiveMax: property.exclusiveMaximum,
+      ...expressions(property),
+    };
+    return { input, described: true, labelled: true };
+  }
+  return undefined;
+}
+
+/** The input of an array of values (not of objects, which are rows). */
+function arrayLeaf(type: CommandType, key: string, property: Node): Leaf {
+  const items = resolve(property.items!);
+  const minItems = property.minItems ?? 0;
+  if (items.type === "number") {
+    const input: Input = {
+      type: "numbers",
+      minItems,
+      maxItems: property.maxItems,
+      ...(items.not?.const === 0 ? { nonzero: true } : {}),
+      ...expressions(items),
+    };
+    return { input, described: true, labelled: true };
+  }
+  if (items.type === "array") {
+    const input: Input = {
+      type: "coordinates",
+      minItems,
+      ...expressions(resolve(items.items!)),
+    };
+    return { input, described: true, labelled: true };
+  }
+  if (refName(property.items!) === "Name") {
+    const kind = referenceKind(type, key);
+    return { input: { type: "reference", kind, multiple: true, minItems } };
+  }
+  if (items.enum) {
+    const options = items.enum.map((v) => option(type, key, v));
+    return {
+      input: { type: "multichoice", options, minItems },
+      described: true,
+    };
+  }
+  return {
+    input: { type: "integers", minItems, min: items.minimum },
+    described: true,
+  };
+}
+
+/** The variant field of the constant that selects the definition of a command. */
+function definitionInput(
+  type: CommandType,
+  key: string,
+  name: string,
+  nodes: readonly Node[],
+): Input {
+  const ids = nodes.map((n) => String(n.properties![name].const));
+  return {
+    type: "variant",
+    options: nodes.map((n, i) => ({
+      ...option(type, key, ids[i]),
+      ...(n["x-label"] && !REGISTRY[type].options?.[key]?.[ids[i]]
+        ? { label: n["x-label"] }
+        : {}),
+      ...(n["x-group"] ? { group: n["x-group"] } : {}),
+    })),
+    seeds: Object.fromEntries(ids.map((id) => [id, id])),
+  };
+}
+
+/**
+ * The variant field of a oneOf of objects: the first required property marks the
+ * variant, with the defaults of its other required properties, which a draft that
+ * had them in another variant would not fill again (e.g. the axis of a point set
+ * at a bound after one by a plane, #181).
+ */
+function variantInput(type: CommandType, key: string, property: Node): Input {
+  const variants = property.oneOf!.map(resolve);
+  const seeds = Object.fromEntries(
+    variants.map((v) => {
+      const id = variantId(v);
+      const first = resolve(v.properties![id]);
+      const seed =
+        info(type, `${key}.${id}`)?.default ??
+        (first.type === "array" ? [] : "");
+      const others = (v.required ?? []).slice(1).flatMap((name) => {
+        const fallback = info(type, `${key}.${name}`)?.default;
+        return fallback === undefined
+          ? []
+          : [[name, structuredClone(fallback)]];
+      });
+      return [id, { [id]: seed, ...Object.fromEntries(others) }];
+    }),
+  );
+  const options = variants.map((v) => option(type, key, variantId(v)));
+  return { type: "variant", options, seeds };
+}
+
+/** The spec of a field of a command at a path. */
+function specOf(
+  type: CommandType,
+  path: string[],
+  required: boolean,
+  input: Input,
+  description?: string,
+  raw?: Node,
+): FieldSpec {
+  const key = path.join(".");
+  const field = key === "name" ? { label: "Name" } : info(type, key);
+  // a property with a label in the schema (e.g. a material parameter `μ`) takes
+  // its description as hint, its key as tooltip of the label (#137), and "none"
+  // as placeholder if optional
+  const labelled = raw?.["x-label"] !== undefined;
+  const schemaHint = labelled ? raw!.description : undefined;
+  return {
+    path,
+    key,
+    label: field?.label ?? raw?.["x-label"] ?? key,
+    hint: field?.hint ?? schemaHint,
+    description,
+    ...(labelled && !field?.label ? { symbolOf: path.at(-1) } : {}),
+    placeholder:
+      field?.placeholder ?? (labelled && !required ? "none" : undefined),
+    required,
+    input,
+    ...(field && "unique" in field && field.unique ? { unique: true } : {}),
+    ...(raw?.["x-quantity"] ? { quantity: raw["x-quantity"] } : {}),
+  };
+}
+
 /** Fields of the form of a command, for the current state of the draft. */
 export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
   const { node, nodes, discriminator } = definition(type, draft);
   const specs: FieldSpec[] = [];
-
   const push = (
+    ...args: Parameters<typeof specOf> extends [unknown, ...infer R] ? R : never
+  ) => specs.push(specOf(type, ...args));
+
+  /** The fields of the items of an array of objects, as the columns of rows. */
+  const rowsOf = (
     path: string[],
+    property: Node,
     required: boolean,
-    input: Input,
-    description?: string,
-    raw?: Node,
+    raw: Node,
+  ) => {
+    const before = specs.length;
+    walk(resolve(property.items!), {}, path);
+    const columns = specs
+      .splice(before)
+      .map((c) => ({ ...c, path: c.path.slice(path.length) }));
+    const minItems = property.minItems ?? 0;
+    push(path, required, { type: "rows", columns, minItems }, raw.description);
+  };
+
+  /** The fields of a property that has fields of its own, or is an array. */
+  const nested = (
+    path: string[],
+    raw: Node,
+    property: Node,
+    { required, value }: { required: boolean; value: unknown },
   ) => {
     const key = path.join(".");
-    const field = key === "name" ? { label: "Name" } : info(type, key);
-    // a property with a label in the schema (e.g. a material parameter `μ`) takes
-    // its description as hint, its key as tooltip of the label (#137), and "none"
-    // as placeholder if optional
-    const labelled = raw?.["x-label"] !== undefined;
-    const schemaHint = labelled ? raw!.description : undefined;
-    specs.push({
-      path,
-      key,
-      label: field?.label ?? raw?.["x-label"] ?? key,
-      hint: field?.hint ?? schemaHint,
-      description,
-      ...(labelled && !field?.label ? { symbolOf: path.at(-1) } : {}),
-      placeholder:
-        field?.placeholder ?? (labelled && !required ? "none" : undefined),
-      required,
-      input,
-      ...(field && "unique" in field && field.unique ? { unique: true } : {}),
-      ...(raw?.["x-quantity"] ? { quantity: raw["x-quantity"] } : {}),
-    });
+    const child = isObject(value) ? value : {};
+    if (property.type === "array") {
+      if (resolve(property.items!).type === "object")
+        return rowsOf(path, property, required, raw);
+      const leaf = arrayLeaf(type, key, property);
+      return push(
+        path,
+        required,
+        leaf.input,
+        leaf.described ? raw.description : undefined,
+        leaf.labelled ? raw : undefined,
+      );
+    }
+    if (property.oneOf) {
+      push(path, true, variantInput(type, key, property), raw.description);
+      return walk(variantOf(property, child), child, path);
+    }
+    if (property.type !== "object") return;
+    if (!required) {
+      push(path, false, { type: "toggle" }, raw.description);
+      if (!isObject(value)) return;
+    }
+    walk(property, child, path);
   };
 
   const walk = (object: Node, value: Draft, prefix: string[]) => {
@@ -355,180 +561,29 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
       if (hidden.has(name)) continue;
       const path = [...prefix, name];
       const key = path.join(".");
-      const property = resolve(raw);
-      const isRequired = required.has(name);
-      const child = isObject(value[name]) ? value[name] : {};
-
       if (raw.const !== undefined) {
         // constants are not edited, except the one that selects the definition
-        if (prefix.length === 0 && name === discriminator) {
-          const ids = nodes.map((n) => String(n.properties![name].const));
-          push(path, true, {
-            type: "variant",
-            options: nodes.map((n, i) => ({
-              ...option(type, key, ids[i]),
-              ...(n["x-label"] && !REGISTRY[type].options?.[key]?.[ids[i]]
-                ? { label: n["x-label"] }
-                : {}),
-              ...(n["x-group"] ? { group: n["x-group"] } : {}),
-            })),
-            seeds: Object.fromEntries(ids.map((id) => [id, id])),
-          });
-        }
-      } else if (refName(raw) === "Name") {
-        if (key === "name") push(path, true, { type: "name" });
-        else {
-          const kind = referenceKind(type, key);
-          push(path, isRequired, {
-            type: "reference",
-            kind,
-            multiple: false,
-            minItems: 0,
-          });
-        }
-      } else if (property.enum) {
-        const options = property.enum.map((v) => option(type, key, v));
-        push(path, isRequired, { type: "choice", options }, raw.description);
-      } else if (Array.isArray(property.type)) {
-        // a number or a list of numbers, e.g. one value per component of a
-        // boundary (#225): numbers separated by commas, one number is a number
-        push(
-          path,
-          isRequired,
-          {
-            type: "numbers",
-            minItems: property.minItems ?? 1,
-            maxItems: property.maxItems,
-            collapse: true,
-            ...expressions(property),
-          },
-          raw.description,
-          raw,
-        );
-      } else if (property.type === "string") {
-        push(path, isRequired, { type: "text" }, raw.description);
-      } else if (property.type === "boolean") {
-        push(
-          path,
-          isRequired,
-          { type: "boolean", default: raw.default === true },
-          raw.description,
-        );
-      } else if (property.type === "number" || property.type === "integer") {
-        push(
-          path,
-          isRequired,
-          {
-            type: "number",
-            integer: property.type === "integer",
-            min: property.minimum,
-            max: property.maximum,
-            exclusiveMin: property.exclusiveMinimum,
-            exclusiveMax: property.exclusiveMaximum,
-            ...expressions(property),
-          },
-          raw.description,
-          raw,
-        );
-      } else if (property.type === "array") {
-        const items = property.items!;
-        const minItems = property.minItems ?? 0;
-        if (resolve(items).type === "object") {
-          // the fields of a row, collected by walking the object of an item
-          const before = specs.length;
-          walk(resolve(items), {}, path);
-          const columns = specs
-            .splice(before)
-            .map((c) => ({ ...c, path: c.path.slice(path.length) }));
-          push(
-            path,
-            isRequired,
-            { type: "rows", columns, minItems },
-            raw.description,
-          );
-        } else if (resolve(items).type === "number") {
-          push(
-            path,
-            isRequired,
-            {
-              type: "numbers",
-              minItems,
-              maxItems: property.maxItems,
-              ...(resolve(items).not?.const === 0 ? { nonzero: true } : {}),
-              ...expressions(resolve(items)),
-            },
-            raw.description,
-            raw,
-          );
-        } else if (resolve(items).type === "array") {
-          push(
-            path,
-            isRequired,
-            {
-              type: "coordinates",
-              minItems,
-              ...expressions(resolve(resolve(items).items!)),
-            },
-            raw.description,
-            raw,
-          );
-        } else if (refName(items) === "Name") {
-          const kind = referenceKind(type, key);
-          push(path, isRequired, {
-            type: "reference",
-            kind,
-            multiple: true,
-            minItems,
-          });
-        } else if (resolve(items).enum) {
-          const options = resolve(items).enum!.map((v) => option(type, key, v));
-          push(
-            path,
-            isRequired,
-            { type: "multichoice", options, minItems },
-            raw.description,
-          );
-        } else {
-          const min = resolve(items).minimum;
-          push(
-            path,
-            isRequired,
-            { type: "integers", minItems, min },
-            raw.description,
-          );
-        }
-      } else if (property.oneOf) {
-        // variants of an object: the first required property marks the variant
-        const variants = property.oneOf.map(resolve);
-        // with the defaults of its other required properties, which a draft that
-        // had them in another variant would not fill again (e.g. the axis of a
-        // point set at a bound after one by a plane, #181)
-        const seeds = Object.fromEntries(
-          variants.map((v) => {
-            const id = variantId(v);
-            const first = resolve(v.properties![id]);
-            const seed =
-              info(type, `${key}.${id}`)?.default ??
-              (first.type === "array" ? [] : "");
-            const others = (v.required ?? []).slice(1).flatMap((name) => {
-              const fallback = info(type, `${key}.${name}`)?.default;
-              return fallback === undefined
-                ? []
-                : [[name, structuredClone(fallback)]];
-            });
-            return [id, { [id]: seed, ...Object.fromEntries(others) }];
-          }),
-        );
-        const options = variants.map((v) => option(type, key, variantId(v)));
-        push(path, true, { type: "variant", options, seeds }, raw.description);
-        walk(variantOf(property, child), child, path);
-      } else if (property.type === "object") {
-        if (!isRequired) {
-          push(path, false, { type: "toggle" }, raw.description);
-          if (!isObject(value[name])) continue;
-        }
-        walk(property, child, path);
+        if (prefix.length === 0 && name === discriminator)
+          push(path, true, definitionInput(type, key, name, nodes));
+        continue;
       }
+      const property = resolve(raw);
+      const isRequired = required.has(name);
+      const leaf = scalarLeaf(type, key, raw, property);
+      if (!leaf) {
+        nested(path, raw, property, {
+          required: isRequired,
+          value: value[name],
+        });
+        continue;
+      }
+      push(
+        path,
+        leaf.required ?? isRequired,
+        leaf.input,
+        leaf.described ? raw.description : undefined,
+        leaf.labelled ? raw : undefined,
+      );
     }
   };
 
