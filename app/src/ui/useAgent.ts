@@ -8,6 +8,9 @@ import {
   agentUrl,
 } from "../agent/connection";
 import { type AgentHost, agentTools } from "../agent/tools";
+import type { Workspace } from "./Ribbon";
+import type { Results } from "./useResults";
+import type { Selection } from "./useSelection";
 
 /** A mesh script of the agent that waits for the user. */
 export interface ScriptRequest {
@@ -76,4 +79,63 @@ export function useAgent(
 
   useEffect(() => () => connection?.close(), [connection]);
   return { state, connect, disconnect, script };
+}
+
+interface AppOptions extends Pick<
+  AgentHost,
+  "store" | "files" | "client" | "jobs" | "openSample" | "picture"
+> {
+  /** The notes of the objects, by their names. */
+  notes: ReadonlyMap<string, readonly string[]>;
+  modified: boolean;
+  /** Why the model cannot be solved now, if it cannot. */
+  blocker?: string;
+  results: Results;
+  selection: Selection;
+  workspace: Workspace;
+  setWorkspace: (workspace: Workspace) => void;
+}
+
+/**
+ * The agent bridge of the app (#258, #312): the tools of an agent act on the open
+ * model, its selection and its results, like the user.
+ */
+export function useAppAgent({
+  notes,
+  modified,
+  blocker,
+  results,
+  selection,
+  workspace,
+  setWorkspace,
+  ...host
+}: AppOptions): Agent {
+  const { view } = results;
+  return useAgent({
+    ...host,
+    notes: () =>
+      [...notes].flatMap(([name, messages]) =>
+        messages.map((message) => ({ name, message })),
+      ),
+    modified: () => modified,
+    solveBlocker: () => blocker,
+    solve: results.solve,
+    selection: () => ({
+      selected: selection.selection ? [selection.selection] : [],
+      workspace,
+      ...(workspace === "results" && view ? { view } : {}),
+    }),
+    select: selection.select,
+    show: (target, choice = {}) => {
+      if (target === "model") {
+        setWorkspace("model");
+        return { workspace: "model" };
+      }
+      const shown = results.showView(choice);
+      if (typeof shown === "string") return shown;
+      setWorkspace("results");
+      host.jobs?.dismiss();
+      return { workspace: "results", view: shown };
+    },
+  });
 }
