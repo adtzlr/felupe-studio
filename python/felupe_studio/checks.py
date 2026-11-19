@@ -21,6 +21,7 @@ import meshio
 import numpy as np
 from scipy.spatial import cKDTree
 
+from . import meshtools
 from ._helpers import run_mesh_script, volume_cells
 from .codegen import analysis_of, parameter_value
 from .commands import validate
@@ -159,6 +160,11 @@ def _meshes(commands, directory, dim):
                 cell_type=c.get("cell_type"),
                 dim=dim,
             )
+    # the meshes of the model made by tools, not the construction meshes (ADR 0019)
+    made = meshtools.generate(commands, values)
+    for name, dimension in meshtools.dimensions(commands).items():
+        if meshtools.model_mesh(dimension, dim):
+            meshes[name] = made[name]
     order = [c["name"] for c in commands if c["name"] in meshes]
     return {name: meshes[name] for name in order}
 

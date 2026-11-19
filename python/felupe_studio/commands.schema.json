@@ -124,6 +124,9 @@
           "$ref": "#/$defs/MeshScript"
         },
         {
+          "$ref": "#/$defs/MeshGenerate"
+        },
+        {
           "$ref": "#/$defs/MeshMerge"
         },
         {
@@ -273,6 +276,251 @@
             "quad8",
             "quad9"
           ]
+        }
+      }
+    },
+    "MeshGenerate": {
+      "description": "A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/MeshPoint"
+        },
+        {
+          "$ref": "#/$defs/MeshLine"
+        },
+        {
+          "$ref": "#/$defs/MeshRectangle"
+        },
+        {
+          "$ref": "#/$defs/MeshCube"
+        }
+      ]
+    },
+    "MeshPoint": {
+      "description": "A point (fem.mesh.Point): one vertex with one coordinate.",
+      "x-label": "Point",
+      "x-group": "Primitives",
+      "x-felupe": "fem.mesh.Point",
+      "x-dimension": {
+        "points": 1,
+        "cells": 0,
+        "cell_type": "vertex"
+      },
+      "type": "object",
+      "required": ["command", "name", "tool", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "mesh.generate"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "tool": {
+          "const": "Point"
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["a"],
+          "additionalProperties": false,
+          "properties": {
+            "a": {
+              "x-label": "a",
+              "x-quantity": "length",
+              "description": "The coordinate of the point.",
+              "type": ["number", "string"],
+              "default": 0
+            }
+          }
+        }
+      }
+    },
+    "MeshLine": {
+      "description": "A line along x (fem.mesh.Line): line cells between n points from a to b.",
+      "x-label": "Line",
+      "x-group": "Primitives",
+      "x-felupe": "fem.mesh.Line",
+      "x-dimension": {
+        "points": 1,
+        "cells": 1,
+        "cell_type": "line"
+      },
+      "type": "object",
+      "required": ["command", "name", "tool", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "mesh.generate"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "tool": {
+          "const": "Line"
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["a", "b", "n"],
+          "additionalProperties": false,
+          "properties": {
+            "a": {
+              "x-label": "a",
+              "x-quantity": "length",
+              "description": "The coordinate of the start.",
+              "type": ["number", "string"],
+              "default": 0
+            },
+            "b": {
+              "x-label": "b",
+              "x-quantity": "length",
+              "description": "The coordinate of the end, larger than a.",
+              "type": ["number", "string"],
+              "default": 1
+            },
+            "n": {
+              "x-label": "n",
+              "description": "The number of points (at least 2).",
+              "type": ["integer", "string"],
+              "minimum": 2,
+              "default": 2
+            }
+          }
+        }
+      }
+    },
+    "MeshRectangle": {
+      "description": "A rectangle in the xy-plane (fem.Rectangle): quads between the corners a and b, with n points per axis.",
+      "x-label": "Rectangle",
+      "x-group": "Primitives",
+      "x-felupe": "fem.Rectangle",
+      "x-dimension": {
+        "points": 2,
+        "cells": 2,
+        "cell_type": "quad"
+      },
+      "type": "object",
+      "required": ["command", "name", "tool", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "mesh.generate"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "tool": {
+          "const": "Rectangle"
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["a", "b", "n"],
+          "additionalProperties": false,
+          "properties": {
+            "a": {
+              "x-label": "a",
+              "x-quantity": "length",
+              "description": "The corner with the smallest coordinates x and y.",
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": ["number", "string"]
+              },
+              "default": [0, 0]
+            },
+            "b": {
+              "x-label": "b",
+              "x-quantity": "length",
+              "description": "The corner with the largest coordinates x and y.",
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": ["number", "string"]
+              },
+              "default": [1, 1]
+            },
+            "n": {
+              "x-label": "n",
+              "description": "The number of points per axis x and y (at least 2).",
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": ["integer", "string"],
+                "minimum": 2
+              },
+              "default": [2, 2]
+            }
+          }
+        }
+      }
+    },
+    "MeshCube": {
+      "description": "A cube (fem.Cube): hexahedrons between the corners a and b, with n points per axis.",
+      "x-label": "Cube",
+      "x-group": "Primitives",
+      "x-felupe": "fem.Cube",
+      "x-dimension": {
+        "points": 3,
+        "cells": 3,
+        "cell_type": "hexahedron"
+      },
+      "type": "object",
+      "required": ["command", "name", "tool", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "mesh.generate"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "tool": {
+          "const": "Cube"
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["a", "b", "n"],
+          "additionalProperties": false,
+          "properties": {
+            "a": {
+              "x-label": "a",
+              "x-quantity": "length",
+              "description": "The corner with the smallest coordinates x, y and z.",
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": ["number", "string"]
+              },
+              "default": [0, 0, 0]
+            },
+            "b": {
+              "x-label": "b",
+              "x-quantity": "length",
+              "description": "The corner with the largest coordinates x, y and z.",
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": ["number", "string"]
+              },
+              "default": [1, 1, 1]
+            },
+            "n": {
+              "x-label": "n",
+              "description": "The number of points per axis x, y and z (at least 2).",
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": ["integer", "string"],
+                "minimum": 2
+              },
+              "default": [2, 2, 2]
+            }
+          }
         }
       }
     },

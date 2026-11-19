@@ -205,7 +205,8 @@ describe("complete", () => {
     expect(labels("de")).toEqual(["delete", "model.settings"]); // contained
     expect(labels("tag")).toEqual(["cellset.from_tag"]); // contained
     expect(labels("undo")).toEqual([]); // complete already
-    expect(labels("")).toHaveLength(27);
+    expect(labels("")).toHaveLength(28);
+    expect(labels("gen")).toEqual(["mesh.generate"]); // the mesh tools (ADR 0019)
     expect(labels("param")).toEqual(["parameter.add"]);
     expect(labels("sym")).toEqual(["symmetry.add"]);
   });

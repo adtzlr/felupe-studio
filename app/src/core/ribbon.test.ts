@@ -18,6 +18,8 @@ describe("ribbonGroups", () => {
   it("has the commands of every tab", () => {
     expect(labels("mesh")).toEqual([
       ["Import mesh"],
+      // the mesh tools of the registry of the schema (ADR 0019)
+      ["Point", "Line", "Rectangle", "Cube"],
       ["Mesh script"],
       ["Merge points"],
       ["Cell set from tag"],

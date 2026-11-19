@@ -33,6 +33,8 @@ export const KINDS: Record<CommandType, Kind> = {
   "mesh.import": "mesh",
   // a mesh made by a script (#182)
   "mesh.script": "mesh",
+  // a mesh made by a tool of FElupe (ADR 0019)
+  "mesh.generate": "mesh",
   "model.settings": "settings",
   "parameter.add": "parameter",
   "mesh.merge": "merge",

@@ -2488,6 +2488,168 @@
     },
     {
       "command": {
+        "command": "parameter.add",
+        "name": "nodes",
+        "value": "3",
+        "integer": true
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "cube",
+        "tool": "Cube",
+        "parameters": {
+          "a": [
+            "0",
+            "0",
+            "0"
+          ],
+          "b": [
+            "1",
+            "1",
+            "1"
+          ],
+          "n": [
+            "nodes",
+            "nodes",
+            "nodes"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "a",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            0
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            1
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            2
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "rubber",
+        "model": "Yeoh",
+        "parameters": {
+          "C10": "0.5",
+          "C20": "-0.1",
+          "C30": "0.02"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "C10"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "C20"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "C30"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
         "command": "material.add",
         "name": "rubber",
         "model": "Ogden",
@@ -2580,46 +2742,6 @@
           ],
           "integer": false,
           "bounds": {}
-        },
-        {
-          "path": [
-            "parameters",
-            "C20"
-          ],
-          "integer": false,
-          "bounds": {}
-        },
-        {
-          "path": [
-            "parameters",
-            "C30"
-          ],
-          "integer": false,
-          "bounds": {}
-        }
-      ]
-    },
-    {
-      "command": {
-        "command": "material.add",
-        "name": "rubber",
-        "model": "Yeoh",
-        "parameters": {
-          "C10": "0.5",
-          "C20": "-0.1",
-          "C30": "0.02"
-        }
-      },
-      "fields": [
-        {
-          "path": [
-            "parameters",
-            "C10"
-          ],
-          "integer": false,
-          "bounds": {
-            "exclusiveMinimum": 0
-          }
         },
         {
           "path": [

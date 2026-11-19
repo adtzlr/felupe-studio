@@ -35,6 +35,38 @@ def parameters(document, **changes):
         find(document, name).update(fields)
 
 
+def tool(document, tool="Cube", tags=False, **parameters):
+    """The specimen made by a mesh tool (ADR 0019) instead of a file, its cell sets
+    all of its cells (or of tags, which a made mesh has not)."""
+    defaults = {
+        "Point": {"a": 0},
+        "Line": {"a": 0, "b": 3, "n": 4},
+        "Rectangle": {"a": [0, 0], "b": [3, 1], "n": [4, 2]},
+        "Cube": {"a": [0, 0, 0], "b": [3, 1, 1], "n": [4, 2, 2]},
+    }
+    mesh = find(document, "specimen")
+    mesh.clear()
+    mesh.update(
+        command="mesh.generate",
+        name="specimen",
+        tool=tool,
+        parameters={**defaults[tool], **parameters},
+    )
+    if not tags:
+        for name in ("hard", "soft"):
+            cellset = find(document, name)
+            del cellset["value"]
+            cellset["command"] = "cellset.from_file"
+
+
+def planar(document):
+    """A plane strain model whose boundaries have no z."""
+    document["commands"].insert(
+        0, {"command": "model.settings", "name": "settings", "analysis": "plane-strain"}
+    )
+    find(document, "fixed")["constrained"] = ["x", "y"]
+
+
 def ramp(end="stroke", num="cells"):
     return {"num": num, "items": [{"target": "move", "start": 0, "end": end}]}
 
@@ -1012,6 +1044,24 @@ CHANGES = {
         find(d, "step_1")["ramp"]["items"].append(
             {"target": "tension", "end": [0.1, 0.2]}
         ),
+    ),
+    # the mesh tools (ADR 0019): a model mesh, construction meshes, their values
+    "a cube made by a tool": lambda d: tool(d),
+    "a cell set of a line mesh": lambda d: tool(d, "Line"),
+    "a cell set of a point": lambda d: tool(d, "Point"),
+    "a cell set of a rectangle in a 3D model": lambda d: tool(d, "Rectangle"),
+    "a rectangle in a 2D model": lambda d: (tool(d, "Rectangle"), planar(d)),
+    "a cell set of a cube in a 2D model": lambda d: (tool(d), planar(d)),
+    "tags of a made mesh": lambda d: tool(d, tags=True),
+    "a cube with b not larger than a": lambda d: tool(d, b=[3, 0, -1]),
+    "a line with b not larger than a": lambda d: tool(d, "Line", b=0),
+    "a cube with expressions": lambda d: (
+        tool(d, b=["length", 1, 1], n=["cells", 2, 2]),
+        parameters(d),
+    ),
+    "a cube with a number of points that is not an integer": lambda d: (
+        tool(d, n=["stroke", 2, 2]),
+        parameters(d),
     ),
 }
 

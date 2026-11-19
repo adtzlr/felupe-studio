@@ -23,6 +23,7 @@ A number of a command (*or an expression* below) may be an expression of the par
 - [`parameter.add`](#parameteradd): A parameter of the model: a number, e.g. a dimension or the number of cells of a mesh made by a script.
 - [`mesh.import`](#meshimport): Import a mesh file (read with meshio).
 - [`mesh.script`](#meshscript): A mesh made by a Python script next to the project, e.g. with the mesh tools of FElupe.
+- [`mesh.generate`](#meshgenerate): A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube.
 - [`mesh.merge`](#meshmerge): Merge points of the sections whose coordinates agree to the given number of decimals (fem.field.merge(..., decimals)).
 - [`cellset.from_tag`](#cellsetfrom_tag): Cell set of all cells of a mesh with the given tag value.
 - [`cellset.from_file`](#cellsetfrom_file): Cell set of all cells of a mesh.
@@ -94,6 +95,50 @@ A mesh made by a Python script next to the project, e.g. with the mesh tools of 
 | `item` | string |  | The item of a dict of meshes, e.g. soft. |
 | `tag` | string |  | Name of an integer cell data array of a meshio.Mesh used to split the mesh into cell sets. |
 | `cell_type` | `tetra`, `tetra10`, `hexahedron`, `hexahedron20`, `hexahedron27`, `triangle`, `triangle6`, `quad`, `quad8` or `quad9` |  | Type of the solid cells to take, if the mesh has more than one. |
+
+### `mesh.generate`
+
+A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh.
+
+Every variant has a `name`, the name of the object.
+
+#### Point (`tool: "Point"`)
+
+A point (fem.mesh.Point): one vertex with one coordinate.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `a` (a) | number | yes | The coordinate of the point. Default `0`. |
+
+#### Line (`tool: "Line"`)
+
+A line along x (fem.mesh.Line): line cells between n points from a to b.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `a` (a) | number | yes | The coordinate of the start. Default `0`. |
+| `b` (b) | number | yes | The coordinate of the end, larger than a. Default `1`. |
+| `n` (n) | integer ≥ 2 | yes | The number of points (at least 2). Default `2`. |
+
+#### Rectangle (`tool: "Rectangle"`)
+
+A rectangle in the xy-plane (fem.Rectangle): quads between the corners a and b, with n points per axis.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `a` (a) | list of 2 numbers | yes | The corner with the smallest coordinates x and y. Default `[0, 0]`. |
+| `b` (b) | list of 2 numbers | yes | The corner with the largest coordinates x and y. Default `[1, 1]`. |
+| `n` (n) | list of 2 integers ≥ 2 | yes | The number of points per axis x and y (at least 2). Default `[2, 2]`. |
+
+#### Cube (`tool: "Cube"`)
+
+A cube (fem.Cube): hexahedrons between the corners a and b, with n points per axis.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `a` (a) | list of 3 numbers | yes | The corner with the smallest coordinates x, y and z. Default `[0, 0, 0]`. |
+| `b` (b) | list of 3 numbers | yes | The corner with the largest coordinates x, y and z. Default `[1, 1, 1]`. |
+| `n` (n) | list of 3 integers ≥ 2 | yes | The number of points per axis x, y and z (at least 2). Default `[2, 2, 2]`. |
 
 ### `mesh.merge`
 
@@ -369,7 +414,7 @@ Points given by their ids, e.g. picked in the viewer.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `select.ids` | list of integer ≥ 0 (at least 1, unique) | yes |  |
+| `select.ids` | integers ≥ 0 (at least 1, unique) | yes |  |
 
 ### `point.add`
 

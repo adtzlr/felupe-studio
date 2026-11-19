@@ -56,8 +56,7 @@ HEADER = '''\
 from types import SimpleNamespace
 
 import felupe as fem
-import meshio
-import numpy as np
+{meshio}import numpy as np
 {imports}'''
 
 MARKER = "# --- embedded in generated scripts ---\n"
@@ -316,9 +315,19 @@ class Context:
 def header(context):
     """The part of the header: the imports and the comments of the model settings,
     and ``DTYPE`` of a model in single precision."""
-    # PARDISO only in scripts with a job that uses it (#308)
-    imports = "import pypardiso\n" if jobs.uses_pardiso(context.get("job.add")) else ""
-    lines = [HEADER.format(version=__version__, schema=SCHEMA_VERSION, imports=imports)]
+    # meshio only in scripts that read mesh files or run mesh scripts, not in those
+    # whose meshes are made by tools (ADR 0019); PARDISO only in scripts with a job
+    # that uses it (#308)
+    files = context.get("mesh.import") or context.get("mesh.script")
+    pardiso = jobs.uses_pardiso(context.get("job.add"))
+    lines = [
+        HEADER.format(
+            version=__version__,
+            schema=SCHEMA_VERSION,
+            meshio="import meshio\n" if files else "",
+            imports="import pypardiso\n" if pardiso else "",
+        )
+    ]
     if context.units:
         # FElupe has no units: the settings only say what the numbers mean (#132)
         units = context.units

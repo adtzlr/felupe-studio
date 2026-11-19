@@ -181,6 +181,16 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     },
   },
   // a mesh made by a Python script with the parameters of the model (#182)
+  // the labels, hints and defaults of the tools and their parameters are in the
+  // registry of the mesh tools of the schema (ADR 0019)
+  "mesh.generate": {
+    label: "Mesh tool",
+    tab: "mesh",
+    prefix: "mesh",
+    fields: {
+      tool: { label: "Tool", default: "Cube" },
+    },
+  },
   "mesh.script": {
     label: "Mesh script",
     tab: "mesh",

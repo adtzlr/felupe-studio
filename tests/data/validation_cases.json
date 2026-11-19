@@ -11682,5 +11682,1456 @@
       "commands/12: step 'step_1' ramps 'tension' with 2 values: only a boundary ramps one value per constrained component."
     ],
     "notes": []
+  },
+  {
+    "name": "a cube made by a tool",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.generate",
+          "name": "specimen",
+          "tool": "Cube",
+          "parameters": {
+            "a": [
+              0,
+              0,
+              0
+            ],
+            "b": [
+              3,
+              1,
+              1
+            ],
+            "n": [
+              4,
+              2,
+              2
+            ]
+          }
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "hard",
+          "mesh": "specimen"
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "soft",
+          "mesh": "specimen"
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [],
+    "notes": []
+  },
+  {
+    "name": "a cell set of a line mesh",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.generate",
+          "name": "specimen",
+          "tool": "Line",
+          "parameters": {
+            "a": 0,
+            "b": 3,
+            "n": 4
+          }
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "hard",
+          "mesh": "specimen"
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "soft",
+          "mesh": "specimen"
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/1: cell set 'hard' takes mesh 'specimen' of line cells (1D), but a cell set of a 3D model needs 3D cells with 3D points.",
+      "commands/2: cell set 'soft' takes mesh 'specimen' of line cells (1D), but a cell set of a 3D model needs 3D cells with 3D points."
+    ],
+    "notes": []
+  },
+  {
+    "name": "a cell set of a point",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.generate",
+          "name": "specimen",
+          "tool": "Point",
+          "parameters": {
+            "a": 0
+          }
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "hard",
+          "mesh": "specimen"
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "soft",
+          "mesh": "specimen"
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/1: cell set 'hard' takes mesh 'specimen' of vertex cells (0D), but a cell set of a 3D model needs 3D cells with 3D points.",
+      "commands/2: cell set 'soft' takes mesh 'specimen' of vertex cells (0D), but a cell set of a 3D model needs 3D cells with 3D points."
+    ],
+    "notes": []
+  },
+  {
+    "name": "a cell set of a rectangle in a 3D model",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.generate",
+          "name": "specimen",
+          "tool": "Rectangle",
+          "parameters": {
+            "a": [
+              0,
+              0
+            ],
+            "b": [
+              3,
+              1
+            ],
+            "n": [
+              4,
+              2
+            ]
+          }
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "hard",
+          "mesh": "specimen"
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "soft",
+          "mesh": "specimen"
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/1: cell set 'hard' takes mesh 'specimen' of quad cells (2D), but a cell set of a 3D model needs 3D cells with 3D points.",
+      "commands/2: cell set 'soft' takes mesh 'specimen' of quad cells (2D), but a cell set of a 3D model needs 3D cells with 3D points."
+    ],
+    "notes": []
+  },
+  {
+    "name": "a rectangle in a 2D model",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "model.settings",
+          "name": "settings",
+          "analysis": "plane-strain"
+        },
+        {
+          "command": "mesh.generate",
+          "name": "specimen",
+          "tool": "Rectangle",
+          "parameters": {
+            "a": [
+              0,
+              0
+            ],
+            "b": [
+              3,
+              1
+            ],
+            "n": [
+              4,
+              2
+            ]
+          }
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "hard",
+          "mesh": "specimen"
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "soft",
+          "mesh": "specimen"
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [],
+    "notes": []
+  },
+  {
+    "name": "a cell set of a cube in a 2D model",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "model.settings",
+          "name": "settings",
+          "analysis": "plane-strain"
+        },
+        {
+          "command": "mesh.generate",
+          "name": "specimen",
+          "tool": "Cube",
+          "parameters": {
+            "a": [
+              0,
+              0,
+              0
+            ],
+            "b": [
+              3,
+              1,
+              1
+            ],
+            "n": [
+              4,
+              2,
+              2
+            ]
+          }
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "hard",
+          "mesh": "specimen"
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "soft",
+          "mesh": "specimen"
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/2: cell set 'hard' takes mesh 'specimen' of hexahedron cells (3D), but a cell set of a 2D model needs 2D cells with 2D points.",
+      "commands/3: cell set 'soft' takes mesh 'specimen' of hexahedron cells (3D), but a cell set of a 2D model needs 2D cells with 2D points."
+    ],
+    "notes": []
+  },
+  {
+    "name": "tags of a made mesh",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.generate",
+          "name": "specimen",
+          "tool": "Cube",
+          "parameters": {
+            "a": [
+              0,
+              0,
+              0
+            ],
+            "b": [
+              3,
+              1,
+              1
+            ],
+            "n": [
+              4,
+              2,
+              2
+            ]
+          }
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/1: cell set 'hard' uses tag values, but mesh 'specimen' is made by a tool, without cell tags.",
+      "commands/2: cell set 'soft' uses tag values, but mesh 'specimen' is made by a tool, without cell tags."
+    ],
+    "notes": []
+  },
+  {
+    "name": "a cube with b not larger than a",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.generate",
+          "name": "specimen",
+          "tool": "Cube",
+          "parameters": {
+            "a": [
+              0,
+              0,
+              0
+            ],
+            "b": [
+              3,
+              0,
+              -1
+            ],
+            "n": [
+              4,
+              2,
+              2
+            ]
+          }
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "hard",
+          "mesh": "specimen"
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "soft",
+          "mesh": "specimen"
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/0: mesh 'specimen': b must be larger than a in y and z."
+    ],
+    "notes": []
+  },
+  {
+    "name": "a line with b not larger than a",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.generate",
+          "name": "specimen",
+          "tool": "Line",
+          "parameters": {
+            "a": 0,
+            "b": 0,
+            "n": 4
+          }
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "hard",
+          "mesh": "specimen"
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "soft",
+          "mesh": "specimen"
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/0: mesh 'specimen': b must be larger than a.",
+      "commands/1: cell set 'hard' takes mesh 'specimen' of line cells (1D), but a cell set of a 3D model needs 3D cells with 3D points.",
+      "commands/2: cell set 'soft' takes mesh 'specimen' of line cells (1D), but a cell set of a 3D model needs 3D cells with 3D points."
+    ],
+    "notes": []
+  },
+  {
+    "name": "a cube with expressions",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "parameter.add",
+          "name": "length",
+          "value": 3
+        },
+        {
+          "command": "parameter.add",
+          "name": "stroke",
+          "value": 0.5
+        },
+        {
+          "command": "parameter.add",
+          "name": "cells",
+          "value": 5,
+          "integer": true
+        },
+        {
+          "command": "mesh.generate",
+          "name": "specimen",
+          "tool": "Cube",
+          "parameters": {
+            "a": [
+              0,
+              0,
+              0
+            ],
+            "b": [
+              "length",
+              1,
+              1
+            ],
+            "n": [
+              "cells",
+              2,
+              2
+            ]
+          }
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "hard",
+          "mesh": "specimen"
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "soft",
+          "mesh": "specimen"
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [],
+    "notes": []
+  },
+  {
+    "name": "a cube with a number of points that is not an integer",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "parameter.add",
+          "name": "length",
+          "value": 3
+        },
+        {
+          "command": "parameter.add",
+          "name": "stroke",
+          "value": 0.5
+        },
+        {
+          "command": "parameter.add",
+          "name": "cells",
+          "value": 5,
+          "integer": true
+        },
+        {
+          "command": "mesh.generate",
+          "name": "specimen",
+          "tool": "Cube",
+          "parameters": {
+            "a": [
+              0,
+              0,
+              0
+            ],
+            "b": [
+              3,
+              1,
+              1
+            ],
+            "n": [
+              "stroke",
+              2,
+              2
+            ]
+          }
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "hard",
+          "mesh": "specimen"
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "soft",
+          "mesh": "specimen"
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/3: 'parameters.n.0' of 'specimen': 'stroke' is 0.5, not an integer."
+    ],
+    "notes": []
   }
 ]
