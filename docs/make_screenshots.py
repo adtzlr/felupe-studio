@@ -14,8 +14,10 @@ set. Then it opens three samples of version 0.4: the parameters of the sandwich
 spring (the dialog when it is opened), the results of the plate with a hole (a 2D
 model) and of the spring with end stops (contact), two of version 0.5: the engine
 mount (FElupe ex07, air as a third medium) with the stresses at the points and the
-elastic-plastic plate with a hole (the equivalent plastic strain), and one of
-version 0.6: the expressions of the step of the sandwich spring.
+elastic-plastic plate with a hole (the equivalent plastic strain), one of version
+0.6: the expressions of the step of the sandwich spring, and two of version 0.7: the
+bushing made with the mesh tools, its revolved mesh with the tools in the browser
+and its section in the xy-plane.
 
 The app loads Pyodide and its packages from the CDN (cdn.jsdelivr.net): the script
 needs it, a stub of the runtime would not show the real versions and load times.
@@ -205,6 +207,29 @@ def capture(context, url, out):
     browser.get_by_text("shearing", exact=True).click()
     page.get_by_text("= 12 mm").first.wait_for()
     shot("expressions")
+
+    # v0.7: the mesh tools, the bushing of ex05 made with them: the revolved mesh of
+    # the soft body with the meshes it is made of below it in the browser, then the
+    # section in the xy-plane, construction meshes, with the form of the runouts
+    open_sample("Bushing made with mesh tools", "bushing-tools.felupe.zip")
+    page.get_by_role("dialog", name=re.compile("^Parameters")).get_by_role(
+        "button", name="Open", exact=True
+    ).click()
+    page.wait_for_selector("text=bushing-tools.felupe.zip")
+    browser = page.get_by_role("navigation", name="Model browser")
+    browser.get_by_text("soft_mesh", exact=True).click()
+    page.wait_for_timeout(2000)  # the meshes of the tools are made in the worker
+    page.mouse.move(500, 20)  # not over a row of the browser
+    shot("mesh-tools")
+    page.keyboard.press("Escape")
+    for name in ["soft_mesh", "inner_sleeve", "outer_sleeve"]:
+        browser.get_by_role("button", name=f"Hide {name}").click()
+    for name in ["runouts", "inner_section", "outer_section"]:
+        browser.get_by_role("button", name=f"Show {name}").click()
+    browser.get_by_text("runouts", exact=True).click()
+    page.keyboard.press("2")  # the xy-plane
+    page.mouse.move(500, 20)
+    shot("mesh-section")
 
     # v0.5: plasticity, the elastic-plastic plate with a hole back at the start: the
     # equivalent plastic strain and the curve of the loading and the unloading

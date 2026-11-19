@@ -1,6 +1,6 @@
 # User guide
 
-FElupe Studio builds models of solids, hyperelastic (e.g. rubber) or elastic-plastic (e.g. steel), in 3D or in 2D (plane strain and axisymmetric), from mesh files or from Python scripts with parameters, solves them with [FElupe](https://github.com/adtzlr/felupe) in the browser and shows the results. Nothing is installed and nothing is uploaded: Python runs in the browser with [Pyodide](https://pyodide.org).
+FElupe Studio builds models of solids, hyperelastic (e.g. rubber) or elastic-plastic (e.g. steel), in 3D or in 2D (plane strain and axisymmetric), from mesh files, Python scripts or the mesh tools of FElupe, with parameters, solves them with [FElupe](https://github.com/adtzlr/felupe) in the browser and shows the results. Nothing is installed and nothing is uploaded: Python runs in the browser with [Pyodide](https://pyodide.org).
 
 **Open the app:** <https://adtzlr.github.io/felupe-studio/>
 
@@ -111,6 +111,8 @@ A number of an object may be an **expression** of the parameters instead, e.g. `
 **Primitives** makes a mesh with a tool of FElupe, without a file: a **Point**, a **Line** along x, a **Rectangle** in the xy-plane or a **Cube**, between the corners *a* and *b* with *n* points per axis (at least 2). The values may be expressions of the parameters, e.g. *b* = `radius, 1, height` or *n* = `cells + 1, 3, 3`, and the mesh is made again when a parameter changes. The script has one line per mesh, e.g. `block = fem.Cube(a=[0, 0, 0], b=[2, 1, 1], n=[9, 5, 5])`. A mesh of the dimension of the model (a cube in a 3D model, a rectangle in a 2D model) is a mesh of the model with cell sets and sections. A lower one is a **construction mesh**, drawn in gray: a line as a line, a rectangle of a 3D model as a light face in the xy-plane, a point as a dot. It is no part of the model; a cell set of it is an issue. Construction meshes are the inputs of the operations of the mesh tools. **Export mesh…** in the menu of a made mesh writes it to a file, like an imported one.
 
 **Operations** make a mesh of another made mesh (*Mesh*): **Expand** along a new axis (a point to a line, a line to quads, quads to hexahedrons, with *n* points over the length *z*), **Revolve** about an axis (by the angle *φ* in degrees), **Embed** into one dimension more (the points get the coordinate *value* on the new axis, e.g. a line into the plane y = 30), **Translate**, **Rotate** (a mesh of 2D points turns about z), **Mirror** (at the plane normal to an axis, at a coordinate), **Fill between** two meshes (*Mesh 1* and *Mesh 2*, in this order: quads between two lines embedded in a plane, hexahedrons between two quad meshes in space, with *n* points from the first to the second) and **Add runouts** (the concave free surfaces of a rubber body between metal parts: the points move perpendicular to the *axis* by the relative *values*, one per other coordinate, most at the *centerpoint*; *Normalize* keeps the shape of the ends). For example, a rectangle expanded by 10 in z is a block of hexahedrons: `block = face.expand(n=5, z=10)`. A mesh that another tool uses is hidden in the viewport, like the history of a CAD model, and shown below the mesh that uses it in the browser; **Show** shows it again. An operation that does not fit its mesh is an issue, e.g. *expand needs a mesh of vertex, line or quad cells; 'block' has hexahedron cells*.
+
+![The sample Bushing made with mesh tools: the revolved mesh of the soft body is selected, its tool Revolve with the expression cells_around + 1, and the meshes it is made of below it in the browser, hidden in the viewport](images/mesh-tools.png)
 
 **Mesh script** makes a mesh with a Python script next to the project, e.g. with the mesh tools of FElupe. Open the script like a mesh file (**Open project**, or drop it); a script opened alone starts a new mesh script with it. The script gets the **parameters** of the model as variables (all of them, or the chosen ones) and makes a variable `mesh`: a `fem.Mesh`, a `fem.MeshContainer`, a `meshio.Mesh` or a dict of names and meshes, of which *Item* takes one, e.g. `soft`. For a soft and a metal part, make a dict and add two mesh scripts with the items. A changed parameter makes the mesh again; an error of the script is an issue of the mesh, and its properties show the traceback. The script is kept with the project like a mesh file, also in archives, and the generated script runs it with `run_mesh_script()`, so it needs the script in its folder.
 
@@ -294,9 +296,25 @@ The sample *Hyperelastic block with a rigid plate* glues the top face of a hyper
 
 **Solve** and open the results: the top face stays plane, moves with the plate and tilts with it. The curve is the force of the plate in x over its displacement; the control points show the reaction force at `plate` and the moment about y at `tilt`. Compare your model with the sample: the project files have the same commands. Finally, **File ▸ Save project as…** saves it as a *project archive* with its mesh file, e.g. `glued-plate.felupe.zip`, to open it again in one step.
 
-## Limits of version 0.6
+## Tutorial: a bushing made with the mesh tools
 
-FElupe Studio has no meshing from CAD: meshes come from files or from Python scripts. It has no contact between two deformable bodies or of a body with itself; contacts are of points with rigid planes and cylinders.
+The sample *Bushing made with mesh tools* makes its meshes in the app, without a file and without a script. To make them yourself, start a new project with *Model settings* in mm and N. The x axis is the axis of the bushing and y the radius: the section is drawn in the xy-plane and revolved about x.
+
+1. **Lines:** *Primitives ▸ Line* `bottom` from *a* = -50 to *b* = 50 with *n* = 6 points (along the inner sleeve, 100 mm long), and `top` from -30 to 30 with 6 points (along the outer sleeve, 60 mm). Lines are construction meshes, drawn in gray.
+2. **Embed:** *Operations ▸ Embed* `bottom_plane` of `bottom` with *value* 30, the line in the plane at y = 30 (the outer radius of the inner sleeve), and `top_plane` of `top` with 60 (the inner radius of the outer sleeve). The browser shows each line below its embedded line.
+3. **Fill between:** `section` of `bottom_plane` (*Mesh 1*) and `top_plane` (*Mesh 2*) with *n* = 8: quads between the two lines, the section of the rubber. The two lines need the same number of points.
+4. **Add runouts:** `runouts` of `section` with *values* 0.2, *Axis* y, *centerpoint* 0, 45 and *Normalize*: the free ends of the rubber get their concave shape, most at the middle radius 45.
+5. **Revolve:** `soft_mesh` of `runouts` with *n* = 19, *φ* = 360 and *Axis* x: hexahedrons, 18 around the axis. This is a mesh of the model; the meshes it is made of are hidden now, and **Show** shows them again.
+6. **Sleeves:** *Primitives ▸ Rectangle* `inner_section` from *a* = -50, 25 to *b* = 50, 30 with *n* = 6, 3, revolved like the rubber to `inner_sleeve`, and `outer_section` from -30, 60 to 30, 65, revolved to `outer_sleeve`. Their points at y = 30 and y = 60 are those of the rubber.
+7. **Cell sets:** *Cell set of a mesh* `soft_cells` of `soft_mesh`, `inner_cells` of `inner_sleeve` and `outer_cells` of `outer_sleeve`. The meshes are merged at their common points, so the rubber is bonded to the sleeves.
+
+![The section of the bushing in the xy-plane: the rubber with its runouts between the rectangles of the sleeves, construction meshes in gray, and the form of Add runouts](images/mesh-section.png)
+
+Select a mesh to change its tool or its values: the meshes that use it are made again. The script has one line per mesh, e.g. `section = fem.mesh.fill_between(bottom_plane, top_plane, n=8)` and `soft_mesh = runouts.revolve(n=19, phi=360, axis=0)`. The rest of the model is that of the sample *Bushing with steel sleeves (FElupe ex05)*, built as in the first tutorial: a Neo-Hooke rubber `soft_body` (`u-p-J`) and two steel sections, the point sets `inner` and `outer` on the cylinders of radius 25 and 65 about x, and a multi-point constraint of `inner` to a control point on the axis, which the step moves by 8 mm and turns. Open the sample *Bushing made with mesh tools* and compare: it makes the same meshes with expressions of its parameters, e.g. *value* = `25 + sleeve` or *n* = `cells_around + 1`, so a changed parameter changes all of them.
+
+## Limits of version 0.7
+
+FElupe Studio has no meshing from CAD: meshes come from files, Python scripts or the mesh tools of FElupe. The mesh tools of the app are the primitives point, line, rectangle and cube and eight operations, for structured meshes of lines, quads and hexahedrons; other tools of FElupe (e.g. circles, triangles and tetrahedrons, or several meshes stacked into one) need a mesh script. It has no contact between two deformable bodies or of a body with itself; contacts are of points with rigid planes and cylinders.
 
 There is no server on the internet. Python runs in the browser, or on your computer with `felupe-studio serve`. An AI agent works headless with the MCP server, or with `felupe-studio serve --agent` on the model that is open in a tab on your computer.
 
@@ -304,4 +322,4 @@ The boundaries of a model are the same in all steps; a step only ramps values. A
 
 The plasticity is von Mises plasticity with linear isotropic hardening, and there are no user-defined materials yet. The accuracy of a model in single precision depends on the model: the job panel estimates it, and an elastic-plastic material keeps the linear system in double precision.
 
-See the [roadmap](https://github.com/adtzlr/felupe-studio/issues/272).
+See the [roadmap](https://github.com/adtzlr/felupe-studio/issues/317).

@@ -720,9 +720,16 @@ button {
   font-weight: var(--weight-semibold);
 }
 
-.tree-row.hidden-object .tree-label,
-.tree-row.hidden-object .tree-icon {
-  opacity: 0.45;
+/* the opacity of a hidden object is inherited from its row: a rule for the label of a
+   row with the class (.hidden-object .tree-label) was not always applied by Chromium
+   when a row was reused for another object of the same name */
+.tree-row.hidden-object {
+  --row-opacity: 0.45;
+}
+
+.tree-row .tree-label,
+.tree-row .tree-icon {
+  opacity: var(--row-opacity, 1);
 }
 
 .tree-chevron,
