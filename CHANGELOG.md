@@ -2,7 +2,15 @@
 
 All notable changes of FElupe Studio (the web app and the Python package `felupe_studio`, released together with the same version).
 
-## [Unreleased]
+## [0.7.0] - 2026-11-19
+
+The mesh tools of FElupe, PARDISO and a cleaner base:
+- **Mesh tools:** the primitives `Point`, `Line`, `Rectangle` and `Cube` and the operations expand, revolve, embed, translate, rotate, mirror, fill between and add runouts make meshes in the app without a file or a script, with expressions of the parameters (ADR 0019). The meshes a mesh is made of are construction meshes, drawn in gray and below it in the browser; the script has one line per mesh. The sample *Bushing made with mesh tools* makes the bushing of FElupe's ex05 this way.
+- **PARDISO** (Intel oneMKL) as the linear solver of a job with Python on your computer, also in single precision with a PyPardiso that supports it: `pip install "felupe-studio[serve,pardiso]"`, e.g. 7 times faster than SuperLU for a cube with 27,783 degrees of freedom on 2 cores.
+- **A fixed link** of `felupe-studio serve` with the environment variable `FELUPE_STUDIO_TOKEN`, e.g. for the `.mcp.json` of an agent.
+- **A cleaner base:** the code generation in parts (ADR 0018), the validation in rules per command type, one request layer in Python for both runtimes, `App` and `Viewport` in hooks and modules, and limits of the complexity in CI; the scripts, the messages and the behavior are unchanged.
+
+The schema version stays 3: projects of v0.6 open unchanged, and the mesh tools are additive (one command type `mesh.generate` with a registry of the tools). FElupe 12.1.1, Pyodide 314.0.7.
 
 ### Added
 
@@ -250,6 +258,7 @@ The first release: a model of hyperelastic solids, from mesh files to results, i
 - `felupe_studio.codegen()`: the command list as a readable FElupe script, checked by golden tests against reference curves.
 - JSON schema of the command list (schema version 1) as the single source of the app and of the package.
 
+[0.7.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.7.0
 [0.6.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.6.0
 [0.5.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.5.0
 [0.4.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.4.0
