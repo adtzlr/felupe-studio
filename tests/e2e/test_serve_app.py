@@ -7,6 +7,7 @@ chromium``, or ``CHROME`` with the path of a Chrome) and the built app
 """
 
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -139,4 +140,36 @@ def test_pardiso_of_the_local_python(url, page):
         page.get_by_role("treeitem", name="job_pardiso").first.click()
         properties = page.get_by_role("region", name="Properties")
         properties.get_by_text("PARDISO needs the package pypardiso").wait_for()
+    assert page.errors == []
+
+
+def test_a_hidden_mesh_is_dimmed_after_another_project(url, page):
+    # the row of the point set top of the glued plate is reused for the mesh top of
+    # the bushing made with mesh tools, an input of top_plane and hidden: Chromium
+    # kept the old style of the row with a rule of its label, its opacity is now
+    # inherited from the row (#315)
+    page.goto(url)
+    page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
+    card = page.locator(".sample-card").filter(has_text="rigid plate")
+    card.get_by_role("button", name="Open").click()
+    page.get_by_text("17 commands", exact=True).wait_for(timeout=60_000)
+
+    page.get_by_role("button", name="File", exact=True).click()
+    page.get_by_role("menuitem", name="Samples…").click()
+    samples = page.get_by_role("dialog")
+    samples.locator("li", has_text="Bushing made with mesh tools").get_by_role(
+        "button", name="Open"
+    ).click()
+    page.get_by_role("dialog", name=re.compile("^Parameters")).get_by_role(
+        "button", name="Open", exact=True
+    ).click()
+    page.get_by_text("40 commands", exact=True).wait_for(timeout=60_000)
+
+    tree = page.get_by_role("navigation", name="Model browser")
+    for name in ["top", "bottom"]:
+        tree.get_by_role("button", name=f"Show {name}", exact=True).wait_for()
+        label = tree.get_by_role("treeitem", name=name, exact=True).locator(
+            ".tree-label"
+        )
+        assert label.evaluate("e => getComputedStyle(e).opacity") == "0.45"
     assert page.errors == []
