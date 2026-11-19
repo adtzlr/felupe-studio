@@ -111,6 +111,8 @@ def test_pardiso_of_the_local_python(url, page):
         has_text="Hyperelastic block with a rigid plate"
     )
     card.get_by_role("button", name="Open").click()
+    # the sample, not the empty model before it
+    page.get_by_text("17 commands", exact=True).wait_for(timeout=60_000)
     page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)
     line = page.get_by_label("Command", exact=True)
     line.fill(
