@@ -20,6 +20,8 @@ type SchemaNode = {
   properties?: Record<string, SchemaNode & { const?: unknown }>;
   required?: string[];
   items?: SchemaNode;
+  enum?: unknown[];
+  additionalProperties?: boolean;
 };
 
 /** Migrations from a schema version to the next one. */
@@ -264,6 +266,173 @@ export function parse(text: string): CommandList {
   }
   const migrated = migrate(document as Record<string, unknown>);
   const errors = schemaErrors(migrated);
-  if (errors.length) throw new ProjectError(errors);
+  if (errors.length) {
+    const message = newerMessage(newerFeatures(migrated));
+    throw new ProjectError(message ? [message, ...errors] : errors);
+  }
   return migrated as unknown as CommandList;
+}
+
+// Projects of a newer version (#344), like felupe_studio.project: what a command
+// list uses that this version does not know. The schema version rises only with
+// changes that are not additive, so a newer project usually has the same one.
+
+type JsonObject = { [key: string]: Json };
+/** A part of a value that the schema does not know: a value or a property. */
+type Part = [kind: "value" | "property", path: string[], value?: string];
+
+const isObject = (value: unknown): value is JsonObject =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** The variants of a `oneOf`, with those of a nested `oneOf`. */
+function options(node: SchemaNode): SchemaNode[] {
+  return (node.oneOf ?? []).flatMap((option) => {
+    const resolved = resolve(option);
+    return resolved.oneOf ? options(resolved) : [resolved];
+  });
+}
+
+function consts(option: SchemaNode): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(option.properties ?? {})
+      .filter(([, p]) => "const" in p)
+      .map(([key, p]) => [key, p.const]),
+  );
+}
+
+/**
+ * The first key of the value that tells the variants apart (e.g. `command`, `tool`
+ * or `model`) and has a value that no variant has, else undefined. A missing key or
+ * a value that is no string is an error of the schema, not a new variant.
+ */
+function unknownConst(
+  variants: SchemaNode[],
+  value: JsonObject,
+): [string, string] | undefined {
+  const keys = new Set(variants.flatMap((o) => Object.keys(consts(o))));
+  for (const key of keys) {
+    const known = new Set(
+      variants.filter((o) => key in consts(o)).map((o) => consts(o)[key]),
+    );
+    const loose = variants.some(
+      (o) => key in (o.properties ?? {}) && !(key in consts(o)),
+    );
+    const given = value[key];
+    if (loose || typeof given !== "string") continue;
+    if (!known.has(given)) return [key, given];
+    variants = variants.filter((o) => {
+      const c = consts(o);
+      return !(key in c) || c[key] === given;
+    });
+  }
+  return undefined;
+}
+
+/** The variant of a `oneOf` for the value, or undefined if a part is new. */
+function variantOf(
+  value: JsonObject,
+  node: SchemaNode,
+  path: string[],
+  found: Part[],
+): SchemaNode | undefined {
+  const variants = options(node);
+  const known = unknownConst(variants, value);
+  if (known) {
+    found.push(["value", [...path, known[0]], known[1]]);
+    return undefined;
+  }
+  const fitting = variants.filter((o) =>
+    Object.entries(consts(o)).every(
+      ([k, v]) => !(k in value) || value[k] === v,
+    ),
+  );
+  if (fitting.length === 1) return fitting[0];
+  // variants told apart by their keys, e.g. the select of a point set: a key of no
+  // variant is new
+  const keys = new Set(fitting.flatMap((o) => Object.keys(o.properties ?? {})));
+  const fresh = fitting.length
+    ? Object.keys(value).filter((k) => !keys.has(k))
+    : [];
+  for (const key of fresh) found.push(["property", [...path, key]]);
+  return fresh.length ? undefined : variant(node, value);
+}
+
+/** Collect the parts of a value that its schema node does not know. */
+function newParts(
+  value: Json,
+  node: SchemaNode,
+  path: string[],
+  found: Part[],
+): void {
+  node = resolve(node);
+  if (Array.isArray(value)) {
+    for (const item of value) newParts(item, node.items ?? {}, path, found);
+  } else if (typeof value === "string") {
+    const values = node.enum ?? [];
+    const strings = values.every((e) => typeof e === "string");
+    if (values.length && strings && !values.includes(value))
+      found.push(["value", path, value]);
+  } else if (isObject(value)) {
+    const chosen = node.oneOf ? variantOf(value, node, path, found) : node;
+    if (!chosen) return;
+    const properties = chosen.properties ?? {};
+    if (chosen.additionalProperties === false) {
+      for (const key of Object.keys(value))
+        if (!(key in properties)) found.push(["property", [...path, key]]);
+    }
+    for (const [key, child] of Object.entries(properties))
+      if (key in value) newParts(value[key], child, [...path, key], found);
+  }
+}
+
+function phrase([kind, path, value]: Part, command: unknown): string {
+  const where = path.join(".");
+  const owner = typeof command === "string" ? `\`${command}\`` : "the project";
+  if (kind === "property") return `the property \`${where}\` of ${owner}`;
+  if (where === "command") return `\`${value}\``;
+  if (path.length === 1) return `the ${where} \`${value}\` of ${owner}`;
+  return `the value \`${value}\` of \`${where}\` of ${owner}`;
+}
+
+/**
+ * What a command list uses that this version of FElupe Studio does not know (#344):
+ * a command type, a tool of `mesh.generate`, a material model, a value of an
+ * enumeration or a property. The phrases of the message, without repeats.
+ */
+export function newerFeatures(document: Record<string, unknown>): string[] {
+  const root = schema as unknown as SchemaNode;
+  const found = Object.keys(document)
+    .filter((key) => !(key in (root.properties ?? {})))
+    .map((key) => phrase(["property", [key]], undefined));
+  const commands = Array.isArray(document.commands) ? document.commands : [];
+  for (const command of commands as Json[]) {
+    if (!isObject(command)) continue;
+    const parts: Part[] = [];
+    newParts(command, defs.Command, [], parts);
+    found.push(...parts.map((part) => phrase(part, command.command)));
+  }
+  return [...new Set(found)];
+}
+
+/** The version of the app: null outside of it, e.g. in the config of Vite. */
+const APP_VERSION =
+  typeof __APP_VERSION__ === "string" ? __APP_VERSION__ : null;
+
+/** The message about the features of a newer version, if there are any. */
+export function newerMessage(
+  features: readonly string[],
+  version: string | null = APP_VERSION,
+): string | undefined {
+  if (!features.length) return undefined;
+  const listed =
+    features.length > 1
+      ? `${features.slice(0, -1).join(", ")} and ${features.at(-1)}`
+      : features[0];
+  const app = version
+    ? `FElupe Studio ${version}`
+    : "this version of FElupe Studio";
+  return (
+    `This project uses ${listed}, which ${app} does not know. ` +
+    "It may have been saved with a newer version: please update FElupe Studio."
+  );
 }

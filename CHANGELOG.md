@@ -2,6 +2,12 @@
 
 All notable changes of FElupe Studio (the web app and the Python package `felupe_studio`, released together with the same version).
 
+## [Unreleased]
+
+### Added
+
+- A project of a newer version says so (#344): if a project uses what this version does not know, a command type, a tool of `mesh.generate`, a material model, a value of an enumeration (e.g. the solver `pardiso` of v0.7 in v0.6) or a property, the first message names it before the errors of the schema, e.g. *This project uses the tool `Circle` of `mesh.generate`, which FElupe Studio 0.8.0 does not know. It may have been saved with a newer version: please update FElupe Studio.* The schema version rises only with changes that are not additive, so such a project usually has the same schema version. The app, `felupe_studio.project.loads()` and so the MCP server give the same message, tested with the shared cases `tests/data/newer_version_cases.json`; the parts that are new follow from the schema, without a list of them.
+
 ## [0.7.0] - 2026-11-19
 
 The mesh tools of FElupe, PARDISO and a cleaner base:

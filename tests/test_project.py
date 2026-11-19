@@ -143,3 +143,40 @@ def test_migration_of_ramps_from_version_1():
     }
     # the other commands are unchanged
     assert new["commands"][:-2] == old["commands"][:-2]
+
+
+NEWER = json.loads((DATA / "newer_version_cases.json").read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize("case", NEWER, ids=[c["name"] for c in NEWER])
+def test_features_of_a_newer_version(case):
+    "The shared cases of a project of a newer version (#344), also in the app."
+    assert project.newer_features(case["document"]) == case["features"]
+    with pytest.raises(ProjectError) as error:
+        loads(json.dumps(case["document"]))
+    message = case["message"]
+    if message:
+        assert error.value.errors[0] == message.format(version=project.__version__)
+        assert len(error.value.errors) > 1  # the errors of the schema follow
+    else:
+        assert not error.value.errors[0].startswith("This project uses")
+
+
+def test_newer_message_lists_the_features():
+    assert project.newer_message([]) is None
+    message = project.newer_message(["`a`", "`b`", "`c`"], version="1.2.3")
+    assert message.startswith("This project uses `a`, `b` and `c`, which FElupe ")
+    assert "FElupe Studio 1.2.3 does not know" in message
+
+
+def test_valid_projects_have_no_features_of_a_newer_version():
+    "No sample and no golden case is taken for a project of a newer version."
+    root = Path(__file__).parents[1]
+    paths = [
+        *(root / "app" / "public" / "samples").glob("*/model.felupe.json"),
+        *(root / "tests" / "golden").glob("*/commands.json"),
+    ]
+    assert len(paths) > 20
+    for path in paths:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        assert project.newer_features(document) == [], path

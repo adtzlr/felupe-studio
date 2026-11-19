@@ -15,6 +15,7 @@ with ``tests/data/two_sections.felupe.json``.
 import json
 from decimal import Decimal
 
+from .__about__ import __version__
 from .commands import SCHEMA_VERSION, schema, schema_errors
 
 SUFFIX = ".felupe.json"
@@ -185,12 +186,142 @@ def migrate(document):
     return document
 
 
+def _options(node):
+    """The variants of a ``oneOf``, with those of a nested ``oneOf``, e.g. the tools
+    of ``mesh.generate`` among the commands."""
+    for option in node.get("oneOf", []):
+        option = _resolve(option)
+        if "oneOf" in option:
+            yield from _options(option)
+        else:
+            yield option
+
+
+def _consts(option):
+    properties = option.get("properties", {})
+    return {k: p["const"] for k, p in properties.items() if "const" in p}
+
+
+def _unknown_const(options, value):
+    """The first key of the value that tells the variants apart (e.g. ``command``,
+    ``tool`` or ``model``) and has a value that no variant has, as ``(key, value)``,
+    else None. A missing key or a value that is no string is an error of the schema,
+    not a new variant."""
+    for key in dict.fromkeys(k for option in options for k in _consts(option)):
+        known = {_consts(o)[key] for o in options if key in _consts(o)}
+        loose = any(
+            key in o.get("properties", {}) and key not in _consts(o) for o in options
+        )
+        if loose or not isinstance(value.get(key), str):
+            continue
+        if value[key] not in known:
+            return key, value[key]
+        options = [o for o in options if _consts(o).get(key, value[key]) == value[key]]
+    return None
+
+
+def _variant_of(value, node, path, found):
+    """The variant of a ``oneOf`` for the value, or None if a part of the value is new
+    or no variant fits."""
+    options = list(_options(node))
+    const = _unknown_const(options, value)
+    if const:
+        found.append(("value", [*path, const[0]], const[1]))
+        return None
+    fitting = [
+        o for o in options if all(value.get(k, v) == v for k, v in _consts(o).items())
+    ]
+    if len(fitting) == 1:
+        return fitting[0]
+    # variants told apart by their keys, e.g. the select of a point set: a key of no
+    # variant is new
+    known = {k for option in fitting for k in option.get("properties", {})}
+    new = [k for k in value if k not in known] if fitting else []
+    found.extend(("property", [*path, k], None) for k in new)
+    return None if new else _variant(node, value)
+
+
+def _new_parts(value, node, path, found):
+    """Collect the parts of a value that its schema node does not know: a value of a
+    key that tells variants apart, a value of an enumeration or a property."""
+    node = _resolve(node)
+    if isinstance(value, list):
+        for item in value:
+            _new_parts(item, node.get("items", {}), path, found)
+    elif isinstance(value, str):
+        enum = node.get("enum", [])
+        if enum and all(isinstance(e, str) for e in enum) and value not in enum:
+            found.append(("value", path, value))
+    elif isinstance(value, dict):
+        if "oneOf" in node:
+            node = _variant_of(value, node, path, found)
+            if node is None:
+                return
+        properties = node.get("properties", {})
+        if node.get("additionalProperties") is False:
+            found.extend(
+                ("property", [*path, k], None) for k in value if k not in properties
+            )
+        for key, child in properties.items():
+            if key in value:
+                _new_parts(value[key], child, [*path, key], found)
+
+
+def _phrase(kind, path, value, command):
+    where = ".".join(path)
+    owner = f"`{command}`" if command else "the project"
+    if kind == "property":
+        return f"the property `{where}` of {owner}"
+    if path == ["command"]:
+        return f"`{value}`"
+    if len(path) == 1:
+        return f"the {where} `{value}` of {owner}"
+    return f"the value `{value}` of `{where}` of {owner}"
+
+
+def newer_features(document):
+    """What a command list uses that this version of FElupe Studio does not know
+    (#344): a command type, a tool of ``mesh.generate``, a material model, a value of
+    an enumeration or a property. Such a project may have been saved with a newer
+    version of the same schema version, since additive changes keep it.
+
+    Returns the phrases of the message of :func:`newer_message`, without repeats.
+    """
+    root = schema()
+    found = [
+        _phrase("property", [key], None, None)
+        for key in document
+        if key not in root["properties"]
+    ]
+    commands = document.get("commands")
+    for command in commands if isinstance(commands, list) else []:
+        if isinstance(command, dict):
+            parts = []
+            _new_parts(command, root["$defs"]["Command"], [], parts)
+            found += [_phrase(*part, command.get("command")) for part in parts]
+    return list(dict.fromkeys(found))
+
+
+def newer_message(features, version=__version__):
+    """The message about the features of a newer version, or None without them."""
+    if not features:
+        return None
+    listed = features[0]
+    if len(features) > 1:
+        listed = ", ".join(features[:-1]) + " and " + features[-1]
+    return (
+        f"This project uses {listed}, which FElupe Studio {version} does not know. "
+        "It may have been saved with a newer version: please update FElupe Studio."
+    )
+
+
 def loads(text):
     """Read a project file and return the command list.
 
     The file is migrated to the current schema version and checked against the
     schema. References between commands are not checked here; see
-    :func:`felupe_studio.commands.errors`.
+    :func:`felupe_studio.commands.errors`. If the file uses what this version does
+    not know, the first message says so (:func:`newer_features`).
     """
     try:
         document = json.loads(text)
@@ -201,5 +332,6 @@ def loads(text):
     document = migrate(document)
     errors = schema_errors(document)
     if errors:
-        raise ProjectError(errors)
+        message = newer_message(newer_features(document))
+        raise ProjectError([message, *errors] if message else errors)
     return document
