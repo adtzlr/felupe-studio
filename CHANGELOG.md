@@ -11,6 +11,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 ### Changed
 
 - The code generation in parts (ADR 0018): `codegen()`, one function of 559 lines with a complexity of 105, is a fixed sequence of parts (`PARTS`), each a function of a `Context` that is computed once from the resolved commands, with an emitter per command type in a registry of its part. The parts are in the modules `sections`, `sets`, `items` and `jobs`, the formatting like ruff in `formatting` and `object_lines()` in `lines`; `felupe_studio.codegen` keeps its public API. No function of the code generation has a complexity above 15, and the scripts are byte-identical: the golden scripts and the scripts of all 333 command lists of the tests (#309).
+- The validation in rules per command type (#310): `_reference_errors()` (261 lines, a complexity of 51) and `analysis_problems()` (28) in Python and `validateResolved()` (75) and `analysisProblems()` (48) in the app are small rules `(model, command) -> problems` in registries by command type, with the same names in `felupe_studio.rules` and `app/src/core/rules.ts` and the rules of a 2D model in `felupe_studio.analysis` and `app/src/core/analysis.ts`. The kinds and references of the app are in `app/src/core/kinds.ts`. No function of the validation has a complexity above 15, and the messages are identical: the 504 command lists that the tests validate give the same messages in Python, and the same issues with their fields in the app.
 
 ## [0.6.0] - 2026-11-19
 

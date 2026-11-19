@@ -123,6 +123,8 @@ The ribbon groups the models by `x-group` of their definitions into menus, by th
 - a material whose model has an optional `bulk` (e.g. `NeoHooke`, `MooneyRivlin`) is only used without `bulk` in a `u-p-J` section,
 - a strain-based material (#191) is only used in a `u` section.
 
+The rules are small functions `(model, command) -> problems` in `felupe_studio.rules` and `app/src/core/rules.ts`, with the same names (in camel case in TypeScript, e.g. `ramp_values` and `rampValues`, #310). The `Model` of a command list holds the type of its analysis, the rotation points of its constraints and the objects of the commands before the checked one. Every command is checked by the rules of all commands (`FIRST`: its analysis and its references; `LAST`: one of a kind, a reserved name, a name used before) and by the rules of its command type (`RULES`), and the control points after all commands (`AFTER`: their stiffness). The rules of a 2D model are in `felupe_studio.analysis` and `app/src/core/analysis.ts` (`PLANAR`, one rule per command type). A test checks that both languages have the same rules for the same command types.
+
 ## Checks with the mesh data
 
 `felupe_studio.checks.check(document, directory)` reads the mesh files and returns a JSON report (`ok`, `messages`, `cells`, `interfaces`):

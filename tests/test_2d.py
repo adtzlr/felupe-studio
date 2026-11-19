@@ -10,8 +10,9 @@ import numpy as np
 import pytest
 
 from felupe_studio import results
+from felupe_studio.analysis import analysis_problems
 from felupe_studio.codegen import codegen
-from felupe_studio.commands import analysis_problems, errors
+from felupe_studio.commands import errors
 from felupe_studio.runner import LAST, run
 
 GOLDEN = Path(__file__).parent / "golden"
