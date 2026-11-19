@@ -2,7 +2,16 @@
 
 All notable changes of FElupe Studio (the web app and the Python package `felupe_studio`, released together with the same version).
 
-## [Unreleased]
+## [0.6.0] - 2026-11-19
+
+A local Python runtime, the agent bridge, large models and expressions of parameters:
+- **Python on your computer:** `felupe-studio serve` runs the same app with the Python of your computer instead of Pyodide (ADR 0014), and the package with the built app is on PyPI.
+- **Agents on the open app:** with `felupe-studio serve --agent`, an agent like Claude Code works on the model that is open in a tab (ADR 0015). Its changes are steps of the history, and its mesh scripts run only after the user agrees.
+- **Expressions of parameters:** the numbers of the commands may be expressions of the parameters, e.g. `0.5 * layers * height` (ADR 0013).
+- **Large models:** single precision of the linear equation system of a job, or of the whole model with an estimate of its round-off (ADR 0016), and a bytecode cache that halves the FElupe step of the start in the browser (ADR 0017).
+- **Touch screens:** a long press picks like Shift+click.
+
+The schema version stays 3: projects of v0.5 open unchanged, and the new options are additive (expressions in number fields, `precision` of `model.settings` and of the solver of a job). FElupe 12.1.1, Pyodide 314.0.7.
 
 ### Added
 
@@ -212,6 +221,7 @@ The first release: a model of hyperelastic solids, from mesh files to results, i
 - `felupe_studio.codegen()`: the command list as a readable FElupe script, checked by golden tests against reference curves.
 - JSON schema of the command list (schema version 1) as the single source of the app and of the package.
 
+[0.6.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.6.0
 [0.5.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.5.0
 [0.4.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.4.0
 [0.3.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.3.0
