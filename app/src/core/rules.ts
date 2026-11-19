@@ -7,6 +7,7 @@
 // constraints, and the objects of the commands before. Every command is checked by
 // the rules of all commands (its type of analysis, its references, and its name)
 // and by the rules of its command type (`RULES`), in this order.
+import { dimensions, modelMesh, toolProblems } from "./meshtools";
 import type { Command as ResolvedCommand, PointSetAdd } from "./resolved";
 import { type Analysis, analysisOf, analysisProblems, is2d } from "./analysis";
 import {
@@ -294,6 +295,14 @@ const boundaryValues: Rule<CommandOf<"boundary.add">> = (_, cmd) => {
 /** A cell set from tags needs a mesh imported with a tag. */
 const cellsetTag: Rule<CommandOf<"cellset.from_tag">> = (model, cmd) => {
   const mesh = model.before(cmd.mesh);
+  // a mesh made by a tool has no cell tags (ADR 0019)
+  if (mesh?.command === "mesh.generate")
+    return [
+      {
+        message: `cell set '${cmd.name}' uses tag values, but mesh '${mesh.name}' is made by a tool, without cell tags.`,
+        field: "mesh",
+      },
+    ];
   if (mesh?.command !== "mesh.import" && mesh?.command !== "mesh.script")
     return [];
   if (mesh.tag !== undefined) return [];
@@ -304,6 +313,34 @@ const cellsetTag: Rule<CommandOf<"cellset.from_tag">> = (model, cmd) => {
     },
   ];
 };
+
+/**
+ * A cell set needs a mesh of the model: of a mesh made by a tool, its points and
+ * its cells have the dimension of the model; a lower one is a construction mesh
+ * (ADR 0019).
+ */
+const cellsetModelMesh: Rule<
+  CommandOf<"cellset.from_tag" | "cellset.from_file">
+> = (model, cmd) => {
+  const mesh = model.before(cmd.mesh);
+  if (mesh?.command !== "mesh.generate") return [];
+  const dimension = dimensions([mesh]).get(mesh.name)!;
+  const dim = model.axes.length;
+  if (modelMesh(dimension, dim)) return [];
+  return [
+    {
+      message: `cell set '${cmd.name}' takes mesh '${mesh.name}' of ${dimension.cell_type} cells (${dimension.cells}D), but a cell set of a ${dim}D model needs ${dim}D cells with ${dim}D points.`,
+      field: "mesh",
+    },
+  ];
+};
+
+/** The values of a mesh tool (ADR 0019). */
+const meshTool: Rule<CommandOf<"mesh.generate">> = (_, cmd) =>
+  toolProblems(cmd).map((problem) => ({
+    message: `mesh '${cmd.name}': ${problem}`,
+    field: "parameters.b",
+  }));
 
 /** The material of a section, if it is defined before. */
 function materialOf(model: Model, section: CommandOf<"section.add">) {
@@ -508,7 +545,9 @@ export const LAST: readonly Rule[] = [single, reservedName, duplicateName];
 export const RULES: Rules = {
   "step.add": [rampTargets, rampTwice, rampValues],
   "boundary.add": [boundaryValues],
-  "cellset.from_tag": [cellsetTag],
+  "mesh.generate": [meshTool],
+  "cellset.from_tag": [cellsetTag, cellsetModelMesh],
+  "cellset.from_file": [cellsetModelMesh],
   "section.add": [sectionBulk, sectionIsochoric, sectionStrainBased],
   "loadcase.add": [loadcase],
   "point.add": [vertexCoordinates],

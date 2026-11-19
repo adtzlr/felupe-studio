@@ -5,6 +5,7 @@ container, merged into the top-level field with the control points, and the soli
 bodies of the sections after the merge (see :func:`felupe.field.merge`).
 """
 
+from . import meshtools
 from .formatting import Dict, List, call, number, quote, vector, wrap
 from .materials import lame_call, material_call
 
@@ -50,6 +51,12 @@ def mesh_import(context, mesh):
     if context.dim == 2:
         args.append("dim=2")
     return [call(mesh["name"], "volume_cells", args)]
+
+
+def mesh_generate(context, mesh):
+    """A mesh made by a tool of FElupe (ADR 0019), one line per step."""
+    function, args = meshtools.call(mesh)
+    return [call(mesh["name"], function, args)]
 
 
 def cellset(context, command):
@@ -182,7 +189,11 @@ def merge(context):
     ]
 
 
-MESHES = {"mesh.import": mesh_import, "mesh.script": mesh_script}
+MESHES = {
+    "mesh.import": mesh_import,
+    "mesh.script": mesh_script,
+    "mesh.generate": mesh_generate,
+}
 CELLSETS = {"cellset.from_tag": cellset, "cellset.from_file": cellset}
 MATERIALS = {"material.add": material}
 SECTIONS = {"section.add": section_fields}

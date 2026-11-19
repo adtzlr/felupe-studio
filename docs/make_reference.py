@@ -108,12 +108,17 @@ def _array(node, command, key):
         item = "list of objects"
     elif _resolve(items).get("type") in ("number", ["number", "string"]):
         item = "numbers"
+    elif _resolve(items).get("type") in ("integer", ["integer", "string"]):
+        # e.g. the points per axis of a mesh tool (ADR 0019)
+        minimum = _resolve(items).get("minimum")
+        item = "integers" + (f" ≥ {minimum}" if minimum is not None else "")
     else:
         item = f"list of {item}"
     extra = []
     low, high = node.get("minItems"), node.get("maxItems")
     if low and high:
-        item = f"list of {low} to {high} {item}"
+        count = low if low == high else f"{low} to {high}"
+        item = f"list of {count} {item}"
     elif low:
         extra.append(f"at least {low}")
     if node.get("uniqueItems"):
@@ -270,13 +275,12 @@ def _variants(name, node, command):
                     text = _default(text, p["default"])
                 symbol = p.get("x-label", key)
                 if p.get("type") == "array":
-                    items = p["items"]
-                    item = (
-                        "numbers ≠ 0" if items.get("not") == {"const": 0} else "numbers"
-                    )
-                    kind = f"list of {p['minItems']} to {p['maxItems']} {item}"
+                    kind = _array(p, command, key)
+                    if p["items"].get("not") == {"const": 0}:
+                        kind = kind.replace("numbers", "numbers ≠ 0")
                 else:
-                    kind = " ".join(["number", *_bounds(p)])
+                    integer = "integer" in p.get("type", [])
+                    kind = " ".join(["integer" if integer else "number", *_bounds(p)])
                 rows.append((f"`{key}` ({symbol})", kind, need, text))
             out.append(_table(rows, ("Parameter", "Type", "Required", "Description")))
         else:

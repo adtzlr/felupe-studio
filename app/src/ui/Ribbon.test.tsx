@@ -59,6 +59,8 @@ describe("ribbon commands", () => {
         .map((b) => b.textContent);
     expect(names()).toEqual([
       "Import mesh",
+      // the mesh tools in a menu (ADR 0019)
+      "Primitives ▾",
       "Mesh script",
       "Merge points",
       "Cell set from tag",

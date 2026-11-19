@@ -65,6 +65,9 @@ export type Input =
       collapse?: boolean;
       /** A value may be an expression of the parameters (#242). */
       expressions?: boolean;
+      /** Whole numbers from a minimum, e.g. the points per axis of a mesh tool. */
+      integer?: boolean;
+      min?: number;
     }
   | {
       type: "reference";
@@ -382,12 +385,16 @@ function scalarLeaf(
 function arrayLeaf(type: CommandType, key: string, property: Node): Leaf {
   const items = resolve(property.items!);
   const minItems = property.minItems ?? 0;
-  if (items.type === "number") {
+  // whole numbers that may be expressions, e.g. the points per axis of a mesh tool
+  // (ADR 0019); ids without expressions are integers below
+  const integer = items.type === "integer" && !!items["x-expressions"];
+  if (items.type === "number" || integer) {
     const input: Input = {
       type: "numbers",
       minItems,
       maxItems: property.maxItems,
       ...(items.not?.const === 0 ? { nonzero: true } : {}),
+      ...(integer ? { integer: true, min: items.minimum } : {}),
       ...expressions(items),
     };
     return { input, described: true, labelled: true };
@@ -852,7 +859,38 @@ export function setValue(
 ): Draft {
   const next = structuredClone(draft);
   assign(next, path, value);
-  return normalize(type, next, context, keysOf(type, draft));
+  const known = keysOf(type, draft);
+  // another definition, e.g. another mesh tool: lists that do not fit it get its
+  // defaults, e.g. the corners of a rectangle after those of a cube (ADR 0019)
+  const { discriminator } = definition(type, draft);
+  if (path.length === 1 && path[0] === discriminator)
+    dropMisfits(definition(type, next).node, next, [], known);
+  return normalize(type, next, context, known);
+}
+
+/** Remove the lists of a draft whose length does not fit their property, in place. */
+function dropMisfits(
+  object: Node,
+  value: Draft,
+  prefix: string[],
+  known: Set<string>,
+) {
+  for (const [name, raw] of Object.entries(object.properties ?? {})) {
+    const property = resolve(raw);
+    const child = value[name];
+    const path = [...prefix, name];
+    if (isObject(child) && property.type === "object") {
+      dropMisfits(property, child, path, known);
+    } else if (
+      Array.isArray(child) &&
+      property.type === "array" &&
+      (child.length < (property.minItems ?? 0) ||
+        child.length > (property.maxItems ?? Infinity))
+    ) {
+      delete value[name];
+      known.delete(path.join("."));
+    }
+  }
 }
 
 /** Set (or with undefined: remove) the value at a path of a draft, in place. */
@@ -1059,15 +1097,27 @@ const listError: FieldError<"numbers"> = (spec, input, value, context) => {
         : "";
     return `Enter${range} ${count}, separated by commas, with a point as decimal separator.`;
   }
-  // the expressions, and the values that are zero
+  // the expressions, and the values that are zero, not whole or too small
   for (const x of numbers) {
     const problem = valueError(x, input.expressions, context, (v) =>
-      input.nonzero && v === 0 ? "Enter numbers other than 0." : undefined,
+      itemProblem(input, v),
     );
     if (problem) return problem;
   }
   return undefined;
 };
+
+/** What is wrong with an item of a list of numbers, or undefined. */
+function itemProblem(
+  input: Extract<Input, { type: "numbers" }>,
+  value: number,
+): string | undefined {
+  if (input.nonzero && value === 0) return "Enter numbers other than 0.";
+  if (input.integer && !Number.isInteger(value)) return "Enter whole numbers.";
+  if (input.min !== undefined && value < input.min)
+    return `Enter numbers of at least ${input.min}.`;
+  return undefined;
+}
 
 /** A list of numbers, or one number of a number or a list of numbers (#225). */
 const numbersError: FieldError<"numbers"> = (spec, input, value, context) => {

@@ -11,6 +11,7 @@ export type Command =
   | ParameterAdd
   | MeshImport
   | MeshScript
+  | MeshGenerate
   | MeshMerge
   | CellSetFromTag
   | CellSetFromFile
@@ -36,6 +37,13 @@ export type Command =
  * via the `definition` "Name".
  */
 export type Name = string;
+/**
+ * A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MeshGenerate".
+ */
+export type MeshGenerate = MeshPoint | MeshLine | MeshRectangle | MeshCube;
 /**
  * Add a material to the material library. Every model is a definition below (the material registry): its label, the FElupe class or tensortrax function, and its parameters with label, description, bounds and default.
  *
@@ -275,6 +283,116 @@ export interface MeshScript {
     | "quad"
     | "quad8"
     | "quad9";
+}
+/**
+ * A point (fem.mesh.Point): one vertex with one coordinate.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MeshPoint".
+ */
+export interface MeshPoint {
+  command: "mesh.generate";
+  name: Name;
+  tool: "Point";
+  parameters: {
+    /**
+     * The coordinate of the point.
+     */
+    a: number | string;
+  };
+}
+/**
+ * A line along x (fem.mesh.Line): line cells between n points from a to b.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MeshLine".
+ */
+export interface MeshLine {
+  command: "mesh.generate";
+  name: Name;
+  tool: "Line";
+  parameters: {
+    /**
+     * The coordinate of the start.
+     */
+    a: number | string;
+    /**
+     * The coordinate of the end, larger than a.
+     */
+    b: number | string;
+    /**
+     * The number of points (at least 2).
+     */
+    n: number | string;
+  };
+}
+/**
+ * A rectangle in the xy-plane (fem.Rectangle): quads between the corners a and b, with n points per axis.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MeshRectangle".
+ */
+export interface MeshRectangle {
+  command: "mesh.generate";
+  name: Name;
+  tool: "Rectangle";
+  parameters: {
+    /**
+     * The corner with the smallest coordinates x and y.
+     *
+     * @minItems 2
+     * @maxItems 2
+     */
+    a: [number | string, number | string];
+    /**
+     * The corner with the largest coordinates x and y.
+     *
+     * @minItems 2
+     * @maxItems 2
+     */
+    b: [number | string, number | string];
+    /**
+     * The number of points per axis x and y (at least 2).
+     *
+     * @minItems 2
+     * @maxItems 2
+     */
+    n: [number | string, number | string];
+  };
+}
+/**
+ * A cube (fem.Cube): hexahedrons between the corners a and b, with n points per axis.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MeshCube".
+ */
+export interface MeshCube {
+  command: "mesh.generate";
+  name: Name;
+  tool: "Cube";
+  parameters: {
+    /**
+     * The corner with the smallest coordinates x, y and z.
+     *
+     * @minItems 3
+     * @maxItems 3
+     */
+    a: [number | string, number | string, number | string];
+    /**
+     * The corner with the largest coordinates x, y and z.
+     *
+     * @minItems 3
+     * @maxItems 3
+     */
+    b: [number | string, number | string, number | string];
+    /**
+     * The number of points per axis x, y and z (at least 2).
+     *
+     * @minItems 3
+     * @maxItems 3
+     */
+    n: [number | string, number | string, number | string];
+  };
 }
 /**
  * Merge points of the sections whose coordinates agree to the given number of decimals (fem.field.merge(..., decimals)). Without this command, only identical points are merged. Merged points take the rounded coordinates.

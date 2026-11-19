@@ -176,6 +176,12 @@ const DETAILS: { [C in Command["command"]]: Detail<C> } = {
       cmd.item ? `${cmd.file} [${cmd.item}]` : cmd.file,
       cmd.tag && `tag ${cmd.tag}`,
     ),
+  // a mesh made by a tool (ADR 0019): the tool and its points per axis
+  "mesh.generate": (cmd) => {
+    const n = (cmd.parameters as { n?: unknown }).n;
+    const points = Array.isArray(n) ? n.join(" × ") : n;
+    return joined(cmd.tool, points !== undefined && `n = ${points}`);
+  },
   "mesh.merge": (cmd) => `decimals = ${cmd.decimals}`,
   "cellset.from_tag": (cmd) => `tag = ${cmd.value}`,
   "cellset.from_file": () => "all cells",

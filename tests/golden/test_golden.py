@@ -207,6 +207,24 @@ def test_two_materials_reference():
     assert np.isclose(results["jobs"]["job_1"]["force"][-1], 0.66322, rtol=1e-5)
 
 
+def test_cube_made_by_a_tool_like_the_file():
+    # the cube of cube_yeoh made by the mesh tool Cube (ADR 0019) instead of read
+    # from its file (fem.Cube(n=3)): the same mesh, the same curve
+    tool, file = (
+        json.loads((HERE / case / "results.json").read_text(encoding="utf-8"))
+        for case in ("cube_made_by_tools", "cube_yeoh")
+    )
+    for key in ("displacement", "force"):
+        np.testing.assert_allclose(
+            tool["jobs"]["job_1"][key], file["jobs"]["job_1"][key], rtol=1e-10
+        )
+    script = (HERE / "cube_made_by_tools" / "script.py").read_text("utf-8")
+    line = "cube = fem.Cube(a=[0, 0, 0], b=[1, 1, 1], n=[nodes, nodes, nodes])"
+    assert line in script
+    # no mesh file: no meshio
+    assert "import meshio" not in script
+
+
 def test_pardiso_like_superlu():
     # the bar of two materials with PARDISO of Intel oneMKL (#308): the curve of
     # SuperLU, stored where pypardiso is installed

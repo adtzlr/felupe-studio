@@ -11,6 +11,7 @@ by the rules of its command type (:data:`RULES`), in this order. The rules mirro
 
 from functools import cached_property
 
+from . import meshtools
 from .analysis import analysis_of, analysis_problems
 from .commands import (
     AXES,
@@ -230,8 +231,14 @@ def boundary_values(model, cmd):
 
 
 def cellset_tag(model, cmd):
-    """A cell set from tags needs a mesh imported with a tag."""
+    """A cell set from tags needs a mesh imported with a tag; a mesh made by a tool
+    has no cell tags (ADR 0019)."""
     mesh = model.before(cmd["mesh"])
+    if mesh is not None and mesh["command"] == "mesh.generate":
+        return [
+            f"cell set '{cmd['name']}' uses tag values, but mesh '{mesh['name']}' is "
+            "made by a tool, without cell tags."
+        ]
     if mesh is None or mesh["command"] not in ("mesh.import", "mesh.script"):
         return []
     if "tag" in mesh:
@@ -240,6 +247,29 @@ def cellset_tag(model, cmd):
         f"cell set '{cmd['name']}' uses tag values, but mesh '{mesh['name']}' was "
         "imported without a tag."
     ]
+
+
+def cellset_model_mesh(model, cmd):
+    """A cell set needs a mesh of the model: of a mesh made by a tool, its points and
+    its cells have the dimension of the model; a lower mesh is a construction mesh
+    (ADR 0019)."""
+    mesh = model.before(cmd["mesh"])
+    if mesh is None or mesh["command"] != "mesh.generate":
+        return []
+    dimension = meshtools.dimensions([mesh])[mesh["name"]]
+    dim = len(model.axes)
+    if meshtools.model_mesh(dimension, dim):
+        return []
+    return [
+        f"cell set '{cmd['name']}' takes mesh '{mesh['name']}' of "
+        f"{dimension['cell_type']} cells ({dimension['cells']}D), but a cell set of "
+        f"a {dim}D model needs {dim}D cells with {dim}D points."
+    ]
+
+
+def mesh_tool(model, cmd):
+    """The values of a mesh tool (ADR 0019)."""
+    return [f"mesh '{cmd['name']}': {p}" for p in meshtools.problems(cmd)]
 
 
 def material_of(model, section):
@@ -402,7 +432,9 @@ LAST = (single, reserved_name, duplicate_name)
 RULES = {
     "step.add": (ramp_targets, ramp_twice, ramp_values),
     "boundary.add": (boundary_values,),
-    "cellset.from_tag": (cellset_tag,),
+    "mesh.generate": (mesh_tool,),
+    "cellset.from_tag": (cellset_tag, cellset_model_mesh),
+    "cellset.from_file": (cellset_model_mesh,),
     "section.add": (section_bulk, section_isochoric, section_strain_based),
     "loadcase.add": (loadcase,),
     "point.add": (vertex_coordinates,),
