@@ -1,6 +1,10 @@
 // The type of the analysis of a model (#175): 3D, or 2D as plane strain or
-// axisymmetric, like `analysis_problems()` of felupe_studio.commands.
+// axisymmetric, and the rules of a 2D model, like felupe_studio.analysis with the
+// same names. A 2D model has 2D cells and no z components, except the rotation
+// about z of the rotation points of the constraints. The rule of a command type
+// (`PLANAR`) returns the first problem of the command.
 import type { Command } from "./commands";
+import type { Problem } from "./rules";
 
 export type Analysis = "3d" | "plane-strain" | "axisymmetric";
 
@@ -27,6 +31,167 @@ export function analysisOf(commands: readonly Command[]): Analysis {
 /** Whether a type of analysis is 2D. */
 export const is2d = (analysis: Analysis) => analysis !== "3d";
 
+type CommandOf<K extends Command["command"]> = Extract<Command, { command: K }>;
+
+/** A rule of a 2D model of a command type. */
+type PlanarRule<K extends Command["command"]> = (
+  cmd: CommandOf<K>,
+  analysis: Analysis,
+  rotations: ReadonlySet<string>,
+) => Problem[];
+
+const problem = (message: string, field: string): Problem[] => [
+  { message, field },
+];
+
+/** A boundary of a rotation point constrains its rotation about z only. */
+const planarBoundary: PlanarRule<"boundary.add"> = (cmd, _, rotations) => {
+  if (rotations.has(cmd.pointset)) {
+    const other = cmd.constrained.find((a) => a !== "z");
+    return other
+      ? problem(
+          `boundary '${cmd.name}' constrains ${other} of the rotation point '${cmd.pointset}': the rotation point of a 2D model has the rotation about z only.`,
+          "constrained",
+        )
+      : [];
+  }
+  return cmd.constrained.includes("z")
+    ? problem(
+        `boundary '${cmd.name}' constrains z, which a 2D model does not have.`,
+        "constrained",
+      )
+    : [];
+};
+
+/** A point load at a rotation point is a moment about z only. */
+const planarLoad: PlanarRule<"load.add"> = (cmd, _, rotations) => {
+  if (rotations.has(cmd.points)) {
+    return cmd.force[0] !== 0 || cmd.force[1] !== 0
+      ? problem(
+          `point load '${cmd.name}' at the rotation point '${cmd.points}' has a component in x or y: the rotation point of a 2D model has the moment about z only.`,
+          "force",
+        )
+      : [];
+  }
+  return cmd.force[2] !== 0
+    ? problem(
+        `point load '${cmd.name}' has a force in z, which a 2D model does not have.`,
+        "force",
+      )
+    : [];
+};
+
+const planarPoint: PlanarRule<"point.add"> = (cmd) =>
+  cmd.coordinates[2] !== 0
+    ? problem(
+        `control point '${cmd.name}' has a z coordinate: the points of a 2D model are in the plane z = 0.`,
+        "coordinates",
+      )
+    : [];
+
+/** The planes of rigid surfaces are lines, the cylinders circles about z. */
+const planarRigid: PlanarRule<"rigid.add"> = (cmd) => {
+  const shape = cmd.shape as { normal?: number[]; axis?: number[] };
+  if (cmd.coordinates[2] !== 0)
+    return problem(
+      `rigid surface '${cmd.name}' has a z coordinate: the points of a 2D model are in the plane z = 0.`,
+      "coordinates",
+    );
+  if (shape.normal && shape.normal[2] !== 0)
+    return problem(
+      `rigid surface '${cmd.name}' has a normal with a z component: the planes of a 2D model are lines in the xy-plane.`,
+      "shape.normal",
+    );
+  if (shape.axis && (shape.axis[0] !== 0 || shape.axis[1] !== 0))
+    return problem(
+      `rigid surface '${cmd.name}' has an axis that is not z: the cylinders of a 2D model are circles in the xy-plane.`,
+      "shape.axis",
+    );
+  return [];
+};
+
+/** A constraint connects x and y, with a rotation point not axisymmetric. */
+const planarConstraint: PlanarRule<"mpc.add"> = (cmd, analysis) => {
+  if (cmd.constrained.includes("z"))
+    return problem(
+      `constraint '${cmd.name}' connects z, which a 2D model does not have.`,
+      "constrained",
+    );
+  return cmd.rotation !== undefined && analysis === "axisymmetric"
+    ? problem(
+        `constraint '${cmd.name}' has a rotation point: a rotation about z is no motion of an axisymmetric model.`,
+        "rotation",
+      )
+    : [];
+};
+
+const planarSymmetry: PlanarRule<"symmetry.add"> = (cmd) =>
+  cmd.axes.includes("z")
+    ? problem(
+        `symmetry '${cmd.name}' has a plane normal to z, which a 2D model does not have.`,
+        "axes",
+      )
+    : [];
+
+const planarLoadcase: PlanarRule<"loadcase.add"> = (cmd) => {
+  const values = cmd as unknown as Record<string, unknown>;
+  const key = ["axis", "second", "normal"].find((k) => values[k] === "z");
+  return key
+    ? problem(
+        `load case '${cmd.name}' has the axis z in '${key}', which a 2D model does not have.`,
+        key,
+      )
+    : [];
+};
+
+const planarFaceset: PlanarRule<"faceset.add"> = (cmd) => {
+  const select = cmd.select;
+  if ("axis" in select && select.axis === "z")
+    return problem(
+      `face set '${cmd.name}' selects by z, which a 2D model does not have.`,
+      "select.axis",
+    );
+  if ("centers" in select && select.centers.some((c) => c[2] !== 0))
+    return problem(
+      `face set '${cmd.name}' has centers with a z coordinate: the edges of a 2D model are in the plane z = 0.`,
+      "select.centers",
+    );
+  return [];
+};
+
+const planarPointset: PlanarRule<"pointset.add"> = (cmd) => {
+  const select = cmd.select;
+  if (("value" in select || "bound" in select) && select.axis === "z")
+    return problem(
+      `point set '${cmd.name}' selects by z, which a 2D model does not have.`,
+      "select.axis",
+    );
+  if ("radius" in select && select.axis !== "z")
+    return problem(
+      `point set '${cmd.name}' selects by a radius about ${select.axis}: in a 2D model, a radius is about z (a circle in the xy-plane).`,
+      "select.axis",
+    );
+  if ("points" in select && select.points.some((p) => p[2] !== 0))
+    return problem(
+      `point set '${cmd.name}' has points with a z coordinate: the points of a 2D model are in the plane z = 0.`,
+      "select.points",
+    );
+  return [];
+};
+
+/** The rules of a 2D model by command type. */
+export const PLANAR: { [K in Command["command"]]?: PlanarRule<K> } = {
+  "boundary.add": planarBoundary,
+  "load.add": planarLoad,
+  "point.add": planarPoint,
+  "rigid.add": planarRigid,
+  "mpc.add": planarConstraint,
+  "symmetry.add": planarSymmetry,
+  "loadcase.add": planarLoadcase,
+  "faceset.add": planarFaceset,
+  "pointset.add": planarPointset,
+};
+
 /**
  * The problems of a command in a model of a type of analysis, with the field of
  * the command that has them: a 2D model has 2D cells and no z components, except
@@ -36,155 +201,27 @@ export function analysisProblems(
   cmd: Command,
   analysis: Analysis,
   rotations: ReadonlySet<string> = new Set(),
-): { message: string; field?: string }[] {
-  const name = cmd.name;
+): Problem[] {
   const cellType =
     cmd.command === "mesh.import" || cmd.command === "mesh.script"
       ? cmd.cell_type
       : undefined;
   if (analysis === "3d") {
     return cellType && !CELLS_3D.includes(cellType)
-      ? [
-          {
-            message: `mesh '${name}' takes ${cellType} cells, which are 2D cells: set the analysis of the settings to plane strain or axisymmetric.`,
-            field: "cell_type",
-          },
-        ]
+      ? problem(
+          `mesh '${cmd.name}' takes ${cellType} cells, which are 2D cells: set the analysis of the settings to plane strain or axisymmetric.`,
+          "cell_type",
+        )
       : [];
   }
   if (cellType && CELLS_3D.includes(cellType)) {
-    return [
-      {
-        message: `mesh '${name}' takes ${cellType} cells, but a 2D model has 2D cells.`,
-        field: "cell_type",
-      },
-    ];
+    return problem(
+      `mesh '${cmd.name}' takes ${cellType} cells, but a 2D model has 2D cells.`,
+      "cell_type",
+    );
   }
-  const z = (message: string, field: string) => [{ message, field }];
-  switch (cmd.command) {
-    case "boundary.add": {
-      // the rotation about z of a rotation point
-      if (rotations.has(cmd.pointset)) {
-        const other = cmd.constrained.find((a) => a !== "z");
-        return other
-          ? z(
-              `boundary '${name}' constrains ${other} of the rotation point '${cmd.pointset}': the rotation point of a 2D model has the rotation about z only.`,
-              "constrained",
-            )
-          : [];
-      }
-      return cmd.constrained.includes("z")
-        ? z(
-            `boundary '${name}' constrains z, which a 2D model does not have.`,
-            "constrained",
-          )
-        : [];
-    }
-    case "load.add":
-      // the moment about z at a rotation point
-      if (rotations.has(cmd.points)) {
-        return cmd.force[0] !== 0 || cmd.force[1] !== 0
-          ? z(
-              `point load '${name}' at the rotation point '${cmd.points}' has a component in x or y: the rotation point of a 2D model has the moment about z only.`,
-              "force",
-            )
-          : [];
-      }
-      return cmd.force[2] !== 0
-        ? z(
-            `point load '${name}' has a force in z, which a 2D model does not have.`,
-            "force",
-          )
-        : [];
-    case "point.add":
-      return cmd.coordinates[2] !== 0
-        ? z(
-            `control point '${name}' has a z coordinate: the points of a 2D model are in the plane z = 0.`,
-            "coordinates",
-          )
-        : [];
-    case "rigid.add": {
-      const shape = cmd.shape as { normal?: number[]; axis?: number[] };
-      if (cmd.coordinates[2] !== 0)
-        return z(
-          `rigid surface '${name}' has a z coordinate: the points of a 2D model are in the plane z = 0.`,
-          "coordinates",
-        );
-      if (shape.normal && shape.normal[2] !== 0)
-        return z(
-          `rigid surface '${name}' has a normal with a z component: the planes of a 2D model are lines in the xy-plane.`,
-          "shape.normal",
-        );
-      if (shape.axis && (shape.axis[0] !== 0 || shape.axis[1] !== 0))
-        return z(
-          `rigid surface '${name}' has an axis that is not z: the cylinders of a 2D model are circles in the xy-plane.`,
-          "shape.axis",
-        );
-      return [];
-    }
-    case "mpc.add":
-      if (cmd.constrained.includes("z"))
-        return z(
-          `constraint '${name}' connects z, which a 2D model does not have.`,
-          "constrained",
-        );
-      return cmd.rotation !== undefined && analysis === "axisymmetric"
-        ? z(
-            `constraint '${name}' has a rotation point: a rotation about z is no motion of an axisymmetric model.`,
-            "rotation",
-          )
-        : [];
-    case "symmetry.add":
-      return cmd.axes.includes("z")
-        ? z(
-            `symmetry '${name}' has a plane normal to z, which a 2D model does not have.`,
-            "axes",
-          )
-        : [];
-    case "loadcase.add": {
-      const values = cmd as unknown as Record<string, unknown>;
-      const key = ["axis", "second", "normal"].find((k) => values[k] === "z");
-      return key
-        ? z(
-            `load case '${name}' has the axis z in '${key}', which a 2D model does not have.`,
-            key,
-          )
-        : [];
-    }
-    case "faceset.add": {
-      const select = cmd.select;
-      if ("axis" in select && select.axis === "z")
-        return z(
-          `face set '${name}' selects by z, which a 2D model does not have.`,
-          "select.axis",
-        );
-      if ("centers" in select && select.centers.some((c) => c[2] !== 0))
-        return z(
-          `face set '${name}' has centers with a z coordinate: the edges of a 2D model are in the plane z = 0.`,
-          "select.centers",
-        );
-      return [];
-    }
-    case "pointset.add": {
-      const select = cmd.select;
-      if (("value" in select || "bound" in select) && select.axis === "z")
-        return z(
-          `point set '${name}' selects by z, which a 2D model does not have.`,
-          "select.axis",
-        );
-      if ("radius" in select && select.axis !== "z")
-        return z(
-          `point set '${name}' selects by a radius about ${select.axis}: in a 2D model, a radius is about z (a circle in the xy-plane).`,
-          "select.axis",
-        );
-      if ("points" in select && select.points.some((p) => p[2] !== 0))
-        return z(
-          `point set '${name}' has points with a z coordinate: the points of a 2D model are in the plane z = 0.`,
-          "select.points",
-        );
-      return [];
-    }
-    default:
-      return [];
-  }
+  // the rule of the type of the command (a union of the rules of all types)
+  const rule = PLANAR[cmd.command] as
+    PlanarRule<typeof cmd.command> | undefined;
+  return rule ? rule(cmd as never, analysis, rotations) : [];
 }

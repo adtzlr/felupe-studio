@@ -27,6 +27,7 @@ from textwrap import dedent
 
 from . import items, jobs, sections, sets
 from .__about__ import __version__
+from .analysis import analysis_of
 from .commands import SCHEMA_VERSION, ValidationError, validate
 from .expressions import resolve
 from .formatting import call, wrap
@@ -171,21 +172,6 @@ def parameter_line(parameter, units=None):
     line = f"{parameter['name']} = {parameter_value(parameter)!r}"
     suffix = unit(parameter.get("quantity"), units)
     return f"{line}  # {suffix}" if suffix else line
-
-
-def analysis_of(commands):
-    """Return the type of the analysis of a command list (#175): ``"3d"`` (the
-    default), ``"plane-strain"`` or ``"axisymmetric"``.
-
-    Examples
-    --------
-    >>> analysis_of([{"command": "model.settings", "analysis": "axisymmetric"}])
-    'axisymmetric'
-    >>> analysis_of([])
-    '3d'
-    """
-    settings = [c for c in commands if c["command"] == "model.settings"]
-    return settings[0].get("analysis", "3d") if settings else "3d"
 
 
 class Context:
