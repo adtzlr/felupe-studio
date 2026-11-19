@@ -22,5 +22,6 @@ Short records of decisions that shape felupe-studio. A record is changed by a ne
 | [0016](0016-single-precision.md)            | Single precision               | Accepted |
 | [0017](0017-bytecode-cache.md)              | A bytecode cache of Pyodide     | Accepted |
 | [0018](0018-script-parts.md)                | The script in parts, an emitter per command type | Accepted |
+| [0019](0019-mesh-tools.md)                  | Mesh tools                     | Accepted |
 
 Template: Context, Decision, Consequences, Alternatives.
