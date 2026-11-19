@@ -903,6 +903,12 @@ button {
   padding-top: var(--space-8);
 }
 
+/* a fixed number of references in order, e.g. the meshes of fill_between */
+.ordered {
+  display: grid;
+  gap: var(--space-4);
+}
+
 .check {
   display: inline-flex;
   align-items: center;

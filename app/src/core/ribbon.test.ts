@@ -31,6 +31,8 @@ describe("ribbonGroups", () => {
         "Translate",
         "Rotate",
         "Mirror",
+        "Fill between",
+        "Add runouts",
       ],
       ["Mesh script"],
       ["Merge points"],

@@ -207,6 +207,30 @@ Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool
 | `axis` (axis) | axis: `x`, `y` or `z` | yes | The axis normal to the plane of the mirror. Default `x`. |
 | `value` (value) | number | yes | The coordinate of the plane on the axis. Default `0`. |
 
+#### Fill between (`tool: "fill_between"`)
+
+Fill the cells between two meshes of the same cells and points (fem.mesh.fill_between): quads between two lines in a plane, hexahedrons between two quad meshes in space, with n points from the first mesh to the second.
+
+Inputs (`inputs`): 2 meshes. The two meshes made by tools before, from the first to the second, of the same cell type and number of points, e.g. two lines embedded in a plane.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `n` (n) | integer ≥ 2 | yes | The number of points from the first mesh to the second (at least 2). Default `11`. |
+
+#### Add runouts (`tool: "add_runouts"`)
+
+Add runouts to a mesh (mesh.add_runouts), e.g. the concave free surfaces of a rubber body between metal parts: the points move perpendicular to the axis by a relative amount, most at the centerpoint.
+
+Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool before.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `values` (values) | list of 1 to 2 numbers | yes | The relative amount of the runouts, one per coordinate perpendicular to the axis (one of 2D points, two of 3D points). Default `[0.1]`. |
+| `axis` (axis) | axis: `x`, `y` or `z` | yes | The axis of the runouts. Default `x`. |
+| `centerpoint` (centerpoint) | list of 2 to 3 numbers |  | The center of the runouts, one coordinate per dimension of the points (default: the origin). |
+| `exponent` (exponent) | number > 0 |  | The shape of the runouts: the higher, the steeper the transition (default 5). |
+| `normalize` (normalize) | number |  | Keep the shape of the ends, the runouts become indents. |
+
 ### `mesh.merge`
 
 Merge points of the sections whose coordinates agree to the given number of decimals (fem.field.merge(..., decimals)). Without this command, only identical points are merged. Merged points take the rounded coordinates.

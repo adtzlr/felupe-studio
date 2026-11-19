@@ -274,6 +274,10 @@ function MultiChoiceControl({
 function ReferenceControl(args: Args<"reference">) {
   // a list of at most one, e.g. the mesh of an operation (ADR 0019): one select
   const one = args.input.maxItems === 1;
+  const { minItems, maxItems } = args.input;
+  // a list of a fixed number, in order, e.g. the two meshes of fill_between
+  if (args.input.multiple && maxItems !== undefined && maxItems > 1)
+    if (minItems === maxItems) return <OrderedReferences {...args} />;
   if (args.input.multiple && !one) return <ReferencesControl {...args} />;
   const { form, spec, input, common, value } = args;
   const names = offered(spec, form.draft, form.context);
@@ -302,6 +306,56 @@ function ReferenceControl(args: Args<"reference">) {
         </option>
       ))}
     </select>
+  );
+}
+
+/** A fixed number of references in order: one select per item (ADR 0019). */
+function OrderedReferences({
+  form,
+  spec,
+  input,
+  common,
+  value,
+}: Args<"reference">) {
+  const names = offered(spec, form.draft, form.context);
+  const kind = kindLabel(input.kind);
+  const items = Array.isArray(value) ? (value as string[]) : [];
+  const count = input.maxItems ?? items.length;
+  return (
+    <div
+      {...common}
+      role="group"
+      aria-labelledby={`${common.id}-label`}
+      class="ordered"
+    >
+      {Array.from({ length: count }, (_, i) => {
+        const current = items[i] ?? "";
+        const missing = current !== "" && !names.includes(current);
+        return (
+          <select
+            key={i}
+            aria-label={`${spec.label} ${i + 1}`}
+            value={current}
+            onChange={(event) => {
+              const next = Array.from(
+                { length: count },
+                (_, k) => items[k] ?? "",
+              );
+              next[i] = event.currentTarget.value;
+              form.change(spec, next.some(Boolean) ? next : undefined);
+            }}
+          >
+            {current === "" && <option value="">{`Select a ${kind}`}</option>}
+            {missing && <option value={current}>{current} (missing)</option>}
+            {names.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        );
+      })}
+    </div>
   );
 }
 

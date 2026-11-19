@@ -79,6 +79,12 @@ def made(name, tool, inputs=None, **parameters):
 
 RECTANGLE = made("face", "Rectangle", a=[0, 0], b=[3, 1], n=[4, 2])
 CUBE = made("block", "Cube", a=[0, 0, 0], b=[3, 1, 1], n=[4, 2, 2])
+LINES = [
+    made("bottom", "Line", a=0, b=3, n=4),
+    made("bottom_2d", "embed", ["bottom"], value=0),
+    made("top", "Line", a=0, b=3, n=4),
+    made("top_2d", "embed", ["top"], value=1),
+]
 
 
 def planar(document):
@@ -1113,6 +1119,31 @@ CHANGES = {
     ),
     "a cube mirrored at a plane": lambda d: operation(
         d, "mirror", ["block"], [CUBE], axis="y", value=0.5
+    ),
+    "a face filled between two lines in a 2D model": lambda d: (
+        operation(d, "fill_between", ["bottom_2d", "top_2d"], LINES, n=3),
+        planar(d),
+    ),
+    "a face filled between lines of other points": lambda d: (
+        operation(d, "fill_between", ["bottom", "top_2d"], LINES, n=3),
+        planar(d),
+    ),
+    "runouts of a rectangle": lambda d: (
+        operation(
+            d,
+            "add_runouts",
+            ["face"],
+            [RECTANGLE],
+            values=[0.2],
+            axis="y",
+            centerpoint=[1.5, 0.5],
+            normalize=True,
+        ),
+        planar(d),
+    ),
+    "runouts with values of the wrong number": lambda d: (
+        operation(d, "add_runouts", ["face"], [RECTANGLE], values=[0.1, 0.1], axis="y"),
+        planar(d),
     ),
     "an operation of a later mesh": lambda d: (
         operation(d, "translate", ["block"], move=1, axis="x"),

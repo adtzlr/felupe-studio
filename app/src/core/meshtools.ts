@@ -126,9 +126,15 @@ export function dimensions(
       continue;
     }
     const inputs = (c.inputs ?? []).map((name) => result.get(name));
-    if (!inputs.length || inputs.some((d) => !d)) continue;
+    // inputs of the same cells and points, and an output of up to 3D points with
+    // at least the dimension of its cells
+    const same = (d?: MeshDimension) =>
+      d?.cell_type === inputs[0]?.cell_type && d?.points === inputs[0]?.points;
+    if (!inputs.length || inputs.some((d) => !d) || !inputs.every(same))
+      continue;
     const made = output(rule, inputs[0]!);
-    if (made && made.points <= 3) result.set(c.name, made);
+    if (made && made.cells <= made.points && made.points <= 3)
+      result.set(c.name, made);
   }
   return result;
 }
@@ -144,23 +150,53 @@ export function inputProblems(
   const rule = TOOLS.get(command.tool)?.dimension;
   if (!rule || !isOperation(rule)) return [];
   const inputs = (command as { inputs?: string[] }).inputs ?? [];
-  return inputs.flatMap((name) => {
-    const dimension = known.get(name);
-    if (!dimension) return [];
-    const made = output(rule, dimension);
-    if (!made) {
-      const types = Object.keys(rule.cell_type);
-      const names = `${types.slice(0, -1).join(", ")} or ${types.at(-1)}`;
-      return [
-        `${command.tool} needs a mesh of ${names} cells; '${name}' has ${dimension.cell_type} cells.`,
-      ];
-    }
-    if (made.points > 3)
-      return [
-        `${command.tool} of '${name}' would need ${made.points}D points; its points are ${dimension.points}D.`,
-      ];
-    return axisProblems(command, name, dimension, made);
+  const problems = sameInputs(command.tool, inputs, known);
+  return problems.concat(
+    inputs.flatMap((name) => {
+      const dimension = known.get(name);
+      if (!dimension) return [];
+      const made = output(rule, dimension);
+      if (!made) {
+        const types = Object.keys(rule.cell_type);
+        const names = `${types.slice(0, -1).join(", ")} or ${types.at(-1)}`;
+        return [
+          `${command.tool} needs a mesh of ${names} cells; '${name}' has ${dimension.cell_type} cells.`,
+        ];
+      }
+      if (made.points > 3)
+        return [
+          `${command.tool} of '${name}' would need ${made.points}D points; its points are ${dimension.points}D.`,
+        ];
+      if (made.points < made.cells)
+        return [
+          `${command.tool} of '${name}' needs ${made.cells}D points; its points are ${dimension.points}D: embed it first.`,
+        ];
+      return axisProblems(command, name, dimension, made);
+    }),
+  );
+}
+
+/**
+ * The inputs of an operation of several meshes have the same cell type and the
+ * same dimension of their points.
+ */
+function sameInputs(
+  tool: string,
+  names: readonly string[],
+  known: ReadonlyMap<string, MeshDimension>,
+): string[] {
+  const inputs = names.flatMap((name) => {
+    const d = known.get(name);
+    return d ? [[name, d] as const] : [];
   });
+  const kinds = new Set(inputs.map(([, d]) => `${d.cell_type} ${d.points}`));
+  if (kinds.size < 2) return [];
+  const meshes = inputs
+    .map(
+      ([name, d]) => `'${name}' ${d.cell_type} cells with ${d.points}D points`,
+    )
+    .join(", ");
+  return [`${tool} needs meshes of the same cells and points: ${meshes}.`];
 }
 
 /**
@@ -176,6 +212,8 @@ function axisProblems(
   const parameters = command.parameters as {
     axis?: string;
     center?: unknown[];
+    centerpoint?: unknown[];
+    values?: unknown[];
   };
   const problems: string[] = [];
   const { axis } = parameters;
@@ -190,11 +228,20 @@ function axisProblems(
     AXES.indexOf(axis) >= points
   )
     problems.push(`'${name}' has ${points}D points, without the axis ${axis}.`);
-  const { center } = parameters;
-  if (center !== undefined && center.length !== points)
+  for (const key of ["center", "centerpoint"] as const) {
+    const center = parameters[key];
+    if (center !== undefined && center.length !== points)
+      problems.push(
+        `the ${key} needs ${points} coordinates, one per dimension of the points of '${name}'.`,
+      );
+  }
+  const { values } = parameters;
+  if (command.tool === "add_runouts" && values?.length !== points - 1) {
+    const count = points === 2 ? "1 value" : `${points - 1} values`;
     problems.push(
-      `the center needs ${points} coordinates, one per dimension of the points of '${name}'.`,
+      `'${name}' has ${points}D points: the runouts need ${count}, one per coordinate perpendicular to the axis.`,
     );
+  }
   return problems;
 }
 

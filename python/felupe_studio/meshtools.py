@@ -90,10 +90,13 @@ def dimensions(commands):
             result[c["name"]] = dict(rule)
             continue
         inputs = [result.get(name) for name in c.get("inputs", [])]
-        if inputs and all(inputs):
-            made = output(rule, inputs[0])
-            if made is not None and made["points"] <= 3:
-                result[c["name"]] = made
+        # inputs of the same cells and points, and an output of up to 3D points
+        # with at least the dimension of its cells
+        if not inputs or not all(inputs) or any(d != inputs[0] for d in inputs):
+            continue
+        made = output(rule, inputs[0])
+        if made is not None and made["cells"] <= made["points"] <= 3:
+            result[c["name"]] = made
     return result
 
 
@@ -141,7 +144,7 @@ def input_problems(command, known):
     if "inputs" not in rule:
         return []
     label = command["tool"]
-    problems = []
+    problems = _same_inputs(command, known)
     for name in command.get("inputs", []):
         dimension = known.get(name)
         if dimension is None:
@@ -159,9 +162,29 @@ def input_problems(command, known):
                 f"{label} of '{name}' would need {made['points']}D points; its "
                 f"points are {dimension['points']}D."
             )
+        elif made["points"] < made["cells"]:
+            problems.append(
+                f"{label} of '{name}' needs {made['cells']}D points; its points are "
+                f"{dimension['points']}D: embed it first."
+            )
         else:
             problems.extend(_axis_problems(command, name, dimension, made))
     return problems
+
+
+def _same_inputs(command, known):
+    """The inputs of an operation of several meshes have the same cell type and the
+    same dimension of their points."""
+    inputs = [
+        (name, known[name]) for name in command.get("inputs", []) if name in known
+    ]
+    if len({(d["cell_type"], d["points"]) for _, d in inputs}) < 2:
+        return []
+    meshes = ", ".join(
+        f"'{name}' {d['cell_type']} cells with {d['points']}D points"
+        for name, d in inputs
+    )
+    return [f"{command['tool']} needs meshes of the same cells and points: {meshes}."]
 
 
 def _axis_problems(command, name, dimension, made):
@@ -179,11 +202,19 @@ def _axis_problems(command, name, dimension, made):
         axis is not None and command["tool"] != "rotate" and AXES.index(axis) >= points
     ):
         problems.append(f"'{name}' has {points}D points, without the axis {axis}.")
-    center = parameters.get("center")
-    if center is not None and len(center) != points:
+    for key in ("center", "centerpoint"):
+        center = parameters.get(key)
+        if center is not None and len(center) != points:
+            problems.append(
+                f"the {key} needs {points} coordinates, one per dimension of the "
+                f"points of '{name}'."
+            )
+    values = parameters.get("values")
+    if command["tool"] == "add_runouts" and len(values) != points - 1:
+        count = "1 value" if points == 2 else f"{points - 1} values"
         problems.append(
-            f"the center needs {points} coordinates, one per dimension of the points "
-            f"of '{name}'."
+            f"'{name}' has {points}D points: the runouts need {count}, one per "
+            "coordinate perpendicular to the axis."
         )
     return problems
 

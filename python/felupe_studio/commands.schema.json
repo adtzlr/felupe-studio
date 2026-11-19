@@ -313,6 +313,12 @@
         },
         {
           "$ref": "#/$defs/MeshMirror"
+        },
+        {
+          "$ref": "#/$defs/MeshFillBetween"
+        },
+        {
+          "$ref": "#/$defs/MeshAddRunouts"
         }
       ]
     },
@@ -895,6 +901,137 @@
               "description": "The coordinate of the plane on the axis.",
               "type": ["number", "string"],
               "default": 0
+            }
+          }
+        }
+      }
+    },
+    "MeshFillBetween": {
+      "description": "Fill the cells between two meshes of the same cells and points (fem.mesh.fill_between): quads between two lines in a plane, hexahedrons between two quad meshes in space, with n points from the first mesh to the second.",
+      "x-label": "Fill between",
+      "x-group": "Operations",
+      "x-felupe": "fem.mesh.fill_between",
+      "x-dimension": {
+        "inputs": 2,
+        "cell_type": {
+          "line": "quad",
+          "quad": "hexahedron"
+        },
+        "points": 0
+      },
+      "type": "object",
+      "required": ["command", "name", "tool", "inputs", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "mesh.generate"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "tool": {
+          "const": "fill_between"
+        },
+        "inputs": {
+          "description": "The two meshes made by tools before, from the first to the second, of the same cell type and number of points, e.g. two lines embedded in a plane.",
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/Name"
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["n"],
+          "additionalProperties": false,
+          "properties": {
+            "n": {
+              "x-label": "n",
+              "description": "The number of points from the first mesh to the second (at least 2).",
+              "type": ["integer", "string"],
+              "minimum": 2,
+              "default": 11
+            }
+          }
+        }
+      }
+    },
+    "MeshAddRunouts": {
+      "description": "Add runouts to a mesh (mesh.add_runouts), e.g. the concave free surfaces of a rubber body between metal parts: the points move perpendicular to the axis by a relative amount, most at the centerpoint.",
+      "x-label": "Add runouts",
+      "x-group": "Operations",
+      "x-felupe": ".add_runouts",
+      "x-dimension": {
+        "inputs": 1,
+        "cell_type": "same",
+        "points": 0
+      },
+      "type": "object",
+      "required": ["command", "name", "tool", "inputs", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "mesh.generate"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "tool": {
+          "const": "add_runouts"
+        },
+        "inputs": {
+          "description": "The mesh that the tool takes: a mesh made by a tool before.",
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "$ref": "#/$defs/Name"
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["values", "axis"],
+          "additionalProperties": false,
+          "properties": {
+            "values": {
+              "x-label": "values",
+              "description": "The relative amount of the runouts, one per coordinate perpendicular to the axis (one of 2D points, two of 3D points).",
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 2,
+              "items": {
+                "type": ["number", "string"]
+              },
+              "default": [0.1]
+            },
+            "axis": {
+              "x-label": "axis",
+              "description": "The axis of the runouts.",
+              "$ref": "#/$defs/Axis",
+              "default": "x"
+            },
+            "centerpoint": {
+              "x-label": "centerpoint",
+              "x-quantity": "length",
+              "description": "The center of the runouts, one coordinate per dimension of the points (default: the origin).",
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 3,
+              "items": {
+                "type": ["number", "string"]
+              }
+            },
+            "exponent": {
+              "x-label": "exponent",
+              "description": "The shape of the runouts: the higher, the steeper the transition (default 5).",
+              "type": ["number", "string"],
+              "exclusiveMinimum": 0
+            },
+            "normalize": {
+              "x-label": "normalize",
+              "description": "Keep the shape of the ends, the runouts become indents.",
+              "type": "boolean"
             }
           }
         }
