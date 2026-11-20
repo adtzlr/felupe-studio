@@ -12,7 +12,7 @@
   "accent": "#f08c3a",
   "welcome": "The example brand of FElupe Studio: a name, a logo and samples of its own, and Pyodide served with the app.",
   "links": {
-    "help": "https://github.com/adtzlr/felupe-studio/blob/main/brands/README.md",
+    "help": "https://github.com/adtzlr/felupe-studio/blob/main/docs/deployment.md",
     "issues": "https://github.com/adtzlr/felupe-studio/issues/new",
     "source": "https://github.com/adtzlr/felupe-studio/tree/main/brands/example"
   },
