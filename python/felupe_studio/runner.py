@@ -335,6 +335,17 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
     sections = [
         c["name"] for c in document["commands"] if c["command"] == "section.add"
     ]
+    # the sections whose material has the Mullins effect (#346)
+    softened = {
+        c["name"]
+        for c in document["commands"]
+        if c["command"] == "material.add" and "mullins" in c
+    }
+    mullins = [
+        c["name"]
+        for c in document["commands"]
+        if c["command"] == "section.add" and c["material"] in softened
+    ]
     # the control points and the reference points of the rigid surfaces (#219)
     points = [
         c["name"]
@@ -344,7 +355,7 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
     settings = [c for c in document["commands"] if c["command"] == "model.settings"]
     units = settings[0].get("units") if settings else None
     single = bool(settings) and settings[0].get("precision") == "single"
-    results_.reset(namespace, sections, points, units)
+    results_.reset(namespace, sections, points, units, mullins)
 
     commands = {c["name"]: c for c in document["commands"] if c["command"] == "job.add"}
     jobs = list(commands)

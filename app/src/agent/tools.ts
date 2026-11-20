@@ -61,6 +61,7 @@ const QUANTITIES: readonly Quantity[] = [
   "stress_min",
   "stress_mises",
   "plastic_strain",
+  "mullins_energy",
 ];
 const METHODS: readonly ValuesMethod[] = [
   "cells",

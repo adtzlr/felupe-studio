@@ -219,7 +219,12 @@ export type Quantity =
   | "stress_min"
   | "stress_mises"
   /** The equivalent plastic strain of an elastic-plastic material (#191). */
-  | "plastic_strain";
+  | "plastic_strain"
+  /**
+   * The maximum strain energy density of the load history of a material with the
+   * Mullins effect (#346).
+   */
+  | "mullins_energy";
 
 /**
  * The method of the values of the strains and the stresses (#231,

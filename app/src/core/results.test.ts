@@ -191,4 +191,23 @@ describe("quantities of the contour", () => {
       "plastic_strain",
     );
   });
+
+  it("has the maximum strain energy density with the Mullins effect (#346)", () => {
+    const material = (extra: object) =>
+      [
+        {
+          command: "material.add",
+          name: "m",
+          model: "NeoHooke",
+          parameters: { mu: 1 },
+          ...extra,
+        },
+      ] as unknown as Command[];
+    expect(ids(material({}))).not.toContain("mullins_energy");
+    const mullins = { mullins: { r: 3, m: 0.2, beta: 0.1 } };
+    expect(ids(material(mullins)).at(-1)).toBe("mullins_energy");
+    expect(ids(material(mullins))).not.toContain("plastic_strain");
+    const groups = quantityGroups(material(mullins)).map((g) => g.label);
+    expect(groups.at(-1)).toBe("Mullins effect");
+  });
 });

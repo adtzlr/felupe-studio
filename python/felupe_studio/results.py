@@ -43,7 +43,13 @@ QUANTITIES = {
     "stress_min": ("stress", 2, "Min. principal Cauchy stress"),
     "stress_mises": ("mises", 0, "Von Mises equivalent Cauchy stress"),
     "plastic_strain": ("plastic", 0, "Equivalent plastic strain"),
+    "mullins_energy": ("mullins", 0, "Max. strain energy density"),
 }
+
+# the state variables as quantities, the first one of a material: the equivalent
+# plastic strain of an elastic-plastic material (#191) and the maximum strain energy
+# density of the load history of the Mullins effect (#346)
+STATE_VARIABLES = ("plastic", "mullins")
 
 # the methods of the values of the strains and the stresses (#231): the means of the
 # quadrature points of every cell, or at the points: the means of the cells averaged
@@ -87,15 +93,17 @@ LINEAR = {
 _state = {"namespace": None, "sections": [], "records": {}, "surfaces": {}}
 
 
-def reset(namespace, sections, points=(), units=None):
+def reset(namespace, sections, points=(), units=None, mullins=()):
     """Start the results of a run: the namespace of its script, the names of the
-    sections and the names of the control points, and the units of the model (the
-    ``units`` of its settings, #132) for the headers of the exports."""
+    sections and the names of the control points, the units of the model (the
+    ``units`` of its settings, #132) for the headers of the exports and the names of
+    the sections whose material has the Mullins effect (#346)."""
     _state.update(
         namespace=namespace,
         sections=list(sections),
         points=list(points),
         units=units,
+        mullins=set(mullins),
         records={},
         statevars={},
         controls={},
@@ -151,6 +159,19 @@ def _plastic(section):
     solid = _state["namespace"][f"solid_{section}"]
     umat = getattr(solid, "umat", None)
     return isinstance(umat, fem.MaterialStrain) and umat.nstatevars > 0
+
+
+def _mullins(section):
+    """True if the material of a section has the Mullins effect (#346): its first
+    state variable is the maximum strain energy density of the load history, also in
+    a ``fem.CompositeMaterial`` with a ``fem.Volumetric`` after it or in a nearly
+    incompressible solid body."""
+    return section in _state.get("mullins", ())
+
+
+def _has(kind, section):
+    """True if the material of a section has a state variable as a quantity."""
+    return _plastic(section) if kind == "plastic" else _mullins(section)
 
 
 # the items of the steps whose forces act on the control points: the multi-point
@@ -357,17 +378,19 @@ def shift():
 
 
 def _quadrature_data(kind, section):
-    """Return the strains, the stresses or the equivalent plastic strain of a section
-    of the current values of the fields at the quadrature points: the components (the
+    """Return the strains, the stresses or a state variable of a section of the
+    current values of the fields at the quadrature points: the components (the
     principal values, or the von Mises equivalent), the quadrature points and the
     cells as axes."""
     namespace = _state["namespace"]
     field = namespace[f"field_{section}"]
     if kind == "strain":
         return field.evaluate.strain(tensor=False)
-    if kind == "plastic":
-        # the equivalent plastic strain (#191), zero without plasticity
-        if _plastic(section):
+    if kind in STATE_VARIABLES:
+        # the first state variable of the material: the equivalent plastic strain
+        # (#191) or the maximum strain energy density of the Mullins effect (#346),
+        # zero in sections of other materials
+        if _has(kind, section):
             return namespace[f"solid_{section}"].results.statevars[:1]
         region = field[0].region
         return np.zeros((1, region.quadrature.npoints, region.mesh.ncells))
@@ -397,14 +420,15 @@ UPPER = np.triu_indices(3)
 
 
 def _point_data(kind, section, method):
-    """Return the strains, the stresses or the equivalent plastic strain of a section
-    at its points (#231): the tensors are moved to the points, then their invariants
+    """Return the strains, the stresses or a state variable of a section at its
+    points (#231): the tensors are moved to the points, then their invariants
     are evaluated there (#274), so the von Mises stress is never negative and the
     principal values are those of the tensor at a point. The invariants of the
     quadrature points would overshoot and undershoot by a projection, e.g. a negative
-    von Mises stress next to a soft region. The equivalent plastic strain, a state
-    variable, is moved itself and clipped at zero."""
-    if kind == "plastic":
+    von Mises stress next to a soft region. A state variable, the equivalent plastic
+    strain or the maximum strain energy density, is moved itself and clipped at
+    zero."""
+    if kind in STATE_VARIABLES:
         return np.maximum(_reduce(_quadrature_data(kind, section), section, method), 0)
     tensor = _quadrature_tensor(kind, section)
     data = _at(tensor[UPPER], section, method)
@@ -718,6 +742,9 @@ def _export_data(used, method="cells"):
     if any(_plastic(section) for section in _state["sections"]):
         # the equivalent plastic strain (#191)
         exported["Equivalent Plastic Strain"] = "plastic"
+    if any(_mullins(section) for section in _state["sections"]):
+        # the maximum strain energy density of the Mullins effect (#346)
+        exported["Maximum Strain Energy Density"] = "mullins"
     cell_data = {name: [] for name in exported}
     sums = {name: 0.0 for name in exported}
     count = np.zeros(len(field[0].values))
@@ -768,7 +795,8 @@ def export(job, file_format, substep=None, method="cells"):
     strain and of the Cauchy stress and the von Mises equivalent of the Cauchy
     stress (the means of the quadrature points of every cell, like
     :class:`felupe.ViewSolid`), the equivalent plastic strain of a model with
-    plasticity (#191) and the index of the section. With a method at the points,
+    plasticity (#191), the maximum strain energy density of a model with the Mullins
+    effect (#346) and the index of the section. With a method at the points,
     the strains and the stresses are point data too.
     """
     import meshio
