@@ -76,6 +76,7 @@ cd app && BRAND_DIR=~/my-brand npm run build   # or npm run dev
     "source": "https://gitlab.acme.example/fem/brand"
   },
   "samples": "samples",
+  "pyodide": "self-hosted",
   "defaults": { "units": { "length": "mm", "force": "N" } }
 }
 ```
@@ -85,6 +86,7 @@ cd app && BRAND_DIR=~/my-brand npm run build   # or npm run dev
 - `storage` is the prefix of the browser storage of the app (lowercase letters, digits, `.`, `_` and `-`): the keys `<storage>.<name>` of `localStorage` and `sessionStorage`, the session `<storage>` in IndexedDB, the bytecode cache `/<storage>-pycache` and the cache `<storage>-runtime-v1` of the service worker. So two brands on one origin keep their data apart, e.g. two folders of the Pages of one GitLab group. `felupe-studio` is the prefix of FElupe Studio, with the names of today (and its bytecode cache `/pycache`).
 - `accent` is the accent color of the app; without it, that of FElupe Studio. `welcome` is the text below the title of the welcome panel.
 - `samples` is the folder of the samples of the brand, relative to the brand folder (see *Samples*); without it, the brand has no samples. `SAMPLES_DIR` beside `BRAND_DIR` is an error, so the brand folder is the whole configuration of a deployment.
+- `pyodide` is where the app loads Pyodide from: `cdn` (`cdn.jsdelivr.net`, the default) or `self-hosted`, for a deployment without internet access or without third-party hosts. With `self-hosted`, the build copies Pyodide into `pyodide/v<version>/` of the app (about 30 MB): the core of the npm package `pyodide`, which `package.json` pins, and the packages that the worker loads (NumPy, SciPy, rich and their dependencies in `pyodide-lock.json`). It downloads the packages once into `app/node_modules/.cache/pyodide` and checks them against the SHA-256 of the lock file, so only the build needs internet access; behind a proxy, Node needs `NODE_USE_ENV_PROXY=1` for `HTTPS_PROXY`. The service worker caches a self-hosted Pyodide like that of the CDN. Where the CDN is reachable, keep it: the browser of a user loads the same files either way, and the deployment stays small. The wheel leaves a self-hosted Pyodide out, since `serve` runs CPython.
 - `defaults.units` are the units of the model settings of a new model.
 - The schema `app/src/vite/brand.schema.json` checks the file, and an invalid brand fails the build with a message that starts with *The brand of &lt;folder&gt;:*.
 - The build copies the logo and the icons to `brand/`, writes `manifest.webmanifest` (the names, the icons, the colors of the app) and writes the brand into `index.html`: the title, the favicon, the links of the manifest and of the icon for the home screen, the theme color, the accent color and a JSON block (`<script type="application/json" id="brand">`), which the app reads (`app/src/brand.ts`). *Help ▸ About* of a brand says that it is based on FElupe Studio and its version, with the license of FElupe Studio and the source of the brand.

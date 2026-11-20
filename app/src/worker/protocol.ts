@@ -300,6 +300,8 @@ export type ToWorker =
   | {
       type: "init";
       pyodideVersion: string;
+      /** The folder of Pyodide: of the CDN, or self-hosted (ADR 0020). */
+      indexURL: string;
       wheels: string[];
       /** Wheels loaded when they are needed, by name (e.g. tensortrax). */
       lazyWheels?: Record<string, string>;

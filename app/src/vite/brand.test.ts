@@ -125,6 +125,9 @@ describe("a brand folder (ADR 0020)", () => {
         folder({ ...acme, links: { ...acme.links, help: "javascript:x" } }),
       ),
     ).toThrow("/links/help: must match pattern");
+    expect(() => readBrand(folder({ ...acme, pyodide: "local" }))).toThrow(
+      "/pyodide: must be equal to one of the allowed values",
+    );
   });
 
   it("has the units of the model settings", () => {
@@ -169,6 +172,11 @@ describe("the plugin of the brand", () => {
     const page = JSON.parse(transform(withSamples).tags[0].children);
     expect(page).not.toHaveProperty("samples");
     expect(page).not.toHaveProperty("$schema");
+    // the app loads Pyodide from where the brand says
+    const selfHosted = { ...acme, pyodide: "self-hosted" as const };
+    expect(JSON.parse(transform(selfHosted).tags[0].children).pyodide).toBe(
+      "self-hosted",
+    );
     const style = tags.find((t) => t.tag === "style")!;
     expect(style.children).toContain("--color-accent: #ffcc00;");
     expect(style.children).toContain("--color-on-accent: #0b1220;");

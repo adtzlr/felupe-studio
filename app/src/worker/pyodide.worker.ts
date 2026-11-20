@@ -4,6 +4,7 @@
 // the local runtime of `felupe-studio serve`, and their arrays are transferred.
 import type { PyodideInterface } from "pyodide";
 import type { PyCallable, PyProxy } from "pyodide/ffi";
+import { PACKAGES } from "../pyodide";
 import { encodeFrame, restore } from "./frames";
 import { toWorkerMessage, transfers } from "./messages";
 import {
@@ -55,13 +56,14 @@ function python(): PyodideInterface {
 
 async function init(
   pyodideVersion: string,
+  indexURL: string,
   wheels: string[],
   lazy: Record<string, string> = {},
   folder = CACHE,
 ) {
   lazyWheels = lazy;
   const t0 = performance.now();
-  const indexURL = `https://cdn.jsdelivr.net/pyodide/v${pyodideVersion}/full/`;
+  // the CDN, or the copy of the build of a brand (ADR 0020)
   const { loadPyodide } = (await import(
     /* @vite-ignore */ `${indexURL}pyodide.mjs`
   )) as typeof import("pyodide");
@@ -77,8 +79,7 @@ async function init(
   );
   // the folder of the cache of the brand (ADR 0020)
   const opened = openCache(fs, key, globalThis.indexedDB, folder);
-  // rich is a dependency of meshio
-  await py.loadPackage(["numpy", "scipy", "rich"]);
+  await py.loadPackage(PACKAGES);
   const cache: CacheState = await opened;
 
   // the pure-Python wheels (FElupe, meshio) are served by the app itself (#40)
@@ -210,6 +211,7 @@ ctx.onmessage = async (event: MessageEvent<ToWorker>) => {
     if (message.type === "init")
       return await init(
         message.pyodideVersion,
+        message.indexURL,
         message.wheels,
         message.lazyWheels,
         message.cache,

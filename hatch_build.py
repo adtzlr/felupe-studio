@@ -2,13 +2,13 @@
 0014) and the MCP server.
 
 ``npm run build`` in ``app/`` makes ``app/dist``. The wheel gets it as
-``felupe_studio/data/app``, without the wheels of Pyodide (the local runtime does
-not load Pyodide) and without the samples. The samples are
-``felupe_studio/data/samples``: those of the build (``app/dist/samples``, the folder
-of ``SAMPLES_DIR`` or ``app/samples``, #350), else ``app/samples``. The server serves
-them and makes their list, and the MCP server offers them. Without a built app the
-wheel has no app, unless ``FELUPE_STUDIO_REQUIRE_APP`` is set (a release): then the
-build fails.
+``felupe_studio/data/app``, without the wheels of Pyodide and a self-hosted Pyodide
+(the local runtime does not load Pyodide, ADR 0020) and without the samples. The
+samples are ``felupe_studio/data/samples``: those of the build
+(``app/dist/samples``, the folder of ``SAMPLES_DIR`` or ``app/samples``, #350), else
+``app/samples``. The server serves them and makes their list, and the MCP server
+offers them. Without a built app the wheel has no app, unless
+``FELUPE_STUDIO_REQUIRE_APP`` is set (a release): then the build fails.
 """
 
 import os
@@ -16,7 +16,7 @@ from pathlib import Path
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
 
-LEFT_OUT = ("wheels", "samples")
+LEFT_OUT = ("wheels", "pyodide", "samples")
 """The folders of the built app that the wheel leaves out of its app."""
 
 

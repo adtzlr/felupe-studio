@@ -29,6 +29,8 @@ export interface Brand {
   };
   /** The folder of the samples, relative to the brand folder (the build reads it). */
   samples?: string;
+  /** Pyodide from the CDN (the default), or copied into the build (src/pyodide.ts). */
+  pyodide?: "cdn" | "self-hosted";
   defaults?: {
     /** The units of the model settings of a new model (#132). */
     units?: { length: "mm" | "m"; force: "N" | "kN" };

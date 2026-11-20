@@ -2,6 +2,7 @@ import { defineConfig } from "vitest/config";
 import pkg from "./package.json" with { type: "json" };
 import { fileURLToPath } from "node:url";
 import { brand, brandOptions, pageBrand } from "./src/vite/brand";
+import { pyodide } from "./src/vite/pyodide";
 import { samples } from "./src/vite/samples";
 
 // pure-Python wheels served from public/wheels (#40); the FElupe version must match
@@ -22,10 +23,9 @@ const LAZY_WHEELS = Object.fromEntries(
 const FELUPE_VERSION = pkg.config.wheels.felupe.version;
 
 // the brand of the build (ADR 0020): BRAND_DIR, else app/brand (FElupe Studio)
-const BRAND = brandOptions(
-  process.env,
-  fileURLToPath(new URL(".", import.meta.url)),
-);
+const ROOT = fileURLToPath(new URL(".", import.meta.url));
+const BRAND = brandOptions(process.env, ROOT);
+const PYODIDE_VERSION = pkg.devDependencies.pyodide;
 
 // the build, e.g. the commit on GitHub Pages; written to version.json, so that an
 // open app finds out about a newer deployment
@@ -37,7 +37,7 @@ export default defineConfig({
   base: "./",
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
-    __PYODIDE_VERSION__: JSON.stringify(pkg.devDependencies.pyodide),
+    __PYODIDE_VERSION__: JSON.stringify(PYODIDE_VERSION),
     __FELUPE_VERSION__: JSON.stringify(FELUPE_VERSION),
     __WHEELS__: JSON.stringify(WHEELS),
     __LAZY_WHEELS__: JSON.stringify(LAZY_WHEELS),
@@ -48,6 +48,13 @@ export default defineConfig({
     // the brand in the pages (ADR 0020), and its samples or SAMPLES_DIR (#350)
     brand(BRAND),
     samples(BRAND.samples),
+    // Pyodide of the CDN, or copied into the build (ADR 0020)
+    pyodide({
+      source: BRAND.brand.pyodide ?? "cdn",
+      version: PYODIDE_VERSION,
+      dir: `${ROOT}node_modules/pyodide`,
+      cache: `${ROOT}node_modules/.cache/pyodide`,
+    }),
     {
       name: "version-file",
       apply: "build",
