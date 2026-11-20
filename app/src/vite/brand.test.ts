@@ -1,4 +1,4 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -9,7 +9,9 @@ import {
   brand,
   BrandError,
   brandOptions,
+  manifest,
   onAccent,
+  pngSize,
   readBrand,
 } from "./brand";
 import schema from "./brand.schema.json";
@@ -17,13 +19,18 @@ import schema from "./brand.schema.json";
 const APP = resolve(__dirname, "../..");
 const REPOSITORY = "https://github.com/adtzlr/felupe-studio";
 
-/** A brand folder with a brand.json. */
-function folder(value: unknown): string {
+const LOGO = readFileSync(join(APP, "brand", "logo.svg"));
+const ICON = readFileSync(join(APP, "brand", "icon-192.png"));
+
+/** A brand folder with a brand.json, a logo and other files. */
+function folder(value: unknown, files: Record<string, Buffer | string> = {}) {
   const dir = mkdtempSync(join(tmpdir(), "brand-"));
   writeFileSync(
     join(dir, "brand.json"),
     typeof value === "string" ? value : JSON.stringify(value),
   );
+  for (const [name, data] of Object.entries({ "logo.svg": LOGO, ...files }))
+    writeFileSync(join(dir, name), data);
   return dir;
 }
 
@@ -31,6 +38,7 @@ const acme: Brand = {
   brand_version: 1,
   name: "ACME FEM",
   short_name: "ACME",
+  logo: "logo.svg",
   accent: "#ffcc00",
   links: {
     help: "https://fem.acme.example/help",
@@ -122,7 +130,7 @@ describe("a brand folder (ADR 0020)", () => {
 
 describe("the plugin of the brand", () => {
   const transform = (value: Brand, filename = "/app/index.html") => {
-    const hook = brand(value).transformIndexHtml as {
+    const hook = brand({ dir: "/acme", brand: value }).transformIndexHtml as {
       handler: (
         html: string,
         context: { filename: string },
@@ -161,7 +169,7 @@ describe("the plugin of the brand", () => {
 
   it("keeps the colors of the theme without an accent", () => {
     const { tags } = transform({ ...acme, accent: undefined });
-    expect(tags.map((t) => t.tag)).toEqual(["script"]);
+    expect(tags.some((t) => t.tag === "style")).toBe(false);
   });
 
   it("writes readable text on the accent color", () => {
@@ -171,5 +179,97 @@ describe("the plugin of the brand", () => {
     expect(accentCss("#0b3d91")).toContain(
       "--color-accent-soft: color-mix(in srgb, #0b3d91 18%, transparent);",
     );
+  });
+
+  it("links the logo, the icons and the manifest", () => {
+    const { tags } = transform({
+      ...acme,
+      icons: { "192": "a.png", "512": "b.png" },
+    });
+    const links = tags
+      .filter((t) => t.tag === "link")
+      .map((t) => t.attrs as { rel: string; href: string });
+    expect(links).toEqual([
+      { rel: "icon", href: "brand/logo.svg", type: "image/svg+xml" },
+      { rel: "apple-touch-icon", href: "brand/icon-192.png" },
+      { rel: "manifest", href: "manifest.webmanifest" },
+    ]);
+    // the page knows the URL of the logo, not the files of the brand folder
+    const page = JSON.parse(tags[0].children);
+    expect(page.logo).toBe("brand/logo.svg");
+    expect(page).not.toHaveProperty("icons");
+    // without icons, no icon for the home screen
+    const plain = transform(acme).tags.filter((t) => t.tag === "link");
+    expect(plain.map((t) => (t.attrs as { rel: string }).rel)).toEqual([
+      "icon",
+      "manifest",
+    ]);
+  });
+
+  it("copies the logo and the icons and writes the manifest", () => {
+    const icons = { "192": "icon-192.png", "512": "icon-512.png" };
+    const dir = folder(
+      { ...acme, icons },
+      {
+        "icon-192.png": ICON,
+        "icon-512.png": readFileSync(join(APP, "brand", "icon-512.png")),
+      },
+    );
+    const value = readBrand(dir);
+    const plugin = brand({ dir, brand: value });
+    const emitted: { fileName: string; source: unknown }[] = [];
+    (plugin.generateBundle as (this: unknown) => void).call({
+      emitFile: (file: { fileName: string; source: unknown }) =>
+        emitted.push(file),
+    });
+    expect(emitted.map((f) => f.fileName)).toEqual([
+      "brand/logo.svg",
+      "brand/icon-192.png",
+      "brand/icon-512.png",
+      "manifest.webmanifest",
+    ]);
+    expect(JSON.parse(String(emitted.at(-1)!.source))).toEqual({
+      name: "ACME FEM",
+      short_name: "ACME",
+      start_url: ".",
+      scope: ".",
+      display: "standalone",
+      background_color: "#1b1f27",
+      theme_color: "#171a21",
+      icons: [
+        { src: "brand/logo.svg", sizes: "any", type: "image/svg+xml" },
+        { src: "brand/icon-192.png", sizes: "192x192", type: "image/png" },
+        { src: "brand/icon-512.png", sizes: "512x512", type: "image/png" },
+      ],
+    });
+    expect(manifest(acme)).toHaveProperty("icons", [
+      { src: "brand/logo.svg", sizes: "any", type: "image/svg+xml" },
+    ]);
+  });
+
+  it("checks the logo and the icons", () => {
+    expect(() => readBrand(folder({ ...acme, logo: "missing.svg" }))).toThrow(
+      "it has no logo missing.svg.",
+    );
+    expect(() =>
+      readBrand(
+        folder({ ...acme, logo: "logo.svg" }, { "logo.svg": "<html>" }),
+      ),
+    ).toThrow("the logo logo.svg is no SVG.");
+    const icons = { "192": "small.png", "512": "large.png" };
+    expect(() => readBrand(folder({ ...acme, icons }))).toThrow(
+      "it has no icon small.png.",
+    );
+    expect(() =>
+      readBrand(
+        folder({ ...acme, icons }, { "small.png": ICON, "large.png": ICON }),
+      ),
+    ).toThrow("the icon large.png has 192 × 192 px instead of 512 × 512 px.");
+    expect(() =>
+      readBrand(
+        folder({ ...acme, icons }, { "small.png": LOGO, "large.png": ICON }),
+      ),
+    ).toThrow("the icon small.png is no PNG.");
+    expect(pngSize(ICON)).toEqual([192, 192]);
   });
 });

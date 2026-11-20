@@ -10,6 +10,10 @@ export interface Brand {
   brand_version: 1;
   name: string;
   short_name: string;
+  /** The logo (SVG): in brand.json relative to the brand folder, in the page its URL. */
+  logo: string;
+  /** The icons of the manifest (PNG of 192 and 512 px); the build copies them. */
+  icons?: { "192": string; "512": string };
   /** The accent color, `#rrggbb` (the build sets the variables of the theme). */
   accent?: string;
   /** The text below the title of the welcome panel. */

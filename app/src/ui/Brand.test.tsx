@@ -16,6 +16,7 @@ const acme: Brand = {
   brand_version: 1,
   name: "ACME FEM",
   short_name: "ACME",
+  logo: "brand/logo.svg",
   welcome: "Simulate the rubber parts of ACME.",
   links: {
     help: "https://fem.acme.example/help",

@@ -65,6 +65,8 @@ cd app && BRAND_DIR=~/my-brand npm run build   # or npm run dev
   "brand_version": 1,
   "name": "ACME FEM",
   "short_name": "ACME",
+  "logo": "logo.svg",
+  "icons": { "192": "icon-192.png", "512": "icon-512.png" },
   "accent": "#e8590c",
   "welcome": "Simulate the rubber parts of ACME.",
   "links": {
@@ -77,12 +79,13 @@ cd app && BRAND_DIR=~/my-brand npm run build   # or npm run dev
 }
 ```
 
-- `name`, `short_name` and the links `help`, `issues` and `source` are required: a brand inherits no identity of FElupe Studio. `documentation` (*Help ▸ Command reference*) and `tutorial` (the welcome panel) are optional.
+- `name`, `short_name`, `logo` and the links `help`, `issues` and `source` are required: a brand inherits no identity of FElupe Studio. `documentation` (*Help ▸ Command reference*) and `tutorial` (the welcome panel) are optional.
+- `logo` is an SVG file of the brand folder: the header, the favicon and the manifest of an installed app. `icons` are PNG files of 192 × 192 and 512 × 512 px for an installed app; without them, the manifest has the logo only. `python app/scripts/make_icons.py <brand folder>` makes them from the logo, on the color of the bar of the app (with Playwright and Chromium, `CHROME` for another one).
 - `accent` is the accent color of the app; without it, that of FElupe Studio. `welcome` is the text below the title of the welcome panel.
 - `samples` is the folder of the samples of the brand, relative to the brand folder (see *Samples*); without it, the brand has no samples. `SAMPLES_DIR` beside `BRAND_DIR` is an error, so the brand folder is the whole configuration of a deployment.
 - `defaults.units` are the units of the model settings of a new model.
 - The schema `app/src/vite/brand.schema.json` checks the file, and an invalid brand fails the build with a message that starts with *The brand of &lt;folder&gt;:*.
-- The build writes the brand into `index.html`: the title, the accent color and a JSON block (`<script type="application/json" id="brand">`), which the app reads (`app/src/brand.ts`). *Help ▸ About* of a brand says that it is based on FElupe Studio and its version, with the license of FElupe Studio and the source of the brand.
+- The build copies the logo and the icons to `brand/`, writes `manifest.webmanifest` (the names, the icons, the colors of the app) and writes the brand into `index.html`: the title, the favicon, the links of the manifest and of the icon for the home screen, the theme color, the accent color and a JSON block (`<script type="application/json" id="brand">`), which the app reads (`app/src/brand.ts`). *Help ▸ About* of a brand says that it is based on FElupe Studio and its version, with the license of FElupe Studio and the source of the brand.
 
 ## Samples
 

@@ -46,7 +46,7 @@ export default defineConfig({
   },
   plugins: [
     // the brand in the pages (ADR 0020), and its samples or SAMPLES_DIR (#350)
-    brand(BRAND.brand),
+    brand(BRAND),
     samples(BRAND.samples),
     {
       name: "version-file",
