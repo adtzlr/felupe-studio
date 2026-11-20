@@ -1,0 +1,10 @@
+{
+  "title": "Bushing with the Mullins effect",
+  "description": "The bushing made with mesh tools in a filled rubber, which softens after its first loading (the Mullins effect, Ogden-Roxburgh). The inner sleeve is moved radially by 6 mm and back, by 6 mm again, which needs less force, and on to 9 mm, where the rubber is as stiff as at its first loading. The contour of the maximum strain energy density shows where the rubber is softened.",
+  "topics": [
+    "Mullins effect",
+    "load cycle",
+    "repeated steps",
+    "state variable"
+  ]
+}

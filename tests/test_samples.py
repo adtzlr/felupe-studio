@@ -350,6 +350,44 @@ def test_bushing_of_the_mesh_tools_like_the_script(monkeypatch):
     )
 
 
+def test_bushing_softens_after_its_first_loading(monkeypatch):
+    """The bushing with the Mullins effect (#346) in a radial load cycle: loaded to
+    6 mm, unloaded, loaded to 6 mm again and further to 9 mm. The reloading follows
+    the unloading (pseudo-elastic), needs less force below 6 mm, has the force of the
+    first loading at 6 mm and is on the curve of the first loading above it, like
+    the bushing loaded to 9 mm without the cycle. The maximum strain energy density
+    stays when it is unloaded and is zero in the sleeves."""
+    from felupe_studio import results
+
+    folder = folder_of("bushing-mullins")
+    document = loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
+    monkeypatch.chdir(folder)
+    result = run(document)["job"]
+    u, force = np.array(result["x"])[:, 2], np.array(result["y"])[:, 2]
+    # the substeps of load (0-6), unload (7-13), load (14-20) and further (21-24)
+    np.testing.assert_allclose(u[[3, 6, 10, 17, 20, 24]], [3, 6, 3, 3, 6, 9])
+    assert force[17] < 0.6 * force[3]
+    assert force[17] == pytest.approx(force[10], rel=1e-3)
+    assert force[20] == pytest.approx(force[6], rel=1e-3)
+
+    def energy(substep, section):
+        _, surfaces = results.scene("job", substep, "mullins_energy")
+        values = {s["name"]: np.frombuffer(s["values"], "<f4") for s in surfaces}
+        return values[section]
+
+    peak = energy(7, "soft_body").max()
+    assert peak > 0
+    assert energy(14, "soft_body").max() == pytest.approx(peak, rel=1e-6)
+    assert energy(25, "soft_body").max() > 1.5 * peak
+    assert np.all(energy(25, "inner_steel") == 0)
+
+    for c in document["commands"]:
+        if c["command"] == "job.add":
+            c["steps"] = ["load", "further"]
+    once = np.array(run(document)["job"]["y"])[:, 2]
+    np.testing.assert_allclose(force[21:], once[7:], rtol=1e-3)
+
+
 def test_hyperelastic_spring_matches_ex06(monkeypatch):
     """The hyperelastic spring with end stops (#222), compared with the example ex06
     of FElupe on the same mesh: the forces of the lower plate (the bonded face and
