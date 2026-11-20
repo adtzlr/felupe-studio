@@ -4,7 +4,10 @@
 // felupe_studio again. The cache is optional: without IndexedDB or with an error of
 // it, the worker starts without it.
 
-/** The folder of the cache in the file system of Pyodide, mounted from IndexedDB. */
+/**
+ * The folder of the cache in the file system of Pyodide, mounted from IndexedDB, of
+ * FElupe Studio; another brand has its own (`bytecodeCache()` of brand.ts, ADR 0020).
+ */
 export const CACHE = "/pycache";
 
 /** The cache at the start: bytecode found, none yet, or not available. */
@@ -79,15 +82,16 @@ export async function openCache(
   fs: CacheFS,
   key: string,
   indexedDB: unknown = globalThis.indexedDB,
+  folder = CACHE,
 ): Promise<CacheState> {
   if (!indexedDB) return "off";
   try {
-    fs.mkdirTree(CACHE);
-    fs.mount(fs.filesystems.IDBFS, {}, CACHE);
+    fs.mkdirTree(folder);
+    fs.mount(fs.filesystems.IDBFS, {}, folder);
     await sync(fs, true);
-    const names = fs.readdir(CACHE).filter((n) => n !== "." && n !== "..");
+    const names = fs.readdir(folder).filter((n) => n !== "." && n !== "..");
     for (const name of names)
-      if (name !== key) removeTree(fs, `${CACHE}/${name}`);
+      if (name !== key) removeTree(fs, `${folder}/${name}`);
     return names.includes(key) ? "hit" : "empty";
   } catch {
     return "off";
@@ -129,7 +133,11 @@ export function persister(fs: CacheFS): () => Promise<void> {
  * The Python of the worker that enables the cache below the folder of the key: the
  * sources of the packages and of felupe_studio get a fixed modification time.
  */
-export function enableSource(home: string, key: string): string {
+export function enableSource(
+  home: string,
+  key: string,
+  folder = CACHE,
+): string {
   return [
     // without the package: its __init__ would import modules before the cache
     "import importlib.util, sys, sysconfig",
@@ -138,7 +146,7 @@ export function enableSource(home: string, key: string): string {
     "spec.loader.exec_module(bytecode)",
     'sys.modules["felupe_studio_bytecode"] = bytecode',
     `bytecode.fix_mtimes(sysconfig.get_paths()["purelib"], "${home}/felupe_studio")`,
-    `bytecode.enable("${CACHE}/${key}")`,
+    `bytecode.enable("${folder}/${key}")`,
     "del spec, bytecode",
   ].join("\n");
 }

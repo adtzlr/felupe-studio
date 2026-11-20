@@ -14,6 +14,8 @@ export interface Brand {
   logo: string;
   /** The icons of the manifest (PNG of 192 and 512 px); the build copies them. */
   icons?: { "192": string; "512": string };
+  /** The prefix of the browser storage, e.g. `felupe-studio` (see storageKey). */
+  storage: string;
   /** The accent color, `#rrggbb` (the build sets the variables of the theme). */
   accent?: string;
   /** The text below the title of the welcome panel. */
@@ -49,3 +51,25 @@ export function currentBrand(): Brand | undefined {
 
 /** The name of the app: of its brand, else of FElupe Studio (the config of Vite). */
 export const appName = (): string => currentBrand()?.name ?? UPSTREAM;
+
+/** The storage prefix of FElupe Studio, with the names of the storage of today. */
+export const UPSTREAM_STORAGE = "felupe-studio";
+
+/**
+ * The prefix of the browser storage of the app (ADR 0020): of its brand, so that two
+ * brands on one origin keep their data apart.
+ */
+export const storagePrefix = (): string =>
+  currentBrand()?.storage ?? UPSTREAM_STORAGE;
+
+/** A key of localStorage or sessionStorage, e.g. `felupe-studio.curve`. */
+export const storageKey = (name: string): string =>
+  `${storagePrefix()}.${name}`;
+
+/**
+ * The folder of the bytecode cache in IndexedDB (ADR 0017): `/pycache` of FElupe
+ * Studio, `/<prefix>-pycache` of another brand.
+ */
+export function bytecodeCache(prefix = storagePrefix()): string {
+  return prefix === UPSTREAM_STORAGE ? "/pycache" : `/${prefix}-pycache`;
+}

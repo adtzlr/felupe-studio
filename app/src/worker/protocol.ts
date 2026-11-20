@@ -303,6 +303,8 @@ export type ToWorker =
       wheels: string[];
       /** Wheels loaded when they are needed, by name (e.g. tensortrax). */
       lazyWheels?: Record<string, string>;
+      /** The folder of the bytecode cache of the brand (ADR 0017, ADR 0020). */
+      cache?: string;
     }
   | { type: "benchmark"; id: number; sizes: number[]; precision?: Precision }
   | { type: "write-file"; id: number; name: string; data: ArrayBuffer }

@@ -8,6 +8,7 @@
     "192": "icon-192.png",
     "512": "icon-512.png"
   },
+  "storage": "felupe-studio",
   "welcome": "Build models of hyperelastic solids from mesh files and solve them with FElupe.",
   "links": {
     "help": "https://github.com/adtzlr/felupe-studio/blob/main/docs/guide.md",

@@ -1,6 +1,11 @@
 // Service worker of FElupe Studio (#40): caches Pyodide (versioned CDN URLs) and the
 // wheels served by the app, cache first. Other requests are not touched.
-const CACHE = "felupe-studio-runtime-v1";
+// the storage prefix of the brand (ADR 0020), from the URL that registers this
+// script: sw.js?storage=<prefix>; FElupe Studio registers sw.js without it
+const PREFIX =
+  (self.location && new URL(self.location.href).searchParams.get("storage")) ||
+  "felupe-studio";
+const CACHE = `${PREFIX}-runtime-v1`;
 const PYODIDE = /^https:\/\/cdn\.jsdelivr\.net\/pyodide\/(v[^/]+)\/full\//;
 const WHEEL = /\/wheels\/([A-Za-z0-9_.]+)-([^-/]+)-[^/]*\.whl$/;
 
@@ -44,7 +49,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       for (const key of await caches.keys()) {
-        if (key !== CACHE && key.startsWith("felupe-studio-runtime-"))
+        if (key !== CACHE && key.startsWith(`${PREFIX}-runtime-`))
           await caches.delete(key);
       }
       await self.clients.claim();

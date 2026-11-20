@@ -8,6 +8,7 @@ import {
   screen,
   within,
 } from "@testing-library/preact";
+import { IDBFactory } from "fake-indexeddb";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Brand } from "../brand";
 import { ModelStore } from "../core/store";
@@ -17,6 +18,7 @@ const acme: Brand = {
   name: "ACME FEM",
   short_name: "ACME",
   logo: "brand/logo.svg",
+  storage: "acme",
   welcome: "Simulate the rubber parts of ACME.",
   links: {
     help: "https://fem.acme.example/help",
@@ -95,6 +97,23 @@ describe("the app of a brand (ADR 0020)", () => {
     expect(
       within(about).getByRole("link", { name: "GPL-3.0-or-later" }),
     ).toBeTruthy();
+  });
+
+  it("keeps its data apart from other brands on one origin", async () => {
+    const brand = await import("../brand");
+    expect(brand.storageKey("curve")).toBe("acme.curve");
+    expect(brand.bytecodeCache()).toBe("/acme-pycache");
+    expect((await import("../worker/local")).TOKEN_KEY).toBe("acme.token");
+    const { workerUrl } = await import("../service-worker");
+    expect(workerUrl("https://fem.acme.example/app/")).toBe(
+      "https://fem.acme.example/app/sw.js?storage=acme",
+    );
+    // the session of the brand in IndexedDB
+    const { IndexedDBSession } = await import("../core/session");
+    const factory = new IDBFactory();
+    const open = vi.spyOn(factory, "open");
+    await new IndexedDBSession(factory).load();
+    expect(open).toHaveBeenCalledWith("acme", 1);
   });
 
   it("gives new model settings its units", async () => {

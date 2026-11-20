@@ -39,6 +39,7 @@ const acme: Brand = {
   name: "ACME FEM",
   short_name: "ACME",
   logo: "logo.svg",
+  storage: "acme",
   accent: "#ffcc00",
   links: {
     help: "https://fem.acme.example/help",
@@ -61,8 +62,10 @@ describe("the default brand (ADR 0020)", () => {
         source: REPOSITORY,
       },
     });
-    // the accent color of the theme and the samples of upstream
+    // the accent color of the theme, the names of the storage of today and the
+    // samples of upstream
     expect(options.brand.accent).toBeUndefined();
+    expect(options.brand.storage).toBe("felupe-studio");
     expect(options.samples).toBe(join(APP, "samples"));
   });
 
@@ -108,6 +111,14 @@ describe("a brand folder (ADR 0020)", () => {
     );
     expect(() => readBrand(folder({ ...acme, accent: "yellow" }))).toThrow(
       "/accent: must match pattern",
+    );
+    expect(() => readBrand(folder({ ...acme, storage: "ACME FEM" }))).toThrow(
+      "/storage: must match pattern",
+    );
+    const noStorage: Partial<Brand> = { ...acme };
+    delete noStorage.storage;
+    expect(() => readBrand(folder(noStorage))).toThrow(
+      "must have required property 'storage'",
     );
     expect(() =>
       readBrand(
