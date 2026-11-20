@@ -143,12 +143,15 @@ function ResultsToolbar({
   viewer,
   nodes,
   edges,
+  constraints,
   extremes,
   points,
 }: {
   viewer: { current: Viewer | null };
   nodes: Toggle;
   edges: Toggle;
+  /** The constraints and the control points, if the model has them (#335). */
+  constraints?: Toggle;
   /** The minimum and the maximum, if the scene has them (#140). */
   extremes?: Toggle;
   /** The card of the control points, if the scene has them (#101). */
@@ -184,6 +187,19 @@ function ResultsToolbar({
       >
         Edges
       </button>
+      {constraints && (
+        <button
+          type="button"
+          aria-pressed={constraints[0]}
+          title={withHint(
+            "Show the multi-point constraints and the control points",
+            "constraints",
+          )}
+          onClick={constraints[1]}
+        >
+          Constraints
+        </button>
+      )}
       {extremes && (
         <button
           type="button"
@@ -206,6 +222,19 @@ function ResultsToolbar({
       )}
     </div>
   );
+}
+
+/**
+ * The lines of the constraints and the control points (#335): shown by default, and
+ * a toggle only in a model with constraints or control points.
+ */
+function useConstraints(commands: readonly Command[]) {
+  const [shown, setShown] = useState(true);
+  const offered = commands.some(
+    (c) => c.command === "mpc.add" || c.command === "point.add",
+  );
+  const toggle: Toggle = [shown, () => setShown((value) => !value)];
+  return { shown, toggle: offered ? toggle : undefined };
 }
 
 /** The message of the view instead of a scene, if any. */
@@ -267,9 +296,10 @@ export function ResultsView({
   const [edgesShown, setEdgesShown] = useState(true);
   // the minimum and the maximum of the contour, one of them selected (#140)
   const [extremesShown, setExtremesShown] = useState(false);
+  const constraints = useConstraints(commands);
   const host = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
-  useViewKeys(active, viewer, toggleNodes);
+  useViewKeys(active, viewer, toggleNodes, constraints.toggle?.[1]);
   if (capture) {
     capture.current = async () => viewer.current?.snapshot();
   }
@@ -334,6 +364,7 @@ export function ResultsView({
       look,
       edges: edgesShown,
       nodes: nodesShown,
+      constraints: constraints.shown,
       extremesShown,
       pinned,
       onPin: setPinned,
@@ -351,6 +382,7 @@ export function ResultsView({
     view?.undeformed,
     edgesShown,
     nodesShown,
+    constraints.shown,
     commands,
     createViewer,
   ]);
@@ -383,6 +415,7 @@ export function ResultsView({
           viewer={viewer}
           nodes={[nodesShown, toggleNodes]}
           edges={[edgesShown, () => setEdgesShown(!edgesShown)]}
+          constraints={constraints.toggle}
           extremes={
             scene.extremes
               ? [

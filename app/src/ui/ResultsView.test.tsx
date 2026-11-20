@@ -7,6 +7,7 @@ import {
   waitFor,
 } from "@testing-library/preact";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Command } from "../core/resolved";
 import type { ResultView } from "../core/results";
 import type { Scene, ViewerHandle } from "../vendor/felupe-viewer/viewer.js";
 import type { CreateViewer } from "../viewer/viewer";
@@ -87,5 +88,91 @@ describe("ResultsView", () => {
 
     fireEvent.click(toggle);
     await waitFor(() => expect(edges()).toEqual([true]));
+  });
+
+  it("shows or hides the constraints and the control points (#335)", async () => {
+    const viewer = fakeViewer();
+    // a constraint from a control point to another point, both control points
+    const commands = [
+      { command: "point.add", name: "center", coordinates: [0, 0, 0] },
+      { command: "point.add", name: "tip", coordinates: [1, 1, 0] },
+      {
+        command: "mpc.add",
+        name: "connect",
+        points: "tip",
+        center: "center",
+        constrained: ["x", "y", "z"],
+        multiplier: 1000,
+      },
+    ] as unknown as Command[];
+    const withPoints: ResultScene = {
+      ...scene,
+      points: [
+        {
+          name: "center",
+          position: [0, 0, 0],
+          displacement: [0.1, 0, 0],
+          force: [1, 0, 0],
+        },
+      ],
+    };
+    render(
+      <ResultsView
+        source={{ resultScene: async () => withPoints }}
+        view={view}
+        generation={1}
+        active
+        running={false}
+        createViewer={viewer.create}
+        commands={commands}
+      />,
+    );
+    // the lines and the markers of the last scene of the viewer
+    const drawn = () => {
+      const objects = viewer.handle.update.mock.calls.at(-1)?.[0].objects ?? [];
+      return {
+        lines: objects.filter((o) => o.type === "lines").length,
+        markers: objects.filter((o) => o.type === "points").length,
+      };
+    };
+    await waitFor(() => expect(drawn().lines).toBeGreaterThan(0));
+    expect(drawn().markers).toBeGreaterThan(0);
+    const toggle = screen.getByRole("button", { name: "Constraints" });
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    expect(toggle.title).toContain("(C)");
+
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    await waitFor(() => expect(drawn()).toEqual({ lines: 0, markers: 0 }));
+    // the table of the control points has a toggle of its own
+    expect(
+      screen
+        .getByRole("button", { name: "Points" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
+
+    // the key C, like the button
+    fireEvent.keyDown(window, { key: "c" });
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    await waitFor(() => expect(drawn().lines).toBeGreaterThan(0));
+  });
+
+  it("has no toggle of the constraints without them (#335)", async () => {
+    const viewer = fakeViewer();
+    render(
+      <ResultsView
+        source={{ resultScene: async () => scene }}
+        view={view}
+        generation={1}
+        active
+        running={false}
+        createViewer={viewer.create}
+      />,
+    );
+    await screen.findByRole("button", { name: "Edges" });
+    expect(screen.queryByRole("button", { name: "Constraints" })).toBeNull();
+    // the key does nothing either
+    fireEvent.keyDown(window, { key: "c" });
+    expect(screen.queryByRole("button", { name: "Constraints" })).toBeNull();
   });
 });

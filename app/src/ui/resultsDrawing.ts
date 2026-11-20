@@ -31,6 +31,8 @@ export interface Drawing {
   look?: ContourLook;
   edges: boolean;
   nodes: boolean;
+  /** The lines of the constraints and the control points (#335). */
+  constraints: boolean;
   extremesShown: boolean;
   /** The extreme whose label is expanded (#140). */
   pinned?: Extreme;
@@ -41,9 +43,11 @@ export interface Drawing {
   unit?: string;
 }
 
+type ControlPoints = NonNullable<ResultScene["points"]>;
+
 /** The positions of the control points, displaced like the surfaces (#95). */
-const displacedPoints = (scene: ResultScene | undefined, scale: number) =>
-  (scene?.points ?? []).flatMap((p) =>
+const displacedPoints = (controls: ControlPoints, scale: number) =>
+  controls.flatMap((p) =>
     p.position.map((x, k) => x + scale * p.displacement[k]),
   );
 
@@ -71,9 +75,9 @@ function markersOf(points: number[], shapes?: Shapes): Markers[] {
   ];
 }
 
-function targetsOf(scene: ResultScene, points: number[], shapes?: Shapes) {
+function targetsOf(controls: ControlPoints, points: number[], shapes?: Shapes) {
   return [
-    ...(scene.points ?? []).map((p, i) => ({
+    ...controls.map((p, i) => ({
       name: p.name,
       position: points.slice(3 * i, 3 * i + 3) as [number, number, number],
     })),
@@ -185,19 +189,24 @@ export function drawResults(viewer: Viewer, drawing: Drawing) {
   });
   viewer.setNodes(drawing.nodes);
   const scale = view.scale;
-  const points = displacedPoints(scene, scale);
+  // the control points, also the center and rotation points of the constraints,
+  // are hidden with the constraints (#335)
+  const controls = drawing.constraints ? (scene.points ?? []) : [];
+  const points = displacedPoints(controls, scale);
   const extremes =
     scene.extremes && drawing.extremesShown ? scene.extremes : undefined;
   const shapes = extremes ? shapesOf(scene, extremes, scale) : undefined;
   viewer.setMarkers(markersOf(points, shapes));
-  viewer.setTargets(targetsOf(scene, points, shapes));
+  viewer.setTargets(targetsOf(controls, points, shapes));
   viewer.setLabels(
     extremes && shapes ? labelsOf(scene, extremes, shapes, drawing) : [],
   );
   const rigid = rigidOf(scene, drawing.commands, scale);
   viewer.setFaces(rigid.faces);
   viewer.setLines([
-    ...constraintsOf(scene, drawing.commands, scale),
+    ...(drawing.constraints
+      ? constraintsOf(scene, drawing.commands, scale)
+      : []),
     ...rigid.lines,
     ...outlinesOf(shapes),
   ]);
