@@ -1,6 +1,6 @@
 # 0013 Expressions of parameters
 
-Status: Accepted
+Status: Accepted. Amended by [ADR 0021](0021-derived-parameters.md): a parameter may be an expression of other parameters (a derived parameter).
 
 ## Context
 
