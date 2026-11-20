@@ -128,15 +128,19 @@ export function runtimeText(runtime: Runtime): string {
 
 /**
  * The keys of a view (#129): F fits the model, 1 to 4 set the views, N shows or hides
- * the nodes; only in the shown view, not while typing, in a menu or in a dialog.
+ * the nodes, C the constraints of the results (#335); only in the shown view, not
+ * while typing, in a menu or in a dialog.
  */
 export function useViewKeys(
   active: boolean,
   viewer: { current: Viewer | null },
   toggleNodes: () => void,
+  toggleConstraints?: () => void,
 ): void {
   const toggle = useRef(toggleNodes);
   toggle.current = toggleNodes;
+  const constraints = useRef(toggleConstraints);
+  constraints.current = toggleConstraints;
   useEffect(() => {
     if (!active) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -151,6 +155,8 @@ export function useViewKeys(
       if (matches(event, "fit")) viewer.current?.fit();
       else if (view) viewer.current?.setView(view.id);
       else if (matches(event, "nodes")) toggle.current();
+      else if (matches(event, "constraints") && constraints.current)
+        constraints.current();
       else return;
       event.preventDefault();
     };

@@ -37,6 +37,7 @@ export type ShortcutId =
   | "view-xz"
   | "view-yz"
   | "nodes"
+  | "constraints"
   | "substep-previous"
   | "substep-next"
   | "substep-first"
@@ -137,6 +138,11 @@ export const SHORTCUTS: ShortcutGroup[] = [
       { id: "substep-first", keys: [["Home"]], action: "First substep" },
       { id: "substep-last", keys: [["End"]], action: "Last substep" },
       { id: "play", keys: [["Space"]], action: "Play or pause the substeps" },
+      {
+        id: "constraints",
+        keys: [["C"]],
+        action: "Show or hide the constraints and the control points",
+      },
     ],
   },
   {
