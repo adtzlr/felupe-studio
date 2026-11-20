@@ -214,6 +214,19 @@ describe("deriveTree", () => {
     });
     expect(find(tree, "layers")!.detail).toBe("3");
     expect(find(tree, "gamma")!.detail).toBe("0.4 · 0–∞");
+    // a derived parameter (ADR 0021): its value and its expression
+    const derived = {
+      command: "parameter.add",
+      name: "total",
+      value: "layers * radius",
+      quantity: "length",
+    } as Command;
+    const withDerived = deriveTree([settings, ...parameters, derived]);
+    expect(find(withDerived, "total")!.detail).toBe("150 mm = layers * radius");
+    const broken = { ...derived, value: "layers * radiu" } as Command;
+    expect(
+      find(deriveTree([settings, ...parameters, broken]), "total")!.detail,
+    ).toBe("– mm = layers * radiu");
     // the group only with parameters
     expect(find(deriveTree(commands), "group:parameter")).toBeUndefined();
     // a value outside of its range is an issue at the parameter

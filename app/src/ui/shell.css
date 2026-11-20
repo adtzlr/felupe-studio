@@ -1755,6 +1755,11 @@ button {
   width: 100%;
 }
 
+/* the value of a derived parameter (ADR 0021): computed, not set */
+.derived-value {
+  font-variant-numeric: tabular-nums;
+}
+
 .parameter-row small {
   grid-column: 2;
   font-size: var(--text-xs);

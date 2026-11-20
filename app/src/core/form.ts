@@ -246,8 +246,13 @@ function conditions(node: Node, value: Draft) {
   const required = new Set(node.required ?? []);
   const hidden = new Set<string>();
   if (node.if) {
+    // a constant, or a type, e.g. the expression of a derived parameter (ADR 0021),
+    // which has no range
     const matches = Object.entries(node.if.properties ?? {}).every(
-      ([key, property]) => value[key] === property.const,
+      ([key, property]) =>
+        typeof property.type === "string"
+          ? typeof value[key] === property.type
+          : value[key] === property.const,
     );
     // properties that must not exist: not required, or not any of them, e.g. the
     // options of an iterative solver otherwise and its precision with it (#152)

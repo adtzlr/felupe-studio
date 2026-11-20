@@ -166,7 +166,8 @@ const DETAILS: { [C in Command["command"]]: Detail<C> } = {
         : cmd.analysis === "axisymmetric" && "axisymmetric",
       cmd.units ? unitsText(cmd.units) : "no units",
     ),
-  "parameter.add": (cmd, { units }) => describeParameter(cmd, units),
+  "parameter.add": (cmd, { commands, units }) =>
+    describeParameter(cmd, units, commands),
   "mesh.import": (cmd) =>
     joined(
       cmd.file,
