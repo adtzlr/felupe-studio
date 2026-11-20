@@ -84,6 +84,55 @@ def test_material_test_is_analytical(monkeypatch):
     np.testing.assert_allclose(force, 0.5 * (stretch - 1 / stretch**2), rtol=2e-3)
 
 
+def test_tutorial_of_a_load_cycle_with_the_mullins_effect(monkeypatch):
+    """The tutorial *A load cycle with the Mullins effect* of the user guide (#347):
+    the material test with a derived parameter, the Mullins effect and the steps
+    stretch, release, stretch and further. The numbers are those of the guide."""
+    from felupe_studio import results
+
+    folder = folder_of("material-test")
+    document = loads((folder / "model.felupe.json").read_text(encoding="utf-8"))
+    commands = document["commands"]
+    named = {c["name"]: c for c in commands}
+    commands[:0] = [
+        {"command": "parameter.add", "name": "peak", "value": 0.5}
+        | {"quantity": "length", "min": 0.1, "max": 1},
+        {"command": "parameter.add", "name": "final", "value": "2 * peak"}
+        | {"quantity": "length"},
+    ]
+    named["hyperelastic"]["mullins"] = {"r": 2, "m": 0.05, "beta": 0.1}
+    named["stretch"]["ramp"]["items"][0]["end"] = "peak"
+    jobs = [c for c in commands if c["command"] == "job.add"]
+    for name, start, end in [("release", "peak", 0), ("further", "peak", "final")]:
+        item = {"target": "tension", "start": start, "end": end}
+        step = {"command": "step.add", "name": name}
+        commands.insert(
+            commands.index(jobs[0]), step | {"ramp": {"num": 10, "items": [item]}}
+        )
+    jobs[0]["steps"] = ["stretch", "release", "stretch", "further"]
+    assert errors(document) == []
+
+    monkeypatch.chdir(folder)
+    result = run(document)["job"]
+    u, force = np.array(result["x"])[:, 0], np.array(result["y"])[:, 0]
+    # the substeps of stretch (0-10), release (11-21), stretch (22-32), further (33-43)
+    np.testing.assert_allclose(u[[5, 10, 27, 32, 43]], [0.25, 0.5, 0.25, 0.5, 1])
+    assert round(force[5], 2) == 0.30 and round(force[27], 2) == 0.16
+    assert round(force[10], 2) == round(force[32], 2) == 0.53
+    assert force[43] == pytest.approx(0.5 * (2 - 1 / 2**2), rel=1e-3)
+
+    def energy(substep):
+        _, surfaces = results.scene("job", substep, "mullins_energy")
+        return np.concatenate([np.frombuffer(s["values"], "<f4") for s in surfaces])
+
+    # the scenes count the substeps from 1; the same everywhere in a homogeneous test
+    peak = 0.5 / 2 * (1.5**2 + 2 / 1.5 - 3)
+    for substep in (11, 22, 33):
+        np.testing.assert_allclose(energy(substep), peak, rtol=1e-3)
+    assert round(peak, 3) == 0.146
+    np.testing.assert_allclose(energy(44), 0.5, rtol=1e-3)
+
+
 def test_glued_plate_moves_and_tilts(monkeypatch):
     "The plate of the glued plate is moved by 8 mm and tilted by 0.1 rad (#102)."
     from felupe_studio import results

@@ -1,10 +1,10 @@
 # User guide
 
-FElupe Studio builds models of solids, hyperelastic (e.g. rubber) or elastic-plastic (e.g. steel), in 3D or in 2D (plane strain and axisymmetric), from mesh files, Python scripts or the mesh tools of FElupe, with parameters, solves them with [FElupe](https://github.com/adtzlr/felupe) in the browser and shows the results. Nothing is installed and nothing is uploaded: Python runs in the browser with [Pyodide](https://pyodide.org).
+FElupe Studio builds models of solids, hyperelastic (e.g. rubber, also with the Mullins effect) or elastic-plastic (e.g. steel), in 3D or in 2D (plane strain and axisymmetric), from mesh files, Python scripts or the mesh tools of FElupe, with parameters, solves them with [FElupe](https://github.com/adtzlr/felupe) in the browser and shows the results. Nothing is installed and nothing is uploaded: Python runs in the browser with [Pyodide](https://pyodide.org).
 
 **Open the app:** <https://adtzlr.github.io/felupe-studio/>
 
-The first start downloads Python, NumPy, SciPy and FElupe. The browser keeps them for the next visits, and from the second start of a version also the compiled modules of Python, so the app is ready sooner. The [command reference](reference.md) lists every property of every command, [commands.md](commands.md) explains how the commands become a FElupe script. AI agents like Claude Code or GitHub Copilot build, check and solve models with the [MCP server](agents.md), headless or on the model that is open in the app.
+The first start downloads Python, NumPy, SciPy and FElupe. The browser keeps them for the next visits, and from the second start of a version also the compiled modules of Python, so the app is ready sooner. The [command reference](reference.md) lists every property of every command, [commands.md](commands.md) explains how the commands become a FElupe script. AI agents like Claude Code or GitHub Copilot build, check and solve models with the [MCP server](agents.md), headless or on the model that is open in the app. An institute or a company deploys the app under its own name, with its own samples ([your own deployment](deployment.md)).
 
 ## The idea
 
@@ -324,14 +324,27 @@ The sample *Bushing made with mesh tools* makes its meshes in the app, without a
 
 Select a mesh to change its tool or its values: the meshes that use it are made again. The script has one line per mesh, e.g. `section = fem.mesh.fill_between(bottom_plane, top_plane, n=8)` and `soft_mesh = runouts.revolve(n=19, phi=360, axis=0)`. The rest of the model is that of the sample *Bushing with steel sleeves (FElupe ex05)*, built as in the first tutorial: a Neo-Hooke rubber `soft_body` (`u-p-J`) and two steel sections, the point sets `inner` and `outer` on the cylinders of radius 25 and 65 about x, and a multi-point constraint of `inner` to a control point on the axis, which the step moves by 8 mm and turns. Open the sample *Bushing made with mesh tools* and compare: it makes the same meshes with expressions of its parameters, e.g. *value* = `25 + sleeve` or *n* = `cells_around + 1`, so a changed parameter changes all of them.
 
-## Limits of version 0.7
+## Tutorial: a load cycle with the Mullins effect
+
+The Mullins effect shows in a load cycle. This tutorial turns the sample *Material test: uniaxial tension* into one: the cube of a filled rubber is stretched, released, stretched again and on, with the peak of the cycle as a parameter. Open the sample. Its load case `tension` pulls an eighth of a unit cube along x, so a displacement of 0.5 is a stretch of 1.5, and the force is the nominal stress.
+
+1. **Parameters:** a *Parameter* `peak` with the value 0.5, the quantity length, *Minimum* 0.1 and *Maximum* 1: the displacement of the first stretch. A second one, `final`, with the value `2 * peak`: a derived parameter, the displacement at the end. The browser shows it as `1 = 2 * peak`.
+2. **Material:** select `hyperelastic`, turn on *Mullins effect* with r = 2, m = 0.05 and β = 0.1, and *Apply*. The browser shows *Neo-Hooke · Mullins*.
+3. **Steps:** in the step `stretch`, the *End* of `tension` becomes `peak`. A step `release` ramps `tension` from the *Start* `peak` to the *End* 0, and a step `further` from `peak` to `final`, both with 10 increments.
+4. **Job:** the *Steps* of `job` are `stretch`, `release`, `stretch` and `further`: *+ Add step* adds a field, choose the step in it. `stretch` comes twice, without a copy.
+
+**Solve** and open the results. The curve shows the softening: the release needs much less force than the first stretch, and the second stretch follows the release back up to the peak, e.g. 0.16 instead of 0.30 at 0.25, about half, the largest softening of r = 2. At the peak (0.53) it meets the first stretch, and above it the rubber is as stiff as a new one: at the end, the force is 0.875, μ (λ − 1/λ²) of Neo-Hooke for λ = 2. The contour *Max. strain energy density* is the same everywhere in this homogeneous test: 0.146 at the peak, μ/2 (λ² + 2/λ − 3) for λ = 1.5. It stays while the cube is released and grows only beyond the peak, to 0.5 at the end. Change `peak` with *All parameters…* in the menu of a parameter in the browser, e.g. to 0.3: the steps, `final` (0.6) and the curve follow.
+
+## Limits of version 0.8
 
 FElupe Studio has no meshing from CAD: meshes come from files, Python scripts or the mesh tools of FElupe. The mesh tools of the app are the primitives point, line, rectangle and cube and eight operations, for structured meshes of lines, quads and hexahedrons; other tools of FElupe (e.g. circles, triangles and tetrahedrons, or several meshes stacked into one) need a mesh script. It has no contact between two deformable bodies or of a body with itself; contacts are of points with rigid planes and cylinders.
 
-There is no server on the internet. Python runs in the browser, or on your computer with `felupe-studio serve`. An AI agent works headless with the MCP server, or with `felupe-studio serve --agent` on the model that is open in a tab on your computer.
+There is no server on the internet. Python runs in the browser, or on your computer with `felupe-studio serve`. An AI agent works headless with the MCP server, or with `felupe-studio serve --agent` on the model that is open in a tab on your computer. A deployment under its own name is a build of the app with a brand folder, not the released app or wheel branded later; the Python package, its command line and the MCP server keep the names and the texts of FElupe Studio.
 
-The boundaries of a model are the same in all steps; a step only ramps values. A parameter is a number; the numbers of the objects may be expressions of the parameters, but not of other objects. 2D models are plane strain or axisymmetric, not plane stress.
+The boundaries of a model are the same in all steps; a step only ramps values, and the time of a step plays no role. A job may repeat a step, e.g. for a load cycle. A parameter is a number or an expression of other parameters (a derived parameter); the numbers of the objects may be expressions of the parameters, but not of other objects. 2D models are plane strain or axisymmetric, not plane stress.
 
-The plasticity is von Mises plasticity with linear isotropic hardening, the Mullins effect is the only inelastic model of rubber (no viscoelasticity yet), and there are no user-defined materials yet. The accuracy of a model in single precision depends on the model: the job panel estimates it, and an elastic-plastic material keeps the linear system in double precision.
+The plasticity is von Mises plasticity with linear isotropic hardening, the Mullins effect of Ogden and Roxburgh is the only inelastic model of rubber (no viscoelasticity yet, which needs the time of a step), and there are no user-defined materials yet. The accuracy of a model in single precision depends on the model: the job panel estimates it, and an elastic-plastic material keeps the linear system in double precision.
 
-See the [roadmap](https://github.com/adtzlr/felupe-studio/issues/317).
+A project that uses what is new in version 0.8 (a repeated step, a derived parameter, the color of a mesh or the Mullins effect) does not open in version 0.7 and earlier; these list the errors of the schema. From version 0.8 on, an older app says which part of a project it does not know.
+
+See the [roadmap](https://github.com/adtzlr/felupe-studio/issues/349).
