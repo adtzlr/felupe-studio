@@ -53,74 +53,25 @@ A new case is a new folder with a `commands.json` and its mesh files; run the co
 
 ## Brands
 
-A build of the app has a brand (ADR 0020): a folder with a `brand.json`, given with `BRAND_DIR`. Without it, the build takes the default brand `app/brand/`, which is FElupe Studio itself.
+A build of the app has a brand (ADR 0020): a folder with a `brand.json`, given with `BRAND_DIR`; without it, the build takes the default brand `app/brand/`, which is FElupe Studio itself. [Your own deployment](docs/deployment.md) describes the fields of `brand.json`, the samples, Pyodide, the CI files and the wheel of a brand for those who deploy one; this section is about the code.
 
 ```bash
 cd app && BRAND_DIR=~/my-brand npm run build   # or npm run dev
 ```
 
-```json
-{
-  "$schema": "https://raw.githubusercontent.com/adtzlr/felupe-studio/main/app/src/vite/brand.schema.json",
-  "brand_version": 1,
-  "name": "ACME FEM",
-  "short_name": "ACME",
-  "logo": "logo.svg",
-  "icons": { "192": "icon-192.png", "512": "icon-512.png" },
-  "storage": "acme-fem",
-  "accent": "#e8590c",
-  "welcome": "Simulate the rubber parts of ACME.",
-  "links": {
-    "help": "https://fem.acme.example/help",
-    "issues": "mailto:fem@acme.example",
-    "source": "https://gitlab.acme.example/fem/brand"
-  },
-  "samples": "samples",
-  "pyodide": "self-hosted",
-  "defaults": { "units": { "length": "mm", "force": "N" } }
-}
-```
-
-- `name`, `short_name`, `logo`, `storage` and the links `help`, `issues` and `source` are required: a brand inherits no identity of FElupe Studio. `documentation` (*Help ▸ Command reference*) and `tutorial` (the welcome panel) are optional.
-- `logo` is an SVG file of the brand folder: the header, the favicon and the manifest of an installed app. `icons` are PNG files of 192 × 192 and 512 × 512 px for an installed app; without them, the manifest has the logo only. `python app/scripts/make_icons.py <brand folder>` makes them from the logo, on the color of the bar of the app (with Playwright and Chromium, `CHROME` for another one).
-- `storage` is the prefix of the browser storage of the app (lowercase letters, digits, `.`, `_` and `-`): the keys `<storage>.<name>` of `localStorage` and `sessionStorage`, the session `<storage>` in IndexedDB, the bytecode cache `/<storage>-pycache` and the cache `<storage>-runtime-v1` of the service worker. So two brands on one origin keep their data apart, e.g. two folders of the Pages of one GitLab group. `felupe-studio` is the prefix of FElupe Studio, with the names of today (and its bytecode cache `/pycache`).
-- `accent` is the accent color of the app; without it, that of FElupe Studio. `welcome` is the text below the title of the welcome panel.
-- `samples` is the folder of the samples of the brand, relative to the brand folder (see *Samples*); without it, the brand has no samples. `SAMPLES_DIR` beside `BRAND_DIR` is an error, so the brand folder is the whole configuration of a deployment.
-- `pyodide` is where the app loads Pyodide from: `cdn` (`cdn.jsdelivr.net`, the default) or `self-hosted`, for a deployment without internet access or without third-party hosts. With `self-hosted`, the build copies Pyodide into `pyodide/v<version>/` of the app (about 30 MB): the core of the npm package `pyodide`, which `package.json` pins, and the packages that the worker loads (NumPy, SciPy, rich and their dependencies in `pyodide-lock.json`). It downloads the packages once into `app/node_modules/.cache/pyodide` and checks them against the SHA-256 of the lock file, so only the build needs internet access; behind a proxy, Node needs `NODE_USE_ENV_PROXY=1` for `HTTPS_PROXY`. The service worker caches a self-hosted Pyodide like that of the CDN. Where the CDN is reachable, keep it: the browser of a user loads the same files either way, and the deployment stays small. The wheel leaves a self-hosted Pyodide out, since `serve` runs CPython.
-- `defaults.units` are the units of the model settings of a new model.
-- The schema `app/src/vite/brand.schema.json` checks the file, and an invalid brand fails the build with a message that starts with *The brand of &lt;folder&gt;:*.
-- `brands/` has the example brand and the CI files of the repository of a brand (`gitlab-ci.yml`, `github-actions.yml`), which build a release of felupe-studio with the brand folder, deploy it to Pages and, at a tag, build the wheel of the brand (see [brands/README.md](brands/README.md)). The job *Example brand* of CI builds `brands/example` like them, opens it in Chromium without internet access (`tests/e2e/test_example_brand.py`) and checks its wheel (`tests/check_wheel.py brands/example`). Locally: `cd app && BRAND_DIR=../brands/example npm run build -- --outDir dist-example`, then `BRAND_DIST=app/dist-example pytest -m e2e tests/e2e/test_example_brand.py`.
-- The build copies the logo and the icons to `brand/`, writes `manifest.webmanifest` (the names, the icons, the colors of the app) and writes the brand into `index.html`: the title, the favicon, the links of the manifest and of the icon for the home screen, the theme color, the accent color and a JSON block (`<script type="application/json" id="brand">`), which the app reads (`app/src/brand.ts`). *Help ▸ About* of a brand says that it is based on FElupe Studio and its version, with the license of FElupe Studio and the source of the brand.
+- `app/src/vite/brand.ts` reads a brand, checks it with `app/src/vite/brand.schema.json` (an invalid brand fails the build with a message that starts with *The brand of &lt;folder&gt;:*) and writes it into the build: the logo and the icons to `brand/`, `manifest.webmanifest`, and in `index.html` the title, the favicon, the links of the manifest and of the icon for the home screen, the theme color, the accent color and the brand as a JSON block (`<script type="application/json" id="brand">`).
+- `app/src/brand.ts` reads this block in the app. The name and the links (`app/src/app.ts`) come from it, and so do the names of the browser storage: new keys of `localStorage` or `sessionStorage` use `storageKey()`. The identity of FElupe Studio is no brand: the *based on* of *Help ▸ About*, the license, the header of the generated script and the Python package stay constants of the code.
+- `app/src/pyodide.ts` gives the URL of Pyodide (the CDN or `pyodide/v<version>/` of the app), and `app/src/vite/pyodide.ts` copies a self-hosted Pyodide into the build; `public/sw.js` caches both.
+- The default brand keeps the names of FElupe Studio before brands (`felupe-studio.*`, `/pycache`), which `app/src/storage.test.ts` checks; `app/src/ui/Brand.test.tsx` checks the app of another brand. `python app/scripts/make_icons.py <brand folder>` makes the icons of a brand from its logo.
+- `brands/` has the example brand and the CI files of a brand ([brands/README.md](brands/README.md)). The job *Example brand* of CI builds `brands/example` like them, opens it in Chromium without internet access (`tests/e2e/test_example_brand.py`) and checks its wheel (`tests/check_wheel.py brands/example`). Locally: `cd app && BRAND_DIR=../brands/example npm run build -- --outDir dist-example`, then `BRAND_DIST=app/dist-example pytest -m e2e tests/e2e/test_example_brand.py`.
 
 ## Samples
 
-The samples are a folder of samples, `app/samples` (#350). Every sample is a folder that describes itself, and the prefix of its name gives the order:
+The samples of FElupe Studio are the folder `app/samples` (#350): a folder per sample that describes itself, `NN_<id>/` with `model.felupe.json`, `sample.json`, `thumbnail.svg` and its mesh files. [A folder of samples](docs/deployment.md#a-folder-of-samples) describes the rules, and `SAMPLES_DIR` for a build with other samples.
 
-```
-samples/
-  01_two-materials/
-    model.felupe.json
-    sample.json         (optional)
-    thumbnail.svg       (optional)
-    bar.vtu
-  02_material-test/
-    ...
-```
-
-- **The id** of a sample is the name of its folder without the prefix of digits and `_`: `14_engine-mount` is the sample `engine-mount`. A new order changes the prefixes, not the ids, which the archives (`<id>.felupe.zip`), the MCP server and the tests use. Two folders with the same id are an error. Folders whose names start with `.` or `_` are left out.
-- **`sample.json`** has the `title`, the `description` and the `topics` of the sample, each optional; without a title, the title comes from the id (`seal-ring` → *Seal ring*). Other keys are errors.
-- **The files** of a sample are those of its project file (`mesh.import`, `mesh.script`), and they must be in its folder. A sample without `thumbnail.svg` shows a neutral placeholder.
-- The upstream samples are made by `app/scripts/make_samples.py` (units: mm, N, MPa), also their `sample.json` and their pictures; run it from the repository root after a change and commit the files.
-
-**Other samples in a build:** `SAMPLES_DIR` builds the app of the default brand with another folder of samples instead of `app/samples` (a brand gives its folder in its `brand.json`), e.g. with private ones, without changing the repository:
-
-```bash
-cd app && SAMPLES_DIR=~/my-samples npm run build   # or npm run dev
-```
-
-The folder has the layout above. To keep some of the upstream samples, copy their folders into it. The build copies the files of the samples to `samples/<folder>/` of `dist` and writes their list `samples/index.json`, which the app loads when it starts; the development server serves both. The wheel takes the samples of the build, so `felupe-studio serve` of it shows them too, with their list made from the folder. A folder that breaks the rules fails the build with a message that starts with *The samples of &lt;folder&gt;:*, e.g. *the sample 'seal-ring' has no file 'ring.vtu'.* A folder without samples gives an app without samples: the welcome panel has none and *File ▸ Samples…* is gone. The MCP server reads the same layout from `FELUPE_STUDIO_SAMPLES` (`docs/agents.md`); the rules are those of `felupe_studio.samples` and `app/src/vite/samples.ts`, tested with the shared cases `tests/data/sample_folder_cases.json`.
-
-The samples are part of the build output: deploy a private build privately. The GitHub Pages of a private repository are public unless access control is used.
+- `app/scripts/make_samples.py` makes the samples of FElupe Studio (units: mm, N, MPa), also their `sample.json` and their pictures; run it from the repository root after a change and commit the files. `tests/test_samples.py` solves every sample and checks its picture. `app/scripts/make_thumbnails.py <folder of samples>` makes the pictures of another folder, e.g. of a brand.
+- The rules of a folder are those of `felupe_studio.samples` (the MCP server, `felupe-studio serve`, the wheel) and of `app/src/vite/samples.ts` (the build), tested with the shared cases `tests/data/sample_folder_cases.json`.
+- The build copies the files of the samples to `samples/<folder>/` of `dist` and writes their list `samples/index.json`, which the app loads when it starts; the development server serves both. The wheel takes the samples of the build (`hatch_build.py`), and `felupe-studio serve` makes their list from the folder.
 
 ## License
 

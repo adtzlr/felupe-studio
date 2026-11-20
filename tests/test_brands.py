@@ -9,6 +9,7 @@
 
 import json
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -27,6 +28,7 @@ SAMPLES = samples.read(BRAND / "samples")
 sys.path.insert(0, str(ROOT / "app" / "scripts"))
 
 from make_samples import thumbnail  # noqa: E402
+from make_thumbnails import main as make_thumbnails  # noqa: E402
 
 
 def test_the_samples_are_its_own():
@@ -55,7 +57,23 @@ def test_sample_solves(sample, monkeypatch):
     assert np.all(np.isfinite(force)) and np.abs(force[-1]).max() > 0
     # the picture of the sample is made from its project, like those of upstream
     svg = (folder / "thumbnail.svg").read_text(encoding="utf-8")
-    assert svg == thumbnail(folder), "Make the thumbnail with make_samples.thumbnail."
+    assert svg == thumbnail(folder), (
+        "Run python app/scripts/make_thumbnails.py brands/example/samples."
+    )
+
+
+def test_make_thumbnails(tmp_path, capsys):
+    "The pictures of a folder of samples, e.g. of a brand, from their projects."
+    folder = tmp_path / "samples"
+    shutil.copytree(BRAND / "samples", folder)
+    for sample in SAMPLES:
+        (folder / sample.folder / "thumbnail.svg").unlink()
+    make_thumbnails(folder)
+    for sample in SAMPLES:
+        made = (folder / sample.folder / "thumbnail.svg").read_text(encoding="utf-8")
+        svg = BRAND / "samples" / sample.folder / "thumbnail.svg"
+        assert made == svg.read_text(encoding="utf-8")
+    assert capsys.readouterr().out.count("thumbnail.svg") == len(SAMPLES)
 
 
 def test_the_strip_is_in_simple_shear(monkeypatch):
@@ -83,9 +101,9 @@ def test_the_ci_files_build_one_release():
         # the wheel of the brand, checked like that of a release
         assert "FELUPE_STUDIO_REQUIRE_APP=1 python -m build --wheel" in text
         assert "tests/check_wheel.py" in text
-    # the README names the same release
-    readme = (ROOT / "brands" / "README.md").read_text(encoding="utf-8")
-    named = set(re.findall(r"(?:/v|felupe_studio-)(\d+\.\d+\.\d+)", readme))
+    # the page of a deployment names the same release
+    page = (ROOT / "docs" / "deployment.md").read_text(encoding="utf-8")
+    named = set(re.findall(r"(?:/v|felupe_studio-|: \")(\d+\.\d+\.\d+)", page))
     assert named == versions, named
     release = (ROOT / ".github" / "workflows" / "release.yml").read_text()
     for path in TEMPLATES:
