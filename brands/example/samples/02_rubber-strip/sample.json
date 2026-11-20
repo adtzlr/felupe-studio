@@ -1,0 +1,9 @@
+{
+  "title": "Rubber strip in shear",
+  "description": "A strip of 50 × 10 mm in plane strain, its top sheared by 10 mm against its fixed base.",
+  "topics": [
+    "mesh tools",
+    "plane strain",
+    "shear"
+  ]
+}

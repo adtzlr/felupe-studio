@@ -15,6 +15,7 @@ import {
   readBrand,
 } from "./brand";
 import schema from "./brand.schema.json";
+import { readSamples } from "./samples";
 
 const APP = resolve(__dirname, "../..");
 const REPOSITORY = "https://github.com/adtzlr/felupe-studio";
@@ -77,6 +78,21 @@ describe("the default brand (ADR 0020)", () => {
 });
 
 describe("a brand folder (ADR 0020)", () => {
+  it("has the example brand of upstream as a valid brand", () => {
+    // brands/example, which CI builds and checks in a browser (ADR 0020)
+    const dir = resolve(APP, "../brands/example");
+    const options = brandOptions({ BRAND_DIR: dir }, APP);
+    expect(options.brand).toMatchObject({
+      name: "Example Lab FEM",
+      storage: "example-lab",
+      pyodide: "self-hosted",
+    });
+    expect(readSamples(options.samples!).map((s) => s.id)).toEqual([
+      "rubber-pad",
+      "rubber-strip",
+    ]);
+  });
+
   it("is BRAND_DIR, with its samples or none", () => {
     const dir = folder({ ...acme, samples: "samples" });
     const options = brandOptions({ BRAND_DIR: dir }, APP);

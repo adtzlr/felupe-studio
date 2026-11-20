@@ -1,4 +1,6 @@
 dist
+# a build of a brand, e.g. of brands/example
+dist-*
 node_modules
 package-lock.json
 src/vendor

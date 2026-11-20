@@ -1,0 +1,116 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "model.settings",
+      "name": "settings",
+      "analysis": "plane-strain",
+      "units": {
+        "length": "mm",
+        "force": "N"
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "strip_mesh",
+      "tool": "Rectangle",
+      "parameters": {
+        "a": [
+          0,
+          0
+        ],
+        "b": [
+          50,
+          10
+        ],
+        "n": [
+          11,
+          3
+        ]
+      }
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "strip_cells",
+      "mesh": "strip_mesh"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 0.5
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "strip",
+      "cellset": "strip_cells",
+      "material": "rubber",
+      "formulation": "u-p-J",
+      "bulk": 5000
+    },
+    {
+      "command": "pointset.add",
+      "name": "bottom",
+      "select": {
+        "bound": "min",
+        "axis": "y"
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "top",
+      "select": {
+        "bound": "max",
+        "axis": "y"
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "base",
+      "pointset": "bottom",
+      "constrained": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "guide",
+      "pointset": "top",
+      "constrained": [
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "shear",
+      "pointset": "top",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "step.add",
+      "name": "shearing",
+      "ramp": {
+        "num": 6,
+        "items": [
+          {
+            "target": "shear",
+            "end": 10
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job",
+      "steps": [
+        "shearing"
+      ],
+      "curve": "shear"
+    }
+  ]
+}

@@ -1,0 +1,64 @@
+# GitLab CI of a brand of FElupe Studio (#321, ADR 0020). Copy this file to
+# .gitlab-ci.yml of the repository of the brand, next to its brand folder brand/
+# (see brands/README.md of felupe-studio).
+#
+# - Every pipeline builds a release of felupe-studio with the brand, so an invalid
+#   brand fails here, with the message of the build.
+# - The default branch deploys the app to the Pages of the project.
+# - A tag of the repository also builds the wheel of the brand, for
+#   `felupe-studio serve` (`pip install "<wheel>[serve,mcp]"`), checks it, and keeps
+#   it as a file of the pipeline.
+#
+# The jobs need github.com (the release of felupe-studio), the npm registry and PyPI;
+# a brand with a self-hosted Pyodide also needs cdn.jsdelivr.net for its packages.
+# The deployed app needs no internet access with a self-hosted Pyodide.
+
+variables:
+  # the release of felupe-studio that the brand is built with (0.8.0 or newer)
+  FELUPE_STUDIO_VERSION: "0.8.0"
+  # the brand folder of this repository
+  BRAND_FOLDER: brand
+  FELUPE_STUDIO: https://github.com/adtzlr/felupe-studio.git
+
+stages: [build, deploy]
+
+app:
+  stage: build
+  image: node:22
+  script:
+    - git clone --depth 1 --branch "v${FELUPE_STUDIO_VERSION}" "${FELUPE_STUDIO}" felupe-studio
+    - cd felupe-studio/app
+    - npm ci
+    - BRAND_DIR="${CI_PROJECT_DIR}/${BRAND_FOLDER}" npm run build
+    - mv dist "${CI_PROJECT_DIR}/public"
+  artifacts:
+    paths: [public]
+
+pages:
+  stage: deploy
+  needs: [app]
+  script:
+    - echo "The app of the brand is in public/."
+  artifacts:
+    paths: [public]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+wheel:
+  stage: deploy
+  image: python:3.13
+  needs: [app]
+  script:
+    - git clone --depth 1 --branch "v${FELUPE_STUDIO_VERSION}" "${FELUPE_STUDIO}" felupe-studio
+    # the wheel has the app and the samples of the build of the brand, without Pyodide
+    - cp -r public felupe-studio/app/dist
+    - pip install build
+    - (cd felupe-studio && FELUPE_STUDIO_REQUIRE_APP=1 python -m build --wheel --outdir "${CI_PROJECT_DIR}/wheel")
+    # the wheel in a fresh environment: its samples, its app and felupe-studio serve
+    - python -m venv /tmp/wheel
+    - /tmp/wheel/bin/pip install "$(ls wheel/*.whl)[mcp,serve]"
+    - cd /tmp && /tmp/wheel/bin/python "${CI_PROJECT_DIR}/felupe-studio/tests/check_wheel.py" "${CI_PROJECT_DIR}/${BRAND_FOLDER}"
+  artifacts:
+    paths: [wheel/]
+  rules:
+    - if: $CI_COMMIT_TAG

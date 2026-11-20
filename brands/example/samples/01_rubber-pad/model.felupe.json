@@ -1,0 +1,120 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "model.settings",
+      "name": "settings",
+      "units": {
+        "length": "mm",
+        "force": "N"
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "pad_mesh",
+      "tool": "Cube",
+      "parameters": {
+        "a": [
+          0,
+          0,
+          0
+        ],
+        "b": [
+          40,
+          40,
+          10
+        ],
+        "n": [
+          9,
+          9,
+          4
+        ]
+      }
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "pad_cells",
+      "mesh": "pad_mesh"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 0.5
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "pad",
+      "cellset": "pad_cells",
+      "material": "rubber",
+      "formulation": "u-p-J",
+      "bulk": 5000
+    },
+    {
+      "command": "pointset.add",
+      "name": "bottom",
+      "select": {
+        "bound": "min",
+        "axis": "z"
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "top",
+      "select": {
+        "bound": "max",
+        "axis": "z"
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "base",
+      "pointset": "bottom",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "guide",
+      "pointset": "top",
+      "constrained": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "press",
+      "pointset": "top",
+      "constrained": [
+        "z"
+      ]
+    },
+    {
+      "command": "step.add",
+      "name": "compression",
+      "ramp": {
+        "num": 6,
+        "items": [
+          {
+            "target": "press",
+            "end": -3
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job",
+      "steps": [
+        "compression"
+      ],
+      "curve": "press"
+    }
+  ]
+}

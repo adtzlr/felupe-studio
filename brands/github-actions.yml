@@ -1,0 +1,82 @@
+# GitHub Actions of a brand of FElupe Studio (#321, ADR 0020). Copy this file to
+# .github/workflows/brand.yml of the repository of the brand, next to its brand
+# folder brand/ (see brands/README.md of felupe-studio), and set Settings ▸ Pages ▸
+# Source to GitHub Actions.
+#
+# - Every run builds a release of felupe-studio with the brand, so an invalid brand
+#   fails here, with the message of the build.
+# - The branch main deploys the app to GitHub Pages.
+# - A tag v* of the repository also builds the wheel of the brand, for
+#   `felupe-studio serve` (`pip install "<wheel>[serve,mcp]"`), checks it, and keeps
+#   it as an artifact of the run.
+name: Brand
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  # the release of felupe-studio that the brand is built with (0.8.0 or newer)
+  FELUPE_STUDIO_VERSION: "0.8.0"
+  # the brand folder of this repository
+  BRAND_FOLDER: brand
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          repository: adtzlr/felupe-studio
+          ref: v${{ env.FELUPE_STUDIO_VERSION }}
+          path: felupe-studio
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: npm ci && npm run build
+        working-directory: felupe-studio/app
+        env:
+          BRAND_DIR: ${{ github.workspace }}/${{ env.BRAND_FOLDER }}
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: felupe-studio/app/dist
+      # the wheel has the app and the samples of the build of the brand, without
+      # Pyodide; it is checked in a fresh environment
+      - if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - if: startsWith(github.ref, 'refs/tags/')
+        name: The wheel of the brand
+        run: |
+          pip install build
+          (cd felupe-studio && FELUPE_STUDIO_REQUIRE_APP=1 python -m build --wheel --outdir "$GITHUB_WORKSPACE/wheel")
+          python -m venv /tmp/wheel
+          /tmp/wheel/bin/pip install "$(ls wheel/*.whl)[mcp,serve]"
+          cd /tmp && /tmp/wheel/bin/python "$GITHUB_WORKSPACE/felupe-studio/tests/check_wheel.py" "$GITHUB_WORKSPACE/$BRAND_FOLDER"
+      - if: startsWith(github.ref, 'refs/tags/')
+        uses: actions/upload-artifact@v7
+        with:
+          name: wheel
+          path: wheel/
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

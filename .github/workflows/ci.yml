@@ -104,3 +104,39 @@ jobs:
       # a sample opened from felupe-studio serve, solved with CPython (#240), and an
       # agent on the open app (#258)
       - run: pytest -m e2e tests/e2e -v
+
+  brand:
+    name: Example brand (build, browser without internet, wheel)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      # the build of a brand (ADR 0020), like brands/github-actions.yml does with a
+      # release: brands/example with its samples and a self-hosted Pyodide (#321)
+      - run: npm ci && npm run build
+        working-directory: app
+        env:
+          BRAND_DIR: ${{ github.workspace }}/brands/example
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -e ".[test,serve]" "felupe==${FELUPE_VERSION}" playwright build
+      - run: playwright install --with-deps chromium
+      # its name, its manifest and its samples, solved without internet
+      - run: pytest -m e2e tests/e2e/test_example_brand.py -v
+        env:
+          BRAND_DIST: app/dist
+      # the wheel of the brand: its app and its samples for felupe-studio serve
+      - name: The wheel of the brand
+        run: |
+          python -m build --wheel
+          python -m venv /tmp/wheel
+          /tmp/wheel/bin/pip install "$(ls dist/*.whl)[mcp,serve]" "felupe==${FELUPE_VERSION}"
+          cd /tmp && /tmp/wheel/bin/python "$GITHUB_WORKSPACE/tests/check_wheel.py" "$GITHUB_WORKSPACE/brands/example"
+        env:
+          FELUPE_STUDIO_REQUIRE_APP: "1"
