@@ -63,6 +63,17 @@ describe("parseLine", () => {
 describe("createCommand", () => {
   const context = { commands };
 
+  it("takes a job that repeats a step (#331)", async () => {
+    const steps = ["step_1", "step_1"];
+    const { command, errors } = await createCommand(
+      "job.add",
+      { steps },
+      context,
+    );
+    expect(errors).toEqual([]);
+    expect(command).toMatchObject({ command: "job.add", steps });
+  });
+
   it("fills a suggested name and the defaults", async () => {
     const { command, errors } = await createCommand(
       "material.add",
@@ -109,10 +120,11 @@ describe("createCommand", () => {
       { constrained: ["x", "x"] },
       "constrained: Each value may appear only once.",
     ],
+    // the steps of a job may repeat one (#331), the sections of a step not
     [
-      "job.add",
-      { steps: ["step_1", "step_1"] },
-      "steps: Each object may appear only once.",
+      "step.add",
+      { sections: ["section_hard", "section_hard"] },
+      "sections: Each object may appear only once.",
     ],
     [
       "material.add",

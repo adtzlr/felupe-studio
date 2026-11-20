@@ -12,6 +12,7 @@ import {
   fieldSpecs,
   getValue,
   initialDraft,
+  nextReference,
   normalize,
   offered,
   sameDraft,
@@ -671,6 +672,41 @@ describe("drafts", () => {
       { commands: [] },
     );
     expect(none.steps).toBe("Create a step first.");
+  });
+
+  it("lets the steps of a job repeat one, in order (#331)", () => {
+    const input = (type: CommandType, draft: Draft, key: string) =>
+      fieldSpecs(type, draft).find((s) => s.key === key)?.input;
+    // a list without uniqueItems and without a fixed number of items
+    expect(input("job.add", find("job_1"), "steps")).toMatchObject({
+      type: "reference",
+      multiple: true,
+      minItems: 1,
+      repeats: true,
+    });
+    expect(input("step.add", find("step_1"), "sections")).not.toHaveProperty(
+      "repeats",
+    );
+    const job = { ...find("job_1"), steps: ["step_1", "step_1"] } as Draft;
+    expect(draftErrors("job.add", job, editing("job_1")).steps).toBeUndefined();
+    const step = {
+      ...find("step_1"),
+      sections: ["section_hard", "section_hard"],
+    };
+    expect(
+      draftErrors("step.add", step as Draft, editing("step_1")).sections,
+    ).toBe("Each object may appear only once.");
+  });
+
+  it("adds the step after the last one, after the last the first (#331)", () => {
+    const names = ["load", "unload"];
+    expect(nextReference(names, [])).toBe("load");
+    expect(nextReference(names, ["load"])).toBe("unload");
+    expect(nextReference(names, ["load", "unload"])).toBe("load");
+    expect(nextReference(["load"], ["load"])).toBe("load");
+    // after a missing step, the first one
+    expect(nextReference(names, ["gone"])).toBe("load");
+    expect(nextReference([], [])).toBeUndefined();
   });
 });
 
