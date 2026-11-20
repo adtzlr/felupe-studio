@@ -11,6 +11,7 @@ Run ``pytest tests/golden --update-golden`` to rewrite ``script.py`` and
 ``results.json`` after an intended change, and review the diff.
 """
 
+import functools
 import json
 import re
 import runpy
@@ -720,20 +721,53 @@ def test_iterative_solver_close_to_the_direct_one():
     )
 
 
+def umat_of(material):
+    """The material of a ``material.add`` command, without its volumetric part."""
+    func, args, _ = material_call(material)
+    return eval(f"{func}({', '.join(args)})", {"fem": fem, "functools": functools})
+
+
 @pytest.mark.parametrize("case", MATERIALS)
 def test_material_matches_felupe(case):
     # the stretch is 1 + u and the force is the nominal stress of the cube; the
-    # reference is the incompressible uniaxial tension of FElupe
+    # reference is the incompressible uniaxial tension of FElupe, also along the
+    # load cycle of the Mullins effect (#346), whose state variable FElupe carries
+    # along the path of the stretches
     commands = load(case)["commands"]
     [material] = [c for c in commands if c["command"] == "material.add"]
-    func, args, _ = material_call(material)
-    umat = eval(f"{func}({', '.join(args)})", {"fem": fem})
     curve = json.loads((HERE / case / "results.json").read_text(encoding="utf-8"))
     u = np.array(curve["jobs"]["job_1"]["displacement"])
     force = np.array(curve["jobs"]["job_1"]["force"])
-    _, stress, _ = fem.ViewMaterialIncompressible(umat).uniaxial(1 + u)
-    assert np.isclose(u[-1], 1)  # up to a stretch of 2
+    _, stress, _ = fem.ViewMaterialIncompressible(umat_of(material)).uniaxial(1 + u)
+    assert np.isclose(u.max(), 1)  # up to a stretch of 2
     np.testing.assert_allclose(force, stress, rtol=1e-3, atol=1e-6)
+
+
+@pytest.mark.parametrize(
+    "case", ["cube_mullins_neo_hooke", "cube_mullins_mooney_rivlin"]
+)
+def test_mullins_effect_of_a_load_cycle(case):
+    # the cube stretched to 1.5, released, stretched to 1.5 again, released,
+    # stretched to 2 and released (#346, the steps [stretch, release, stretch,
+    # release, stretch_more, release_more]): the second stretch to 1.5 is softer than
+    # the first one and follows the release back; at the first stretch and above
+    # 1.5, the largest stretch so far, the curve is that of the material without the
+    # Mullins effect
+    commands = load(case)["commands"]
+    [material] = [c for c in commands if c["command"] == "material.add"]
+    curve = json.loads((HERE / case / "results.json").read_text(encoding="utf-8"))
+    u = np.array(curve["jobs"]["job_1"]["displacement"])
+    force = np.array(curve["jobs"]["job_1"]["force"])
+    first, release, second = force[0:6], force[6:12], force[12:18]
+    assert np.all(second[1:5] < 0.9 * first[1:5])
+    np.testing.assert_allclose(second, release[::-1], rtol=1e-6, atol=1e-9)
+    np.testing.assert_allclose(second[-1], first[-1], rtol=1e-6)
+    elastic = umat_of({k: v for k, v in material.items() if k != "mullins"})
+    primary = np.r_[0:6, 27:30]  # the first stretch, the stretch from 1.6 to 2
+    _, stress, _ = fem.ViewMaterialIncompressible(elastic).uniaxial(1 + u[primary])
+    np.testing.assert_allclose(force[primary], stress, rtol=1e-3, atol=1e-6)
+    # the release from 2 is softer than the stretch to 2 (the same stretches)
+    np.testing.assert_array_less(force[31:35], force[25:29][::-1])
 
 
 @pytest.mark.parametrize("case", MATERIALS)

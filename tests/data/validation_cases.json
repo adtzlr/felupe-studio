@@ -16300,6 +16300,403 @@
     "notes": []
   },
   {
+    "name": "the mullins effect",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          },
+          "mullins": {
+            "r": 3,
+            "m": 0.5,
+            "beta": 0.1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [],
+    "notes": []
+  },
+  {
+    "name": "the mullins effect of expressions",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "parameter.add",
+          "name": "length",
+          "value": 3
+        },
+        {
+          "command": "parameter.add",
+          "name": "stroke",
+          "value": 0.5
+        },
+        {
+          "command": "parameter.add",
+          "name": "cells",
+          "value": 5,
+          "integer": true
+        },
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          },
+          "mullins": {
+            "r": "cells - 2",
+            "m": "stroke",
+            "beta": 0.1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [],
+    "notes": []
+  },
+  {
+    "name": "the mullins effect without softening",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "parameter.add",
+          "name": "length",
+          "value": 3
+        },
+        {
+          "command": "parameter.add",
+          "name": "stroke",
+          "value": 0.5
+        },
+        {
+          "command": "parameter.add",
+          "name": "cells",
+          "value": 5,
+          "integer": true
+        },
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          },
+          "mullins": {
+            "r": "cells / 5",
+            "m": 0.5,
+            "beta": 0.1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/7: 'mullins.r' of 'umat_soft': 'cells / 5' is 1, it must be greater than 1."
+    ],
+    "notes": []
+  },
+  {
     "name": "a repeated step",
     "document": {
       "schema_version": 3,

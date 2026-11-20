@@ -572,6 +572,61 @@
     ]
   },
   {
+    "name": "the mullins effect of a material",
+    "steps": [
+      {
+        "tool": "update_command",
+        "arguments": {
+          "name": "umat_soft",
+          "changes": {
+            "mullins": {
+              "r": 3,
+              "m": 0.2,
+              "beta": 0.1
+            }
+          }
+        },
+        "answer": {
+          "updated": "umat_soft",
+          "index": 4,
+          "errors": [],
+          "notes": [],
+          "commands": [
+            "specimen",
+            "hard",
+            "soft",
+            "umat_hard",
+            "umat_soft",
+            "section_hard",
+            "section_soft",
+            "left",
+            "right",
+            "fixed",
+            "move",
+            "step_1",
+            "job_1"
+          ]
+        }
+      },
+      {
+        "tool": "update_command",
+        "arguments": {
+          "name": "umat_hard",
+          "changes": {
+            "mullins": {
+              "r": 3,
+              "m": 0.2,
+              "beta": 0.1
+            }
+          }
+        },
+        "answer": {
+          "refused": "Not changed: "
+        }
+      }
+    ]
+  },
+  {
     "name": "a command against its schema",
     "steps": [
       {

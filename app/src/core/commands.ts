@@ -778,6 +778,27 @@ export interface MaterialNeoHooke {
      */
     bulk?: number | string;
   };
+  mullins?: Mullins;
+}
+/**
+ * The Mullins effect of Ogden and Roxburgh (fem.OgdenRoxburgh): the material is softer after it was loaded, when it is unloaded and loaded again up to the largest strain energy density of its load history, and stiff again above it. The stress is scaled by a softening of the strain energy density and of its maximum, a state variable of every quadrature point; the bulk modulus is not softened.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "Mullins".
+ */
+export interface Mullins {
+  /**
+   * Reciprocal of the largest softening: with r = 3, the stiffness is softened to 1 - 1/3 = 2/3 at most.
+   */
+  r: number | string;
+  /**
+   * Initial softening modulus, a strain energy density: the smaller, the faster the material softens below the maximum of its load history.
+   */
+  m: number | string;
+  /**
+   * The part of the softening modulus that grows with the maximum strain energy density of the load history (m + β ψmax).
+   */
+  beta: number | string;
 }
 /**
  * Compressible isotropic hyperelastic Neo-Hookean material (fem.NeoHookeCompressible).
@@ -824,6 +845,7 @@ export interface MaterialMooneyRivlin {
      */
     bulk?: number | string;
   };
+  mullins?: Mullins;
 }
 /**
  * Isotropic hyperelastic Yeoh material (fem.Hyperelastic with fem.yeoh): a cubic polynomial of the first invariant. The shear modulus is 2 C10. Without a bulk modulus it needs the u-p-J formulation.
@@ -853,6 +875,7 @@ export interface MaterialYeoh {
      */
     bulk?: number | string;
   };
+  mullins?: Mullins;
 }
 /**
  * Isotropic hyperelastic third-order deformation material (fem.Hyperelastic with fem.third_order_deformation): terms of the first and second invariant up to the third order. The shear modulus is 2 (C10 + C01). Without a bulk modulus it needs the u-p-J formulation.
@@ -890,6 +913,7 @@ export interface MaterialThirdOrderDeformation {
      */
     bulk?: number | string;
   };
+  mullins?: Mullins;
 }
 /**
  * Isotropic hyperelastic Ogden material (fem.Hyperelastic with fem.ogden): up to three terms of the principal stretches, each with a modulus μi and an exponent αi. The shear modulus is the sum of the moduli. Without a bulk modulus it needs the u-p-J formulation.
@@ -927,6 +951,7 @@ export interface MaterialOgden {
      */
     bulk?: number | string;
   };
+  mullins?: Mullins;
 }
 /**
  * Isotropic hyperelastic Arruda-Boyce material, the eight-chain model (fem.Hyperelastic with fem.arruda_boyce). The chains lock at the limiting stretch. Without a bulk modulus it needs the u-p-J formulation.
@@ -952,6 +977,7 @@ export interface MaterialArrudaBoyce {
      */
     bulk?: number | string;
   };
+  mullins?: Mullins;
 }
 /**
  * Isotropic hyperelastic extended tube material of Kaliske and Heinrich (fem.Hyperelastic with fem.extended_tube): a cross-link and a tube constraint contribution. The shear modulus is Gc + Ge. Without a bulk modulus it needs the u-p-J formulation.

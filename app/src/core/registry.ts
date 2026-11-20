@@ -299,6 +299,11 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         hint: "Of the Seth-Hill strain: 0 logarithmic (Hencky), 1 Biot, 2 Green-Lagrange",
         default: 0,
       },
+      // an option of the hyperelastic materials (#346)
+      mullins: {
+        label: "Mullins effect",
+        hint: "Softer after the first loading, up to the largest strain energy density of the load history (Ogden-Roxburgh)",
+      },
     },
     options: {
       framework: {

@@ -12,6 +12,16 @@ A model with an optional bulk modulus ``bulk`` is incompressible without it and
 needs the ``u-p-J`` formulation of a section. Parameters that are lists of values
 (the terms of Ogden) may need the same number of values (``x-same-length``).
 
+A hyperelastic model with a strain energy function (Neo-Hooke and the models of
+tensortrax, not the extended tube) may have the Mullins effect of Ogden and Roxburgh
+(``mullins``, #346): the material is ``fem.OgdenRoxburgh`` of ``fem.NeoHooke``, or
+``fem.Hyperelastic`` of ``fem.ogden_roxburgh`` with the function of the model as its
+``material`` and one state variable, the maximum strain energy density of the load
+history. ``functools.partial`` passes the function: ``fem.Hyperelastic`` would pass
+the defaults of ``fem.ogden_roxburgh`` (``mu`` of ``fem.neo_hooke``) to every
+function (adtzlr/felupe#1302). The bulk modulus is a ``fem.Volumetric`` after it,
+without softening.
+
 A strain-based model (#191, ``x-felupe``: a ``strain`` function like
 ``fem.linear_elastic`` and its ``statevars``) is a ``fem.MaterialStrain`` in a
 ``framework`` (small strain, Total Lagrange, co-rotational or Seth-Hill with a
@@ -54,6 +64,8 @@ class Model:
     # its state variables (Python), e.g. "(1, (3, 3))"
     strain: bool = False
     statevars: str | None = None
+    # the Mullins effect of Ogden and Roxburgh is an option of the model (#346)
+    mullins: bool = False
 
     @property
     def optional_bulk(self):
@@ -80,6 +92,7 @@ def models():
             hyperelastic="function" in felupe,
             strain="strain" in felupe,
             statevars=felupe.get("statevars"),
+            mullins="mullins" in properties,
             parameters=tuple(
                 Parameter(
                     key=key,
@@ -134,14 +147,30 @@ def material_call(material):
     ... )
     >>> func, args[1:]
     ('fem.MaterialStrain', ['framework="small-strain"', 'λ=λ', 'μ=μ'])
+
+    With the Mullins effect (#346), the bulk modulus of Neo-Hooke is not softened:
+
+    >>> func, args, volumetric = material_call(
+    ...     {"model": "NeoHooke", "parameters": {"mu": 1.0, "bulk": 50},
+    ...      "mullins": {"r": 3, "m": 1, "beta": 0.1}}
+    ... )
+    >>> func, args
+    ('fem.OgdenRoxburgh', ['fem.NeoHooke(mu=1.0)', 'r=3', 'm=1', 'beta=0.1'])
+    >>> volumetric
+    ['bulk=50']
     """
     model = models()[material["model"]]
     values = material["parameters"]
+    mullins = material.get("mullins")
     args, volumetric = [], []
     for p in model.parameters:
         if p.key in values and not p.lame:
             name = p.argument or p.key
-            (volumetric if p.volumetric else args).append(f"{name}={values[p.key]!r}")
+            # the bulk modulus of Neo-Hooke is a fem.Volumetric with the Mullins effect
+            outside = p.volumetric or (mullins is not None and p.key == "bulk")
+            (volumetric if outside else args).append(f"{name}={values[p.key]!r}")
+    if mullins is not None:
+        return (*_mullins_call(model, mullins, args), volumetric)
     if model.strain:
         framework = material.get("framework", "small-strain")
         statevars = [f"statevars={model.statevars}"] if model.statevars else []
@@ -153,6 +182,21 @@ def material_call(material):
     if model.hyperelastic:
         return "fem.Hyperelastic", [model.call, *args], volumetric
     return model.call, args, volumetric
+
+
+def _mullins_call(model, mullins, args):
+    """The callable and the arguments of a material with the Mullins effect (#346)."""
+    softening = [f"{key}={mullins[key]!r}" for key in ("r", "m", "beta")]
+    if model.hyperelastic:
+        function = f"functools.partial(fem.ogden_roxburgh, material={model.call})"
+        return "fem.Hyperelastic", [function, *softening, *args, "nstatevars=1"]
+    return "fem.OgdenRoxburgh", [f"{model.call}({', '.join(args)})", *softening]
+
+
+def uses_functools(materials):
+    """True if a material of tensortrax has the Mullins effect, whose function the
+    script passes with ``functools.partial`` (#346)."""
+    return any("mullins" in m and models()[m["model"]].hyperelastic for m in materials)
 
 
 def lame_call(material):

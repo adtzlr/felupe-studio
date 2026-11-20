@@ -103,6 +103,13 @@ describe("material registry", () => {
         "Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.",
         "none",
       ],
+      // the option of the Mullins effect (#346)
+      [
+        "Mullins effect",
+        undefined,
+        "Softer after the first loading, up to the largest strain energy density of the load history (Ogden-Roxburgh)",
+        undefined,
+      ],
     ]);
   });
 });

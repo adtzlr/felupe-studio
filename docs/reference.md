@@ -300,6 +300,8 @@ FElupe: `fem.NeoHooke`
 | `mu` (μ) | number > 0 | yes | Shear modulus. Default `1`. |
 | `bulk` (K) | number > 0 |  | Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation. |
 
+Optional: the Mullins effect (`mullins`), see [The Mullins effect](#the-mullins-effect).
+
 #### Neo-Hooke (compressible) (`model: "NeoHookeCompressible"`)
 
 Compressible isotropic hyperelastic Neo-Hookean material (fem.NeoHookeCompressible).
@@ -323,6 +325,8 @@ FElupe: `fem.mooney_rivlin`
 | `C01` (C₀₁) | number | yes | Material parameter of the second invariant. Default `0.1`. |
 | `bulk` (K) | number > 0 |  | Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation. |
 
+Optional: the Mullins effect (`mullins`), see [The Mullins effect](#the-mullins-effect).
+
 #### Yeoh (`model: "Yeoh"`)
 
 Isotropic hyperelastic Yeoh material (fem.Hyperelastic with fem.yeoh): a cubic polynomial of the first invariant. The shear modulus is 2 C10. Without a bulk modulus it needs the u-p-J formulation.
@@ -335,6 +339,8 @@ FElupe: `fem.yeoh`
 | `C20` (C₂₀) | number | yes | Material parameter of the quadratic term of the first invariant. Default `-0.1`. |
 | `C30` (C₃₀) | number | yes | Material parameter of the cubic term of the first invariant. Default `0.02`. |
 | `bulk` (K) | number > 0 |  | Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation. |
+
+Optional: the Mullins effect (`mullins`), see [The Mullins effect](#the-mullins-effect).
 
 #### Third-order deformation (`model: "ThirdOrderDeformation"`)
 
@@ -351,6 +357,8 @@ FElupe: `fem.third_order_deformation`
 | `C30` (C₃₀) | number | yes | Material parameter of the cubic term of the first invariant. Default `0.02`. |
 | `bulk` (K) | number > 0 |  | Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation. |
 
+Optional: the Mullins effect (`mullins`), see [The Mullins effect](#the-mullins-effect).
+
 #### Ogden (`model: "Ogden"`)
 
 Isotropic hyperelastic Ogden material (fem.Hyperelastic with fem.ogden): up to three terms of the principal stretches, each with a modulus μi and an exponent αi. The shear modulus is the sum of the moduli. Without a bulk modulus it needs the u-p-J formulation.
@@ -363,6 +371,8 @@ FElupe: `fem.ogden`
 | `alpha` (αᵢ) | list of 1 to 3 numbers ≠ 0 | yes | Stretch exponents of the terms, one per modulus, not zero. Default `[1.7, -1.5]`. |
 | `bulk` (K) | number > 0 |  | Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation. |
 
+Optional: the Mullins effect (`mullins`), see [The Mullins effect](#the-mullins-effect).
+
 #### Arruda-Boyce (`model: "ArrudaBoyce"`)
 
 Isotropic hyperelastic Arruda-Boyce material, the eight-chain model (fem.Hyperelastic with fem.arruda_boyce). The chains lock at the limiting stretch. Without a bulk modulus it needs the u-p-J formulation.
@@ -374,6 +384,8 @@ FElupe: `fem.arruda_boyce`
 | `C1` (C₁) | number > 0 | yes | Shear modulus of the chain network (the initial shear modulus for a large limiting stretch). Default `1.0`. |
 | `limit` (λₘ) | number > 1 | yes | Limiting stretch at which the chains are locked. Default `3.2`. |
 | `bulk` (K) | number > 0 |  | Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation. |
+
+Optional: the Mullins effect (`mullins`), see [The Mullins effect](#the-mullins-effect).
 
 #### Extended tube (`model: "ExtendedTube"`)
 
@@ -420,6 +432,16 @@ Strain exponent (`strain_exponent`): The strain exponent m of the Seth-Hill stra
 | `nu` (ν) | number ≥ -1, < 0.5 | yes | Poisson's ratio. Default `0.3`. |
 | `sigma_y` (σy) | number > 0 | yes | Initial yield stress (uniaxial). Default `250`. |
 | `K` (K) | number ≥ 0 | yes | Isotropic hardening modulus: the yield stress grows by K times the equivalent plastic strain. Default `1000`. |
+
+#### The Mullins effect
+
+The Mullins effect of Ogden and Roxburgh (fem.OgdenRoxburgh): the material is softer after it was loaded, when it is unloaded and loaded again up to the largest strain energy density of its load history, and stiff again above it. The stress is scaled by a softening of the strain energy density and of its maximum, a state variable of every quadrature point; the bulk modulus is not softened.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `r` (r) | number > 1 | yes | Reciprocal of the largest softening: with r = 3, the stiffness is softened to 1 - 1/3 = 2/3 at most. Default `3`. |
+| `m` (m) | number > 0 | yes | Initial softening modulus, a strain energy density: the smaller, the faster the material softens below the maximum of its load history. Default `1`. |
+| `beta` (β) | number ≥ 0 | yes | The part of the softening modulus that grows with the maximum strain energy density of the load history (m + β ψmax). Default `0.1`. |
 
 ### `section.add`
 

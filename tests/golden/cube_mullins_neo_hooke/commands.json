@@ -1,0 +1,111 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "mesh.import",
+      "name": "cube",
+      "file": "cube.vtu"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "all_cells",
+      "mesh": "cube"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 1.0
+      },
+      "mullins": {
+        "r": 3,
+        "m": 0.2,
+        "beta": 0.1
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "body",
+      "cellset": "all_cells",
+      "material": "rubber",
+      "formulation": "u-p-J",
+      "bulk": 5000
+    },
+    {
+      "command": "loadcase.add",
+      "name": "tension",
+      "type": "uniaxial"
+    },
+    {
+      "command": "step.add",
+      "name": "stretch",
+      "ramp": {
+        "num": 5,
+        "items": [
+          {
+            "target": "tension",
+            "start": 0,
+            "end": 0.5
+          }
+        ]
+      }
+    },
+    {
+      "command": "step.add",
+      "name": "release",
+      "ramp": {
+        "num": 5,
+        "items": [
+          {
+            "target": "tension",
+            "start": 0.5,
+            "end": 0
+          }
+        ]
+      }
+    },
+    {
+      "command": "step.add",
+      "name": "stretch_more",
+      "ramp": {
+        "num": 5,
+        "items": [
+          {
+            "target": "tension",
+            "start": 0,
+            "end": 1
+          }
+        ]
+      }
+    },
+    {
+      "command": "step.add",
+      "name": "release_more",
+      "ramp": {
+        "num": 5,
+        "items": [
+          {
+            "target": "tension",
+            "start": 1,
+            "end": 0
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "stretch",
+        "release",
+        "stretch",
+        "release",
+        "stretch_more",
+        "release_more"
+      ],
+      "curve": "tension",
+      "tol": 1.49e-08
+    }
+  ]
+}
