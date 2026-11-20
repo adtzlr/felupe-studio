@@ -5418,6 +5418,84 @@
     },
     {
       "command": {
+        "command": "material.add",
+        "name": "filled_rubber",
+        "model": "NeoHooke",
+        "parameters": {
+          "mu": "1"
+        },
+        "mullins": {
+          "r": "2",
+          "m": "0.05",
+          "beta": "0.1"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "mu"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "mullins",
+            "r"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 1
+          }
+        },
+        {
+          "path": [
+            "mullins",
+            "m"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "mullins",
+            "beta"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "soft_body",
+        "cellset": "soft_cells",
+        "material": "filled_rubber",
+        "formulation": "u-p-J",
+        "bulk": "5000"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
         "command": "section.add",
         "name": "inner_steel",
         "cellset": "inner_cells",
@@ -5433,6 +5511,189 @@
         "cellset": "outer_cells",
         "material": "steel",
         "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mpc.add",
+        "name": "connect",
+        "points": "inner",
+        "center": "center",
+        "constrained": [
+          "x",
+          "y",
+          "z"
+        ],
+        "multiplier": "100000"
+      },
+      "fields": [
+        {
+          "path": [
+            "multiplier"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "load",
+        "ramp": {
+          "num": "6",
+          "items": [
+            {
+              "target": "radial",
+              "start": "0",
+              "end": "6"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "start"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "unload",
+        "ramp": {
+          "num": "6",
+          "items": [
+            {
+              "target": "radial",
+              "start": "6",
+              "end": "0"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "start"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "further",
+        "ramp": {
+          "num": "3",
+          "items": [
+            {
+              "target": "radial",
+              "start": "6",
+              "end": "9"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "start"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job",
+        "steps": [
+          "load",
+          "unload",
+          "load",
+          "further"
+        ],
+        "curve": "radial"
       },
       "fields": []
     },
