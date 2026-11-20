@@ -8,6 +8,7 @@ import {
   type Input,
   isColor,
   kindLabel,
+  nextReference,
   offered,
 } from "../core/form";
 import { automaticMeshColor } from "../viewer/layers";
@@ -319,6 +320,9 @@ function ReferenceControl(args: Args<"reference">) {
   // a list of a fixed number, in order, e.g. the two meshes of fill_between
   if (args.input.multiple && maxItems !== undefined && maxItems > 1)
     if (minItems === maxItems) return <OrderedReferences {...args} />;
+  // a list in order that may repeat an object, e.g. the steps of a job (#331)
+  if (args.input.multiple && args.input.repeats)
+    return <SequenceReferences {...args} />;
   if (args.input.multiple && !one) return <ReferencesControl {...args} />;
   const { form, spec, input, common, value } = args;
   const names = offered(spec, form.draft, form.context);
@@ -396,6 +400,87 @@ function OrderedReferences({
           </select>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * References in order that may repeat an object, e.g. the steps of a job (#331),
+ * load, unload, load: a numbered select per item with a button that removes it, and
+ * one that adds the object after the last item (`nextReference`).
+ */
+function SequenceReferences({
+  form,
+  spec,
+  input,
+  common,
+  value,
+}: Args<"reference">) {
+  const names = offered(spec, form.draft, form.context);
+  const kind = kindLabel(input.kind);
+  const items = Array.isArray(value) ? (value as string[]) : [];
+  const set = (next: string[]) =>
+    form.change(spec, next.length || spec.required ? next : undefined);
+  const next = nextReference(names, items);
+  return (
+    <div
+      {...common}
+      role="group"
+      aria-labelledby={`${common.id}-label`}
+      class="sequence"
+    >
+      {names.length === 0 && items.length === 0 && (
+        <span class="muted">No {kind} yet.</span>
+      )}
+      {items.map((current, i) => {
+        const missing = !names.includes(current);
+        return (
+          <div key={i} class="sequence-item">
+            <span class="sequence-number muted" aria-hidden="true">
+              {i + 1}
+            </span>
+            <select
+              aria-label={`${spec.label} ${i + 1}`}
+              value={current}
+              onChange={(event) =>
+                set(
+                  items.map((v, k) =>
+                    k === i ? event.currentTarget.value : v,
+                  ),
+                )
+              }
+            >
+              {missing && <option value={current}>{current} (missing)</option>}
+              {names.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              class="icon-button"
+              aria-label={`Remove ${kind} ${i + 1}`}
+              title="Remove"
+              disabled={items.length <= input.minItems}
+              onClick={() => set(items.filter((_, k) => k !== i))}
+            >
+              ×
+            </button>
+          </div>
+        );
+      })}
+      {names.length > 0 && (
+        <div class="rows-actions">
+          <button
+            type="button"
+            class="button"
+            onClick={() => next !== undefined && set([...items, next])}
+          >
+            + Add {kind}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

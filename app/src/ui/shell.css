@@ -947,6 +947,24 @@ button {
   gap: var(--space-4);
 }
 
+/* references in order that may repeat one, e.g. the steps of a job (#331) */
+.sequence {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.sequence-item {
+  display: grid;
+  grid-template-columns: var(--space-16) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.sequence-number {
+  font-size: var(--text-xs);
+  text-align: right;
+}
+
 .check {
   display: inline-flex;
   align-items: center;

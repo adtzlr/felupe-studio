@@ -60,6 +60,47 @@ describe("editing in the properties panel", () => {
     expect(field("E").value).toBe("10");
   });
 
+  it("edits the steps of a job in order, also a repeated one (#331)", () => {
+    const document = structuredClone(fixture) as CommandList;
+    const unload = {
+      command: "step.add",
+      name: "unload",
+      ramp: { num: 5, items: [{ target: "move", start: 0.5, end: 0 }] },
+    } as Command;
+    document.commands.splice(-1, 0, unload);
+    const { store, tree, properties, field, button } = edit("job_1", document);
+    const steps = () =>
+      within(properties)
+        .getAllByRole("combobox")
+        .filter((s) => /^Steps \d+$/.test(s.getAttribute("aria-label") ?? ""))
+        .map((s) => (s as HTMLSelectElement).value);
+    expect(steps()).toEqual(["step_1"]);
+    // the last step cannot be removed: a job has at least one
+    expect(button("Remove step 1").disabled).toBe(true);
+
+    // a new item takes the step after the last one, after the last the first again
+    fireEvent.click(button("+ Add step"));
+    expect(steps()).toEqual(["step_1", "unload"]);
+    fireEvent.click(button("+ Add step"));
+    expect(steps()).toEqual(["step_1", "unload", "step_1"]);
+    fireEvent.click(button("Apply"));
+    expect(store.get("job_1")).toMatchObject({
+      steps: ["step_1", "unload", "step_1"],
+    });
+    expect(
+      within(tree).getByRole("treeitem", { name: /job_1/ }).textContent,
+    ).toContain("step_1, unload, step_1");
+
+    // another step at a position, and a removed one
+    fireEvent.change(field<HTMLSelectElement>("Steps 3"), {
+      target: { value: "unload" },
+    });
+    fireEvent.click(button("Remove step 1"));
+    expect(steps()).toEqual(["unload", "unload"]);
+    fireEvent.click(button("Apply"));
+    expect(store.get("job_1")).toMatchObject({ steps: ["unload", "unload"] });
+  });
+
   it("gives a mesh an own color and takes it back (#336)", () => {
     const { store, field, button, type } = edit("specimen");
     // the form is made again after Apply: its fields are looked up each time

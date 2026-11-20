@@ -191,7 +191,8 @@ const references: Rule = (model, cmd) => {
     if (value === undefined) continue;
     const kinds = kindsOf(refKind);
     const text = kinds.map(kindName).join(" or ");
-    for (const ref of isList ? (value as string[]) : [value as string]) {
+    // a name once, also one that a list repeats, e.g. a step of a job (#331)
+    for (const ref of isList ? new Set(value as string[]) : [value as string]) {
       const other = model.kindOf(ref);
       if (other === undefined) {
         problems.push({

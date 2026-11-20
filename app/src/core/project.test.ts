@@ -81,6 +81,17 @@ describe("project files", () => {
     expect(() => parse(text({ length: "mm" }))).toThrow(ProjectError);
   });
 
+  it("opens a job that repeats a step (#331)", () => {
+    const text = (steps: string[]) =>
+      JSON.stringify({
+        schema_version: 3,
+        commands: [{ command: "job.add", name: "cycle", steps }],
+      });
+    const steps = ["load", "unload", "load"];
+    expect(parse(text(steps)).commands[0]).toMatchObject({ steps });
+    expect(() => parse(text([]))).toThrow(ProjectError);
+  });
+
   it("does not check references when loading", () => {
     const text = JSON.stringify({
       schema_version: 3,

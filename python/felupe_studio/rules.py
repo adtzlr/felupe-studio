@@ -140,7 +140,8 @@ def references(model, cmd):
             continue
         kinds = (kinds,) if isinstance(kinds, str) else kinds
         text = " or ".join(KIND_NAMES.get(k, k) for k in kinds)
-        for ref in value if is_list else [value]:
+        # a name once, also one that a list repeats, e.g. a step of a job (#331)
+        for ref in dict.fromkeys(value) if is_list else [value]:
             other = model.kind_of(ref)
             if other is None:
                 problems.append(

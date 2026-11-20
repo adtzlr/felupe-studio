@@ -31,7 +31,9 @@ def test_reference_types_and_kinds():
         "pressure |"
     )
     assert target in text
-    assert "| `steps` | names of steps (at least 1, unique) | yes |" in text
+    # a list of unique items, and the steps of a job, which may repeat one (#331)
+    assert "| `select.ids` | integers ≥ 0 (at least 1, unique) | yes |" in text
+    assert "| `steps` | names of steps (at least 1) | yes |" in text
     assert (
         "| `nu` (ν) | number ≥ -1, < 0.5 | yes | Poisson's ratio. Default `0.3`. |"
         in (text)

@@ -78,6 +78,11 @@ export type Input =
       minItems: number;
       /** At most this many, e.g. the one mesh of an operation (ADR 0019). */
       maxItems?: number;
+      /**
+       * A list in order that may repeat an object, e.g. the steps of a job (#331):
+       * of the schema without `uniqueItems` and without a fixed number of items.
+       */
+      repeats?: boolean;
     }
   /**
    * A list of objects, edited as rows; `columns` are the fields of a row, with
@@ -137,6 +142,7 @@ interface Node {
   exclusiveMaximum?: number;
   minItems?: number;
   maxItems?: number;
+  uniqueItems?: boolean;
   description?: string;
   default?: unknown;
   /** Short label of a definition or a property, e.g. `Mooney-Rivlin` or `μ`. */
@@ -320,6 +326,20 @@ export function available(context: Context, kind: RefKind): string[] {
     .map((c) => c.name);
 }
 
+/**
+ * The object that a new item of a list in order takes (#331): the one after the
+ * last item in the order of the objects, after the last object the first one
+ * again, so the steps load and unload give load, unload, load; the first object
+ * in an empty list.
+ */
+export function nextReference(
+  names: readonly string[],
+  items: readonly string[],
+): string | undefined {
+  const last = names.indexOf(items.at(-1) ?? "");
+  return names[(last + 1) % names.length];
+}
+
 /** The label of the kind of a reference, e.g. "boundary or load". */
 export const kindLabel = (kind: RefKind): string =>
   kindsOf(kind)
@@ -421,6 +441,7 @@ function arrayLeaf(type: CommandType, key: string, property: Node): Leaf {
   if (refName(property.items!) === "Name") {
     const kind = referenceKind(type, key);
     const { maxItems } = property;
+    const repeats = !property.uniqueItems && maxItems === undefined;
     return {
       input: {
         type: "reference",
@@ -428,6 +449,7 @@ function arrayLeaf(type: CommandType, key: string, property: Node): Leaf {
         multiple: true,
         minItems,
         ...(maxItems !== undefined ? { maxItems } : {}),
+        ...(repeats ? { repeats } : {}),
       },
     };
   }
@@ -1059,7 +1081,10 @@ const integersError: FieldError<"integers"> = (_, input, value) => {
     : undefined;
 };
 
-/** A reference to several objects: at least one, each once and existing. */
+/**
+ * A reference to several objects: at least one, existing, and each once, unless the
+ * list may repeat one (#331).
+ */
 const referencesError: FieldError<"reference"> = (
   spec,
   input,
@@ -1077,7 +1102,7 @@ const referencesError: FieldError<"reference"> = (
   }
   const unknown = items.find((item) => !names.includes(item));
   if (unknown) return `There is no ${kind} '${unknown}'.`;
-  return new Set(items).size < items.length
+  return !input.repeats && new Set(items).size < items.length
     ? "Each object may appear only once."
     : undefined;
 };

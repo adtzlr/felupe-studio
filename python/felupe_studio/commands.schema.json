@@ -2840,10 +2840,9 @@
           "$ref": "#/$defs/Name"
         },
         "steps": {
-          "description": "Steps evaluated one after another.",
+          "description": "Steps evaluated one after another, in this order; a step may be repeated, e.g. load, unload, load.",
           "type": "array",
           "minItems": 1,
-          "uniqueItems": true,
           "items": {
             "$ref": "#/$defs/Name"
           }

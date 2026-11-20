@@ -729,7 +729,7 @@ A job evaluating steps one after another (fem.Job). With a curve, the force-disp
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | name | yes | Name of the object. |
-| `steps` | names of steps (at least 1, unique) | yes | Steps evaluated one after another. |
+| `steps` | names of steps (at least 1) | yes | Steps evaluated one after another, in this order; a step may be repeated, e.g. load, unload, load. |
 | `curve` | name of a boundary, load case or point load |  | The boundary, load case or point load of the force-displacement curve. |
 | `tol` | number > 0 (or an expression) |  | Tolerance of the Newton-Raphson method: the norm of the residual forces relative to a reference force, the reaction forces or the forces between the items (e.g. of a pressure on a solid body), if they are larger (default 0.01, like commercial codes). |
 | `maxiter` | integer ≥ 1 (or an expression) |  | The maximum number of Newton iterations of a substep (default 16). |
