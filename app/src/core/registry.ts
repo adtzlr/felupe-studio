@@ -185,6 +185,11 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         hint: "Multiplies the coordinates, e.g. 1000 from m to mm",
         placeholder: "1",
       },
+      color: {
+        label: "Color",
+        hint: "Of the mesh in the viewport, with Color by: Meshes",
+        placeholder: "automatic",
+      },
     },
   },
   // a mesh made by a Python script with the parameters of the model (#182)
@@ -201,6 +206,11 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       "parameters.normalize": {
         label: "Normalize",
         hint: "Keep the shape of the ends: the runouts become indents",
+      },
+      color: {
+        label: "Color",
+        hint: "Of the mesh in the viewport, with Color by: Meshes",
+        placeholder: "automatic",
       },
     },
   },
@@ -233,6 +243,11 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         label: "Cell type",
         hint: "Type of the solid cells, if the mesh has more than one",
         placeholder: "the only one",
+      },
+      color: {
+        label: "Color",
+        hint: "Of the mesh in the viewport, with Color by: Meshes",
+        placeholder: "automatic",
       },
     },
   },

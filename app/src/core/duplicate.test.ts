@@ -31,6 +31,14 @@ describe("duplicate (#138)", () => {
     expect(duplicateBlocker(commands[0])).toBeUndefined();
   });
 
+  it("keeps the own color of a mesh (#336)", () => {
+    const document = structuredClone(fixture) as CommandList;
+    Object.assign(document.commands[0], { color: "#7f8c8d" });
+    const store = new ModelStore(document);
+    const copy = store.duplicate("specimen")!;
+    expect(store.get(copy)).toMatchObject({ color: "#7f8c8d" });
+  });
+
   it("adds the copy after the original as one undo step", () => {
     const store = new ModelStore(fixture as CommandList);
     expect(store.duplicate("umat_hard")).toBe("umat_hard_2");

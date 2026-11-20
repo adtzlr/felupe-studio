@@ -34,6 +34,8 @@ export interface Option {
 export type Input =
   | { type: "name" }
   | { type: "text" }
+  /** A color #rrggbb, e.g. of a mesh in the viewport (#336); without it, automatic. */
+  | { type: "color" }
   | {
       type: "number";
       integer: boolean;
@@ -338,6 +340,8 @@ function scalarLeaf(
   raw: Node,
   property: Node,
 ): Leaf | undefined {
+  if (refName(raw) === "Color")
+    return { input: { type: "color" }, described: true };
   if (refName(raw) === "Name") {
     if (key === "name") return { input: { type: "name" }, required: true };
     const kind = referenceKind(type, key);
@@ -995,6 +999,15 @@ const nameError: FieldError<"name"> = (_, __, value, context) => {
 const textError: FieldError<"text"> = (spec, _, value) =>
   isMissing(value) && spec.required ? "Required." : undefined;
 
+/** A color #rrggbb (the pattern of the schema), e.g. of a mesh (#336). */
+export const isColor = (value: unknown): value is string =>
+  typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
+
+const colorError: FieldError<"color"> = (_, __, value) =>
+  isMissing(value) || isColor(value)
+    ? undefined
+    : "A color like #7f8c8d: # and six hexadecimal digits.";
+
 const numberFieldError: FieldError<"number"> = (
   spec,
   input,
@@ -1186,6 +1199,7 @@ const rowsError: FieldError<"rows"> = (spec, input, value) => {
 const FIELD_ERRORS: { [T in Input["type"]]?: FieldError<T> } = {
   name: nameError,
   text: textError,
+  color: colorError,
   number: numberFieldError,
   choice: choiceError,
   multichoice: multichoiceError,

@@ -228,6 +228,12 @@ CHANGES = {
     "duplicate name": lambda d: find(d, "soft").update(name="hard"),
     "mesh without tag": lambda d: find(d, "specimen").pop("tag"),
     "mesh with cell type": lambda d: find(d, "specimen").update(cell_type="tetra10"),
+    # an own color of a mesh (#336): no rule checks it
+    "mesh with an own color": lambda d: find(d, "specimen").update(color="#7f8c8d"),
+    "made mesh with an own color": lambda d: (
+        tool(d),
+        find(d, "specimen").update(color="#2B2D42"),
+    ),
     "NeoHooke without bulk": lambda d: (
         find(d, "section_soft").update(formulation="u"),
         find(d, "section_soft").pop("bulk"),

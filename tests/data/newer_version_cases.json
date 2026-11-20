@@ -30,14 +30,14 @@
           "command": "mesh.import",
           "name": "block",
           "file": "block.vtu",
-          "color": "#7f8c8d"
+          "opacity": 0.5
         }
       ]
     },
     "features": [
-      "the property `color` of `mesh.import`"
+      "the property `opacity` of `mesh.import`"
     ],
-    "message": "This project uses the property `color` of `mesh.import`, which FElupe Studio {version} does not know. It may have been saved with a newer version: please update FElupe Studio."
+    "message": "This project uses the property `opacity` of `mesh.import`, which FElupe Studio {version} does not know. It may have been saved with a newer version: please update FElupe Studio."
   },
   {
     "name": "a tool of mesh.generate",
@@ -217,13 +217,13 @@
           "command": "mesh.import",
           "name": "block",
           "file": "block.vtu",
-          "color": "#000000"
+          "opacity": 0.2
         },
         {
           "command": "mesh.import",
           "name": "other",
           "file": "block.vtu",
-          "color": "#ffffff"
+          "opacity": 0.8
         },
         {
           "command": "material.add",
@@ -236,10 +236,10 @@
       ]
     },
     "features": [
-      "the property `color` of `mesh.import`",
+      "the property `opacity` of `mesh.import`",
       "the model `OgdenRoxburgh` of `material.add`"
     ],
-    "message": "This project uses the property `color` of `mesh.import` and the model `OgdenRoxburgh` of `material.add`, which FElupe Studio {version} does not know. It may have been saved with a newer version: please update FElupe Studio."
+    "message": "This project uses the property `opacity` of `mesh.import` and the model `OgdenRoxburgh` of `material.add`, which FElupe Studio {version} does not know. It may have been saved with a newer version: please update FElupe Studio."
   },
   {
     "name": "an invalid value",

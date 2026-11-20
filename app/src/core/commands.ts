@@ -38,6 +38,13 @@ export type Command =
  */
 export type Name = string;
 /**
+ * An own color of the mesh in the viewport (Color by: Meshes) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position in the model. A property of the model, not of the script: the generated script is the same.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "Color".
+ */
+export type Color = string;
+/**
  * A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes made by tools before, like expand or revolve. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
@@ -255,6 +262,7 @@ export interface MeshImport {
    * Factor of the coordinates of the points, e.g. 1000 for a mesh in m of a model in mm. The points are multiplied after reading, before the cell sets; point sets and points are in the scaled coordinates.
    */
   scale?: number | string;
+  color?: Color;
 }
 /**
  * A mesh made by a Python script next to the project, e.g. with the mesh tools of FElupe. The script runs with the parameters of the model as variables and makes a variable mesh: a fem.Mesh, a fem.MeshContainer, a meshio.Mesh or a dict of names and meshes (one mesh object per item).
@@ -295,6 +303,7 @@ export interface MeshScript {
     | "quad"
     | "quad8"
     | "quad9";
+  color?: Color;
 }
 /**
  * A point (fem.mesh.Point): one vertex with one coordinate.
@@ -312,6 +321,7 @@ export interface MeshPoint {
      */
     a: number | string;
   };
+  color?: Color;
 }
 /**
  * A line along x (fem.mesh.Line): line cells between n points from a to b.
@@ -337,6 +347,7 @@ export interface MeshLine {
      */
     n: number | string;
   };
+  color?: Color;
 }
 /**
  * A rectangle in the xy-plane (fem.Rectangle): quads between the corners a and b, with n points per axis.
@@ -371,6 +382,7 @@ export interface MeshRectangle {
      */
     n: [number | string, number | string];
   };
+  color?: Color;
 }
 /**
  * A cube (fem.Cube): hexahedrons between the corners a and b, with n points per axis.
@@ -405,6 +417,7 @@ export interface MeshCube {
      */
     n: [number | string, number | string, number | string];
   };
+  color?: Color;
 }
 /**
  * Expand a mesh along a new axis (mesh.expand): a point to a line, a line to quads in the xy-plane, quads to hexahedrons along z, with n points over the length z.
@@ -433,6 +446,7 @@ export interface MeshExpand {
      */
     z: number | string;
   };
+  color?: Color;
 }
 /**
  * Revolve a mesh about an axis (mesh.revolve): a point to a line, a line to quads, quads to hexahedrons, with n points over the angle phi.
@@ -465,6 +479,7 @@ export interface MeshRevolve {
      */
     axis: "x" | "y" | "z";
   };
+  color?: Color;
 }
 /**
  * Embed a mesh into one dimension more (embed, e.g. np.pad of the points): its points get the coordinate value of the new axis, its cells stay, e.g. a line into the plane y = value.
@@ -489,6 +504,7 @@ export interface MeshEmbed {
      */
     value: number | string;
   };
+  color?: Color;
 }
 /**
  * Move a mesh along an axis (mesh.translate).
@@ -517,6 +533,7 @@ export interface MeshTranslate {
      */
     axis: "x" | "y" | "z";
   };
+  color?: Color;
 }
 /**
  * Rotate a mesh about an axis through a center (mesh.rotate); a mesh of 2D points turns about z.
@@ -554,6 +571,7 @@ export interface MeshRotate {
       | [number | string, number | string]
       | [number | string, number | string, number | string];
   };
+  color?: Color;
 }
 /**
  * Mirror a mesh at a plane normal to an axis (mesh.mirror), at the coordinate value of the axis.
@@ -582,6 +600,7 @@ export interface MeshMirror {
      */
     value: number | string;
   };
+  color?: Color;
 }
 /**
  * Fill the cells between two meshes of the same cells and points (fem.mesh.fill_between): quads between two lines in a plane, hexahedrons between two quad meshes in space, with n points from the first mesh to the second.
@@ -606,6 +625,7 @@ export interface MeshFillBetween {
      */
     n: number | string;
   };
+  color?: Color;
 }
 /**
  * Add runouts to a mesh (mesh.add_runouts), e.g. the concave free surfaces of a rubber body between metal parts: the points move perpendicular to the axis by a relative amount, most at the centerpoint.
@@ -654,6 +674,7 @@ export interface MeshAddRunouts {
      */
     normalize?: boolean;
   };
+  color?: Color;
 }
 /**
  * Merge points of the sections whose coordinates agree to the given number of decimals (fem.field.merge(..., decimals)). Without this command, only identical points are merged. Merged points take the rounded coordinates.

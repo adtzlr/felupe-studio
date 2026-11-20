@@ -126,8 +126,14 @@ describe("createCommand", () => {
     ],
     [
       "mesh.import",
+      { file: "a.vtu", opacity: 0.5 },
+      "Not part of mesh.import here: opacity.",
+    ],
+    // an own color of a mesh is #rrggbb (#336)
+    [
+      "mesh.import",
       { file: "a.vtu", color: "red" },
-      "Not part of mesh.import here: color.",
+      "color: A color like #7f8c8d: # and six hexadecimal digits.",
     ],
   ])("rejects %s %j", async (type, values, message) => {
     const { command, errors } = await createCommand(

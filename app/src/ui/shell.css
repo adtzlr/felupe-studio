@@ -884,6 +884,34 @@ button {
   width: 100%;
 }
 
+/* an own color of a mesh (#336): the picker, its hex value and Automatic */
+.color-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.color-field input[type="color"] {
+  flex: none;
+  width: var(--control-height);
+  height: var(--control-height);
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+.command-form .color-field input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+}
+
+.color-field .button {
+  flex: none;
+}
+
 .field-error {
   color: var(--color-error);
 }
