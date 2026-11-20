@@ -16,6 +16,31 @@ describe("about", () => {
     expect(wheelVersion("tensortrax", wheels)).toBeUndefined();
     expect(wheelVersion("tensortrax")).toMatch(/^\d+\.\d+/);
   });
+
+  it("describes the app (#358)", () => {
+    const { unmount } = render(
+      <AboutDialog runtime={{ state: "loading" }} onClose={() => {}} />,
+    );
+    expect(
+      screen.getByText(
+        "A graphical modeling environment for FElupe that runs entirely in the browser.",
+        { exact: false },
+      ),
+    ).toBeTruthy();
+    unmount();
+    render(
+      <AboutDialog
+        runtime={{ state: "loading", local: true }}
+        onClose={() => {}}
+      />,
+    );
+    expect(
+      screen.getByText(
+        "A graphical modeling environment for FElupe, served by felupe-studio serve",
+        { exact: false },
+      ),
+    ).toBeTruthy();
+  });
 });
 
 describe("PyPardiso of the local runtime (#308)", () => {

@@ -70,8 +70,8 @@ export function AboutDialog({ runtime, onClose }: Props) {
       <div class="about">
         <p>
           {runtime.local
-            ? "A clickable GUI for FElupe, served by felupe-studio serve: Python runs on this computer. Every object of a model is a FElupe object; nothing leaves this computer."
-            : "A clickable GUI for FElupe that runs entirely in the browser. Every object of a model is a FElupe object; nothing is uploaded."}
+            ? "A graphical modeling environment for FElupe, served by felupe-studio serve: Python runs on this computer. Every object of a model is a FElupe object; nothing leaves this computer."
+            : "A graphical modeling environment for FElupe that runs entirely in the browser. Every object of a model is a FElupe object; nothing is uploaded."}
         </p>
         {other && (
           <p class="warning" role="note">
