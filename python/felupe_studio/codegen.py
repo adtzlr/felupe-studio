@@ -29,7 +29,7 @@ from . import items, jobs, meshtools, sections, sets
 from .__about__ import __version__
 from .analysis import analysis_of
 from .commands import SCHEMA_VERSION, ValidationError, validate
-from .expressions import resolve
+from .expressions import names, resolve
 from .formatting import call, wrap
 from .jobs import TOL, evaluate_options, solver_rtol, solver_source
 from .lines import object_lines
@@ -170,9 +170,42 @@ def parameter_line(parameter, units=None):
     >>> parameter_line({"name": "layers", "value": 3.0, "integer": True})
     'layers = 3'
     """
-    line = f"{parameter['name']} = {parameter_value(parameter)!r}"
+    code = getattr(parameter["value"], "code", None)
+    if code is None:
+        line = f"{parameter['name']} = {parameter_value(parameter)!r}"
+    else:
+        # a derived parameter (ADR 0021): its expression, without the parentheses
+        # of a field, an integer one as an int like in the app
+        expression = code[1:-1] if code.startswith("(") else code
+        if parameter.get("integer"):
+            expression = f"int({expression})"
+        line = f"{parameter['name']} = {expression}"
     suffix = unit(parameter.get("quantity"), units)
     return f"{line}  # {suffix}" if suffix else line
+
+
+def derived(parameter):
+    """Whether a parameter of a resolved command list is a derived parameter (ADR
+    0021): its value knows its expression."""
+    return hasattr(parameter["value"], "text")
+
+
+def parameter_order(parameters):
+    """Return the parameters in the order of the script: the free ones in the order
+    of the command list, then the derived ones in the order of their evaluation
+    (ADR 0021), each after the derived parameters that it uses."""
+    free = [p for p in parameters if not derived(p)]
+    pending = [p for p in parameters if derived(p)]
+    ordered = []
+    while pending:
+        later = {p["name"] for p in pending}
+        first = next(
+            (p for p in pending if not set(names(p["value"].text)) & later),
+            pending[0],
+        )
+        pending.remove(first)
+        ordered.append(first)
+    return free + ordered
 
 
 class Context:
@@ -359,7 +392,9 @@ def parameters(context):
     (#180)."""
     if not context.parameters:
         return []
-    lines = [parameter_line(p, context.units) for p in context.parameters]
+    lines = [
+        parameter_line(p, context.units) for p in parameter_order(context.parameters)
+    ]
     return ["\n".join(["# parameters", *lines]) + "\n"]
 
 

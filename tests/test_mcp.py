@@ -166,6 +166,19 @@ def test_mesh_scripts_run_only_if_trusted(tmp_path):
     assert allowed.solve()["job"]["substeps"] > 0
 
 
+def test_derived_parameters_of_a_project(tmp_path):
+    # a derived parameter (ADR 0021): its value, e.g. for the mesh scripts, and its
+    # expression in the script
+    folder = tmp_path / "plate"
+    shutil.copytree(PLATE, folder)
+    session = Session(allow_scripts=True)
+    session.open_project(folder / "model.felupe.json")
+    derived = {"command": "parameter.add", "name": "half", "value": "width / 2"}
+    session.add_command({**derived, "quantity": "length"})
+    assert session.parameters()["half"] == 20.0
+    assert "half = width / 2  # mm" in session.script()
+
+
 def call(client, tool, arguments=None, **kwargs):
     return client.call_tool(tool, arguments or {}, **kwargs)
 

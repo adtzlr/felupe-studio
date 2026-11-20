@@ -7,7 +7,7 @@
 // parameter values.
 import { analysisOf, CELLS_2D, is2d } from "./analysis";
 import type { Command, MeshGenerate, MeshImport, MeshScript } from "./commands";
-import { resolveCommands } from "./resolve";
+import { parameterValues, resolveCommands } from "./resolve";
 import { solidOf } from "./meshinfo";
 import type { MeshInfo, MeshSurface } from "../worker/protocol";
 import { safeName } from "../worker/files";
@@ -354,18 +354,11 @@ export function meshFileNames(commands: readonly Command[]): string[] {
   return [...new Set(commands.filter(isMesh).map((c) => c.file))];
 }
 
-/** The values of the parameters of the model (#180), an int or a float each. */
-export function parameterValues(
-  commands: readonly Command[],
-): Record<string, number> {
-  return Object.fromEntries(
-    commands.flatMap((c) =>
-      c.command === "parameter.add"
-        ? [[c.name, c.integer ? Math.trunc(c.value) : c.value]]
-        : [],
-    ),
-  );
-}
+/**
+ * The values of the parameters of the model (#180), an int or a float each, also of
+ * the derived parameters (ADR 0021).
+ */
+export { parameterValues };
 
 /**
  * The parameters of a mesh made by a script: the listed ones, or all parameters

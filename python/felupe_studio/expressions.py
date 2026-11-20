@@ -457,14 +457,135 @@ def _bound_problem(value, bounds):
     return None
 
 
+def _listed(names):
+    """The names in quotes as a list in words: 'a', 'a' and 'b', 'a', 'b' and 'c'."""
+    quoted = [f"'{n}'" for n in names]
+    return (
+        quoted[0] if len(quoted) == 1 else f"{', '.join(quoted[:-1])} and {quoted[-1]}"
+    )
+
+
+def _cycles(uses):
+    """The groups of derived parameters that depend on themselves (#333): the
+    strongly connected components with more than one parameter or a parameter that
+    uses itself. ``uses`` maps a name to the derived parameters it uses."""
+    index, low, stack, on_stack, groups = {}, {}, [], set(), []
+
+    def visit(name):
+        index[name] = low[name] = len(index)
+        stack.append(name)
+        on_stack.add(name)
+        for other in uses[name]:
+            if other not in index:
+                visit(other)
+                low[name] = min(low[name], low[other])
+            elif other in on_stack:
+                low[name] = min(low[name], index[other])
+        if low[name] == index[name]:
+            group = set()
+            while True:
+                other = stack.pop()
+                on_stack.discard(other)
+                group.add(other)
+                if other == name:
+                    break
+            if len(group) > 1 or name in uses[name]:
+                groups.append(group)
+
+    for name in uses:
+        if name not in index:
+            visit(name)
+    return groups
+
+
+class Parameters:
+    """The values of the parameters of a command list (ADR 0021): a free parameter
+    is its number, a derived parameter the value of its expression, evaluated in the
+    order of the dependencies (parameters without a dependency between them in the
+    order of the command list). Integer parameters are integers, like the script.
+
+    Attributes
+    ----------
+    values : dict
+        The values by name, without those with a problem.
+    problems : dict
+        The messages of the derived parameters with a problem, by the index of the
+        command, e.g. ``'a' depends on itself through 'b'.``
+    failed : set
+        The derived parameters without a value: with a problem, or using one.
+    order : list
+        The derived parameters with a value, in the order of their evaluation.
+
+    Examples
+    --------
+    >>> parameters = Parameters([
+    ...     {"command": "parameter.add", "name": "total", "value": "2 * h"},
+    ...     {"command": "parameter.add", "name": "h", "value": 4},
+    ... ])
+    >>> parameters.values, parameters.order
+    ({'h': 4.0, 'total': 8.0}, ['total'])
+    """
+
+    def __init__(self, commands):
+        self.values, self.problems, self.failed, self.order = {}, {}, set(), []
+        derived = {}  # name: (index, command, the names it uses)
+        for i, c in enumerate(commands):
+            if c["command"] != "parameter.add":
+                continue
+            value = c["value"]
+            if not isinstance(value, str):
+                self.values[c["name"]] = (
+                    int(value) if c.get("integer") else float(value)
+                )
+                continue
+            try:
+                derived[c["name"]] = (i, c, names(value))
+            except ExpressionError as error:
+                self.fail(i, c["name"], str(error))
+        uses = {n: [u for u in d[2] if u in derived] for n, d in derived.items()}
+        for group in _cycles(uses):
+            for name in group:
+                others = sorted(group - {name}, key=lambda n: derived[n][0])
+                through = f" through {_listed(others)}" if others else ""
+                self.fail(
+                    derived[name][0], name, f"'{name}' depends on itself{through}."
+                )
+        pending = [n for n in derived if n not in self.failed]
+        while pending:
+            # the first in the command list whose derived parameters are known
+            name = next(n for n in pending if not set(uses[n]) & set(pending))
+            pending.remove(name)
+            self.evaluate(name, *derived[name])
+
+    def fail(self, index, name, message=None):
+        self.failed.add(name)
+        if message:
+            self.problems[index] = message
+
+    def evaluate(self, name, index, command, used):
+        if set(used) & self.failed:
+            # only the cause is reported, at the parameter with the problem
+            return self.fail(index, name)
+        text = command["value"]
+        try:
+            value = evaluate(text, self.values)
+        except ExpressionError as error:
+            return self.fail(index, name, str(error))
+        if command.get("integer"):
+            if not value.is_integer():
+                return self.fail(
+                    index, name, f"'{text}' is {number_text(value)}, not an integer."
+                )
+            value = int(value)
+        self.values[name] = value
+        self.order.append(name)
+
+
 def parameter_values(commands):
     """Return the values of the parameters of a command list, integer parameters as
-    integers, like the generated script."""
-    return {
-        c["name"]: int(c["value"]) if c.get("integer") else float(c["value"])
-        for c in commands
-        if c["command"] == "parameter.add"
-    }
+    integers, like the generated script; derived parameters with the values of their
+    expressions, without those with a problem (ADR 0021)."""
+    return Parameters(commands).values
 
 
 def resolve(document):
@@ -483,9 +604,14 @@ def resolve(document):
     ((h / 2), 2.0)
     """
     copy = json.loads(json.dumps(document))
-    values = parameter_values(copy["commands"])
+    parameters = Parameters(copy["commands"])
+    values = parameters.values
     problems = []
     for i, command in enumerate(copy["commands"]):
+        if command["command"] == "parameter.add":
+            # the value of a derived parameter (ADR 0021), evaluated before
+            _resolve_parameter(command, i, parameters, problems)
+            continue
         for path, integer, bounds in fields(command):
             *owner_path, key = path
             owner = command
@@ -494,6 +620,8 @@ def resolve(document):
             text = owner[key]
             where = ".".join(str(p) for p in path)
             prefix = f"commands/{i}: '{where}' of '{command.get('name')}': "
+            if _uses_failed(text, parameters.failed):
+                continue
             try:
                 value = evaluate(text, values)
             except ExpressionError as error:
@@ -515,6 +643,35 @@ def resolve(document):
                 IntegerValue(int(value), code) if integer else Value(value, code)
             )
     return copy, problems
+
+
+def _uses_failed(text, failed):
+    """Whether an expression uses a derived parameter without a value (ADR 0021):
+    only the cause is reported, at the parameter."""
+    try:
+        return bool(set(names(text)) & failed)
+    except ExpressionError:
+        return False
+
+
+def _resolve_parameter(command, index, parameters, problems):
+    """The value of a derived parameter in a resolved command list (ADR 0021): a
+    value that knows its expression (``text``) and its code, or its problem."""
+    text = command["value"]
+    if not isinstance(text, str):
+        return
+    name = command["name"]
+    if index in parameters.problems:
+        problems.append(
+            f"commands/{index}: 'value' of '{name}': {parameters.problems[index]}"
+        )
+    if name not in parameters.values:
+        return
+    code = python_code(text, parameters.values)
+    value = parameters.values[name]
+    kind = IntegerValue if isinstance(value, int) else Value
+    command["value"] = kind(value, code)
+    command["value"].text = text
 
 
 def rename_parameter(command, old, new):

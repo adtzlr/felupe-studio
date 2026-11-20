@@ -29,7 +29,8 @@ export function parameterProblems(parameter: Parameter): ParameterProblem[] {
   if (parameter.integer) {
     for (const [key, label] of Object.entries(FIELDS)) {
       const value = parameter[key as keyof typeof FIELDS];
-      if (value !== undefined && !Number.isInteger(value)) {
+      // the value of a derived parameter is checked with its expression (ADR 0021)
+      if (typeof value === "number" && !Number.isInteger(value)) {
         problems.push({
           field: key as keyof typeof FIELDS,
           message: `the ${label} of an integer parameter is an integer.`,
@@ -37,7 +38,9 @@ export function parameterProblems(parameter: Parameter): ParameterProblem[] {
       }
     }
   }
-  const { min, max, value } = parameter;
+  const { min, max } = parameter;
+  // a derived parameter has no range (ADR 0021)
+  const value = typeof parameter.value === "number" ? parameter.value : NaN;
   if (min !== undefined && max !== undefined && min >= max) {
     problems.push({
       field: "max",

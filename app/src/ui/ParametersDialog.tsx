@@ -30,9 +30,15 @@ interface Props {
   onClose: () => void;
 }
 
-/** The parameters of a model, in their order. */
+/**
+ * The free parameters of a model, in their order: a derived parameter (ADR 0021) is
+ * computed from them, not set.
+ */
 export const parametersOf = (commands: readonly Command[]): Parameter[] =>
-  commands.filter((c): c is Parameter => c.command === "parameter.add");
+  commands.filter(
+    (c): c is Parameter =>
+      c.command === "parameter.add" && typeof c.value === "number",
+  );
 
 /** The problems of the expressions of changed commands that the others lack. */
 function newProblems(before: readonly Command[], after: readonly Command[]) {

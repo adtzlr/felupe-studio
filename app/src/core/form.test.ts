@@ -1224,9 +1224,13 @@ describe("expressions of parameters (#242)", () => {
       type: "numbers",
       expressions: true,
     });
-    // not in the fields of a parameter and the numbers that name things
+    // the value of a parameter: a number, or a derived parameter (ADR 0021)
+    expect(
+      input("parameter.add", { name: "p", value: 1 }, "value"),
+    ).toMatchObject({ type: "number", expressions: true });
+    // not in the range of a parameter and the numbers that name things
     for (const [type, draft, key] of [
-      ["parameter.add", { name: "p", value: 1 }, "value"],
+      ["parameter.add", { name: "p", value: 1 }, "min"],
       ["mesh.merge", { name: "merge" }, "decimals"],
       ["cellset.from_tag", { name: "c", value: 1 }, "value"],
     ] as const)

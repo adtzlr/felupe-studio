@@ -190,7 +190,7 @@ export interface ModelSettings {
   };
 }
 /**
- * A parameter of the model: a number, e.g. a dimension or the number of cells of a mesh made by a script. The generated script defines it as a variable at its top.
+ * A parameter of the model: a number, e.g. a dimension or the number of cells of a mesh made by a script, or a derived parameter, an expression of other parameters (ADR 0021). The generated script defines it as a variable at its top.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "ParameterAdd".
@@ -199,9 +199,9 @@ export interface ParameterAdd {
   command: "parameter.add";
   name: Name;
   /**
-   * The value of the parameter.
+   * The value of the parameter: a number, or an expression of other parameters (a derived parameter, ADR 0021), e.g. layers * height + (layers - 1) * sheet. A derived parameter is computed: it has no min, max and step.
    */
-  value: number;
+  value: number | string;
   /**
    * The physical quantity of the value, for its unit of the model settings (e.g. mm for a length). Without it, the value has no unit.
    */

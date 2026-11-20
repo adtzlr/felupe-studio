@@ -719,15 +719,16 @@ describe("expressions of parameters (#242)", () => {
     );
   });
 
-  it("are numbers without parameters, and not in a parameter", () => {
+  it("are numbers without parameters, and the value of a derived parameter", () => {
     const { field } = edit("right");
     expect(field("Coordinate").getAttribute("inputmode")).toBe("decimal");
     cleanup();
+    // a parameter of other parameters (ADR 0021); its range stays a number
     const parameter = edit("stroke", parametric());
     parameter.type("Value", "length / 2");
-    fireEvent.click(parameter.button("Apply"));
-    expect(parameter.properties.textContent).toContain(
-      "Enter a number, with a point as decimal separator.",
+    expect(parameter.field("Value").getAttribute("aria-invalid")).toBeNull();
+    expect(parameter.field("Minimum").getAttribute("inputmode")).toBe(
+      "decimal",
     );
   });
 });
