@@ -81,6 +81,8 @@ The **bushing made with mesh tools** is the same bushing without a script: its m
 
 The **bushing with the Mullins effect** is the bushing made with mesh tools in a filled rubber: the material `filled_rubber` (Neo-Hooke, μ = 1 MPa) has the *Mullins effect* with r = 2, m = 0.05 MPa and β = 0.1, which the browser shows as *Neo-Hooke · Mullins*. The connection of the inner sleeve has no rotation point, and the job moves it radially in a load cycle: the step `load` by 6 mm, `unload` back to the start, `load` again (the same step) and `further` on to 9 mm. The force-displacement curve shows the softening: the unloading needs much less force than the first loading, e.g. about 45 % less at 3 mm, and the second loading follows the unloading back up to 6 mm, where it meets the first loading; above it, the rubber is as stiff as a new one. The contour *Max. strain energy density* shows where the rubber is softened, most at the ends of the outer sleeve in the direction of the load; it stays when the bushing is unloaded and grows only beyond 6 mm.
 
+![The results of the sample "Bushing with the Mullins effect" back at the start after its first load cycle: the maximum strain energy density that the rubber keeps, and the force-displacement curve of the first loading, the softer unloading and second loading and the loading on to 9 mm](images/mullins.png)
+
 ## Building a model
 
 ### Units
