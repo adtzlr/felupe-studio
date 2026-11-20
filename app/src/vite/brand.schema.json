@@ -105,6 +105,10 @@
       "type": "string",
       "minLength": 1
     },
+    "pyodide": {
+      "description": "Where the app loads Pyodide from: cdn (cdn.jsdelivr.net, the default), or self-hosted: the build copies Pyodide and its packages into the app, which then needs no internet access.",
+      "enum": ["cdn", "self-hosted"]
+    },
     "defaults": {
       "description": "Defaults of the brand.",
       "type": "object",

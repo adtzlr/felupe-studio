@@ -116,6 +116,21 @@ describe("the app of a brand (ADR 0020)", () => {
     expect(open).toHaveBeenCalledWith("acme", 1);
   });
 
+  it("loads Pyodide of the CDN, or its own copy (ADR 0020)", async () => {
+    const { pyodideUrl } = await import("../pyodide");
+    const base = "https://fem.acme.example/app/";
+    expect(pyodideUrl("314.0.7", base)).toBe(
+      "https://cdn.jsdelivr.net/pyodide/v314.0.7/full/",
+    );
+    document.getElementById("brand")!.textContent = JSON.stringify({
+      ...acme,
+      pyodide: "self-hosted",
+    });
+    expect(pyodideUrl("314.0.7", base)).toBe(
+      "https://fem.acme.example/app/pyodide/v314.0.7/",
+    );
+  });
+
   it("gives new model settings its units", async () => {
     const { form } = await app();
     const draft = form.initialDraft("model.settings", {

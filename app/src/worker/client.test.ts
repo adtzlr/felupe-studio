@@ -46,6 +46,8 @@ describe("RuntimeClient", () => {
       {
         type: "init",
         pyodideVersion: __PYODIDE_VERSION__,
+        // Pyodide of the CDN: the default brand does not host it (ADR 0020)
+        indexURL: `https://cdn.jsdelivr.net/pyodide/v${__PYODIDE_VERSION__}/full/`,
         wheels: [
           `https://example.org/app/wheels/felupe-${__FELUPE_VERSION__}-py3-none-any.whl`,
           "https://example.org/app/wheels/meshio-5.3.5-py3-none-any.whl",

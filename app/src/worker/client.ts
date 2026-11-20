@@ -5,6 +5,7 @@
 // cancelled by restarting the worker (or the connection, which ends the process of
 // the local runtime), which loads Python again and gets the files again.
 import { bytecodeCache } from "../brand";
+import { pyodideUrl } from "../pyodide";
 import type { CheckReport } from "../core/checks";
 import {
   type Channel,
@@ -161,6 +162,7 @@ export class RuntimeClient {
     worker.postMessage({
       type: "init",
       pyodideVersion: __PYODIDE_VERSION__,
+      indexURL: pyodideUrl(__PYODIDE_VERSION__, this.base),
       wheels: __WHEELS__.map(url),
       lazyWheels: Object.fromEntries(
         Object.entries(__LAZY_WHEELS__).map(([name, w]) => [name, url(w)]),

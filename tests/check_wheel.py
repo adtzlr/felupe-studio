@@ -56,7 +56,8 @@ from felupe_studio import serve  # noqa: E402
 app = data / "app"
 assert serve.find_app() == app, serve.find_app()
 assert serve.find_samples(app) == data / "samples", serve.find_samples(app)
-assert not (app / "wheels").exists() and not (app / "samples").exists()
+for folder in ("wheels", "pyodide", "samples"):
+    assert not (app / folder).exists(), folder
 # the samples of the build, without their list, which serve makes (#350)
 assert not (data / "samples" / "index.json").exists()
 # the command of the package

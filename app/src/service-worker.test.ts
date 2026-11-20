@@ -70,6 +70,19 @@ describe("service worker", () => {
     expect(
       sw.runtimeFile("https://cdn.jsdelivr.net/npm/other", SCOPE),
     ).toBeUndefined();
+    // a self-hosted Pyodide (ADR 0020), in the folder of its version in the app
+    expect(
+      sw.runtimeFile(`${SCOPE}pyodide/v314.0.7/pyodide.asm.wasm`, SCOPE),
+    ).toEqual({ family: "pyodide", version: "v314.0.7" });
+    expect(
+      sw.runtimeFile(
+        `${SCOPE}pyodide/v314.0.7/scipy-1.18.0-cp314-cp314-pyemscripten_2026_0_wasm32.whl`,
+        SCOPE,
+      ),
+    ).toEqual({ family: "pyodide", version: "v314.0.7" });
+    expect(
+      sw.runtimeFile("https://other.org/pyodide/v1/pyodide.mjs", SCOPE),
+    ).toBeUndefined();
     expect(Object.keys(sw.listeners).sort()).toEqual([
       "activate",
       "fetch",
@@ -100,6 +113,14 @@ describe("service worker", () => {
     const url = `${PYODIDE}pyodide.mjs`;
     await sw.cacheFirst(new Request(url), sw.runtimeFile(url, SCOPE)!);
     expect([...store.keys()].sort()).toEqual([url, oldWheel].sort());
+  });
+
+  it("removes an older self-hosted Pyodide", async () => {
+    const old = `${SCOPE}pyodide/v0.29.0/pyodide.mjs`;
+    const { sw, store } = load({ [old]: "old" });
+    const url = `${SCOPE}pyodide/v314.0.7/pyodide.mjs`;
+    await sw.cacheFirst(new Request(url), sw.runtimeFile(url, SCOPE)!);
+    expect([...store.keys()]).toEqual([url]);
   });
 });
 

@@ -47,11 +47,11 @@ An institute or a company wants to run FElupe Studio under its own name, e.g. on
   - the cache `<storage>-runtime-v1` of the service worker.
 
   So two brands on one origin keep their data apart, e.g. two folders of the Pages of one GitLab group, or two `serve` on `127.0.0.1:8765` one after the other. The modules take their keys from `storageKey(name)` of `app/src/brand.ts`.
-- **Self-hosted Pyodide:** with `pyodide: "self-hosted"`, the build copies Pyodide into `dist/pyodide/`:
+- **Self-hosted Pyodide:** with `pyodide: "self-hosted"`, the build copies Pyodide into `pyodide/v<version>/` of the app (`app/src/vite/pyodide.ts`):
   - the core of the npm package `pyodide`, which is pinned like today;
-  - the packages that the app loads (`numpy`, `scipy`, `rich` and their dependencies in `pyodide-lock.json`), downloaded once at build time and checked against the SHA-256 of the lock file.
+  - the packages that the app loads (`numpy`, `scipy`, `rich` and their dependencies in `pyodide-lock.json`), downloaded once at build time into `app/node_modules/.cache/pyodide` and checked against the SHA-256 of the lock file.
 
-  The worker gets the URL of Pyodide from the app, and the service worker caches it like the wheels. The build needs internet access, the deployment does not.
+  The worker gets the URL of Pyodide from the app (`app/src/pyodide.ts`), and the service worker caches it by its version like that of the CDN. The build needs internet access, the deployment does not. The default stays the CDN: the browser of a user loads the same files either way, and a self-hosted Pyodide is for a deployment without internet access or without third-party hosts.
 - **The wheel of a brand:** the Python package built after the build of the brand (`python -m build`) has the app and the samples of the brand (#350), without Pyodide, since `serve` runs CPython. It is installed from its file, e.g. `pip install "felupe_studio-0.8.0-py3-none-any.whl[serve,mcp]"`. It keeps the version of the release, and *About* shows the brand. A package index of a brand is not planned.
 - **The repository of a brand** holds only the brand folder and a CI file:
   - the templates for GitLab CI and GitHub Actions (`brands/`) check out a release tag of felupe-studio and build it with the brand folder;
