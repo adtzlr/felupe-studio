@@ -77,6 +77,16 @@ def test_valid_document(document):
     assert commands.validate(document) is document
 
 
+def test_own_color_of_a_mesh(document):
+    "A property of the model (#336): valid, and the script is the same."
+    from felupe_studio.codegen import codegen
+
+    script = codegen(document, evaluate=False)
+    find(document, "specimen").update(color="#7F8C8D")
+    assert commands.errors(document) == []
+    assert codegen(document, evaluate=False) == script
+
+
 @pytest.mark.parametrize(
     "change",
     [
@@ -110,6 +120,9 @@ def test_valid_document(document):
         ),
         lambda d: find(d, "specimen").update(scale=0),
         lambda d: find(d, "specimen").update(scale=-1000),
+        # an own color of a mesh is #rrggbb (#336)
+        lambda d: find(d, "specimen").update(color="gray"),
+        lambda d: find(d, "specimen").update(color="#7f8c8"),
         lambda d: find(d, "section_soft").update(volumetric="quadratic"),
         lambda d: find(d, "specimen").update(cell_type="wedge"),
         lambda d: find(d, "left").update(select={"axis": "w", "value": 0}),

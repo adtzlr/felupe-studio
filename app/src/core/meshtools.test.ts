@@ -84,6 +84,7 @@ describe("the mesh tools (ADR 0019)", () => {
       ["parameters.a", "a"],
       ["parameters.b", "b"],
       ["parameters.n", "n"],
+      ["color", "Color"],
     ]);
     const n = specs.find((s) => s.key === "parameters.n")!;
     expect(n.input).toMatchObject({

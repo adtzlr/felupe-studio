@@ -53,6 +53,8 @@ describe("fieldSpecs", () => {
       "tag:text",
       "cell_type:choice",
       "scale:number",
+      // an own color of the mesh (#336)
+      "color:color",
     ]);
     expect(summary("cellset.from_tag", find("hard"))).toEqual([
       "name:name*",

@@ -6,9 +6,11 @@ import {
   type FieldSpec,
   getValue,
   type Input,
+  isColor,
   kindLabel,
   offered,
 } from "../core/form";
+import { automaticMeshColor } from "../viewer/layers";
 import {
   coordinatesText,
   numberText,
@@ -87,6 +89,45 @@ function TextControl({
         form.change(spec, event.currentTarget.value || undefined)
       }
     />
+  );
+}
+
+/**
+ * An own color (#336): a color picker, its hex value and back to the automatic color,
+ * which the picker shows without an own one.
+ */
+function ColorControl({ form, spec, common, value }: Args<"color">) {
+  const { commands, editing } = form.context;
+  const automatic = automaticMeshColor(commands, editing);
+  return (
+    <div class="color-field">
+      <input
+        type="color"
+        aria-label={`Pick the ${spec.label.toLowerCase()}`}
+        value={(isColor(value) ? value : automatic).toLowerCase()}
+        onInput={(event) => form.change(spec, event.currentTarget.value)}
+      />
+      <input
+        {...common}
+        type="text"
+        value={typeof value === "string" ? value : ""}
+        placeholder={`${spec.placeholder ?? "automatic"} (${automatic})`}
+        autocomplete="off"
+        spellcheck={false}
+        onInput={(event) =>
+          form.change(spec, event.currentTarget.value || undefined)
+        }
+      />
+      <button
+        type="button"
+        class="button"
+        title="The color of its position in the model"
+        disabled={value === undefined}
+        onClick={() => form.change(spec, undefined)}
+      >
+        Automatic
+      </button>
+    </div>
   );
 }
 
@@ -417,6 +458,7 @@ const CONTROLS: {
 } = {
   name: TextControl,
   text: TextControl,
+  color: ColorControl,
   number: NumberControl,
   integers: IntegersControl,
   numbers: NumbersControl,

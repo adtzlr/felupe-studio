@@ -60,6 +60,41 @@ describe("editing in the properties panel", () => {
     expect(field("E").value).toBe("10");
   });
 
+  it("gives a mesh an own color and takes it back (#336)", () => {
+    const { store, field, button, type } = edit("specimen");
+    // the form is made again after Apply: its fields are looked up each time
+    const picker = () => field("Pick the color");
+    const hex = () => field("Color");
+    // without an own color: the automatic color of its position, the first one
+    expect(picker().type).toBe("color");
+    expect(picker().value).toBe("#3987e5");
+    expect(hex().value).toBe("");
+    expect(hex().placeholder).toBe("automatic (#3987e5)");
+    expect(button("Automatic").disabled).toBe(true);
+
+    fireEvent.input(picker(), { target: { value: "#7f8c8d" } });
+    expect(hex().value).toBe("#7f8c8d");
+    fireEvent.click(button("Apply"));
+    expect(store.get("specimen")).toMatchObject({ color: "#7f8c8d" });
+
+    // a typed value is checked like the schema
+    type("Color", "gray");
+    expect(hex().getAttribute("aria-invalid")).toBe("true");
+    expect(document.getElementById(`${hex().id}-error`)?.textContent).toBe(
+      "A color like #7f8c8d: # and six hexadecimal digits.",
+    );
+    type("Color", "#2B2D42");
+    fireEvent.click(button("Apply"));
+    expect(store.get("specimen")).toMatchObject({ color: "#2B2D42" });
+    expect(picker().value).toBe("#2b2d42");
+
+    // back to the automatic color: the property is gone
+    fireEvent.click(button("Automatic"));
+    fireEvent.click(button("Apply"));
+    expect(store.get("specimen")).not.toHaveProperty("color");
+    expect(picker().value).toBe("#3987e5");
+  });
+
   it("applies with Enter and resets with Esc (#137)", () => {
     const { store, field, type } = edit("umat_hard");
     const form = () => field("E").closest("form")!;

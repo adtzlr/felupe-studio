@@ -98,6 +98,11 @@
         "prefixes": ["field_", "solid_", "region_", "ramp_"]
       }
     },
+    "Color": {
+      "description": "An own color of the mesh in the viewport (Color by: Meshes) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position in the model. A property of the model, not of the script: the generated script is the same.",
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$"
+    },
     "Axis": {
       "type": "string",
       "enum": ["x", "y", "z"]
@@ -226,6 +231,9 @@
           "type": ["number", "string"],
           "exclusiveMinimum": 0,
           "default": 1
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
         }
       }
     },
@@ -278,6 +286,9 @@
             "quad8",
             "quad9"
           ]
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
         }
       }
     },
@@ -358,6 +369,9 @@
               "default": 0
             }
           }
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
         }
       }
     },
@@ -411,6 +425,9 @@
               "default": 2
             }
           }
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
         }
       }
     },
@@ -479,6 +496,9 @@
               "default": [2, 2]
             }
           }
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
         }
       }
     },
@@ -547,6 +567,9 @@
               "default": [2, 2, 2]
             }
           }
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
         }
       }
     },
@@ -611,6 +634,9 @@
               "default": 1
             }
           }
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
         }
       }
     },
@@ -682,6 +708,9 @@
               "default": "x"
             }
           }
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
         }
       }
     },
@@ -730,6 +759,9 @@
               "default": 0
             }
           }
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
         }
       }
     },
@@ -784,6 +816,9 @@
               "default": "x"
             }
           }
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
         }
       }
     },
@@ -849,6 +884,9 @@
               }
             }
           }
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
         }
       }
     },
@@ -903,6 +941,9 @@
               "default": 0
             }
           }
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
         }
       }
     },
@@ -954,6 +995,9 @@
               "default": 11
             }
           }
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
         }
       }
     },
@@ -1034,6 +1078,9 @@
               "type": "boolean"
             }
           }
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
         }
       }
     },
@@ -1226,7 +1273,9 @@
       "description": "Isotropic hyperelastic Neo-Hookean material (fem.NeoHooke). Without a bulk modulus it needs the u-p-J formulation.",
       "x-label": "Neo-Hooke",
       "x-group": "Hyperelasticity",
-      "x-felupe": { "class": "fem.NeoHooke" },
+      "x-felupe": {
+        "class": "fem.NeoHooke"
+      },
       "type": "object",
       "required": ["command", "name", "model", "parameters"],
       "additionalProperties": false,
@@ -1268,7 +1317,9 @@
       "description": "Compressible isotropic hyperelastic Neo-Hookean material (fem.NeoHookeCompressible).",
       "x-label": "Neo-Hooke (compressible)",
       "x-group": "Hyperelasticity",
-      "x-felupe": { "class": "fem.NeoHookeCompressible" },
+      "x-felupe": {
+        "class": "fem.NeoHookeCompressible"
+      },
       "type": "object",
       "required": ["command", "name", "model", "parameters"],
       "additionalProperties": false,
@@ -1311,7 +1362,9 @@
       "description": "Isotropic hyperelastic Mooney-Rivlin material (fem.Hyperelastic with fem.mooney_rivlin). The shear modulus is 2 (C10 + C01). Without a bulk modulus it needs the u-p-J formulation.",
       "x-label": "Mooney-Rivlin",
       "x-group": "Hyperelasticity",
-      "x-felupe": { "function": "fem.mooney_rivlin" },
+      "x-felupe": {
+        "function": "fem.mooney_rivlin"
+      },
       "type": "object",
       "required": ["command", "name", "model", "parameters"],
       "additionalProperties": false,
@@ -1361,7 +1414,9 @@
       "description": "Isotropic hyperelastic Yeoh material (fem.Hyperelastic with fem.yeoh): a cubic polynomial of the first invariant. The shear modulus is 2 C10. Without a bulk modulus it needs the u-p-J formulation.",
       "x-label": "Yeoh",
       "x-group": "Hyperelasticity",
-      "x-felupe": { "function": "fem.yeoh" },
+      "x-felupe": {
+        "function": "fem.yeoh"
+      },
       "type": "object",
       "required": ["command", "name", "model", "parameters"],
       "additionalProperties": false,
@@ -1418,7 +1473,9 @@
       "description": "Isotropic hyperelastic third-order deformation material (fem.Hyperelastic with fem.third_order_deformation): terms of the first and second invariant up to the third order. The shear modulus is 2 (C10 + C01). Without a bulk modulus it needs the u-p-J formulation.",
       "x-label": "Third-order deformation",
       "x-group": "Hyperelasticity",
-      "x-felupe": { "function": "fem.third_order_deformation" },
+      "x-felupe": {
+        "function": "fem.third_order_deformation"
+      },
       "type": "object",
       "required": ["command", "name", "model", "parameters"],
       "additionalProperties": false,
@@ -1489,7 +1546,9 @@
       "description": "Isotropic hyperelastic Ogden material (fem.Hyperelastic with fem.ogden): up to three terms of the principal stretches, each with a modulus μi and an exponent αi. The shear modulus is the sum of the moduli. Without a bulk modulus it needs the u-p-J formulation.",
       "x-label": "Ogden",
       "x-group": "Hyperelasticity",
-      "x-felupe": { "function": "fem.ogden" },
+      "x-felupe": {
+        "function": "fem.ogden"
+      },
       "type": "object",
       "required": ["command", "name", "model", "parameters"],
       "additionalProperties": false,
@@ -1514,7 +1573,9 @@
               "x-quantity": "stress",
               "description": "Moduli of the terms, one to three, as many as exponents",
               "type": "array",
-              "items": { "type": ["number", "string"] },
+              "items": {
+                "type": ["number", "string"]
+              },
               "minItems": 1,
               "maxItems": 3,
               "default": [1.0, 0.2]
@@ -1523,7 +1584,12 @@
               "x-label": "αᵢ",
               "description": "Stretch exponents of the terms, one per modulus, not zero",
               "type": "array",
-              "items": { "type": ["number", "string"], "not": { "const": 0 } },
+              "items": {
+                "type": ["number", "string"],
+                "not": {
+                  "const": 0
+                }
+              },
               "minItems": 1,
               "maxItems": 3,
               "default": [1.7, -1.5]
@@ -1544,7 +1610,9 @@
       "description": "Isotropic hyperelastic Arruda-Boyce material, the eight-chain model (fem.Hyperelastic with fem.arruda_boyce). The chains lock at the limiting stretch. Without a bulk modulus it needs the u-p-J formulation.",
       "x-label": "Arruda-Boyce",
       "x-group": "Hyperelasticity",
-      "x-felupe": { "function": "fem.arruda_boyce" },
+      "x-felupe": {
+        "function": "fem.arruda_boyce"
+      },
       "type": "object",
       "required": ["command", "name", "model", "parameters"],
       "additionalProperties": false,
@@ -1594,7 +1662,9 @@
       "description": "Isotropic hyperelastic extended tube material of Kaliske and Heinrich (fem.Hyperelastic with fem.extended_tube): a cross-link and a tube constraint contribution. The shear modulus is Gc + Ge. Without a bulk modulus it needs the u-p-J formulation.",
       "x-label": "Extended tube",
       "x-group": "Hyperelasticity",
-      "x-felupe": { "function": "fem.extended_tube" },
+      "x-felupe": {
+        "function": "fem.extended_tube"
+      },
       "type": "object",
       "required": ["command", "name", "model", "parameters"],
       "additionalProperties": false,
@@ -1660,7 +1730,9 @@
       "description": "Linear-elastic material for small strains and small rotations (fem.LinearElastic): the stress of the symmetric part of the displacement gradient. Not for large rotations or large strains.",
       "x-label": "Linear elastic (small strain)",
       "x-group": "Linear elasticity",
-      "x-felupe": { "class": "fem.LinearElastic" },
+      "x-felupe": {
+        "class": "fem.LinearElastic"
+      },
       "type": "object",
       "required": ["command", "name", "model", "parameters"],
       "additionalProperties": false,
@@ -1703,7 +1775,9 @@
       "description": "Linear-elastic material formulated for large deformations (fem.LinearElasticLargeStrain).",
       "x-label": "Linear elastic (large strain)",
       "x-group": "Linear elasticity",
-      "x-felupe": { "class": "fem.LinearElasticLargeStrain" },
+      "x-felupe": {
+        "class": "fem.LinearElasticLargeStrain"
+      },
       "type": "object",
       "required": ["command", "name", "model", "parameters"],
       "additionalProperties": false,
@@ -2319,7 +2393,9 @@
     "LoadcaseUniaxial": {
       "description": "Uniaxial tension or compression along an axis (fem.dof.uniaxial). The end face at the largest coordinate moves.",
       "x-label": "Uniaxial",
-      "x-felupe": { "function": "fem.dof.uniaxial" },
+      "x-felupe": {
+        "function": "fem.dof.uniaxial"
+      },
       "type": "object",
       "required": ["command", "name", "type"],
       "additionalProperties": false,
@@ -2352,7 +2428,9 @@
     "LoadcaseBiaxial": {
       "description": "Equi-biaxial tension along two axes (fem.dof.biaxial). The end faces at the largest coordinates move.",
       "x-label": "Biaxial",
-      "x-felupe": { "function": "fem.dof.biaxial" },
+      "x-felupe": {
+        "function": "fem.dof.biaxial"
+      },
       "type": "object",
       "required": ["command", "name", "type"],
       "additionalProperties": false,
@@ -2389,7 +2467,9 @@
     "LoadcasePlanar": {
       "description": "Planar (pure shear) tension along an axis with a constant width along a second axis (fem.dof.biaxial without a move of the second axis).",
       "x-label": "Planar",
-      "x-felupe": { "function": "fem.dof.biaxial" },
+      "x-felupe": {
+        "function": "fem.dof.biaxial"
+      },
       "type": "object",
       "required": ["command", "name", "type"],
       "additionalProperties": false,
@@ -2426,7 +2506,9 @@
     "LoadcaseShear": {
       "description": "Simple shear between the end faces normal to an axis (fem.dof.shear). The face at the largest coordinate moves along the shear direction.",
       "x-label": "Shear",
-      "x-felupe": { "function": "fem.dof.shear" },
+      "x-felupe": {
+        "function": "fem.dof.shear"
+      },
       "type": "object",
       "required": ["command", "name", "type"],
       "additionalProperties": false,

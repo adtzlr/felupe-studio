@@ -12,8 +12,9 @@ import type { Command } from "../core/resolved";
 import { type Inspection, MeshFiles } from "../core/meshfiles";
 import { ModelStore } from "../core/store";
 import type { Scene, ViewerHandle } from "../vendor/felupe-viewer/viewer.js";
-import { viewportContent } from "../viewer/layers";
+import { automaticMeshColor, viewportContent } from "../viewer/layers";
 import { CATEGORICAL, CONTROL_COLOR } from "../viewer/palette";
+import { buildScene } from "../viewer/scene";
 import { type CreateViewer, HIGHLIGHT } from "../viewer/viewer";
 import type { MeshSurface } from "../worker/protocol";
 import { Viewport } from "./Viewport";
@@ -149,6 +150,32 @@ describe("viewport content", () => {
     expect(viewportContent(commands, files, new Set(["a", "b"])).message).toBe(
       "All meshes are hidden.",
     );
+  });
+
+  it("shows a mesh in its own color (#336)", async () => {
+    const { files } = meshFiles();
+    await files.add("a.vtu", new Uint8Array());
+    await files.add("b.vtu", new Uint8Array());
+    const commands = [
+      { ...mesh("a", "a.vtu"), color: "#7f8c8d" },
+      mesh("b", "b.vtu"),
+    ] as Command[];
+    const content = viewportContent(commands, files, new Set());
+    // the other mesh keeps the color of its position
+    expect(content.meshes.map((m) => [m.name, m.color])).toEqual([
+      ["a", "#7f8c8d"],
+      ["b", CATEGORICAL[1]],
+    ]);
+    // the legend of the meshes and so the pictures of the view take it
+    const legend = buildScene({ meshes: content.meshes }).legend;
+    expect(legend).toEqual([
+      { label: "a", color: "#7f8c8d" },
+      { label: "b", color: CATEGORICAL[1] },
+    ]);
+    // the automatic color of a mesh, also of a new one at the end
+    expect(automaticMeshColor(commands, "a")).toBe(CATEGORICAL[0]);
+    expect(automaticMeshColor(commands, "b")).toBe(CATEGORICAL[1]);
+    expect(automaticMeshColor(commands)).toBe(CATEGORICAL[2]);
   });
 
   it("shows the cells of the cell type of a mesh", async () => {

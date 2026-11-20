@@ -32,6 +32,22 @@ type MeshCommand = Extract<
 
 export type ColorBy = "mesh" | "cellset" | "section";
 
+/**
+ * The automatic color of a mesh (#336): that of its position among the meshes of the
+ * model, so hiding a mesh keeps the colors of the others; a new mesh is the last one.
+ */
+export function automaticMeshColor(
+  commands: readonly { command: string; name: string }[],
+  name?: string,
+): string {
+  // the mesh objects of isMeshObject, also of commands with expressions (a form)
+  const meshes = commands.filter((c) => MESH_OBJECTS.has(c.command));
+  const index = meshes.findIndex((c) => c.name === name);
+  return categorical(index < 0 ? meshes.length : index);
+}
+
+const MESH_OBJECTS = new Set(["mesh.import", "mesh.script", "mesh.generate"]);
+
 export const COLOR_BY: readonly { id: ColorBy; label: string }[] = [
   { id: "mesh", label: "Meshes" },
   { id: "cellset", label: "Cell sets" },
@@ -274,10 +290,11 @@ export function viewportContent(
       hidden,
       surface.cells,
     );
+    // its own color, else that of its position (#336)
     const layer: MeshLayer = {
       name: mesh.name,
       surface,
-      color: categorical(index),
+      color: mesh.color ?? categorical(index),
     };
     if (anyHidden) layer.hidden = hiddenCells;
     if (colorBy !== "mesh") {
