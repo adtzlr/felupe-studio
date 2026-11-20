@@ -132,10 +132,13 @@ def main():
         write_vtu(HERE / case / "cube.vtu", fem.Cube(n=3))
 
 
-# the material tests of the models of tensortrax (#136)
+# the material tests of the models of tensortrax (#136), and of the Mullins effect
+# (#346)
 MATERIAL_CASES = [
     "cube_arruda_boyce",
     "cube_extended_tube",
+    "cube_mullins_mooney_rivlin",
+    "cube_mullins_neo_hooke",
     "cube_ogden",
     "cube_third_order_deformation",
     "cube_yeoh",

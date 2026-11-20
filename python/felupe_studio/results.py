@@ -107,8 +107,9 @@ def reset(namespace, sections, points=(), units=None):
 
 class Recorder(fem.Plugin):
     """A plugin that records the values of all fields after every substep, the state
-    variables of the materials with state variables of their own, e.g. the plastic
-    strains (#191), and the displacements and forces of the control points (#101)."""
+    variables of the materials with a load history, e.g. the plastic strains (#191)
+    or the maximum strain energy density of the Mullins effect (#346), and the
+    displacements and forces of the control points (#101)."""
 
     def __init__(self, job, field):
         self.job = job
@@ -121,11 +122,24 @@ class Recorder(fem.Plugin):
         values = [f.values.copy() for f in self.field.fields]
         _state["records"][self.job].append(values)
         namespace = _state["namespace"]
-        solids = [s for s in _state["sections"] if _plastic(s)]
+        solids = [s for s in _state["sections"] if _history(s)]
         _state["statevars"][self.job].append(
             {s: namespace[f"solid_{s}"].results.statevars.copy() for s in solids}
         )
         _state["controls"][self.job].append(_control_values(self.field))
+
+
+def _history(section):
+    """True if the material of a section has a load history: state variables of its
+    own, e.g. the plastic strains of an elastic-plastic material (#191, see
+    :func:`_plastic`) or the maximum strain energy density of the Mullins effect
+    (#346), also in a ``fem.CompositeMaterial`` with a ``fem.Volumetric`` or in a
+    nearly incompressible solid body. The stress of a restored substep needs them."""
+    solid = _state["namespace"][f"solid_{section}"]
+    if isinstance(getattr(solid, "umat", None), fem.MaterialStrain):
+        return _plastic(section)
+    statevars = solid.results.statevars
+    return statevars is not None and len(statevars) > 0
 
 
 def _plastic(section):
@@ -256,8 +270,9 @@ def _restore(job, substep):
     field = _state["namespace"]["field"]
     for f, values in zip(field.fields, records[substep - 1], strict=True):
         f.values[:] = values
-    # the state variables of the substep (#191): with them, the stress of an
-    # elastic-plastic material is the one of the substep (no strain increment)
+    # the state variables of the substep (#191, #346): with them, the stress of an
+    # elastic-plastic material or of the Mullins effect is the one of the substep (no
+    # strain increment, the same maximum strain energy density)
     statevars = _state.get("statevars", {}).get(job, [])
     if len(statevars) >= substep:
         for section, values in statevars[substep - 1].items():

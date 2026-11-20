@@ -1333,6 +1333,9 @@
               "exclusiveMinimum": 0
             }
           }
+        },
+        "mullins": {
+          "$ref": "#/$defs/Mullins"
         }
       }
     },
@@ -1430,6 +1433,9 @@
               "x-felupe": "volumetric"
             }
           }
+        },
+        "mullins": {
+          "$ref": "#/$defs/Mullins"
         }
       }
     },
@@ -1489,6 +1495,9 @@
               "x-felupe": "volumetric"
             }
           }
+        },
+        "mullins": {
+          "$ref": "#/$defs/Mullins"
         }
       }
     },
@@ -1562,6 +1571,9 @@
               "x-felupe": "volumetric"
             }
           }
+        },
+        "mullins": {
+          "$ref": "#/$defs/Mullins"
         }
       }
     },
@@ -1626,6 +1638,9 @@
               "x-felupe": "volumetric"
             }
           }
+        },
+        "mullins": {
+          "$ref": "#/$defs/Mullins"
         }
       }
     },
@@ -1678,6 +1693,9 @@
               "x-felupe": "volumetric"
             }
           }
+        },
+        "mullins": {
+          "$ref": "#/$defs/Mullins"
         }
       }
     },
@@ -2010,6 +2028,37 @@
               "default": 1000
             }
           }
+        }
+      }
+    },
+    "Mullins": {
+      "description": "The Mullins effect of Ogden and Roxburgh (fem.OgdenRoxburgh): the material is softer after it was loaded, when it is unloaded and loaded again up to the largest strain energy density of its load history, and stiff again above it. The stress is scaled by a softening of the strain energy density and of its maximum, a state variable of every quadrature point; the bulk modulus is not softened.",
+      "x-label": "Mullins effect",
+      "type": "object",
+      "required": ["r", "m", "beta"],
+      "additionalProperties": false,
+      "properties": {
+        "r": {
+          "x-label": "r",
+          "description": "Reciprocal of the largest softening: with r = 3, the stiffness is softened to 1 - 1/3 = 2/3 at most.",
+          "type": ["number", "string"],
+          "exclusiveMinimum": 1,
+          "default": 3
+        },
+        "m": {
+          "x-label": "m",
+          "x-quantity": "stress",
+          "description": "Initial softening modulus, a strain energy density: the smaller, the faster the material softens below the maximum of its load history.",
+          "type": ["number", "string"],
+          "exclusiveMinimum": 0,
+          "default": 1
+        },
+        "beta": {
+          "x-label": "β",
+          "description": "The part of the softening modulus that grows with the maximum strain energy density of the load history (m + β ψmax).",
+          "type": ["number", "string"],
+          "minimum": 0,
+          "default": 0.1
         }
       }
     },

@@ -1221,7 +1221,23 @@ def unload(document, steps):
     find(document, "job_1")["steps"] = steps
 
 
+def mullins(document, **fields):
+    """The Mullins effect of Ogden and Roxburgh of the soft material (#346)."""
+    softening = {"r": 3, "m": 0.5, "beta": 0.1, **fields}
+    find(document, "umat_soft")["mullins"] = softening
+
+
 CHANGES |= {
+    # the Mullins effect (#346): its parameters may be expressions, r > 1
+    "the mullins effect": lambda d: mullins(d),
+    "the mullins effect of expressions": lambda d: (
+        parameters(d),
+        mullins(d, r="cells - 2", m="stroke"),
+    ),
+    "the mullins effect without softening": lambda d: (
+        parameters(d),
+        mullins(d, r="cells / 5"),
+    ),
     # a job may repeat a step (#331), e.g. load, unload, load
     "a repeated step": lambda d: unload(d, ["step_1", "unload", "step_1"]),
     "a repeated unknown step": lambda d: unload(d, ["step_1", "reload", "reload"]),

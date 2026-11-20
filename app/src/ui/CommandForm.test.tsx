@@ -60,6 +60,27 @@ describe("editing in the properties panel", () => {
     expect(field("E").value).toBe("10");
   });
 
+  it("switches the Mullins effect of a hyperelastic material on (#346)", () => {
+    const { store, field, button } = edit("umat_soft");
+    // off by default: the option of the material has no fields
+    const toggle = () => field("Mullins effect");
+    expect(toggle().checked).toBe(false);
+    expect(() => field("r")).toThrow();
+    fireEvent.click(toggle());
+    expect(toggle().checked).toBe(true);
+    expect(field("r").value).toBe("3");
+    expect(field("β").value).toBe("0.1");
+    fireEvent.click(button("Apply"));
+    expect(store.get("umat_soft")).toMatchObject({
+      model: "NeoHooke",
+      mullins: { r: 3, m: 1, beta: 0.1 },
+    });
+    // a linear-elastic material has none
+    cleanup();
+    const hard = edit("umat_hard");
+    expect(() => hard.field("Mullins effect")).toThrow();
+  });
+
   it("edits the steps of a job in order, also a repeated one (#331)", () => {
     const document = structuredClone(fixture) as CommandList;
     const unload = {

@@ -663,3 +663,53 @@ def test_plastic_strain_of_a_model_without_plasticity(two_materials, tmp_path):
     assert meta["range"] == [0.0, 0.0]
     mesh = meshio.read(read(results.export("job_1", "vtu"), ".vtu", tmp_path))
     assert "Equivalent Plastic Strain" not in mesh.cell_data
+
+
+@pytest.fixture
+def mullins(monkeypatch):
+    """The incompressible cube of Neo-Hooke with the Mullins effect, stretched to
+    1.5, released, stretched to 1.5 again, released, stretched to 2 and released
+    (#346)."""
+    monkeypatch.chdir(GOLDEN / "cube_mullins_neo_hooke")
+    run(load("cube_mullins_neo_hooke"))
+    return LAST
+
+
+def test_mullins_effect_of_every_substep(mullins):
+    # the state variable of every substep, the maximum strain energy density, is
+    # restored with its fields (#346): the Cauchy stress of the first stretch to 1.3
+    # is the one of the material without softening, also after the last substep, of
+    # the stretch to 2; that of the second stretch to 1.3 is softer. The stress of
+    # the homogeneous deformation is the stretch times the force of the curve.
+    curve = json.loads(
+        (GOLDEN / "cube_mullins_neo_hooke" / "results.json").read_text("utf-8")
+    )["jobs"]["job_1"]
+    force = curve["force"]
+    assert results._history("body")
+    for substep in [36, 4, 16, 4, 16]:
+        low, high = json.loads(results.scene("job_1", substep, "stress_max")[0])[
+            "range"
+        ]
+        if substep in (4, 16):
+            assert low == pytest.approx(high, rel=1e-6)
+            assert high == pytest.approx(1.3 * force[substep - 1], rel=1e-3)
+    first = json.loads(results.scene("job_1", 4, "stress_max")[0])["range"][1]
+    second = json.loads(results.scene("job_1", 16, "stress_max")[0])["range"][1]
+    assert second < 0.8 * first
+
+    # the state variable grows with the largest stretch only
+    def statevars(substep):
+        results.scene("job_1", substep, "stress_max")
+        return mullins["solid_body"].results.statevars.copy()
+
+    peak = statevars(6)
+    assert np.all(peak > 0)
+    np.testing.assert_allclose(statevars(18), peak, rtol=1e-6)
+    assert np.all(statevars(30) > peak)
+    np.testing.assert_allclose(statevars(36), statevars(30), rtol=1e-6)
+
+
+def test_no_history_of_elastic_materials(two_materials):
+    # no state variables of their own: nothing is recorded per substep (#346)
+    assert not results._history("hard_body")
+    assert not results._history("soft_body")

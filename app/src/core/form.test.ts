@@ -73,6 +73,8 @@ describe("fieldSpecs", () => {
       "model:variant*",
       "parameters.mu:number*",
       "parameters.bulk:number",
+      // the Mullins effect of a hyperelastic material, off (#346)
+      "mullins:toggle",
     ]);
     expect(summary("pointset.add", find("left"))).toEqual([
       "name:name*",

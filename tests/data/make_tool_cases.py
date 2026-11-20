@@ -104,6 +104,23 @@ CASES = {
         ("add_command", {"command": {**h, "name": "right"}}),
         ("update_command", {"name": "left", "changes": {"name": "right"}}),
     ],
+    # the Mullins effect of a hyperelastic material (#346), not of a linear-elastic
+    "the mullins effect of a material": [
+        (
+            "update_command",
+            {
+                "name": "umat_soft",
+                "changes": {"mullins": {"r": 3, "m": 0.2, "beta": 0.1}},
+            },
+        ),
+        (
+            "update_command",
+            {
+                "name": "umat_hard",
+                "changes": {"mullins": {"r": 3, "m": 0.2, "beta": 0.1}},
+            },
+        ),
+    ],
     "a command against its schema": [
         (
             "add_command",

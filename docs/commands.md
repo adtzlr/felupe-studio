@@ -113,6 +113,26 @@ steel = fem.MaterialStrain(
 )
 ```
 
+**The Mullins effect** (#346, the pseudo-elastic model of Ogden and Roxburgh): an option `mullins {r, m, beta}` of Neo-Hooke and of the models of tensortrax with a strain energy function of their isochoric part (Mooney-Rivlin, Yeoh, third-order deformation, Ogden, Arruda-Boyce), e.g. `"mullins": {"r": 3, "m": 0.2, "beta": 0.1}`. The material is softer after it was loaded: when it is unloaded and loaded again up to the largest strain energy density ψmax of its load history, and stiff again above it. Its stress is scaled by η = 1 - erf((ψmax - ψ) / (m + β ψmax)) / r, so `r` (> 1) is the reciprocal of the largest softening, `m` (a strain energy density, like a stress) the initial softening modulus and `beta` (≥ 0) its part that grows with ψmax. ψmax is one state variable of every quadrature point; the runner records it after every substep and restores it with the fields of a substep, like the plastic strains (#191), so the stress of a substep is the one of its load history. An option of the material, not a material that wraps another one, keeps the sections, the forms and the references as they are. The extended tube model has no `mullins`, since its parameter `beta` is one of `fem.ogden_roxburgh` too; nor have the compressible Neo-Hooke and the linear-elastic models, whose volumetric part is in their strain energy. The bulk modulus of a model is a `fem.Volumetric` after the softened material, without softening, also of Neo-Hooke:
+
+```python
+rubber = fem.OgdenRoxburgh(fem.NeoHooke(mu=1.0), r=3, m=0.2, beta=0.1)
+rubber &= fem.Volumetric(bulk=5000.0)
+
+rubber = fem.Hyperelastic(
+    functools.partial(fem.ogden_roxburgh, material=fem.mooney_rivlin),
+    r=3,
+    m=0.2,
+    beta=0.1,
+    C10=0.4,
+    C01=0.1,
+    nstatevars=1,
+)
+rubber &= fem.Volumetric(bulk=5000.0)
+```
+
+`fem.OgdenRoxburgh` needs the strain energy function `function` of its material, which `fem.NeoHooke` has and `fem.Hyperelastic` has not, so a model of tensortrax takes the function `fem.ogden_roxburgh` with its own function as `material`. `functools.partial` passes it: `fem.Hyperelastic(fem.ogden_roxburgh, material=...)` would pass the defaults of `fem.ogden_roxburgh`, `mu` of `fem.neo_hooke`, to every function (adtzlr/felupe#1302); the script imports `functools` only then. Both are the same model (the curves of Neo-Hooke agree to 5e-13), with `&` and `fem.Volumetric`, in `fem.SolidBodyNearlyIncompressible` and in `fem.NearlyIncompressible` of mixed fields, also with the model in single precision. The golden cases `cube_mullins_neo_hooke` (u-p-J) and `cube_mullins_mooney_rivlin` (a bulk modulus, `u`) stretch a cube to 1.5, release it, stretch it to 1.5 again, release it, stretch it to 2 and release it, with the steps `[stretch, release, stretch, release, stretch_more, release_more]` (#331); their curves are the homogeneous uniaxial tension of FElupe along the same path (`fem.ViewMaterialIncompressible`).
+
 The ribbon groups the models by `x-group` of their definitions into menus, by the kind of material (#259): *Linear elasticity ▾* (small strain and large strain), *Hyperelasticity ▾* (all hyperelastic models, FElupe classes and functions of tensortrax alike) and *Strain-based elasticity ▾*. The ribbon merges consecutive models of a group, so the definitions of `material.add` are in the order of the menus; a model without a group would be a button of its own. The choice of the model in the properties shows the same groups. The linear elastic model of small strains `LinearElasticSmallStrain` (#259) is `fem.LinearElastic`: the stress of the symmetric part of the displacement gradient, only for small displacements, rotations and strains. Its id differs from `LinearElastic`, the strain-based model, which gives the same curve in the framework `small-strain` (golden test).
 
 ## Validation

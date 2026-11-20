@@ -1,3 +1,4 @@
+import functools
 import inspect
 from pathlib import Path
 
@@ -5,6 +6,7 @@ import felupe as fem
 import numpy as np
 import pytest
 
+from felupe_studio.commands import schema_errors
 from felupe_studio.materials import (
     lame_call,
     material_call,
@@ -18,8 +20,9 @@ DOCS = Path(__file__).parents[1] / "docs" / "commands.md"
 MODELS = list(models())
 
 
-def create(model, framework=None, strain_exponent=None, **changes):
-    """The material of a model with its defaults (and a bulk modulus if optional)."""
+def create(model, framework=None, strain_exponent=None, mullins=None, **changes):
+    """The material of a model with its defaults (and a bulk modulus if optional),
+    optionally with the Mullins effect (#346)."""
     parameters = {p.key: p.default for p in models()[model].parameters if p.default}
     if models()[model].optional_bulk:
         parameters["bulk"] = 5000.0
@@ -29,8 +32,10 @@ def create(model, framework=None, strain_exponent=None, **changes):
         material["framework"] = framework
     if strain_exponent is not None:
         material["strain_exponent"] = strain_exponent
+    if mullins is not None:
+        material["mullins"] = mullins
     func, args, volumetric = material_call(material)
-    namespace = {"fem": fem}
+    namespace = {"fem": fem, "functools": functools}
     lame = lame_call(material)
     if lame is not None:
         # the Lamé constants λ and μ of a strain-based material (#191)
@@ -258,3 +263,43 @@ def test_strain_exponent_only_with_seth_hill():
     assert errors(document(framework="seth-hill"))
     assert errors(document(framework="co-rotational", strain_exponent=1))
     assert errors(document(strain_exponent=0))
+
+
+# the models with the Mullins effect of Ogden and Roxburgh (#346): those with a strain
+# energy function of their isochoric part, not the extended tube, whose parameter
+# beta is also a parameter of fem.ogden_roxburgh
+MULLINS = ["NeoHooke", "MooneyRivlin", "Yeoh", "ThirdOrderDeformation", "Ogden"]
+MULLINS += ["ArrudaBoyce"]
+SOFTENING = {"r": 3, "m": 0.2, "beta": 0.1}
+
+
+def test_models_with_the_mullins_effect():
+    assert [name for name in MODELS if models()[name].mullins] == MULLINS
+    rubber = {"command": "material.add", "name": "rubber", "mullins": SOFTENING}
+    for name in MODELS:
+        parameters = {p.key: p.default for p in models()[name].parameters if p.default}
+        material = {**rubber, "model": name, "parameters": parameters}
+        document = {"schema_version": 3, "commands": [material]}
+        assert bool(schema_errors(document)) == (name not in MULLINS), name
+
+
+@pytest.mark.parametrize("name", MULLINS)
+def test_mullins_effect_softens_the_released_material(name):
+    # the first loading is that of the material without the Mullins effect, the
+    # second one up to the same stretch is softer and the same as the release, and
+    # the stretch beyond it is the first loading again (pseudo-elastic, Ogden and
+    # Roxburgh); the bulk modulus is not softened (a fem.Volumetric after it)
+    elastic = fem.ViewMaterialIncompressible(create(name))
+    softened = fem.ViewMaterialIncompressible(create(name, mullins=SOFTENING))
+    up = np.linspace(1, 1.5, 6)
+    path = np.concatenate([up, up[::-1][1:], up[1:], np.linspace(1.5, 2, 6)[1:]])
+    _, reference, _ = elastic.uniaxial(path)
+    _, stress, _ = softened.uniaxial(path)
+    first, release, second, beyond = (slice(0, 6), slice(5, 11), slice(10, 16), 16)
+    np.testing.assert_allclose(stress[first], reference[first], rtol=1e-10)
+    assert np.all(stress[second][1:-1] < reference[second][1:-1])
+    np.testing.assert_allclose(stress[second], stress[release][::-1], rtol=1e-8)
+    np.testing.assert_allclose(stress[beyond:], reference[beyond:], rtol=1e-6)
+    if models()[name].optional_bulk:
+        material = {"model": name, "parameters": {"bulk": 50.0}, "mullins": SOFTENING}
+        assert material_call(material)[2] == ["bulk=50.0"]

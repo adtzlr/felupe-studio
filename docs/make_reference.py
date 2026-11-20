@@ -273,25 +273,14 @@ def _variants(name, node, command):
             out.append(f"Inputs (`inputs`): {noun}. {inputs['description']}")
         params = resolved.get("properties", {}).get("parameters")
         if params:
-            rows = []
-            for key, p in _resolve(params).get("properties", {}).items():
-                need = "yes" if key in _resolve(params).get("required", []) else ""
-                text = p.get("description", "")
-                if "default" in p:
-                    text = _default(text, p["default"])
-                symbol = p.get("x-label", key)
-                if p.get("type") == "array":
-                    kind = _array(p, command, key)
-                    if p["items"].get("not") == {"const": 0}:
-                        kind = kind.replace("numbers", "numbers ≠ 0")
-                elif "$ref" in p:
-                    # e.g. the axis of an operation of the mesh tools (ADR 0019)
-                    kind = _type(p, command, key)
-                else:
-                    integer = "integer" in p.get("type", [])
-                    kind = " ".join(["integer" if integer else "number", *_bounds(p)])
-                rows.append((f"`{key}` ({symbol})", kind, need, text))
+            rows = _parameter_rows(params, command)
             out.append(_table(rows, ("Parameter", "Type", "Required", "Description")))
+            if "mullins" in resolved.get("properties", {}):
+                # an option of the hyperelastic materials (#346)
+                out.append(
+                    "Optional: the Mullins effect (`mullins`), see [The Mullins "
+                    "effect](#the-mullins-effect)."
+                )
         else:
             rows = [
                 r
@@ -301,6 +290,30 @@ def _variants(name, node, command):
             if rows:
                 out.append(_table(rows))
     return out
+
+
+def _parameter_rows(params, command):
+    """The rows of the parameters of a material model, or of the Mullins effect."""
+    rows = []
+    node = _resolve(params)
+    for key, p in node.get("properties", {}).items():
+        need = "yes" if key in node.get("required", []) else ""
+        text = p.get("description", "")
+        if "default" in p:
+            text = _default(text, p["default"])
+        symbol = p.get("x-label", key)
+        if p.get("type") == "array":
+            kind = _array(p, command, key)
+            if p["items"].get("not") == {"const": 0}:
+                kind = kind.replace("numbers", "numbers ≠ 0")
+        elif "$ref" in p:
+            # e.g. the axis of an operation of the mesh tools (ADR 0019)
+            kind = _type(p, command, key)
+        else:
+            integer = "integer" in p.get("type", [])
+            kind = " ".join(["integer" if integer else "number", *_bounds(p)])
+        rows.append((f"`{key}` ({symbol})", kind, need, text))
+    return rows
 
 
 def _blocks(blocks):
@@ -363,6 +376,13 @@ def markdown():
         if "oneOf" in node:
             out.append("Every variant has a `name`, the name of the object.")
             out += _variants("", node, command)
+            if command == "material.add":
+                # the option of the hyperelastic materials (#346)
+                mullins = defs["Mullins"]
+                rows = _parameter_rows(mullins, command)
+                header = ("Parameter", "Type", "Required", "Description")
+                out += ["#### The Mullins effect", mullins["description"]]
+                out.append(_table(rows, header))
             continue
         out.append(_table(_rows(node, command)))
         for key, raw in node.get("properties", {}).items():
