@@ -1,6 +1,6 @@
 # felupe-studio
 
-A clickable GUI for [FElupe](https://github.com/adtzlr/felupe) that runs entirely in the browser.
+A graphical modeling environment for [FElupe](https://github.com/adtzlr/felupe): build, solve and evaluate finite element models of solids, entirely in the browser.
 
 Every node in the GUI is a FElupe object. Every action is a command; the command list is saved as a text-diffable project file and turned into a readable FElupe script, which runs in the browser with [Pyodide](https://pyodide.org) and can be exported.
 
