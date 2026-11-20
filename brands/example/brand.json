@@ -1,5 +1,4 @@
 {
-  "$schema": "../../app/src/vite/brand.schema.json",
   "brand_version": 1,
   "name": "Example Lab FEM",
   "short_name": "Example Lab",

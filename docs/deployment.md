@@ -75,7 +75,7 @@ my-brand/
 
 Start from a copy of the example brand [`brands/example`](../brands/example) of the release: it has a logo, icons, two samples of its own and a self-hosted Pyodide, and CI of FElupe Studio builds and checks it at every change.
 
-1. Copy `brands/example` to `brand/` and change its `brand.json` (below). Point `$schema` to the schema of the release, e.g. `https://raw.githubusercontent.com/adtzlr/felupe-studio/v0.8.0/app/src/vite/brand.schema.json`, so that an editor checks the file while you write it.
+1. Copy `brands/example` to `brand/` and change its `brand.json` (below).
 2. Replace `logo.svg`, and make the icons from it in a clone of felupe-studio: `python app/scripts/make_icons.py <brand folder>` (with Playwright and Chromium; `CHROME` for another Chrome).
 3. Replace the samples with yours ([a folder of samples](#a-folder-of-samples)), or remove `samples` from `brand.json` for an app without samples.
 4. Copy the CI file ([below](#ci-gitlab-and-github)) and set the release of felupe-studio.
@@ -84,7 +84,6 @@ Start from a copy of the example brand [`brands/example`](../brands/example) of 
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/adtzlr/felupe-studio/v0.8.0/app/src/vite/brand.schema.json",
   "brand_version": 1,
   "name": "Example Lab FEM",
   "short_name": "Example Lab",
@@ -124,6 +123,8 @@ Start from a copy of the example brand [`brands/example`](../brands/example) of 
 | `defaults.units` | | The units of a new model (`mm` or `m`, `N` or `kN`). |
 
 A brand inherits no identity of FElupe Studio: the name, the short name, the logo, the storage prefix and the links of help, issues and source have no defaults, so a missing link never sends the questions of your users to FElupe Studio. An invalid `brand.json` fails the build with a message that starts with *The brand of &lt;folder&gt;:*, e.g. *brand.json is invalid: /links: must have required property 'source'.*
+
+The build checks `brand.json` with the schema of the release it builds, `app/src/vite/brand.schema.json`, also in `npm run dev`; the app and the build load no schema from elsewhere. For help in an editor while you write the file, `$schema` may point to that schema in your clone of felupe-studio at the release, e.g. `"$schema": "../../felupe-studio/app/src/vite/brand.schema.json"` when the clone is next to the repository of the brand. Only the editor reads it, it works without internet access, and it follows the release of the clone. A URL, e.g. of GitHub, is no good choice: an editor without internet access cannot load it, one with internet access asks a third-party host for the file, and the URL has to follow every new release.
 
 ### The storage of a brand
 
