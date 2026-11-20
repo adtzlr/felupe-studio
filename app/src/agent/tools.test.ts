@@ -131,6 +131,29 @@ describe("the tools of the agent bridge in the app (#258)", () => {
     ).rejects.toThrow("No parameter named 'right'.");
   });
 
+  it("give a derived parameter with its value, and do not set it (ADR 0021)", async () => {
+    const { call } = setup();
+    for (const [name, value] of [
+      ["a", 1],
+      ["b", 2],
+      ["c", "a + 2 * b"],
+    ] as const)
+      await call("add_command", {
+        command: { command: "parameter.add", name, value },
+      });
+    const { parameters } = (await call("parameters")) as {
+      parameters: { name: string }[];
+    };
+    expect(parameters.at(-1)).toEqual({
+      name: "c",
+      value: "a + 2 * b",
+      computed: 5,
+    });
+    await expect(call("set_parameters", { values: { c: 7 } })).rejects.toThrow(
+      "'c' is derived from other parameters: change them, or its expression.",
+    );
+  });
+
   it("write mesh scripts only if the user agrees", async () => {
     const trust = vi.fn(async () => false);
     const { files, written, call } = setup({ trustScript: trust });

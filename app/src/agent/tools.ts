@@ -6,6 +6,7 @@
 import type { Command } from "../core/commands";
 import type { JobRun, JobRunner } from "../core/jobs";
 import { isScript, type MeshFiles } from "../core/meshfiles";
+import { parameterValues } from "../core/resolve";
 import { type ResultView, substepsOf } from "../core/results";
 import type { Sample } from "../core/samples";
 import type { Edit, ModelStore } from "../core/store";
@@ -244,15 +245,22 @@ export function agentTools(host: AgentHost): Handler {
       return { deleted: name, ...issues() };
     },
 
-    parameters: async () => ({
-      parameters: store.commands
-        .filter((c) => c.command === "parameter.add")
-        .map((c) =>
-          Object.fromEntries(
-            Object.entries(c).filter(([key]) => key !== "command"),
-          ),
-        ),
-    }),
+    parameters: async () => {
+      // a derived parameter (ADR 0021): its expression and its computed value
+      const values = parameterValues(store.commands);
+      return {
+        parameters: store.commands
+          .filter((c) => c.command === "parameter.add")
+          .map((c) => ({
+            ...Object.fromEntries(
+              Object.entries(c).filter(([key]) => key !== "command"),
+            ),
+            ...(typeof c.value === "string" && c.name in values
+              ? { computed: values[c.name] }
+              : {}),
+          })),
+      };
+    },
 
     set_parameters: async (args) => {
       const values = args.values;
@@ -262,6 +270,11 @@ export function agentTools(host: AgentHost): Handler {
         const parameter = store.get(name);
         if (parameter?.command !== "parameter.add")
           throw new Error(`No parameter named '${name}'.`);
+        // a derived parameter is computed from others (ADR 0021)
+        if (typeof parameter.value === "string")
+          throw new Error(
+            `'${name}' is derived from other parameters: change them, or its expression.`,
+          );
         if (typeof value !== "number" || !Number.isFinite(value))
           throw new Error(`The value of '${name}' is a number.`);
         return { type: "update", name, command: { ...parameter, value } };

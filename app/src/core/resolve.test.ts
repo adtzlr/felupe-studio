@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import data from "../../../tests/data/expression_cases.json";
 import type { Command } from "./commands";
-import { expressionFields, renameParameter, resolveCommands } from "./resolve";
+import {
+  evaluateParameters,
+  expressionFields,
+  parameterValues,
+  renameParameter,
+  resolveCommands,
+} from "./resolve";
 import { ModelStore } from "./store";
 import { renameReferences } from "./validate";
 
@@ -96,5 +102,44 @@ describe("the values of the expressions (#242)", () => {
     const store = new ModelStore({ schema_version: 3, commands });
     expect(store.resolved).toBe(store.resolved);
     expect(store.getResolved("top")).toMatchObject({ select: { value: 10 } });
+  });
+});
+
+describe("derived parameters (ADR 0021)", () => {
+  it("are evaluated in the order of their dependencies", () => {
+    // wherever they stand, in the order of the command list where they are free
+    const commands = [
+      { command: "parameter.add", name: "c", value: "b + a" },
+      { command: "parameter.add", name: "b", value: "2 * a" },
+      { command: "parameter.add", name: "d", value: "a / 2", integer: true },
+      { command: "parameter.add", name: "a", value: 4 },
+      { command: "parameter.add", name: "e", value: "a" },
+    ] as Command[];
+    const parameters = evaluateParameters(commands);
+    expect(parameters.order).toEqual(["b", "c", "d", "e"]);
+    expect(parameters.values).toEqual({ a: 4, b: 8, c: 12, d: 2, e: 4 });
+    expect(parameterValues(commands)).toEqual(parameters.values);
+    // the resolved commands have their values, for the viewer and the checks
+    const { commands: resolved, problems } = resolveCommands(commands);
+    expect(problems).toEqual([]);
+    expect(resolved.map((c) => (c as { value: number }).value)).toEqual([
+      12, 8, 2, 4, 4,
+    ]);
+  });
+
+  it("leave out what uses a parameter with a problem", () => {
+    const commands = [
+      { command: "parameter.add", name: "a", value: "b" },
+      { command: "parameter.add", name: "b", value: "a" },
+      { command: "parameter.add", name: "c", value: "2 * a" },
+      { command: "symmetry.add", name: "s", axes: ["z"], z: "c" },
+    ] as Command[];
+    const { commands: resolved, problems } = resolveCommands(commands);
+    // only the cause, at every parameter of the cycle
+    expect(problems.map((p) => p.message)).toEqual([
+      "commands/0: 'value' of 'a': 'a' depends on itself through 'b'.",
+      "commands/1: 'value' of 'b': 'b' depends on itself through 'a'.",
+    ]);
+    expect(resolved).toEqual([]);
   });
 });

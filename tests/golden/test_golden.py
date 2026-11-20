@@ -199,6 +199,28 @@ def test_expressions_like_numbers():
     assert "fem.math.linsteps([0, (0.5 * layers * height)], num=(2 * cells))" in script
 
 
+def test_derived_parameters_like_expressions():
+    # the sandwich spring with derived parameters (#333, ADR 0021) before the
+    # parameters that they use: the same values, the same curve as the expressions
+    curves = [
+        json.loads((HERE / case / "results.json").read_text(encoding="utf-8"))
+        for case in ("sandwich_spring_expressions", "sandwich_spring_derived")
+    ]
+    for key in ("displacement", "force"):
+        np.testing.assert_allclose(
+            curves[1]["jobs"]["job"][key], curves[0]["jobs"]["job"][key], rtol=1e-12
+        )
+    script = (HERE / "sandwich_spring_derived" / "script.py").read_text("utf-8")
+    # after the free parameters, as their expressions, an integer one as an int
+    lines = script[script.index("# parameters") :].splitlines()[1:9]
+    assert lines[5:] == [
+        "total_height = sheet + layers * (height + sheet)  # mm",
+        "travel = 0.5 * layers * height  # mm",
+        "substeps = int(2 * cells)",
+    ]
+    assert "fem.math.linsteps([0, travel], num=substeps)" in script
+
+
 def test_two_materials_reference():
     # checked by hand with FElupe 12.0.0 before the GUI existed
     results = json.loads(
@@ -610,6 +632,7 @@ LARGE_ROUNDOFF = {
     "sandwich_spring_3_layers",
     "sandwich_spring_5_layers",
     "sandwich_spring_expressions",
+    "sandwich_spring_derived",
     # the penalty of the multi-point constraint of the rotation point: 2e-3, with an
     # estimate of 0.74
     "plate_rotation_plane_strain",

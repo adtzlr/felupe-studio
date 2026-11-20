@@ -15,12 +15,12 @@ A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserve
 
 ## Expressions
 
-A number of a command (*or an expression* below) may be an expression of the parameters as a string, e.g. `"end": "0.25 * layers * height"` (#242, [ADR 0013](adr/0013-expressions-of-parameters.md)): numbers, the names of the parameters, `pi`, `+ - * / **`, parentheses and the functions `sqrt`, `exp`, `log`, `sin`, `cos`, `tan`, `abs`, `min` and `max`. It is evaluated with the values of the parameters, the script shows it as written. The fields of `parameter.add`, the numbers that name things (a tag, ids) and the decimals of `mesh.merge` are numbers. See [Expressions of parameters](commands.md#expressions-of-parameters).
+A number of a command (*or an expression* below) may be an expression of the parameters as a string, e.g. `"end": "0.25 * layers * height"` (#242, [ADR 0013](adr/0013-expressions-of-parameters.md)): numbers, the names of the parameters, `pi`, `+ - * / **`, parentheses and the functions `sqrt`, `exp`, `log`, `sin`, `cos`, `tan`, `abs`, `min` and `max`. It is evaluated with the values of the parameters, the script shows it as written. A parameter whose value is an expression is a derived parameter ([ADR 0021](adr/0021-derived-parameters.md)). The range and the step of `parameter.add`, the numbers that name things (a tag, ids) and the decimals of `mesh.merge` are numbers. See [Expressions of parameters](commands.md#expressions-of-parameters).
 
 ## Commands
 
 - [`model.settings`](#modelsettings): The settings of the model, at most once.
-- [`parameter.add`](#parameteradd): A parameter of the model: a number, e.g. a dimension or the number of cells of a mesh made by a script.
+- [`parameter.add`](#parameteradd): A parameter of the model: a number, e.g. a dimension or the number of cells of a mesh made by a script, or a derived parameter, an expression of other parameters (ADR 0021).
 - [`mesh.import`](#meshimport): Import a mesh file (read with meshio).
 - [`mesh.script`](#meshscript): A mesh made by a Python script next to the project, e.g. with the mesh tools of FElupe.
 - [`mesh.generate`](#meshgenerate): A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes made by tools before, like expand or revolve.
@@ -58,12 +58,12 @@ The settings of the model, at most once. The units say what the numbers mean: FE
 
 ### `parameter.add`
 
-A parameter of the model: a number, e.g. a dimension or the number of cells of a mesh made by a script. The generated script defines it as a variable at its top.
+A parameter of the model: a number, e.g. a dimension or the number of cells of a mesh made by a script, or a derived parameter, an expression of other parameters (ADR 0021). The generated script defines it as a variable at its top.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | name | yes | Name of the object. |
-| `value` | number | yes | The value of the parameter. |
+| `value` | number (or an expression) | yes | The value of the parameter: a number, or an expression of other parameters (a derived parameter, ADR 0021), e.g. layers * height + (layers - 1) * sheet. A derived parameter is computed: it has no min, max and step. |
 | `quantity` | `length`, `force` or `stress` |  | The physical quantity of the value, for its unit of the model settings (e.g. mm for a length). Without it, the value has no unit. |
 | `min` | number |  | The smallest value. |
 | `max` | number |  | The largest value. |

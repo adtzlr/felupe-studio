@@ -97,6 +97,17 @@ describe("the parameters of a project (#183)", () => {
     ).toBe("5");
   });
 
+  it("have no value field of a derived parameter (ADR 0021)", async () => {
+    // a derived parameter is computed from the others, not set
+    const { dialog } = await setup(true, [
+      { command: "parameter.add", name: "total", value: "layers * 2" },
+    ]);
+    expect(
+      within(dialog).queryByRole("spinbutton", { name: /^total/ }),
+    ).toBeNull();
+    expect(within(dialog).getAllByRole("spinbutton")).toHaveLength(3);
+  });
+
   it("open with the changed values as one undo step", async () => {
     const { store, onClose, dialog } = await setup();
     fireEvent.input(

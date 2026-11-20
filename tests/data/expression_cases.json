@@ -1851,7 +1851,15 @@
         "step": "10",
         "description": "Length of the inner sleeve"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -1864,7 +1872,15 @@
         "step": "10",
         "description": "Length of the outer sleeve"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -1877,7 +1893,15 @@
         "step": "1",
         "description": "Thickness of the sleeves"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -1889,7 +1913,15 @@
         "step": "0.05",
         "description": "Runout of the free faces of the rubber"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -1901,7 +1933,15 @@
         "integer": true,
         "description": "Cells along the axis"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -1913,7 +1953,15 @@
         "integer": true,
         "description": "Cells through the rubber"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -1925,7 +1973,15 @@
         "integer": true,
         "description": "Cells around the axis"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -2650,7 +2706,15 @@
         "value": "3",
         "integer": true
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -3778,7 +3842,15 @@
         "step": "5",
         "description": "Radius of the discs"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -3790,7 +3862,15 @@
         "integer": true,
         "description": "Number of rubber layers"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -3803,7 +3883,15 @@
         "step": "1",
         "description": "Height of a rubber layer"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -3816,7 +3904,15 @@
         "step": "0.5",
         "description": "Thickness of a steel sheet"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -3828,7 +3924,15 @@
         "integer": true,
         "description": "Fineness of the discs (n of fem.Circle)"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -4017,7 +4121,69 @@
         "integer": true,
         "description": "Number of rubber layers"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "total_height",
+        "value": "sheet + layers * (height + sheet)",
+        "quantity": "length",
+        "description": "Height of the spring"
+      },
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "travel",
+        "value": "0.5 * layers * height",
+        "quantity": "length",
+        "description": "Shear of the top"
+      },
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "substeps",
+        "value": "2 * cells",
+        "integer": true,
+        "description": "Substeps of the shear"
+      },
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -4037,6 +4203,63 @@
           "bounds": {
             "exclusiveMinimum": 0
           }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "top",
+        "select": {
+          "axis": "z",
+          "value": "total_height"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "shearing",
+        "ramp": {
+          "num": "substeps",
+          "items": [
+            {
+              "target": "shear",
+              "end": "travel"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
         }
       ]
     },
@@ -4107,7 +4330,15 @@
         "step": "0.05",
         "description": "Runout of the free faces of the soft body"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -4119,7 +4350,15 @@
         "integer": true,
         "description": "Cells along the axis"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -4131,7 +4370,15 @@
         "integer": true,
         "description": "Cells through the soft body"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -4143,7 +4390,15 @@
         "integer": true,
         "description": "Cells around the axis"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -6179,7 +6434,15 @@
         "step": "0.1",
         "description": "Thickness of the steel sheets"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -6191,7 +6454,15 @@
         "integer": true,
         "description": "Cells along the layers"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -6203,7 +6474,15 @@
         "integer": true,
         "description": "Cells through a rubber layer"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -6313,7 +6592,15 @@
         "step": "1",
         "description": "Radius of the hole"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -6326,7 +6613,15 @@
         "step": "5",
         "description": "Half width of the plate"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -6338,7 +6633,15 @@
         "integer": true,
         "description": "Number of cells along an edge"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -6632,7 +6935,15 @@
         "integer": true,
         "description": "Number of soft layers"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -6645,7 +6956,15 @@
         "step": "1",
         "description": "Height of a soft layer"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -6657,7 +6976,15 @@
         "integer": true,
         "description": "Number of cells through a soft layer"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -6721,7 +7048,15 @@
         "integer": true,
         "description": "Number of cells along the radius"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {
@@ -6733,7 +7068,15 @@
         "integer": true,
         "description": "Number of cells through a soft layer"
       },
-      "fields": []
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {

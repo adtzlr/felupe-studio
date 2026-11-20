@@ -40,9 +40,9 @@ from . import commands as commands_
 from . import results as results_
 from . import samples as samples_
 from .capabilities import capability_errors
-from .codegen import codegen, parameter_value
+from .codegen import codegen
 from .commands import SCHEMA_VERSION
-from .expressions import resolve
+from .expressions import parameter_values, resolve
 from .project import ProjectError, dumps, loads
 
 # the samples and the documentation of a clone of the repository, else of the
@@ -428,11 +428,8 @@ class Session:
                 )
 
     def parameters(self):
-        return {
-            c["name"]: parameter_value(c)
-            for c in self.commands
-            if c["command"] == "parameter.add"
-        }
+        # also the derived parameters, with the values of their expressions (ADR 0021)
+        return parameter_values(self.commands)
 
     def inspect_mesh(self, file, item=None, parameters=None):
         path = self._file(file)

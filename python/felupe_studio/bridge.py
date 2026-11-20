@@ -172,13 +172,16 @@ def agent_server(bridge):  # noqa: C901
 
     @mcp.tool()
     async def parameters() -> dict[str, Any]:
-        """The parameters of the model with their values, units and ranges."""
+        """The parameters of the model with their values, units and ranges; a
+        derived parameter (ADR 0021) has its expression as its value and the value
+        of the expression as computed."""
         return await bridge.call("parameters")
 
     @mcp.tool()
     async def set_parameters(values: dict[str, float]) -> dict[str, Any]:
         """Set the values of parameters (by name), as one undo step; the meshes of
-        scripts and the expressions follow. Returns the issues."""
+        scripts and the expressions follow. A derived parameter is computed from
+        others and is not set. Returns the issues."""
         return await bridge.call("set_parameters", {"values": values})
 
     @mcp.tool()

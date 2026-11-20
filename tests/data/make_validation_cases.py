@@ -23,6 +23,12 @@ def remove(document, name):
     document["commands"].remove(find(document, name))
 
 
+def derived(name, value, **fields):
+    """A derived parameter (#333, ADR 0021): a parameter whose value is an
+    expression of other parameters."""
+    return {"command": "parameter.add", "name": name, "value": value, **fields}
+
+
 def parameters(document, **changes):
     """The parameters length, stroke and cells (an integer) first, and changes of
     the fields of commands (#242): a name with a dict of fields."""
@@ -1066,6 +1072,48 @@ CHANGES = {
     ),
     "expression problems before references": lambda d: parameters(
         d, hard={"mesh": "nomesh"}, step_1={"ramp": ramp(end="stroke * 1e308 * 10")}
+    ),
+    # derived parameters (#333, ADR 0021): evaluated in the order of their
+    # dependencies, wherever they stand, and used like the others
+    "derived parameters": lambda d: (
+        parameters(
+            d,
+            step_1={"ramp": ramp(end="travel / 2", num="substeps")},
+            right={"select": {"axis": "x", "value": "length"}},
+        ),
+        d["commands"].insert(
+            0, derived("travel", "2 * stroke + half", quantity="length")
+        ),
+        d["commands"].append(derived("half", "length / 2")),
+        d["commands"].append(derived("substeps", "2 * cells", integer=True)),
+    ),
+    "derived parameter in a cycle": lambda d: (
+        parameters(d, step_1={"ramp": ramp(end="a")}),
+        d["commands"].extend(
+            [derived("a", "b + 1"), derived("b", "2 * c"), derived("c", "a")]
+        ),
+    ),
+    "derived parameter of itself": lambda d: (
+        parameters(d),
+        d["commands"].append(derived("a", "2 * a")),
+    ),
+    "derived parameter with an unknown name": lambda d: (
+        parameters(d),
+        d["commands"].append(derived("travel", "2 * strok")),
+    ),
+    "derived parameter that is not valid": lambda d: (
+        parameters(d),
+        d["commands"].append(derived("travel", "2 *")),
+    ),
+    "derived integer parameter that is not an integer": lambda d: (
+        parameters(d, step_1={"ramp": ramp(num="half")}),
+        d["commands"].append(derived("half", "cells / 2", integer=True)),
+    ),
+    "a derived parameter of a derived parameter with a problem": lambda d: (
+        parameters(d, step_1={"ramp": ramp(end="double")}),
+        d["commands"].extend(
+            [derived("travel", "2 * strok"), derived("double", "2 * travel")]
+        ),
     ),
     "expressions and a reference problem": lambda d: parameters(
         d, hard={"mesh": "nomesh"}, step_1={"ramp": ramp()}

@@ -14,11 +14,13 @@ from felupe_studio.commands import errors, rename_references
 from felupe_studio.expressions import (
     ExpressionError,
     IntegerValue,
+    Parameters,
     Value,
     evaluate,
     fields,
     names,
     number_text,
+    parameter_values,
     python_code,
     resolve,
 )
@@ -92,7 +94,7 @@ def test_number_text_like_javascript():
 
 
 def test_fields_of_the_schema():
-    # number fields that are text; others stay (the value of a parameter, the tag of
+    # number fields that are text; others stay (the range of a parameter, the tag of
     # a cell set, the ids of a point set and the decimals of the merge)
     command = {
         "command": "rigid.add",
@@ -117,8 +119,11 @@ def test_fields_of_the_schema():
         (["ramp", "items", 0, "end", 0], False, {}),
         (["ramp", "items", 0, "end", 1], False, {}),
     ]
+    # the value of a parameter: a derived parameter (ADR 0021)
+    derived = {"command": "parameter.add", "name": "p", "value": "2 * h"}
+    assert fields(derived) == [(["value"], False, {})]
     for command in (
-        {"command": "parameter.add", "name": "p", "value": "1"},
+        {"command": "parameter.add", "name": "p", "value": 1, "min": "0"},
         {"command": "cellset.from_tag", "name": "c", "mesh": "m", "value": "1"},
         {"command": "pointset.add", "name": "p", "select": {"ids": ["1"]}},
         {"command": "mesh.merge", "name": "merge", "decimals": "6"},
@@ -214,6 +219,33 @@ def test_rename_a_parameter():
     renamed = rename_references(step, "n", "count")
     assert renamed["ramp"]["num"] == "2 * count"
     assert step["ramp"]["num"] == "2 * n"
+
+
+def test_rename_a_parameter_in_a_derived_parameter():
+    # the value of a derived parameter is an expression like any other (ADR 0021)
+    derived = {"command": "parameter.add", "name": "total", "value": "2 * n + n2"}
+    assert rename_references(derived, "n", "count")["value"] == "2 * count + n2"
+
+
+def test_derived_parameters_in_the_order_of_their_dependencies():
+    # wherever they stand, in the order of the command list where they are free
+    commands = [
+        {"command": "parameter.add", "name": "c", "value": "b + a"},
+        {"command": "parameter.add", "name": "b", "value": "2 * a"},
+        {"command": "parameter.add", "name": "d", "value": "a / 2", "integer": True},
+        {"command": "parameter.add", "name": "a", "value": 4},
+        {"command": "parameter.add", "name": "e", "value": "a"},
+    ]
+    parameters = Parameters(commands)
+    assert parameters.order == ["b", "c", "d", "e"]
+    assert parameters.values == {"a": 4.0, "b": 8.0, "c": 12.0, "d": 2, "e": 4.0}
+    assert isinstance(parameters.values["d"], int)
+    assert parameter_values(commands) == parameters.values
+    # the resolved values know their expression, for the script
+    resolved, problems = resolve({"schema_version": 3, "commands": commands})
+    assert problems == []
+    value = resolved["commands"][0]["value"]
+    assert (float(value), repr(value), value.text) == (12.0, "(b + a)", "b + a")
 
 
 def test_errors_with_expressions_first():

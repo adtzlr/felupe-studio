@@ -1123,7 +1123,7 @@
       }
     },
     "ParameterAdd": {
-      "description": "A parameter of the model: a number, e.g. a dimension or the number of cells of a mesh made by a script. The generated script defines it as a variable at its top.",
+      "description": "A parameter of the model: a number, e.g. a dimension or the number of cells of a mesh made by a script, or a derived parameter, an expression of other parameters (ADR 0021). The generated script defines it as a variable at its top.",
       "type": "object",
       "required": ["command", "name", "value"],
       "additionalProperties": false,
@@ -1136,8 +1136,8 @@
         },
         "value": {
           "x-quantity": "parameter",
-          "description": "The value of the parameter.",
-          "type": "number"
+          "description": "The value of the parameter: a number, or an expression of other parameters (a derived parameter, ADR 0021), e.g. layers * height + (layers - 1) * sheet. A derived parameter is computed: it has no min, max and step.",
+          "type": ["number", "string"]
         },
         "quantity": {
           "description": "The physical quantity of the value, for its unit of the model settings (e.g. mm for a length). Without it, the value has no unit.",
@@ -1167,6 +1167,29 @@
           "description": "What the parameter is, in a few words, e.g. Radius of the disc.",
           "type": "string",
           "maxLength": 120
+        }
+      },
+      "if": {
+        "properties": {
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": ["value"]
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            {
+              "required": ["min"]
+            },
+            {
+              "required": ["max"]
+            },
+            {
+              "required": ["step"]
+            }
+          ]
         }
       }
     },

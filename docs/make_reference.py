@@ -345,9 +345,11 @@ def markdown():
         "[ADR 0013](adr/0013-expressions-of-parameters.md)): numbers, the names of "
         "the parameters, `pi`, `+ - * / **`, parentheses and the functions `sqrt`, "
         "`exp`, `log`, `sin`, `cos`, `tan`, `abs`, `min` and `max`. It is evaluated "
-        "with the values of the parameters, the script shows it as written. The "
-        "fields of `parameter.add`, the numbers that name things (a tag, ids) and "
-        "the decimals of `mesh.merge` are numbers. See [Expressions of "
+        "with the values of the parameters, the script shows it as written. A "
+        "parameter whose value is an expression is a derived parameter ([ADR "
+        "0021](adr/0021-derived-parameters.md)). The range and the step of "
+        "`parameter.add`, the numbers that name things (a tag, ids) and the "
+        "decimals of `mesh.merge` are numbers. See [Expressions of "
         "parameters](commands.md#expressions-of-parameters).",
         "## Commands",
         "\n".join(
