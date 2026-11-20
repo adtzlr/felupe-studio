@@ -66,6 +66,12 @@ describe("units of the model (#132)", () => {
     expect(resultUnit("strain_max", units)).toBeUndefined();
     expect(resultUnit("stress_mises", units)).toBe("Pa");
     expect(resultUnit("stress_max", undefined)).toBeUndefined();
+    // a strain energy density, like a stress (#346)
+    expect(resultUnit("mullins_energy", units)).toBe("Pa");
+    expect(resultUnit("mullins_energy", { length: "mm", force: "N" })).toBe(
+      "MPa",
+    );
+    expect(resultUnit("plastic_strain", units)).toBeUndefined();
   });
 
   it("of boundaries and ramped values follow their targets", () => {

@@ -709,6 +709,72 @@ def test_mullins_effect_of_every_substep(mullins):
     np.testing.assert_allclose(statevars(36), statevars(30), rtol=1e-6)
 
 
+def energy(stretch):
+    """The strain energy density of the isochoric part of Neo-Hooke (μ = 1) of an
+    incompressible uniaxial stretch."""
+    return (stretch**2 + 2 / stretch - 3) / 2
+
+
+def test_mullins_energy_of_every_substep(mullins, tmp_path):
+    # the contour of the maximum strain energy density of the load history (#346):
+    # of the stretch to 1.5 after the first stretch, also released and stretched to
+    # 1.5 again, of the stretch to 2 at the end (nearly incompressible)
+    for substep, stretch in [(6, 1.5), (18, 1.5), (12, 1.5), (30, 2), (36, 2)]:
+        meta = json.loads(results.scene("job_1", substep, "mullins_energy")[0])
+        assert meta["label"] == "Max. strain energy density"
+        assert meta["range"] == pytest.approx([energy(stretch)] * 2, rel=1e-3)
+    # zero at the start, never smaller than in a substep before
+    highs = [r[1] for r in json.loads(results.ranges("job_1", "mullins_energy"))]
+    assert highs[0] == pytest.approx(0, abs=1e-12)
+    assert np.all(np.diff(highs) >= -1e-12)
+    assert highs[18] == pytest.approx(highs[5], rel=1e-10)
+    # at the points, a state variable moved itself
+    meta = json.loads(results.scene("job_1", 6, "mullins_energy", "project")[0])
+    assert meta["at"] == "point"
+    assert meta["range"] == pytest.approx([energy(1.5)] * 2, rel=1e-3)
+
+    # the exports have it as cell data, and at the points as point data
+    name = "Maximum Strain Energy Density"
+    mesh = meshio.read(read(results.export("job_1", "vtu", 18), ".vtu", tmp_path))
+    data = np.concatenate(mesh.cell_data[name])
+    np.testing.assert_allclose(data, energy(1.5), rtol=1e-3)
+    assert "Equivalent Plastic Strain" not in mesh.cell_data
+    path = read(results.export("job_1", "xdmf", method="mean"), ".xdmf", tmp_path)
+    reader = meshio.xdmf.TimeSeriesReader(str(path))
+    reader.read_points_cells()
+    _, point_data, cell_data = reader.read_data(reader.num_steps - 1)
+    np.testing.assert_allclose(point_data[name], energy(2), rtol=1e-3)
+    np.testing.assert_allclose(cell_data[name][0], energy(2), rtol=1e-3)
+
+
+def test_mullins_energy_of_a_section_of_another_material(monkeypatch):
+    # zero in a section of a material without the Mullins effect (#346), like the
+    # equivalent plastic strain
+    monkeypatch.chdir(GOLDEN / "bar_two_materials")
+    document = load("bar_two_materials")
+    for command in document["commands"]:
+        if command["name"] == "rubber":
+            command["mullins"] = {"r": 3, "m": 0.2, "beta": 0.1}
+    run(document)
+    assert results._mullins("soft_body")
+    assert not results._mullins("hard_body")
+    _, surfaces = results.scene("job_1", 6, "mullins_energy")
+    for surface in surfaces:
+        values = arrays(surface)["values"]
+        if surface["name"] == "soft_body":
+            assert np.all(values > 0)
+        else:
+            assert np.all(values == 0)
+
+
+def test_mullins_energy_of_a_model_without_the_mullins_effect(two_materials, tmp_path):
+    # zero, and not in the export (#346)
+    meta = json.loads(results.scene("job_1", 6, "mullins_energy")[0])
+    assert meta["range"] == [0.0, 0.0]
+    mesh = meshio.read(read(results.export("job_1", "vtu"), ".vtu", tmp_path))
+    assert "Maximum Strain Energy Density" not in mesh.cell_data
+
+
 def test_no_history_of_elastic_materials(two_materials):
     # no state variables of their own: nothing is recorded per substep (#346)
     assert not results._history("hard_body")

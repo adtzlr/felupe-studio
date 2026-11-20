@@ -116,8 +116,9 @@ DESCRIPTIONS = {
         "the minimum and the maximum with their section, node or cell and position, "
         "and the control points with their forces. Quantities: displacement, "
         "displacement_x/y/z, strain_max/mid/min, stress_max/mid/min, stress_mises, "
-        "plastic_strain; methods: cells (the means of the cells) or mean, project, "
-        "topoints (at the points)."
+        "plastic_strain, mullins_energy (the largest strain energy density of the "
+        "load history of the Mullins effect); methods: cells (the means of the "
+        "cells) or mean, project, topoints (at the points)."
     ),
 }
 """The descriptions of the tools shared with :mod:`felupe_studio.bridge`."""

@@ -64,14 +64,16 @@ export function unitOf(
 
 /**
  * The unit of a quantity of the results, e.g. "MPa" of "stress_mises" (strains have
- * no unit).
+ * no unit). A strain energy density (#346) has the unit of a stress, e.g. MPa for
+ * mJ/mm³.
  */
 export function resultUnit(
   quantity: string,
   units: Units | undefined,
 ): string | undefined {
   if (quantity.startsWith("displacement")) return unitOf("displacement", units);
-  if (quantity.startsWith("stress")) return unitOf("stress", units);
+  if (quantity.startsWith("stress") || quantity === "mullins_energy")
+    return unitOf("stress", units);
   return undefined;
 }
 

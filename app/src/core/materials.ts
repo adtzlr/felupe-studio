@@ -104,6 +104,10 @@ export const hasStatevars = (commands: readonly Command[]): boolean =>
       !!MATERIAL_MODELS.find((m) => m.name === c.model)?.statevars,
   );
 
+/** True if a command list has a material with the Mullins effect (#346). */
+export const hasMullins = (commands: readonly Command[]): boolean =>
+  commands.some((c) => c.command === "material.add" && "mullins" in c);
+
 /**
  * What is wrong with the parameters of a material beyond the schema, with the field:
  * lists of values that need the same number of values (like `problems` of
