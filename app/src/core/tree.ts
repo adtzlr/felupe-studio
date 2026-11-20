@@ -196,8 +196,12 @@ const DETAILS: { [C in Command["command"]]: Detail<C> } = {
   "mesh.merge": (cmd) => `decimals = ${cmd.decimals}`,
   "cellset.from_tag": (cmd) => `tag = ${cmd.value}`,
   "cellset.from_file": () => "all cells",
+  // the label of the model, and the Mullins effect (#346)
   "material.add": (cmd) =>
-    MATERIAL_MODELS.find((m) => m.name === cmd.model)?.label ?? cmd.model,
+    joined(
+      MATERIAL_MODELS.find((m) => m.name === cmd.model)?.label ?? cmd.model,
+      "mullins" in cmd && "Mullins",
+    ),
   "section.add": (cmd) =>
     joined(
       cmd.material,

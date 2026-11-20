@@ -2,7 +2,7 @@
 
 A folder of samples has a folder per sample. The folders are sorted by their names;
 a prefix of digits and ``_`` (e.g. ``01_``) gives the order and is not a part of the
-id, so ``14_engine-mount`` is the sample ``engine-mount``. A sample folder has
+id, so ``15_engine-mount`` is the sample ``engine-mount``. A sample folder has
 
 - ``model.felupe.json``: the project; the mesh files and scripts that it names
   (``mesh.import``, ``mesh.script``) must be in the folder;

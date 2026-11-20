@@ -49,6 +49,15 @@ describe("deriveTree", () => {
     );
     // the label of the material model of the registry
     expect(find(tree, "umat_soft")!.detail).toBe("Neo-Hooke");
+    // and the Mullins effect (#346)
+    const mullins = commands.map((c) =>
+      c.name === "umat_soft"
+        ? { ...c, mullins: { r: 2, m: 0.05, beta: 0.1 } }
+        : c,
+    ) as Command[];
+    expect(find(deriveTree(mullins), "umat_soft")!.detail).toBe(
+      "Neo-Hooke · Mullins",
+    );
     expect(find(tree, "left")!.detail).toBe("x == 0");
     expect(find(tree, "fixed")!.detail).toBe("left · x, y, z");
     expect(find(tree, "move")!.detail).toBe("right · x");

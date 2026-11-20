@@ -157,9 +157,9 @@ def test_a_hidden_mesh_is_dimmed_after_another_project(url, page):
     page.get_by_role("button", name="File", exact=True).click()
     page.get_by_role("menuitem", name="Samples…").click()
     samples = page.get_by_role("dialog")
-    samples.locator("li", has_text="Bushing made with mesh tools").get_by_role(
-        "button", name="Open"
-    ).click()
+    # by its title: the description of the bushing with the Mullins effect names it
+    title = page.get_by_role("heading", name="Bushing made with mesh tools", exact=True)
+    samples.locator("li").filter(has=title).get_by_role("button", name="Open").click()
     page.get_by_role("dialog", name=re.compile("^Parameters")).get_by_role(
         "button", name="Open", exact=True
     ).click()

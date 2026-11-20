@@ -15,9 +15,10 @@ spring (the dialog when it is opened), the results of the plate with a hole (a 2
 model) and of the spring with end stops (contact), two of version 0.5: the engine
 mount (FElupe ex07, air as a third medium) with the stresses at the points and the
 elastic-plastic plate with a hole (the equivalent plastic strain), one of version
-0.6: the expressions of the step of the sandwich spring, and two of version 0.7: the
+0.6: the expressions of the step of the sandwich spring, two of version 0.7: the
 bushing made with the mesh tools, its revolved mesh with the tools in the browser
-and its section in the xy-plane.
+and its section in the xy-plane, and one of version 0.8: the bushing with the
+Mullins effect after its first load cycle.
 
 The app loads Pyodide and its packages from the CDN (cdn.jsdelivr.net): the script
 needs it, a stub of the runtime would not show the real versions and load times.
@@ -116,7 +117,9 @@ def capture(context, url, out):
         page.keyboard.press("Escape")
         page.get_by_role("button", name="File", exact=True).click()
         page.get_by_role("menuitem", name="Samples…").click()
-        card = page.get_by_role("dialog").locator("li", has_text=title)
+        # by its title, which the description of another sample may name
+        heading = page.get_by_role("heading", name=title, exact=True)
+        card = page.get_by_role("dialog").locator("li").filter(has=heading)
         card.get_by_role("button", name="Open").click()
         confirm = page.get_by_role("dialog", name="Open project")
         parameters = page.get_by_role("dialog", name=re.compile("^Parameters"))
@@ -171,7 +174,10 @@ def capture(context, url, out):
     shot("plane-strain")
 
     # contact: the spring with end stops at the end of its compression
-    open_sample("Hyperelastic spring with end stops", "hyperelastic-spring.felupe.zip")
+    open_sample(
+        "Hyperelastic spring with end stops (FElupe ex06)",
+        "hyperelastic-spring.felupe.zip",
+    )
     page.wait_for_selector("text=hyperelastic-spring.felupe.zip")
     solve(substep=5, quantity="strain_max")
     page.get_by_label("Curve", exact=True).set_checked(True)
@@ -246,6 +252,18 @@ def capture(context, url, out):
     page.keyboard.press("Escape")
     page.get_by_label("Curve", exact=True).set_checked(True)
     shot("plasticity")
+
+    # v0.8: the Mullins effect, the bushing in filled rubber back at the start after
+    # its first load cycle: the maximum strain energy density that the rubber keeps,
+    # and the curve of the softer second loading (#346)
+    open_sample("Bushing with the Mullins effect", "bushing-mullins.felupe.zip")
+    page.get_by_role("dialog", name=re.compile("^Parameters")).get_by_role(
+        "button", name="Open", exact=True
+    ).click()
+    page.wait_for_selector("text=bushing-mullins.felupe.zip")
+    solve(substep=14, quantity="mullins_energy")
+    page.get_by_label("Curve", exact=True).set_checked(True)
+    shot("mullins")
 
     if errors:
         raise RuntimeError(f"Errors of the page: {errors}")

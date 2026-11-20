@@ -3,7 +3,7 @@
 // `SAMPLES_DIR=~/my-samples npm run build` (or `npm run dev`).
 //
 // The folder has a folder per sample, sorted by their names. A prefix of digits and
-// `_` (e.g. `01_`) gives the order and is not a part of the id: `14_engine-mount` is
+// `_` (e.g. `01_`) gives the order and is not a part of the id: `15_engine-mount` is
 // the sample `engine-mount`. A sample folder has its project `model.felupe.json`, the
 // mesh files and scripts that it names, optionally its `sample.json` (title,
 // description and topics) and its picture `thumbnail.svg`. Folders whose names

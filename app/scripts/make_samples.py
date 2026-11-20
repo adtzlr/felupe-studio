@@ -135,6 +135,17 @@ SAMPLES = [
         "topics": ["mesh tools", "parameters", "expressions", "revolve"],
     },
     {
+        "id": "bushing-mullins",
+        "title": "Bushing with the Mullins effect",
+        "description": "The bushing made with mesh tools in a filled rubber, which "
+        "softens after its first loading (the Mullins effect, Ogden-Roxburgh). The "
+        "inner sleeve is moved radially by 6 mm and back, by 6 mm again, which needs "
+        "less force, and on to 9 mm, where the rubber is as stiff as at its first "
+        "loading. The contour of the maximum strain energy density shows where the "
+        "rubber is softened.",
+        "topics": ["Mullins effect", "load cycle", "repeated steps", "state variable"],
+    },
+    {
         "id": "hyperelastic-spring",
         "title": "Hyperelastic spring with end stops (FElupe ex06)",
         "description": "A half of a hyperelastic spring bonded to two plates, "
@@ -1411,6 +1422,50 @@ def bushing_tools():
     write("bushing-tools", [*commands[:first], *meshes, *cells, *rest], {})
 
 
+def bushing_mullins():
+    """The bushing made with the mesh tools (#314) in a filled rubber with the Mullins
+    effect (#346), in a radial load cycle: the inner sleeve is moved by 6 mm and back
+    (the step ``load`` and ``unload``), by 6 mm again (``load`` repeated, #331) and on
+    to 9 mm (``further``). The reloading needs less force up to 6 mm, e.g. 45 % less
+    at 3 mm, and is on the curve of the first loading again above it. The rigid
+    connection of the inner sleeve has no rotation point: it is moved radially only.
+    """
+    removed = {"turn", "torsion", "cardanic", "lock", "loading", "job"}
+    commands = []
+    for c in loads_project(folder_of("bushing-tools"))["commands"]:
+        if c["name"] in removed:
+            continue
+        if c["command"] == "mpc.add":
+            c = {k: v for k, v in c.items() if k != "rotation"}
+        if c["name"] == "hyperelastic":
+            c = {**c, "name": "filled_rubber"}
+            c["mullins"] = {"r": 2, "m": 0.05, "beta": 0.1}
+        if c["name"] == "soft_body":
+            c = {**c, "material": "filled_rubber"}
+        commands.append(c)
+
+    def step(name, start, end, num):
+        item = {"target": "radial", "start": start, "end": end}
+        return {
+            "command": "step.add",
+            "name": name,
+            "ramp": {"num": num, "items": [item]},
+        }
+
+    commands += [
+        step("load", 0, 6, 6),
+        step("unload", 6, 0, 6),
+        step("further", 6, 9, 3),
+        {
+            "command": "job.add",
+            "name": "job",
+            "steps": ["load", "unload", "load", "further"],
+            "curve": "radial",
+        },
+    ]
+    write("bushing-mullins", commands, {})
+
+
 def hyperelastic_spring():
     """A hyperelastic spring with end stops like the example ex06 of FElupe (#222):
     a half of the spring (a symmetry plane y = 0) bonded to two steel plates, the top
@@ -2052,6 +2107,7 @@ def main():
     plastic_plate()
     bushing()
     bushing_tools()
+    bushing_mullins()
     hyperelastic_spring()
     metacone()
     engine_mount()
