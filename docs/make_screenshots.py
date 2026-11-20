@@ -174,7 +174,10 @@ def capture(context, url, out):
     shot("plane-strain")
 
     # contact: the spring with end stops at the end of its compression
-    open_sample("Hyperelastic spring with end stops", "hyperelastic-spring.felupe.zip")
+    open_sample(
+        "Hyperelastic spring with end stops (FElupe ex06)",
+        "hyperelastic-spring.felupe.zip",
+    )
     page.wait_for_selector("text=hyperelastic-spring.felupe.zip")
     solve(substep=5, quantity="strain_max")
     page.get_by_label("Curve", exact=True).set_checked(True)
