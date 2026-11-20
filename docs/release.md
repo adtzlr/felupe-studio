@@ -12,6 +12,7 @@ The web app and the Python package `felupe_studio` are released together with on
 - [ ] The version is set in `app/package.json`, `app/package-lock.json` (run `npm install` in `app/`) and `python/felupe_studio/__about__.py`.
 - [ ] `CHANGELOG.md` has the section of the version with its date.
 - [ ] The pinned wheels (`config.wheels` in `app/package.json`) are the versions of the golden tests (`FELUPE_VERSION` in `.github/workflows/ci.yml`).
+- [ ] The CI files of a brand build the release: `FELUPE_STUDIO_VERSION` in `brands/gitlab-ci.yml` and `brands/github-actions.yml`, and the versions in `brands/README.md` (`tests/test_brands.py` checks that they agree, the release workflow that they are the version of the tag).
 
 ### Smoke test of the deployed page
 

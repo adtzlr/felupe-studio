@@ -34,6 +34,9 @@ jobs:
           version=$(python -c "import re; print(re.search(r'__version__ = \"(.+)\"', open('python/felupe_studio/__about__.py').read()).group(1))")
           echo "tag ${GITHUB_REF_NAME}, version ${version}"
           test "${GITHUB_REF_NAME}" = "v${version}"
+          # the CI files of a brand build this release (#321)
+          grep -q "FELUPE_STUDIO_VERSION: \"${version}\"" brands/gitlab-ci.yml
+          grep -q "FELUPE_STUDIO_VERSION: \"${version}\"" brands/github-actions.yml
       - run: python -m build
         env:
           FELUPE_STUDIO_REQUIRE_APP: "1"

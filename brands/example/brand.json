@@ -1,0 +1,21 @@
+{
+  "$schema": "../../app/src/vite/brand.schema.json",
+  "brand_version": 1,
+  "name": "Example Lab FEM",
+  "short_name": "Example Lab",
+  "logo": "logo.svg",
+  "icons": {
+    "192": "icon-192.png",
+    "512": "icon-512.png"
+  },
+  "storage": "example-lab",
+  "accent": "#f08c3a",
+  "welcome": "The example brand of FElupe Studio: a name, a logo and samples of its own, and Pyodide served with the app.",
+  "links": {
+    "help": "https://github.com/adtzlr/felupe-studio/blob/main/brands/README.md",
+    "issues": "https://github.com/adtzlr/felupe-studio/issues/new",
+    "source": "https://github.com/adtzlr/felupe-studio/tree/main/brands/example"
+  },
+  "samples": "samples",
+  "pyodide": "self-hosted"
+}

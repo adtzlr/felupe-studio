@@ -1,6 +1,8 @@
 # Node
 node_modules/
 dist/
+# a build of a brand next to that of the app, e.g. of brands/example
+dist-*/
 
 # Python
 __pycache__/
