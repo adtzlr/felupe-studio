@@ -723,12 +723,21 @@ describe("expressions of parameters (#242)", () => {
     const { field } = edit("right");
     expect(field("Coordinate").getAttribute("inputmode")).toBe("decimal");
     cleanup();
-    // a parameter of other parameters (ADR 0021); its range stays a number
+    // a parameter of other parameters (ADR 0021): with its value, without a range
     const parameter = edit("stroke", parametric());
-    parameter.type("Value", "length / 2");
-    expect(parameter.field("Value").getAttribute("aria-invalid")).toBeNull();
     expect(parameter.field("Minimum").getAttribute("inputmode")).toBe(
       "decimal",
     );
+    parameter.type("Value", "length / 2");
+    expect(parameter.field("Value").getAttribute("aria-invalid")).toBeNull();
+    expect(parameter.properties.textContent).toContain("= 1.5");
+    expect(within(parameter.properties).queryByLabelText("Minimum")).toBeNull();
+    fireEvent.click(parameter.button("Apply"));
+    expect(parameter.store.get("stroke")).toMatchObject({
+      value: "length / 2",
+    });
+    // a number again: a free parameter with a range
+    parameter.type("Value", "0.5");
+    expect(parameter.field("Minimum")).toBeTruthy();
   });
 });

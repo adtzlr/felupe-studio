@@ -4,14 +4,20 @@
 // and the meshes of scripts follow them. A project with scripts that make meshes
 // says so, and shows the scripts before they run. A parameter shows the objects whose
 // expressions use it, and the problems of the expressions with the typed values
-// (#242).
+// (#242). The derived parameters follow, with their expressions and their values,
+// which follow the typed values; they are computed, not set (ADR 0021).
 import { useState } from "preact/hooks";
 import type { Command } from "../core/commands";
 import { type MeshFiles, meshFileNames, isScript } from "../core/meshfiles";
 import { type Parameter, parameterProblems } from "../core/parameters";
-import { resolveCommands, usesName } from "../core/resolve";
+import {
+  numberText,
+  parameterValues,
+  resolveCommands,
+  usesName,
+} from "../core/resolve";
 import type { ModelStore } from "../core/store";
-import { unitOf, unitsOf } from "../core/units";
+import { unitOf, unitsOf, valueWithUnit } from "../core/units";
 import { Dialog } from "./Dialog";
 
 interface Props {
@@ -39,6 +45,58 @@ export const parametersOf = (commands: readonly Command[]): Parameter[] =>
     (c): c is Parameter =>
       c.command === "parameter.add" && typeof c.value === "number",
   );
+
+/**
+ * The derived parameters (ADR 0021): their expressions and their values with the
+ * typed values of the free parameters, without a field and a slider.
+ */
+function DerivedParameters({
+  commands,
+  typed,
+  usedBy,
+}: {
+  commands: readonly Command[];
+  /** The commands with the typed values of the free parameters. */
+  typed: readonly Command[];
+  usedBy: (name: string) => string[];
+}) {
+  const derived = commands.filter(
+    (c): c is Parameter =>
+      c.command === "parameter.add" && typeof c.value === "string",
+  );
+  if (!derived.length) return null;
+  const values = parameterValues(typed);
+  const units = unitsOf(commands);
+  return (
+    <div class="parameter-rows" role="group" aria-label="Derived parameters">
+      {derived.map((p) => {
+        const unit = unitOf(p.quantity, units);
+        const value = values[p.name];
+        const used = usedBy(p.name);
+        return (
+          <div class="parameter-row" key={p.name}>
+            <span class="parameter-label">
+              <span>{p.description ?? p.name}</span>
+              {p.description && <code class="muted">{p.name}</code>}
+            </span>
+            <output
+              class="parameter-value derived-value"
+              aria-label={p.description ?? p.name}
+            >
+              {value === undefined
+                ? "–"
+                : valueWithUnit(numberText(value), unit)}
+            </output>
+            <small class="muted">
+              = <code>{p.value}</code>
+              {used.length ? ` · used by ${used.join(", ")}` : ""}
+            </small>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 /** The problems of the expressions of changed commands that the others lack. */
 function newProblems(before: readonly Command[], after: readonly Command[]) {
@@ -196,6 +254,11 @@ export function ParametersDialog({
             );
           })}
         </div>
+        <DerivedParameters
+          commands={store.commands}
+          typed={typed}
+          usedBy={usedBy}
+        />
         {expressions.length > 0 && (
           <div
             class="plan warning-plan"

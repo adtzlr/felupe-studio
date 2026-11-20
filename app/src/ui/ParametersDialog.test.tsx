@@ -97,15 +97,32 @@ describe("the parameters of a project (#183)", () => {
     ).toBe("5");
   });
 
-  it("have no value field of a derived parameter (ADR 0021)", async () => {
+  it("show a derived parameter with its value, not a field (ADR 0021)", async () => {
     // a derived parameter is computed from the others, not set
     const { dialog } = await setup(true, [
-      { command: "parameter.add", name: "total", value: "layers * 2" },
+      {
+        command: "parameter.add",
+        name: "total",
+        value: "layers * radius",
+        quantity: "length",
+        description: "Total height",
+      },
     ]);
     expect(
-      within(dialog).queryByRole("spinbutton", { name: /^total/ }),
+      within(dialog).queryByRole("spinbutton", { name: /^Total/ }),
     ).toBeNull();
     expect(within(dialog).getAllByRole("spinbutton")).toHaveLength(3);
+    const derived = within(dialog).getByRole("group", {
+      name: "Derived parameters",
+    });
+    const value = within(derived).getByRole("status", { name: "Total height" });
+    expect(value.textContent).toBe("150 mm");
+    expect(derived.textContent).toContain("= layers * radius");
+    // its value follows the typed values of the free parameters
+    fireEvent.input(within(dialog).getByLabelText("layers (slider)"), {
+      target: { value: "5" },
+    });
+    expect(value.textContent).toBe("250 mm");
   });
 
   it("open with the changed values as one undo step", async () => {

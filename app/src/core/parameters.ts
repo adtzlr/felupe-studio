@@ -2,6 +2,7 @@
 // by a script. The problems mirror felupe_studio.commands.parameter_problems; both
 // are tested with tests/data/validation_cases.json.
 import type { Command } from "./commands";
+import { numberText, parameterValues } from "./resolve";
 import { unitOf, type Units, valueWithUnit } from "./units";
 
 export type Parameter = Extract<Command, { command: "parameter.add" }>;
@@ -62,12 +63,22 @@ export function parameterProblems(parameter: Parameter): ParameterProblem[] {
   return problems;
 }
 
-/** The value of a parameter with its unit and range, e.g. "50 mm · 10–100". */
+/**
+ * The value of a parameter with its unit and range, e.g. "50 mm · 10–100"; of a
+ * derived parameter (ADR 0021) its value and its expression, e.g.
+ * "32 mm = sheet + layers * (height + sheet)".
+ */
 export function describeParameter(
   parameter: Parameter,
   units: Units | undefined,
+  commands: readonly Command[] = [],
 ): string {
   const unit = unitOf(parameter.quantity, units);
+  if (typeof parameter.value === "string") {
+    const value = parameterValues(commands)[parameter.name];
+    const shown = value === undefined ? "–" : numberText(value);
+    return `${valueWithUnit(shown, unit)} = ${parameter.value}`;
+  }
   const value = valueWithUnit(String(parameter.value), unit);
   const { min, max } = parameter;
   if (min === undefined && max === undefined) return value;
