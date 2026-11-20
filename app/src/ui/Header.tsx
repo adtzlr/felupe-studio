@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { APP_NAME, formatVersion, LINKS } from "../app";
+import { APP_NAME, BRAND, formatVersion, LINKS } from "../app";
 import { projectNameProblem, stemOf, suffixOf } from "../core/files";
 import { ariaKeys, hint, withHint } from "../core/shortcuts";
 import type { ModelStore } from "../core/store";
@@ -160,6 +160,16 @@ function ProjectName({
   );
 }
 
+/** The logo and the name of the brand (ADR 0020), with the version as its title. */
+function BrandMark() {
+  return (
+    <span class="brand" title={`Version ${formatVersion(__APP_VERSION__)}`}>
+      <img class="brand-logo" src={BRAND.logo} alt="" width={20} height={20} />
+      <span class="brand-name">{APP_NAME}</span>
+    </span>
+  );
+}
+
 export function Header({
   store,
   fileName,
@@ -193,10 +203,7 @@ export function Header({
         >
           <Icon name="browser" />
         </button>
-        <span class="brand" title={`Version ${formatVersion(__APP_VERSION__)}`}>
-          <Icon name="logo" size={20} />
-          <span class="brand-name">{APP_NAME}</span>
-        </span>
+        <BrandMark />
         <div class="menubar">
           <Menu
             kind="text"

@@ -4,7 +4,7 @@
   "title": "Brand",
   "description": "A brand of FElupe Studio (ADR 0020): the brand.json of a brand folder, given at build time with BRAND_DIR. The default brand is app/brand.",
   "type": "object",
-  "required": ["brand_version", "name", "short_name", "links"],
+  "required": ["brand_version", "name", "short_name", "logo", "links"],
   "additionalProperties": false,
   "properties": {
     "$schema": {
@@ -26,6 +26,27 @@
       "type": "string",
       "minLength": 1,
       "maxLength": 24
+    },
+    "logo": {
+      "description": "The logo, an SVG file of the brand folder: the header, the favicon and the manifest.",
+      "type": "string",
+      "pattern": "\\.svg$"
+    },
+    "icons": {
+      "description": "The icons of an installed app, PNG files of the brand folder of 192 × 192 and 512 × 512 px, e.g. made from the logo by app/scripts/make_icons.py; without them, the manifest has the logo only.",
+      "type": "object",
+      "required": ["192", "512"],
+      "additionalProperties": false,
+      "properties": {
+        "192": {
+          "type": "string",
+          "pattern": "\\.png$"
+        },
+        "512": {
+          "type": "string",
+          "pattern": "\\.png$"
+        }
+      }
     },
     "accent": {
       "description": "The accent color of the app, e.g. of buttons and selections, as #rrggbb; without it, the color of FElupe Studio.",
@@ -82,8 +103,12 @@
           "required": ["length", "force"],
           "additionalProperties": false,
           "properties": {
-            "length": { "enum": ["mm", "m"] },
-            "force": { "enum": ["N", "kN"] }
+            "length": {
+              "enum": ["mm", "m"]
+            },
+            "force": {
+              "enum": ["N", "kN"]
+            }
           }
         }
       }

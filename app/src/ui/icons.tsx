@@ -1,6 +1,5 @@
 // Stroke icons (24 × 24), drawn with currentColor.
 const PATHS = {
-  logo: "M3 3 H21 V21 H3 Z M9 3 V21 M15 3 V21 M3 9 H21 M3 15 H21",
   // the settings of the model (#132): two sliders
   settings: "M4 8 H20 M4 16 H20 M9 5 V11 M15 13 V19",
   // a parameter of the model (#180): a variable in braces

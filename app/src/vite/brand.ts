@@ -56,7 +56,39 @@ export function readBrand(dir: string): Brand {
     );
   const errors = brandErrors(value);
   if (errors.length) fail(`${BRAND_FILE} is invalid: ${errors.join("; ")}.`);
+  checkFiles(dir, value as Brand, fail);
   return value as Brand;
+}
+
+/** The width and the height of a PNG (of its header), or undefined if it is none. */
+export function pngSize(data: Buffer): [number, number] | undefined {
+  const signature = "89504e470d0a1a0a";
+  if (data.length < 24 || data.subarray(0, 8).toString("hex") !== signature)
+    return undefined;
+  return [data.readUInt32BE(16), data.readUInt32BE(20)];
+}
+
+/** The files of a brand, checked: its logo (SVG) and its icons (PNG). */
+function checkFiles(
+  dir: string,
+  value: Brand,
+  fail: (message: string) => never,
+): void {
+  const logo = join(dir, value.logo);
+  if (!existsSync(logo)) fail(`it has no logo ${value.logo}.`);
+  if (!/<svg[\s>]/.test(readFileSync(logo, "utf-8").slice(0, 4096)))
+    fail(`the logo ${value.logo} is no SVG.`);
+  for (const [size, file] of Object.entries(value.icons ?? {})) {
+    const path = join(dir, file);
+    if (!existsSync(path)) fail(`it has no icon ${file}.`);
+    const found = pngSize(readFileSync(path));
+    if (!found) return fail(`the icon ${file} is no PNG.`);
+    if (found[0] !== Number(size) || found[1] !== Number(size))
+      fail(
+        `the icon ${file} has ${found[0]} × ${found[1]} px instead of ` +
+          `${size} × ${size} px.`,
+      );
+  }
 }
 
 /** The brand of a build and the folder of its samples. */
@@ -93,14 +125,58 @@ export function brandOptions(
   return { dir, brand, samples };
 }
 
+/** The folder of the files of the brand in the build: its logo and its icons. */
+export const BRAND_FOLDER = "brand";
+/** The manifest of the app, for an installed app. */
+export const MANIFEST = "manifest.webmanifest";
+/** The colors of the app around the brand (shell.css): the bar and the background. */
+const BAR = "#171a21";
+const BACKGROUND = "#1b1f27";
+
+/** The files that the build copies: their names in the build and their paths. */
+export function brandFiles(dir: string, value: Brand): [string, string][] {
+  return [
+    [`${BRAND_FOLDER}/logo.svg`, join(dir, value.logo)],
+    ...Object.entries(value.icons ?? {}).map(
+      ([size, file]): [string, string] => [
+        `${BRAND_FOLDER}/icon-${size}.png`,
+        join(dir, file),
+      ],
+    ),
+  ];
+}
+
+/** The manifest of the app of a brand: its names, its icons and the colors. */
+export function manifest(value: Brand): object {
+  return {
+    name: value.name,
+    short_name: value.short_name,
+    start_url: ".",
+    scope: ".",
+    display: "standalone",
+    background_color: BACKGROUND,
+    theme_color: BAR,
+    icons: [
+      { src: `${BRAND_FOLDER}/logo.svg`, sizes: "any", type: "image/svg+xml" },
+      ...Object.keys(value.icons ?? {}).map((size) => ({
+        src: `${BRAND_FOLDER}/icon-${size}.png`,
+        sizes: `${size}x${size}`,
+        type: "image/png",
+      })),
+    ],
+  };
+}
+
 /**
  * The brand of the pages: without what only the build reads (the folder of the
- * samples and the schema of the file).
+ * samples, the icons and the schema of the file), with the URL of its logo.
  */
 export function pageBrand(value: Brand): Brand {
   const page = { ...value } as Brand & { $schema?: string };
   delete page.$schema;
   delete page.samples;
+  delete page.icons;
+  page.logo = `${BRAND_FOLDER}/logo.svg`;
   return page;
 }
 
@@ -130,14 +206,66 @@ export function accentCss(accent: string): string {
   );
 }
 
-/** The plugin of Vite: the brand in the pages of the app. */
-export function brand(value: Brand): Plugin {
+/** The tags of the brand in the head of a page. */
+function headTags(value: Brand) {
   // the brand as JSON in a script block, safe in HTML
   const json = JSON.stringify(pageBrand(value)).replace(/</g, "\\u003c");
+  const link = (rel: string, href: string, type?: string) => ({
+    tag: "link",
+    attrs: { rel, href, ...(type ? { type } : {}) },
+    injectTo: "head" as const,
+  });
+  return [
+    {
+      tag: "script",
+      attrs: { type: "application/json", id: "brand" },
+      children: json,
+      injectTo: "head" as const,
+    },
+    link("icon", `${BRAND_FOLDER}/logo.svg`, "image/svg+xml"),
+    ...(value.icons
+      ? [link("apple-touch-icon", `${BRAND_FOLDER}/icon-192.png`)]
+      : []),
+    link("manifest", MANIFEST),
+    {
+      tag: "meta",
+      attrs: { name: "theme-color", content: BAR },
+      injectTo: "head" as const,
+    },
+    ...(value.accent
+      ? [
+          {
+            tag: "style",
+            attrs: { id: "brand-accent" },
+            children: accentCss(value.accent),
+            injectTo: "head" as const,
+          },
+        ]
+      : []),
+  ];
+}
+
+const TYPES: Record<string, string> = {
+  svg: "image/svg+xml",
+  png: "image/png",
+  webmanifest: "application/manifest+json",
+};
+
+/**
+ * The plugin of Vite: the brand in the pages of the app, its logo and its icons in
+ * `brand/` and the manifest, in the build and in dev.
+ */
+export function brand({
+  dir,
+  brand: value,
+}: Pick<BrandOptions, "dir" | "brand">): Plugin {
+  const files = brandFiles(dir, value);
+  const manifestText = JSON.stringify(manifest(value), null, 2) + "\n";
   return {
     name: "brand",
     transformIndexHtml: {
-      order: "pre",
+      // after Vite: the links of the brand are files of the build, not of the source
+      order: "post",
       handler(html, context) {
         const page = context.filename.endsWith("index.html")
           ? html.replace(
@@ -145,28 +273,32 @@ export function brand(value: Brand): Plugin {
               `<title>${escapeHtml(value.name)}</title>`,
             )
           : html;
-        return {
-          html: page,
-          tags: [
-            {
-              tag: "script",
-              attrs: { type: "application/json", id: "brand" },
-              children: json,
-              injectTo: "head",
-            },
-            ...(value.accent
-              ? [
-                  {
-                    tag: "style",
-                    attrs: { id: "brand-accent" },
-                    children: accentCss(value.accent),
-                    injectTo: "head" as const,
-                  },
-                ]
-              : []),
-          ],
-        };
+        return { html: page, tags: headTags(value) };
       },
+    },
+    generateBundle() {
+      for (const [fileName, path] of files)
+        this.emitFile({ type: "asset", fileName, source: readFileSync(path) });
+      this.emitFile({
+        type: "asset",
+        fileName: MANIFEST,
+        source: manifestText,
+      });
+    },
+    configureServer(server) {
+      server.middlewares.use((request, response, next) => {
+        const path = decodeURIComponent((request.url ?? "").split("?")[0]);
+        const name = path.replace(
+          /^.*?\/(?=(brand\/|manifest\.webmanifest$))/,
+          "",
+        );
+        const file = files.find(([fileName]) => fileName === name);
+        if (!file && name !== MANIFEST) return next();
+        const extension = name.split(".").pop() ?? "";
+        if (TYPES[extension])
+          response.setHeader("Content-Type", TYPES[extension]);
+        response.end(file ? readFileSync(file[1]) : manifestText);
+      });
     },
   };
 }

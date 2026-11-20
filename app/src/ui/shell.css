@@ -325,8 +325,11 @@ button {
   font-size: var(--text-lg);
 }
 
-.brand .icon {
-  color: var(--color-accent);
+/* the logo of the brand (ADR 0020) */
+.brand-logo {
+  display: block;
+  width: 20px;
+  height: 20px;
 }
 
 .project-name {
