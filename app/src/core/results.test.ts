@@ -88,6 +88,31 @@ describe("results view", () => {
     expect(stepOf(run, "job_2", 2)).toMatchObject({ name: "", substep: 2 });
   });
 
+  it("finds a repeated step by its position (#331)", () => {
+    const cycle: Finished = {
+      ...run,
+      commands: [
+        {
+          command: "job.add",
+          name: "job_1",
+          steps: ["load", "unload", "load"],
+        },
+      ] as unknown as Command[],
+      progress: { ...startProgress(), plan: { job_1: [2, 2, 2] } },
+    };
+    expect(stepOf(cycle, "job_1", 2)).toMatchObject({ name: "load", step: 1 });
+    expect(stepOf(cycle, "job_1", 3)).toMatchObject({
+      name: "unload",
+      step: 2,
+    });
+    expect(stepOf(cycle, "job_1", 6)).toEqual({
+      name: "load",
+      step: 3,
+      substep: 2,
+      substeps: 2,
+    });
+  });
+
   it("takes the curve along the axis of the largest last displacement", () => {
     const result = run.results.job_1;
     expect(curvePoint(result, 3)).toEqual({ axis: "x", u: 0.2, f: 2 });

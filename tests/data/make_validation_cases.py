@@ -1210,6 +1210,25 @@ CHANGES = {
 }
 
 
+def unload(document, steps):
+    """A second step that unloads the bar, and the steps of the job (#331)."""
+    index = document["commands"].index(find(document, "job_1"))
+    items = [{"target": "move", "start": 0.5, "end": 0}]
+    document["commands"].insert(
+        index,
+        {"command": "step.add", "name": "unload", "ramp": {"num": 5, "items": items}},
+    )
+    find(document, "job_1")["steps"] = steps
+
+
+CHANGES |= {
+    # a job may repeat a step (#331), e.g. load, unload, load
+    "a repeated step": lambda d: unload(d, ["step_1", "unload", "step_1"]),
+    "a repeated unknown step": lambda d: unload(d, ["step_1", "reload", "reload"]),
+    "a repeated cell set as a step": lambda d: unload(d, ["step_1", "hard", "hard"]),
+}
+
+
 def cases():
     base = json.loads((HERE / "two_sections.json").read_text(encoding="utf-8"))
     result = []

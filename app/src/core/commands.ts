@@ -1558,7 +1558,7 @@ export interface JobAdd {
   command: "job.add";
   name: Name;
   /**
-   * Steps evaluated one after another.
+   * Steps evaluated one after another, in this order; a step may be repeated, e.g. load, unload, load.
    *
    * @minItems 1
    */

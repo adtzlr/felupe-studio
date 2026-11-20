@@ -229,6 +229,29 @@ def test_two_materials_reference():
     assert np.isclose(results["jobs"]["job_1"]["force"][-1], 0.66322, rtol=1e-5)
 
 
+def test_repeated_step_of_a_load_cycle():
+    # the bar of bar_single_body loaded, unloaded and loaded again by the steps
+    # [load, unload, load] of one job (#331): every step has 6 substeps; the
+    # second load gives the curve of the first, which is that of bar_single_body,
+    # since the hyperelastic bar is unloaded to its undeformed state, and the
+    # unload follows the load back within the tolerance of the Newton iterations
+    cycle, single = (
+        json.loads((HERE / case / "results.json").read_text(encoding="utf-8"))
+        for case in ("bar_load_cycle", "bar_single_body")
+    )
+    u = np.array(cycle["jobs"]["job_1"]["displacement"])
+    f = np.array(cycle["jobs"]["job_1"]["force"])
+    first = single["jobs"]["job_1"]
+    assert len(u) == 18
+    np.testing.assert_allclose(u[:6], first["displacement"])
+    np.testing.assert_allclose(u[6:12], first["displacement"][::-1])
+    np.testing.assert_allclose(f[:6], first["force"], rtol=1e-10, atol=1e-12)
+    np.testing.assert_allclose(f[12:], f[:6], rtol=1e-10, atol=1e-12)
+    np.testing.assert_allclose(f[6:12], f[5::-1], atol=1e-2 * f.max())
+    script = (HERE / "bar_load_cycle" / "script.py").read_text(encoding="utf-8")
+    assert "fem.CharacteristicCurve(steps=[load, unload, load]," in script
+
+
 def test_cube_made_by_a_tool_like_the_file():
     # the cube of cube_yeoh made by the mesh tool Cube (ADR 0019) instead of read
     # from its file (fem.Cube(n=3)): the same mesh, the same curve

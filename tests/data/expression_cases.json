@@ -915,6 +915,115 @@
     },
     {
       "command": {
+        "command": "step.add",
+        "name": "load",
+        "ramp": {
+          "num": "5",
+          "items": [
+            {
+              "target": "move",
+              "start": "0",
+              "end": "0.5"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "start"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "unload",
+        "ramp": {
+          "num": "5",
+          "items": [
+            {
+              "target": "move",
+              "start": "0.5",
+              "end": "0"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "start"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "load",
+          "unload",
+          "load"
+        ],
+        "curve": "move"
+      },
+      "fields": []
+    },
+    {
+      "command": {
         "command": "loadcase.add",
         "name": "tension",
         "type": "uniaxial",
