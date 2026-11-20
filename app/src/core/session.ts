@@ -3,6 +3,7 @@
 // that a reload restores them. Only the last session is kept, and only in this
 // browser. A full storage must not break the app: a failed write rejects, and the
 // app keeps the project without its mesh files if they do not fit.
+import { storagePrefix } from "../brand";
 
 /** A mesh file of a session. */
 export interface SessionFile {
@@ -67,7 +68,7 @@ export class IndexedDBSession implements SessionStorage {
 
   constructor(
     private factory: IDBFactory = indexedDB,
-    private name = "felupe-studio",
+    private name = storagePrefix(),
   ) {}
 
   private open(): Promise<IDBDatabase> {

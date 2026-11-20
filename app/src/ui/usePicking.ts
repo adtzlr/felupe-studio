@@ -1,6 +1,7 @@
 // Picking in the viewport (#312): a picked face and its plane (#93), picked nodes,
 // picked surfaces of connected faces with their feature angle (#189, #195), the
 // tip about picking, and the click of the viewer that picks them (#260).
+import { storageKey } from "../brand";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { Command, PointSetAdd } from "../core/resolved";
 import type { ModelStore } from "../core/store";
@@ -61,7 +62,7 @@ function faceAt(
 }
 
 /** The feature angle of picked surfaces in degrees, kept in the browser (#189). */
-const ANGLE = "felupe-studio.feature-angle";
+const ANGLE = storageKey("feature-angle");
 
 function storedAngle(): number {
   try {
@@ -83,7 +84,7 @@ function storeAngle(angle: number): void {
 }
 
 /** The tip about picking is shown until the first pick or until it is dismissed. */
-const TIP = "felupe-studio.tip.pick";
+const TIP = storageKey("tip.pick");
 
 function tipSeen(): boolean {
   try {

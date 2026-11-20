@@ -1,6 +1,7 @@
 // The settings of the contour of results (#139): the color map, the bands and the
 // range, and what the viewer draws from them (its lookup table, bands and range),
 // and the values of the strains and the stresses at the cells or the points (#231).
+import { storageKey } from "../brand";
 import type { Quantity, ValuesMethod } from "../worker/protocol";
 import {
   type ColorMapId,
@@ -169,7 +170,7 @@ export function contourLook(
   };
 }
 
-const KEY = "felupe-studio.contour";
+const KEY = storageKey("contour");
 
 /** The settings kept in the browser, or the defaults. */
 export function loadContour(storage?: Storage): ContourSettings {

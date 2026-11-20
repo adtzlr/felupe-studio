@@ -7,6 +7,7 @@ import type { PyCallable, PyProxy } from "pyodide/ffi";
 import { encodeFrame, restore } from "./frames";
 import { toWorkerMessage, transfers } from "./messages";
 import {
+  CACHE,
   type CacheFS,
   type CacheState,
   REFIX_SOURCE,
@@ -56,6 +57,7 @@ async function init(
   pyodideVersion: string,
   wheels: string[],
   lazy: Record<string, string> = {},
+  folder = CACHE,
 ) {
   lazyWheels = lazy;
   const t0 = performance.now();
@@ -73,7 +75,8 @@ async function init(
     [...wheels, ...Object.values(lazy)],
     SOURCES,
   );
-  const opened = openCache(fs, key);
+  // the folder of the cache of the brand (ADR 0020)
+  const opened = openCache(fs, key, globalThis.indexedDB, folder);
   // rich is a dependency of meshio
   await py.loadPackage(["numpy", "scipy", "rich"]);
   const cache: CacheState = await opened;
@@ -90,7 +93,7 @@ async function init(
     `import os, sys\nsys.path.insert(0, "${HOME}")\nos.chdir("${PROJECT}")`,
   );
   if (cache !== "off") {
-    py.runPython(enableSource(HOME, key));
+    py.runPython(enableSource(HOME, key, folder));
     persist = persister(fs);
   }
 
@@ -209,6 +212,7 @@ ctx.onmessage = async (event: MessageEvent<ToWorker>) => {
         message.pyodideVersion,
         message.wheels,
         message.lazyWheels,
+        message.cache,
       );
     await request(message);
   } catch (error) {

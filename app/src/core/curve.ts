@@ -1,5 +1,6 @@
 // The force-displacement curve of a job with a curve boundary (#29): the quantities of
 // its axes (#197), the scales and ticks of the chart and the values as CSV.
+import { storageKey } from "../brand";
 import type { JobResult } from "../worker/protocol";
 import type { Command } from "./resolved";
 import { type Finished, largestAxis, stepOf } from "./results";
@@ -293,7 +294,7 @@ export function axisTicks(
   return { domain: [ticks[0], ticks[ticks.length - 1]], ticks };
 }
 
-const KEY = "felupe-studio.curve";
+const KEY = storageKey("curve");
 
 /** An axis of settings kept in the browser, checked. */
 function axisOf(value: unknown): CurveAxis {

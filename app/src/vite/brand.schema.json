@@ -4,7 +4,14 @@
   "title": "Brand",
   "description": "A brand of FElupe Studio (ADR 0020): the brand.json of a brand folder, given at build time with BRAND_DIR. The default brand is app/brand.",
   "type": "object",
-  "required": ["brand_version", "name", "short_name", "logo", "links"],
+  "required": [
+    "brand_version",
+    "name",
+    "short_name",
+    "logo",
+    "storage",
+    "links"
+  ],
   "additionalProperties": false,
   "properties": {
     "$schema": {
@@ -47,6 +54,12 @@
           "pattern": "\\.png$"
         }
       }
+    },
+    "storage": {
+      "description": "The prefix of the browser storage of the app: the keys <storage>.<name>, the session <storage>, the bytecode cache and the cache of the service worker. Two brands on one origin keep their data apart; felupe-studio is that of FElupe Studio.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+      "maxLength": 40
     },
     "accent": {
       "description": "The accent color of the app, e.g. of buttons and selections, as #rrggbb; without it, the color of FElupe Studio.",

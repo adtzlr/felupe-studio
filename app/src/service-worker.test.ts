@@ -103,6 +103,72 @@ describe("service worker", () => {
   });
 });
 
+describe("the cache of a brand (ADR 0020)", () => {
+  /** Activate public/sw.js, registered with this URL, among these caches. */
+  async function activate(href: string | undefined, names: string[]) {
+    const opened: string[] = [];
+    const deleted: string[] = [];
+    const listeners: Record<string, (event: unknown) => void> = {};
+    const self = {
+      ...(href ? { location: { href } } : {}),
+      registration: { scope: SCOPE },
+      clients: { claim: async () => {} },
+      skipWaiting: () => {},
+      addEventListener: (type: string, listener: (event: unknown) => void) => {
+        listeners[type] = listener;
+      },
+    } as unknown as Sw & { cacheFirst: Sw["cacheFirst"] };
+    const caches = {
+      open: async (name: string) => {
+        opened.push(name);
+        return {
+          match: async () => undefined,
+          put: async () => {},
+          keys: async () => [],
+        };
+      },
+      keys: async () => names,
+      delete: async (name: string) => void deleted.push(name),
+    };
+    new Function("self", "caches", "fetch", source)(
+      self,
+      caches,
+      async () => new Response(""),
+    );
+    let done: Promise<unknown> = Promise.resolve();
+    listeners.activate({ waitUntil: (p: Promise<unknown>) => (done = p) });
+    await done;
+    const url = `${PYODIDE}pyodide.mjs`;
+    await self.cacheFirst(new Request(url), {
+      family: "pyodide",
+      version: "v1",
+    });
+    return { opened, deleted };
+  }
+
+  const names = [
+    "felupe-studio-runtime-v0",
+    "felupe-studio-runtime-v1",
+    "acme-runtime-v0",
+    "acme-runtime-v1",
+  ];
+
+  it("is that of FElupe Studio without a prefix in the URL", async () => {
+    const { opened, deleted } = await activate(`${SCOPE}sw.js`, names);
+    expect(opened).toEqual(["felupe-studio-runtime-v1"]);
+    expect(deleted).toEqual(["felupe-studio-runtime-v0"]);
+  });
+
+  it("has the prefix of the brand, and keeps the caches of other brands", async () => {
+    const { opened, deleted } = await activate(
+      `${SCOPE}sw.js?storage=acme`,
+      names,
+    );
+    expect(opened).toEqual(["acme-runtime-v1"]);
+    expect(deleted).toEqual(["acme-runtime-v0"]);
+  });
+});
+
 describe("pinned FElupe version", () => {
   it("is the same in the app and in CI", () => {
     expect(ci).toContain(`FELUPE_VERSION: "${__FELUPE_VERSION__}"`);

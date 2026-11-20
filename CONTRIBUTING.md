@@ -67,6 +67,7 @@ cd app && BRAND_DIR=~/my-brand npm run build   # or npm run dev
   "short_name": "ACME",
   "logo": "logo.svg",
   "icons": { "192": "icon-192.png", "512": "icon-512.png" },
+  "storage": "acme-fem",
   "accent": "#e8590c",
   "welcome": "Simulate the rubber parts of ACME.",
   "links": {
@@ -79,8 +80,9 @@ cd app && BRAND_DIR=~/my-brand npm run build   # or npm run dev
 }
 ```
 
-- `name`, `short_name`, `logo` and the links `help`, `issues` and `source` are required: a brand inherits no identity of FElupe Studio. `documentation` (*Help ▸ Command reference*) and `tutorial` (the welcome panel) are optional.
+- `name`, `short_name`, `logo`, `storage` and the links `help`, `issues` and `source` are required: a brand inherits no identity of FElupe Studio. `documentation` (*Help ▸ Command reference*) and `tutorial` (the welcome panel) are optional.
 - `logo` is an SVG file of the brand folder: the header, the favicon and the manifest of an installed app. `icons` are PNG files of 192 × 192 and 512 × 512 px for an installed app; without them, the manifest has the logo only. `python app/scripts/make_icons.py <brand folder>` makes them from the logo, on the color of the bar of the app (with Playwright and Chromium, `CHROME` for another one).
+- `storage` is the prefix of the browser storage of the app (lowercase letters, digits, `.`, `_` and `-`): the keys `<storage>.<name>` of `localStorage` and `sessionStorage`, the session `<storage>` in IndexedDB, the bytecode cache `/<storage>-pycache` and the cache `<storage>-runtime-v1` of the service worker. So two brands on one origin keep their data apart, e.g. two folders of the Pages of one GitLab group. `felupe-studio` is the prefix of FElupe Studio, with the names of today (and its bytecode cache `/pycache`).
 - `accent` is the accent color of the app; without it, that of FElupe Studio. `welcome` is the text below the title of the welcome panel.
 - `samples` is the folder of the samples of the brand, relative to the brand folder (see *Samples*); without it, the brand has no samples. `SAMPLES_DIR` beside `BRAND_DIR` is an error, so the brand folder is the whole configuration of a deployment.
 - `defaults.units` are the units of the model settings of a new model.

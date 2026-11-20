@@ -2,6 +2,7 @@
 // job and the curves so far, while the jobs run, and after a failed or cancelled run
 // until the next one. The worker cannot answer requests while Python runs, so the
 // runner pushes them (felupe_studio.runner.Live).
+import { storageKey } from "../brand";
 import type { ResultScene } from "../worker/protocol";
 import type { JobRun } from "./jobs";
 import type { Finished, ResultView } from "./results";
@@ -98,7 +99,7 @@ export function liveResults(
   };
 }
 
-const KEY = "felupe-studio.live";
+const KEY = storageKey("live");
 
 /** Whether the live scenes are on (default), kept in the browser. */
 export function loadLiveOn(storage?: Storage): boolean {

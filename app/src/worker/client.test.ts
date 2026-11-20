@@ -54,6 +54,8 @@ describe("RuntimeClient", () => {
           tensortrax:
             "https://example.org/app/wheels/tensortrax-0.30.0-py3-none-any.whl",
         },
+        // the bytecode cache of the brand (ADR 0020), of FElupe Studio here
+        cache: "/pycache",
       },
     ]);
   });

@@ -4,6 +4,7 @@
 // building the model (#40). Python runs jobs synchronously: a running job is
 // cancelled by restarting the worker (or the connection, which ends the process of
 // the local runtime), which loads Python again and gets the files again.
+import { bytecodeCache } from "../brand";
 import type { CheckReport } from "../core/checks";
 import {
   type Channel,
@@ -164,6 +165,7 @@ export class RuntimeClient {
       lazyWheels: Object.fromEntries(
         Object.entries(__LAZY_WHEELS__).map(([name, w]) => [name, url(w)]),
       ),
+      cache: bytecodeCache(),
     } satisfies ToWorker);
   }
 

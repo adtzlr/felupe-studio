@@ -3,6 +3,7 @@
 // connection is one Python process; closing it ends the process, e.g. a running job.
 // The arrays of surfaces and scenes arrive as bytes, like in the Pyodide worker, and
 // become the typed arrays of the worker (`messages.ts`).
+import { storageKey } from "../brand";
 import { decodeFrame, encodeFrame } from "./frames";
 import { toWorkerMessage } from "./messages";
 import type { FromWorker, ToWorker } from "./protocol";
@@ -12,7 +13,7 @@ export { toWorkerMessage } from "./messages";
 /** The name of the meta tag of the page that the server of the runtime serves. */
 export const RUNTIME_META = "felupe-studio-runtime";
 /** The key of the token of the runtime in the storage of the tab. */
-export const TOKEN_KEY = "felupe-studio.token";
+export const TOKEN_KEY = storageKey("token");
 
 /** What the client needs of the worker: a channel of messages. */
 export interface Channel {

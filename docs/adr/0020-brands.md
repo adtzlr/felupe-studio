@@ -32,10 +32,9 @@ An institute or a company wants to run FElupe Studio under its own name, e.g. on
 - **The build writes the brand into static files:**
   - `index.html`: the title, the favicon, the link of the manifest, the theme color, and the brand as a JSON block (`<script type="application/json" id="brand">`). This block is the one source of the brand in the app: `app/src/brand.ts` reads it before the other modules use it, and `APP_NAME` and `LINKS` come from it;
   - `manifest.webmanifest` with the name, the short name, the icons and the colors;
-  - `sw.js` with the name of its cache and the URL of Pyodide;
   - the folder of samples with its list (#350), and with `self-hosted` the files of Pyodide.
 
-  The app fetches no `brand.json`.
+  The app fetches no `brand.json`. The service worker gets the prefix of its cache from the URL that registers it (`sw.js?storage=<prefix>`, none for FElupe Studio), so `sw.js` stays a static file.
 - **felupe-studio is the default brand** (`app/brand/brand.json`). It gives the values of today, so the settings and the sessions of existing users stay, and nothing is migrated. A test checks the title, the keys, the session, `/pycache` and the cache of the service worker. Every build of `main` builds a brand.
 - **The identity of upstream is no brand.** These are constants of the code, the same in every brand:
   - *based on FElupe Studio &lt;version&gt;* in *About*, with the link to the upstream project and the license (GPL-3.0-or-later); the default brand shows no *based on*;
@@ -67,7 +66,7 @@ An institute or a company wants to run FElupe Studio under its own name, e.g. on
 
 - The names and the links of the app come from one module, `app/src/brand.ts`, instead of constants. The tests run with the default brand.
 - The keys of the browser storage are made by one function, and new keys (e.g. of #335) use it.
-- The build has a second plugin, `brand()`, next to `samples()`, and `sw.js` is written by the build.
+- The build has a second plugin, `brand()`, next to `samples()`.
 - `brand.json`, `BRAND_DIR` and the templates are an interface for others. `brand.json` has a `brand_version` (1). An addition keeps it; a change that is not additive raises it, and the build says what to change.
 - Upstream maintains the templates and the example brand, and CI builds the example at every change.
 - A self-hosted Pyodide makes a deployment larger by tens of megabytes (the core, NumPy and SciPy).

@@ -88,6 +88,20 @@ describe("openCache", () => {
     expect(fs.mount).toHaveBeenCalledWith("IDBFS", {}, CACHE);
   });
 
+  it("mounts the folder of a brand (ADR 0020)", async () => {
+    const fs = fakeFS(["/acme-pycache/k/a.pyc", `${CACHE}/k/b.pyc`]);
+    expect(await openCache(fs, "k", {}, "/acme-pycache")).toBe("hit");
+    expect(fs.mount).toHaveBeenCalledWith("IDBFS", {}, "/acme-pycache");
+    // the cache of FElupe Studio stays
+    expect([...fs.files].sort()).toEqual([
+      "/acme-pycache/k/a.pyc",
+      `${CACHE}/k/b.pyc`,
+    ]);
+    expect(enableSource("/home/pyodide", "k", "/acme-pycache")).toContain(
+      'bytecode.enable("/acme-pycache/k")',
+    );
+  });
+
   it("is a hit with the folder of the key, and removes the other keys", async () => {
     const fs = fakeFS([
       `${CACHE}/k/lib/numpy/__pycache__/__init__.cpython-314.pyc`,
