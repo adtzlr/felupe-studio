@@ -1,6 +1,6 @@
 // The welcome panel of an empty model (#127): how to start, and the samples with
 // their pictures.
-import { APP_NAME, LINKS } from "../app";
+import { APP_NAME, BRAND, LINKS } from "../app";
 import type { Sample } from "../core/samples";
 import { Icon } from "./icons";
 import { SampleCard } from "./SampleCard";
@@ -28,11 +28,11 @@ export function Welcome({
     <section class="welcome" aria-labelledby="welcome-title">
       <h2 id="welcome-title">Welcome to {APP_NAME}</h2>
       <p class="muted">
-        Build models of hyperelastic solids from mesh files and solve them with
-        FElupe,{" "}
+        {/* the text of the brand (ADR 0020), then where Python runs */}
+        {BRAND.welcome && `${BRAND.welcome} `}
         {local
-          ? "with the Python of this computer. Nothing leaves this computer."
-          : "here in the browser. Nothing is uploaded."}
+          ? "Python runs on this computer: nothing leaves it."
+          : "Python runs here in the browser: nothing is uploaded."}
       </p>
       <div class="welcome-actions">
         <button type="button" class="button primary" onClick={onImportMesh}>
@@ -65,9 +65,11 @@ export function Welcome({
         <a href={LINKS.guide} target="_blank" rel="noopener">
           User guide
         </a>
-        <a href={LINKS.tutorial} target="_blank" rel="noopener">
-          Tutorial: a hyperelastic block with a rigid plate
-        </a>
+        {LINKS.tutorial && (
+          <a href={LINKS.tutorial} target="_blank" rel="noopener">
+            Tutorial
+          </a>
+        )}
       </p>
     </section>
   );

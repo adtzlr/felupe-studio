@@ -2,6 +2,7 @@
 // felupe_studio.project; both write byte-identical files (tested with
 // tests/data/*.felupe.json).
 import Ajv2020 from "ajv/dist/2020";
+import { appName } from "../brand";
 import type { Command, CommandList } from "./commands";
 import { schema, SCHEMA_VERSION } from "./schema";
 
@@ -147,8 +148,8 @@ export function migrate(
   let version: number = initial;
   if (version > SCHEMA_VERSION) {
     throw new ProjectError([
-      `The file has schema version ${version}, but this version of FElupe Studio ` +
-        `supports ${SCHEMA_VERSION}. Please update FElupe Studio.`,
+      `The file has schema version ${version}, but this version of ${appName()} ` +
+        `supports ${SCHEMA_VERSION}. Please update ${appName()}.`,
     ]);
   }
   while (version < SCHEMA_VERSION) {
@@ -395,7 +396,7 @@ function phrase([kind, path, value]: Part, command: unknown): string {
 }
 
 /**
- * What a command list uses that this version of FElupe Studio does not know (#344):
+ * What a command list uses that this version of the app does not know (#344):
  * a command type, a tool of `mesh.generate`, a material model, a value of an
  * enumeration or a property. The phrases of the message, without repeats.
  */
@@ -429,10 +430,10 @@ export function newerMessage(
       ? `${features.slice(0, -1).join(", ")} and ${features.at(-1)}`
       : features[0];
   const app = version
-    ? `FElupe Studio ${version}`
-    : "this version of FElupe Studio";
+    ? `${appName()} ${version}`
+    : `this version of ${appName()}`;
   return (
     `This project uses ${listed}, which ${app} does not know. ` +
-    "It may have been saved with a newer version: please update FElupe Studio."
+    `It may have been saved with a newer version: please update ${appName()}.`
   );
 }

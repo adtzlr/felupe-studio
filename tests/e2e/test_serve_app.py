@@ -74,7 +74,7 @@ def test_a_sample_solved_with_the_local_python(url, page):
     # the token is kept for the tab, not in the address
     assert "token" not in page.url
     assert not page.evaluate("navigator.serviceWorker.controller")
-    assert "with the Python of this computer" in page.inner_text(".welcome")
+    assert "Python runs on this computer" in page.inner_text(".welcome")
 
     card = page.locator(".sample-card").filter(has_text="Plate with a hole in plane")
     card.get_by_role("button", name="Open").click()

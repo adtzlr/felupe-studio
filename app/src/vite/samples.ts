@@ -1,5 +1,6 @@
-// The samples of the build (#350): a folder of samples, `app/samples` or the folder
-// of SAMPLES_DIR, e.g. `SAMPLES_DIR=~/my-samples npm run build` (or `npm run dev`).
+// The samples of the build (#350): a folder of samples, that of the brand (ADR 0020;
+// the default brand has `app/samples`) or of SAMPLES_DIR, e.g.
+// `SAMPLES_DIR=~/my-samples npm run build` (or `npm run dev`).
 //
 // The folder has a folder per sample, sorted by their names. A prefix of digits and
 // `_` (e.g. `01_`) gives the order and is not a part of the id: `14_engine-mount` is
@@ -166,22 +167,18 @@ export const filesToCopy = (sample: Sample, root: string): string[] =>
   );
 
 /**
- * The plugin of Vite: the list and the files in the build and in dev. The
- * folder is SAMPLES_DIR, else `samples/` of the app.
+ * The plugin of Vite: the list and the files in the build and in dev. The folder
+ * is SAMPLES_DIR or that of the brand (`brandOptions()` of brand.ts); without one,
+ * the app has no samples.
  */
-export function samples(
-  dir: string | undefined = process.env.SAMPLES_DIR,
-): Plugin {
+export function samples(dir: string | null): Plugin {
   let list: Sample[] = [];
-  let root = "";
+  const root = dir ? resolve(dir.replace(/^~(?=$|[\\/])/, homedir())) : "";
   return {
     name: "samples",
-    configResolved(config) {
-      root = dir
-        ? resolve(dir.replace(/^~(?=$|[\\/])/, homedir()))
-        : resolve(config.root, "samples");
-    },
     buildStart() {
+      // without a folder, e.g. of a brand without samples: none (#279)
+      if (!dir) return;
       try {
         list = readSamples(root);
       } catch (error) {

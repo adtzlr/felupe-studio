@@ -69,7 +69,7 @@ describe("a folder of samples (#350)", () => {
 });
 
 /** Call the hooks of the plugin with a small context of Vite. */
-function driver(plugin: ReturnType<typeof samples>, root: string) {
+function driver() {
   const emitted: { fileName: string; source: unknown }[] = [];
   const context = {
     error: (message: string) => {
@@ -82,7 +82,6 @@ function driver(plugin: ReturnType<typeof samples>, root: string) {
   };
   const call = (hook: unknown, ...args: unknown[]) =>
     (hook as (...a: unknown[]) => unknown).call(context, ...args);
-  call(plugin.configResolved, { root });
   return { call, emitted };
 }
 
@@ -105,7 +104,7 @@ describe("the plugin of the samples (#350)", () => {
   it("lists, copies and serves the samples of SAMPLES_DIR", () => {
     const dir = folder(files);
     const plugin = samples(dir);
-    const { call, emitted } = driver(plugin, "/somewhere/app");
+    const { call, emitted } = driver();
     call(plugin.buildStart);
     call(plugin.generateBundle);
     // the list of the samples, which the app loads at runtime (#350)
@@ -150,24 +149,19 @@ describe("the plugin of the samples (#350)", () => {
     expect(get("/index.html").passed).toBe(true);
   });
 
-  it("takes app/samples without SAMPLES_DIR", () => {
-    const app = folder({});
-    const dir = join(app, "samples");
-    for (const [name, text] of Object.entries(files)) {
-      mkdirSync(dirname(join(dir, name)), { recursive: true });
-      writeFileSync(join(dir, name), text);
-    }
-    const plugin = samples(undefined);
-    const { call, emitted } = driver(plugin, app);
+  it("has no samples without a folder, e.g. of a brand without them", () => {
+    const plugin = samples(null);
+    const { call, emitted } = driver();
     call(plugin.buildStart);
     call(plugin.generateBundle);
-    expect(String(emitted[0].source)).toContain('"id": "ring"');
+    expect(emitted.map((f) => f.fileName)).toEqual(["samples/index.json"]);
+    expect(JSON.parse(String(emitted[0].source))).toEqual([]);
   });
 
   it("fails the build with the message of the folder", () => {
     const dir = folder({ "01_ring/sample.json": "{}" });
     const plugin = samples(dir);
-    const { call } = driver(plugin, "/somewhere/app");
+    const { call } = driver();
     expect(() => call(plugin.buildStart)).toThrow(
       `The samples of ${dir}: the sample 'ring' has no model.felupe.json.`,
     );

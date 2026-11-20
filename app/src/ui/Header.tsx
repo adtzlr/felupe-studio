@@ -264,11 +264,16 @@ export function Header({
               {
                 items: [
                   { id: "guide", label: "User guide", href: LINKS.guide },
-                  {
-                    id: "reference",
-                    label: "Command reference",
-                    href: LINKS.reference,
-                  },
+                  // a brand may have no command reference (ADR 0020)
+                  ...(LINKS.reference
+                    ? [
+                        {
+                          id: "reference",
+                          label: "Command reference",
+                          href: LINKS.reference,
+                        },
+                      ]
+                    : []),
                   {
                     id: "shortcuts",
                     label: "Keyboard shortcuts",

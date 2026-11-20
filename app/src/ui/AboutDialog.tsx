@@ -1,6 +1,13 @@
 // Help ▸ About (#126): the versions of the app and of the Python packages, the load
 // time, the license and the links of the project.
-import { APP_NAME, formatVersion, LINKS, REPOSITORY } from "../app";
+import {
+  APP_NAME,
+  formatVersion,
+  IS_UPSTREAM,
+  LINKS,
+  REPOSITORY,
+} from "../app";
+import { UPSTREAM } from "../brand";
 import type { Capabilities } from "../core/capabilities";
 import { Dialog } from "./Dialog";
 import { otherVersion, type Runtime } from "./hooks";
@@ -91,6 +98,16 @@ export function AboutDialog({ runtime, onClose }: Props) {
                   : "Python could not be loaded"}
           </dd>
         </dl>
+        {/* a brand is based on FElupe Studio (ADR 0020) */}
+        {!IS_UPSTREAM && (
+          <p class="muted">
+            Based on{" "}
+            <a href={REPOSITORY} target="_blank" rel="noopener">
+              {UPSTREAM}
+            </a>{" "}
+            {formatVersion(__APP_VERSION__)}.
+          </p>
+        )}
         <p class="muted">
           Licensed under{" "}
           <a href={LINKS.license} target="_blank" rel="noopener">
@@ -100,7 +117,7 @@ export function AboutDialog({ runtime, onClose }: Props) {
         </p>
         <ul class="about-links">
           <li>
-            <a href={REPOSITORY} target="_blank" rel="noopener">
+            <a href={LINKS.source} target="_blank" rel="noopener">
               Source code
             </a>
           </li>
