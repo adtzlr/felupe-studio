@@ -11,6 +11,7 @@ import { DEFAULT_CONTOUR } from "../core/contour";
 import type { Command } from "../core/resolved";
 import type { ResultView } from "../core/results";
 import type { Scene, ViewerHandle } from "../vendor/felupe-viewer/viewer.js";
+import { VIEW_COLORS } from "../viewer/palette";
 import type { CreateViewer } from "../viewer/viewer";
 import type { ResultScene } from "../worker/protocol";
 import { ResultsView } from "./ResultsView";
@@ -156,6 +157,56 @@ describe("ResultsView", () => {
     fireEvent.keyDown(window, { key: "c" });
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
     await waitFor(() => expect(drawn().lines).toBeGreaterThan(0));
+  });
+
+  it("draws in the colors of the theme (#375)", async () => {
+    const viewer = fakeViewer();
+    const commands = [
+      { command: "point.add", name: "center", coordinates: [0, 0, 0] },
+      {
+        command: "mpc.add",
+        name: "connect",
+        points: "center",
+        center: "center",
+        constrained: ["x"],
+      },
+    ] as unknown as Command[];
+    const withPoints: ResultScene = {
+      ...scene,
+      points: [
+        {
+          name: "center",
+          position: [0, 0, 0],
+          displacement: [0, 0, 0],
+          force: [0, 0, 0],
+        },
+      ],
+    };
+    const results = (theme?: "dark" | "light") => (
+      <ResultsView
+        source={{ resultScene: async () => withPoints }}
+        view={{ ...view, undeformed: true }}
+        generation={1}
+        active
+        running={false}
+        createViewer={viewer.create}
+        commands={commands}
+        theme={theme}
+      />
+    );
+    // the colors of the ghost, the lines and the markers of the last scene
+    const colors = () => {
+      const objects = viewer.handle.update.mock.calls.at(-1)?.[0].objects ?? [];
+      return new Set(objects.map((o) => o.color));
+    };
+    const { rerender } = render(results());
+    const { dark, light } = VIEW_COLORS;
+    await waitFor(() => expect(colors()).toContain(dark.control));
+    expect(colors()).toContain(dark.ghost);
+    rerender(results("light"));
+    await waitFor(() => expect(colors()).toContain(light.control));
+    expect(colors()).toContain(light.ghost);
+    expect(colors()).not.toContain(dark.control);
   });
 
   it("takes the range of chosen sections (#377)", async () => {

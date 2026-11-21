@@ -2,7 +2,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Scene, ViewerHandle } from "../vendor/felupe-viewer/viewer.js";
 import type { MeshSurface } from "../worker/protocol";
-import { type CreateViewer, HIGHLIGHT, LONG_PRESS, Viewer } from "./viewer";
+import { VIEW_COLORS } from "./palette";
+import { type CreateViewer, LONG_PRESS, Viewer } from "./viewer";
 
 const surface: MeshSurface = {
   positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
@@ -323,8 +324,14 @@ describe("Viewer", () => {
     const objects = handle.update.mock.lastCall![0].objects;
     expect(objects.map((o) => [o.type, o.color])).toEqual([
       ["surface", "#3987e5"],
-      ["surface", HIGHLIGHT],
+      ["surface", VIEW_COLORS.dark.highlight],
     ]);
+    // in the colors of the light theme (#375)
+    viewer.setColors(VIEW_COLORS.light);
+    await tick();
+    expect(handle.update.mock.lastCall![0].objects[1].color).toBe(
+      VIEW_COLORS.light.highlight,
+    );
     viewer.setPlane({ point: [5, 5, 1], normal: [0, 0, 1] });
     await tick();
     expect(handle.update.mock.lastCall![0].objects).toHaveLength(1);

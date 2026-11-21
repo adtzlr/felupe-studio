@@ -378,6 +378,7 @@ export function App({
             showNodes={showNodes}
             onShowNodes={setShowNodes}
             onSelect={select}
+            theme={theme.theme}
             empty={
               store.commands.length === 0 ? (
                 <Welcome
@@ -406,6 +407,7 @@ export function App({
             showNodes={showNodes}
             onShowNodes={setShowNodes}
             download={download}
+            theme={theme.theme}
           />
           <JobPanel
             run={run}

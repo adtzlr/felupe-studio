@@ -13,13 +13,21 @@ import { type Inspection, MeshFiles } from "../core/meshfiles";
 import { ModelStore } from "../core/store";
 import type { Scene, ViewerHandle } from "../vendor/felupe-viewer/viewer.js";
 import { automaticColor, viewportContent } from "../viewer/layers";
-import { CATEGORICAL, CONTROL_COLOR } from "../viewer/palette";
+import {
+  CATEGORICAL,
+  FACE_COLOR,
+  OUTLINE_COLOR,
+  POINT_COLOR,
+  VIEW_COLORS,
+} from "../viewer/palette";
 import { buildScene } from "../viewer/scene";
-import { type CreateViewer, HIGHLIGHT } from "../viewer/viewer";
+import type { CreateViewer } from "../viewer/viewer";
 import type { MeshSurface } from "../worker/protocol";
 import { Viewport } from "./Viewport";
 
 afterEach(cleanup);
+
+const { control: CONTROL_COLOR, highlight: HIGHLIGHT } = VIEW_COLORS.dark;
 
 const surface: MeshSurface = {
   positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
@@ -371,8 +379,8 @@ describe("Viewport", () => {
       );
     // two points at x = 0, with an outline
     expect(markers().map((m) => [m.color, m.positions.size])).toEqual([
-      ["#11151c", 6],
-      ["#f2f4f8", 6],
+      [OUTLINE_COLOR, 6],
+      [POINT_COLOR, 6],
     ]);
     rerender(view("left"));
     await act(async () => {});
@@ -561,7 +569,11 @@ describe("Viewport", () => {
     ]);
     const viewer = fakeViewer();
     const onSelect = vi.fn();
-    const view = (selected?: string, hidden: string[] = []) => (
+    const view = (
+      selected?: string,
+      hidden: string[] = [],
+      theme?: "dark" | "light",
+    ) => (
       <Viewport
         store={store}
         files={files}
@@ -569,6 +581,7 @@ describe("Viewport", () => {
         selected={selected}
         onSelect={onSelect}
         createViewer={viewer.create}
+        theme={theme}
       />
     );
     const { rerender } = render(view());
@@ -579,9 +592,18 @@ describe("Viewport", () => {
         .map((m) => [m.color, m.positions.size]);
     // two control points with an outline, also without the nodes
     expect(markers()).toEqual([
-      ["#11151c", 6],
+      [OUTLINE_COLOR, 6],
       [CONTROL_COLOR, 6],
     ]);
+    // in the colors of the light theme (#375)
+    rerender(view(undefined, [], "light"));
+    await act(async () => {});
+    expect(markers()).toEqual([
+      [OUTLINE_COLOR, 6],
+      [VIEW_COLORS.light.control, 6],
+    ]);
+    rerender(view());
+    await act(async () => {});
     // (-0.5, 0, 0) is drawn at (15.9, 61.4), beside the triangle
     const canvas = viewer.handle.root.querySelector("canvas")!;
     await act(async () => {
@@ -739,7 +761,7 @@ describe("Viewport", () => {
     expect(lines()).toEqual([
       ["#d62728", 2],
       ["#2ca02c", 2],
-      ["#f5a524", 5],
+      [VIEW_COLORS.dark.marker, 5],
     ]);
     rerender(view(["move"], "fixed"));
     await act(async () => {});
@@ -1102,7 +1124,7 @@ describe("Viewport", () => {
       viewer.handle.update.mock.lastCall![0].objects.filter(
         (o) => o.type === "surface" && o.opacity !== undefined && o.opacity < 1,
       );
-    expect(faceObjects().map((o) => o.color)).toEqual(["#f2f4f8"]);
+    expect(faceObjects().map((o) => o.color)).toEqual([FACE_COLOR]);
     rerender(view("top"));
     await act(async () => {});
     expect(faceObjects().map((o) => o.color)).toEqual([HIGHLIGHT]);

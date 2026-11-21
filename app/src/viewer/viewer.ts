@@ -36,6 +36,7 @@ import {
 } from "./probe";
 import { snapshot } from "./snapshot";
 import { LabelLayer, type ViewLabel } from "./labels";
+import { VIEW_COLORS, type ViewColors } from "./palette";
 import { renderScalarBar } from "./scalarbar";
 
 export type CreateViewer = typeof createViewer;
@@ -82,9 +83,6 @@ export interface Pick {
   /** The hit triangle of the surface of the mesh (e.g. of a face of a face set). */
   triangle: number;
 }
-
-/** Color of the faces of a picked plane. */
-export const HIGHLIGHT = "#ffd23f";
 
 /** How a click picked: a node (with **Nodes** shown, #93) and the Shift key. */
 export interface Click {
@@ -209,6 +207,8 @@ export class Viewer {
   private view: "xy" | "default" = "default";
   /** Labels at points of the view, e.g. of the extremes of a contour (#140). */
   private labels: LabelLayer;
+  /** The colors of the view in its theme (#375). */
+  private colors: ViewColors = VIEW_COLORS.dark;
 
   constructor(element: HTMLElement, create: CreateViewer = createViewer) {
     this.handle = create(element, buildScene({ meshes: [] }), {
@@ -400,6 +400,16 @@ export class Viewer {
   setNodes(show: boolean): void {
     if (show === this.nodes) return;
     this.nodes = show;
+    this.schedule();
+  }
+
+  /**
+   * The colors of the view in the theme of the app (#375): of the picked plane, the
+   * ghost of results and the markers and arrows without a color of their own.
+   */
+  setColors(colors: ViewColors): void {
+    if (colors === this.colors) return;
+    this.colors = colors;
     this.schedule();
   }
 
@@ -625,7 +635,7 @@ export class Viewer {
           plane.normal,
           tol,
         ),
-        color: HIGHLIGHT,
+        color: this.colors.highlight,
       }))
       .concat(this.faces);
   }
@@ -654,6 +664,7 @@ export class Viewer {
       arrows: this.arrows,
       lines: this.lines,
       legend: this.legend,
+      colors: this.colors,
     });
     this.view = scene.view === "xy" ? "xy" : "default";
     this.handle.update(scene, { keepView: !this.fitNext });

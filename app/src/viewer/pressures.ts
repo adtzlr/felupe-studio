@@ -3,7 +3,7 @@
 // negative one (a pull).
 import type { Command, PressureAdd } from "../core/resolved";
 import { type SectionFaces, selectedFaces } from "./facesets";
-import { FORCE_COLOR } from "./palette";
+import type { ViewColors } from "./palette";
 import { arrowSegments, type Lines } from "./scene";
 
 /** The most arrows of a pressure; more faces are thinned out. */
@@ -20,12 +20,13 @@ export function pressureLines(
     size,
     hidden = new Set<string>(),
     selected,
-    highlight,
+    colors,
   }: {
     size: number;
     hidden?: ReadonlySet<string>;
     selected?: string;
-    highlight: string;
+    /** The colors of the view in its theme (#375). */
+    colors: ViewColors;
   },
 ): Lines[] {
   const lines: Lines[] = [];
@@ -58,7 +59,7 @@ export function pressureLines(
     const isSelected = pressure.name === selected;
     lines.push({
       positions: arrowSegments({ origins, directions }),
-      color: isSelected ? highlight : FORCE_COLOR,
+      color: isSelected ? colors.highlight : colors.force,
       width: isSelected ? 3 : 2,
     });
   }

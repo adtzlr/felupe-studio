@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Command } from "../core/resolved";
 import { loadLines } from "./loads";
-import { FORCE_COLOR } from "./palette";
+import { VIEW_COLORS } from "./palette";
 
 const nodes = [Float64Array.from([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0])];
 
@@ -17,9 +17,9 @@ describe("point loads in the viewport (#100)", () => {
   it("are arrows at their points in the direction of the force", () => {
     const [pull, push] = loadLines(commands, nodes, {
       size: 10,
-      highlight: "#ffd23f",
+      colors: VIEW_COLORS.dark,
     });
-    expect(pull.color).toBe(FORCE_COLOR);
+    expect(pull.color).toBe(VIEW_COLORS.dark.force);
     // the first segment of an arrow: from the point along the force, 0.12 * size
     expect([...pull.positions.slice(0, 6)].map((x) => +x.toFixed(6))).toEqual([
       1, 0, 0, 2.2, 0, 0,
@@ -32,11 +32,23 @@ describe("point loads in the viewport (#100)", () => {
   it("are highlighted, hidden, and without a force not drawn", () => {
     const lines = loadLines(commands, nodes, {
       size: 10,
-      highlight: "#ffd23f",
+      colors: VIEW_COLORS.dark,
       selected: "push",
       hidden: new Set(["pull"]),
     });
     expect(lines).toHaveLength(1);
-    expect(lines[0]).toMatchObject({ color: "#ffd23f", width: 3 });
+    expect(lines[0]).toMatchObject({
+      color: VIEW_COLORS.dark.highlight,
+      width: 3,
+    });
+    // in the colors of the light theme (#375)
+    const light = loadLines(commands, nodes, {
+      size: 10,
+      colors: VIEW_COLORS.light,
+    });
+    expect(light.map((l) => l.color)).toEqual([
+      VIEW_COLORS.light.force,
+      VIEW_COLORS.light.force,
+    ]);
   });
 });

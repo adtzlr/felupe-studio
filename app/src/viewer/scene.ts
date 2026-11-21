@@ -10,7 +10,12 @@ import type {
 } from "../vendor/felupe-viewer/viewer.js";
 import type { ContourLook } from "../core/contour";
 import type { MeshSurface, ResultScene } from "../worker/protocol";
-import { EDGE_COLOR, MARKER_COLOR, NODE_COLOR } from "./palette";
+import {
+  EDGE_COLOR,
+  NODE_COLOR,
+  VIEW_COLORS,
+  type ViewColors,
+} from "./palette";
 
 /** A mesh with its color, or with colors of groups of its cells. */
 export interface MeshLayer {
@@ -97,9 +102,6 @@ export interface ResultContent {
   look?: ContourLook;
 }
 
-/** Color of the undeformed ghost of results. */
-export const GHOST_COLOR = "#c4c8cf";
-
 export interface SceneContent {
   meshes: readonly MeshLayer[];
   result?: ResultContent;
@@ -110,6 +112,8 @@ export interface SceneContent {
   lines?: readonly Lines[];
   /** The legend; by default the names of the meshes, if there is more than one. */
   legend?: readonly LegendEntry[] | null;
+  /** The colors of the view in its theme (#375), by default of the dark theme. */
+  colors?: ViewColors;
 }
 
 const f4 = (data: ArrayLike<number>): SceneArray => {
@@ -297,11 +301,14 @@ export function nodeObject(nodes: NodePoints): PointsObject {
   } as PointsObject;
 }
 
-export function markerObject(markers: Markers): PointsObject {
+export function markerObject(
+  markers: Markers,
+  colors: ViewColors = VIEW_COLORS.dark,
+): PointsObject {
   return {
     type: "points",
     positions: f4(markers.positions),
-    color: markers.color ?? MARKER_COLOR,
+    color: markers.color ?? colors.marker,
     size: markers.size ?? 8,
   };
 }
@@ -356,11 +363,14 @@ export function arrowSegments(arrows: Arrows): Float32Array {
   return Float32Array.from(segments);
 }
 
-export function arrowObject(arrows: Arrows): LinesObject {
+export function arrowObject(
+  arrows: Arrows,
+  colors: ViewColors = VIEW_COLORS.dark,
+): LinesObject {
   return {
     type: "lines",
     positions: f4(arrowSegments(arrows)),
-    color: arrows.color ?? MARKER_COLOR,
+    color: arrows.color ?? colors.marker,
     width: arrows.width ?? 2,
   };
 }
@@ -369,7 +379,10 @@ export function arrowObject(arrows: Arrows): LinesObject {
  * The surface objects of a result: the undeformed ghosts (optional) and the deformed
  * surfaces of the sections with the values in a common range (one scalar bar).
  */
-export function resultObjects(result: ResultContent): SurfaceObject[] {
+export function resultObjects(
+  result: ResultContent,
+  colors: ViewColors = VIEW_COLORS.dark,
+): SurfaceObject[] {
   const { scene, scale, undeformed, edges = true, look } = result;
   const range: [number, number] = look?.range ?? scene.range ?? [0, 1];
   const contour = look
@@ -384,7 +397,7 @@ export function resultObjects(result: ResultContent): SurfaceObject[] {
         type: "surface",
         positions: f4(s.positions),
         triangles: u4(s.triangles),
-        color: GHOST_COLOR,
+        color: colors.ghost,
         opacity: 0.2,
         smooth: false,
       }))
@@ -413,9 +426,10 @@ export function resultObjects(result: ResultContent): SurfaceObject[] {
 
 /** The scene of the viewer: the meshes, a result, highlights, markers and arrows. */
 export function buildScene(content: SceneContent): Scene {
+  const colors = content.colors ?? VIEW_COLORS.dark;
   const objects: SceneObject[] = [
     ...content.meshes.flatMap(meshObjects),
-    ...(content.result ? resultObjects(content.result) : []),
+    ...(content.result ? resultObjects(content.result, colors) : []),
     ...(content.highlights ?? [])
       .filter((h) => h.triangles.length > 0)
       .map((h): SurfaceObject => ({
@@ -429,8 +443,8 @@ export function buildScene(content: SceneContent): Scene {
     ...(content.nodes ?? [])
       .filter((n) => n.positions.length > 0)
       .map(nodeObject),
-    ...(content.markers ?? []).map(markerObject),
-    ...(content.arrows ?? []).map(arrowObject),
+    ...(content.markers ?? []).map((m) => markerObject(m, colors)),
+    ...(content.arrows ?? []).map((a) => arrowObject(a, colors)),
     ...(content.lines ?? [])
       .filter((l) => l.positions.length > 0)
       .map((l): LinesObject => ({

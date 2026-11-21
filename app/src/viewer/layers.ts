@@ -19,7 +19,12 @@ import {
 import { solidOf } from "../core/meshinfo";
 import { modelMesh } from "../core/meshtools";
 import type { MeshSurface } from "../worker/protocol";
-import { categorical, CONSTRUCTION, UNASSIGNED } from "./palette";
+import {
+  categorical,
+  UNASSIGNED,
+  VIEW_COLORS,
+  type ViewColors,
+} from "./palette";
 import type { CellGroup, LegendEntry, Markers, MeshLayer } from "./scene";
 
 /**
@@ -264,11 +269,16 @@ function colorGroups(
   }));
 }
 
+/**
+ * The content of the viewport; the construction meshes take the color of the theme
+ * (`colors`, #375), the model its own colors in both themes.
+ */
 export function viewportContent(
   commands: readonly Command[],
   files: MeshFiles,
   hidden: ReadonlySet<string>,
   colorBy: ColorBy = defaultColorBy(commands),
+  colors: ViewColors = VIEW_COLORS.dark,
 ): ViewportContent {
   // imported meshes, meshes made by scripts (#182) and by tools (ADR 0019)
   const imports = commands.filter(isMeshObject);
@@ -292,14 +302,17 @@ export function viewportContent(
       const surface = status.surfaces[dimension.cell_type];
       if (!surface) return;
       if (dimension.cells === 0)
-        vertices.push({ positions: surface.positions, color: CONSTRUCTION });
+        vertices.push({
+          positions: surface.positions,
+          color: colors.construction,
+        });
       else
         construction.push({
           name: mesh.name,
           surface,
-          color: CONSTRUCTION,
+          color: colors.construction,
           opacity: 0.35,
-          edgeColor: CONSTRUCTION,
+          edgeColor: colors.construction,
         });
       return;
     }

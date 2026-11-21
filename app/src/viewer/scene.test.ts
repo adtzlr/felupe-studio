@@ -2,11 +2,10 @@ import { contourLook, DEFAULT_CONTOUR } from "../core/contour";
 import { describe, expect, it } from "vitest";
 import type { SurfaceObject } from "../vendor/felupe-viewer/viewer.js";
 import type { MeshSurface, ResultScene } from "../worker/protocol";
-import { categorical, CATEGORICAL, OTHER } from "./palette";
+import { categorical, CATEGORICAL, OTHER, VIEW_COLORS } from "./palette";
 import {
   arrowSegments,
   buildScene,
-  GHOST_COLOR,
   meshNodes,
   meshObjects,
   nodeObject,
@@ -280,7 +279,26 @@ describe("results", () => {
     const objects = resultObjects({ scene, scale: 2, undeformed: true });
     expect(objects).toHaveLength(4);
     const [ghost, , deformed] = objects;
-    expect(ghost).toMatchObject({ color: GHOST_COLOR, opacity: 0.2 });
+    expect(ghost).toMatchObject({
+      color: VIEW_COLORS.dark.ghost,
+      opacity: 0.2,
+    });
+    // in the light theme (#375), and so are the markers and arrows without a color
+    const light = buildScene({
+      meshes: [],
+      result: { scene, scale: 2, undeformed: true },
+      markers: [{ positions: [0, 0, 0] }],
+      arrows: [{ origins: [0, 0, 0], directions: [1, 0, 0] }],
+      colors: VIEW_COLORS.light,
+    }).objects;
+    expect(light.map((o) => o.color)).toEqual([
+      VIEW_COLORS.light.ghost,
+      VIEW_COLORS.light.ghost,
+      undefined,
+      undefined,
+      VIEW_COLORS.light.marker,
+      VIEW_COLORS.light.marker,
+    ]);
     expect(ghost.displacement).toBeUndefined();
     expect(deformed).toMatchObject({
       factor: 2,

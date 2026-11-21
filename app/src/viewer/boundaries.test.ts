@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { Command } from "../core/resolved";
 import type { Symmetry } from "../core/symmetry";
 import {
-  AXIS_COLORS,
   boundaryLines,
   boundarySymbols,
   direction,
@@ -13,6 +12,7 @@ import {
   strokes,
   thinned,
 } from "./boundaries";
+import { AXIS_COLORS, VIEW_COLORS } from "./palette";
 import fixture from "./boundaries.fixture.json";
 
 type Case = {
@@ -327,28 +327,35 @@ describe("boundary symbols", () => {
     expect(thinned(many, 2000)).toBe(many);
   });
 
-  it("groups the lines by color, hides owners and highlights the selected", () => {
-    const symbols = boundarySymbols(commands, nodes);
-    const lines = boundaryLines(symbols, { size: 10, highlight: "#ffd23f" });
-    const colors = lines.map((l) => l.color);
-    // strokes of fixed components in the colors of the axes, arrows in orange
-    expect(colors).toEqual(expect.arrayContaining([...AXIS_COLORS, "#f5a524"]));
-    expect(new Set(colors).size).toBe(colors.length);
-    const hidden = boundaryLines(symbols, {
-      size: 10,
-      hidden: new Set(["fixed", "move", "pulled", "tension"]),
-      highlight: "#ffd23f",
-    });
-    expect(hidden).toEqual([]);
-    const chosen = boundaryLines(symbols, {
-      size: 10,
-      hidden: new Set(["move", "pulled", "tension"]),
-      selected: "fixed",
-      highlight: "#ffd23f",
-    });
-    expect(chosen).toHaveLength(1);
-    expect(chosen[0]).toMatchObject({ color: "#ffd23f", width: 3 });
-    // three components at six points, a stroke of two points each
-    expect(chosen[0].positions.length).toBe(3 * 6 * 6);
-  });
+  it.each(["dark", "light"] as const)(
+    "groups the lines by color, hides owners and highlights the selected (%s)",
+    (theme) => {
+      const view = VIEW_COLORS[theme];
+      const symbols = boundarySymbols(commands, nodes);
+      const lines = boundaryLines(symbols, { size: 10, colors: view });
+      const colors = lines.map((l) => l.color);
+      // strokes of fixed components in the colors of the axes (in both themes),
+      // arrows in the color of the markers of the theme (#375)
+      expect(colors).toEqual(
+        expect.arrayContaining([...AXIS_COLORS, view.marker]),
+      );
+      expect(new Set(colors).size).toBe(colors.length);
+      const hidden = boundaryLines(symbols, {
+        size: 10,
+        hidden: new Set(["fixed", "move", "pulled", "tension"]),
+        colors: view,
+      });
+      expect(hidden).toEqual([]);
+      const chosen = boundaryLines(symbols, {
+        size: 10,
+        hidden: new Set(["move", "pulled", "tension"]),
+        selected: "fixed",
+        colors: view,
+      });
+      expect(chosen).toHaveLength(1);
+      expect(chosen[0]).toMatchObject({ color: view.highlight, width: 3 });
+      // three components at six points, a stroke of two points each
+      expect(chosen[0].positions.length).toBe(3 * 6 * 6);
+    },
+  );
 });

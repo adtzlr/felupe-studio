@@ -2,7 +2,7 @@
 // direction of its force.
 import type { Command, LoadAdd } from "../core/resolved";
 import { thinned } from "./boundaries";
-import { FORCE_COLOR } from "./palette";
+import type { ViewColors } from "./palette";
 import { selectedPoints } from "./pointsets";
 import { arrowSegments, type Lines } from "./scene";
 
@@ -34,12 +34,13 @@ export function loadLines(
     size,
     hidden = new Set<string>(),
     selected,
-    highlight,
+    colors,
   }: {
     size: number;
     hidden?: ReadonlySet<string>;
     selected?: string;
-    highlight: string;
+    /** The colors of the view in its theme (#375). */
+    colors: ViewColors;
   },
 ): Lines[] {
   const lines: Lines[] = [];
@@ -56,7 +57,7 @@ export function loadLines(
     const chosen = load.name === selected;
     lines.push({
       positions: arrowSegments({ origins, directions }),
-      color: chosen ? highlight : FORCE_COLOR,
+      color: chosen ? colors.highlight : colors.force,
       width: chosen ? 3 : 2,
     });
   }

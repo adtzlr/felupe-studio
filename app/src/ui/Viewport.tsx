@@ -4,6 +4,7 @@ import { analysisOf, is2d } from "../core/analysis";
 import type { MeshFiles } from "../core/meshfiles";
 import type { FaceSetAdd, PointSetAdd } from "../core/resolved";
 import type { ModelStore } from "../core/store";
+import type { Theme } from "../core/theme";
 import { sectionFaces } from "../viewer/facesets";
 import {
   type ColorBy,
@@ -11,6 +12,7 @@ import {
   scaledSurface,
   viewportContent,
 } from "../viewer/layers";
+import { viewColors } from "../viewer/palette";
 import { centerOf, controlName, outerPoints } from "../viewer/pointsets";
 import { type Capture, type CreateViewer, Viewer } from "../viewer/viewer";
 import { useMedia, useViewKeys } from "./hooks";
@@ -64,6 +66,8 @@ interface Props {
   onShowNodes?: (show: boolean) => void;
   /** Shown instead of the message of an empty view, e.g. the welcome panel. */
   empty?: ComponentChildren;
+  /** The theme of the app (#375), for the colors of the view; dark by default. */
+  theme?: Theme;
 }
 
 /**
@@ -86,7 +90,9 @@ export function Viewport({
   onSelect,
   onCreateControlPoint,
   empty,
+  theme,
 }: Props) {
+  const colors = viewColors(theme);
   const [nodesShown, toggleNodes] = useShowNodes(showNodes, onShowNodes);
   const host = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
@@ -102,9 +108,9 @@ export function Viewport({
   const colorBy = chosen ?? defaultColorBy(commands);
   const revision = files.revision;
   const content = useMemo(
-    () => viewportContent(commands, files, hidden, colorBy),
+    () => viewportContent(commands, files, hidden, colorBy, colors),
     // the files change in place, their revision tells when
-    [commands, files, revision, hidden, colorBy],
+    [commands, files, revision, hidden, colorBy, colors],
   );
   // the faces of the boundaries of the sections, for face sets (#142)
   const sections = useMemo(
@@ -153,6 +159,7 @@ export function Viewport({
       nodes,
       outer,
       picking,
+      colors,
     });
 
   // the viewer (and its WebGL context) is created when there is a mesh to show
@@ -165,6 +172,7 @@ export function Viewport({
       viewer.current.onPick(picking.onPick);
       setAvailable(viewer.current.available);
     }
+    viewer.current.setColors(colors);
     viewer.current.setMeshes(drawn);
     viewer.current.setLegend(content.legend);
     viewer.current.setMarkers([...content.vertices, ...markers]);
@@ -185,6 +193,7 @@ export function Viewport({
     nodesShown,
     controls,
     createViewer,
+    colors,
   ]);
 
   useEffect(
