@@ -4,7 +4,7 @@
 // of the browser (#138), at the pointer or at a row. Items with a state are a choice
 // of one, e.g. of the theme (#375). Every menu stays inside the window (#402).
 import { type ComponentChildren, Fragment } from "preact";
-import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Icon } from "./icons";
 
 export interface MenuItem {
@@ -122,7 +122,9 @@ function MenuList({
       []),
   ];
 
-  useEffect(() => {
+  // before the menu is painted, so it never shows without its focus and its keys:
+  // an Esc right after it opens closes it (a passive effect lost it before)
+  useLayoutEffect(() => {
     const all = items();
     (at === "last" ? all.at(-1) : all[0])?.focus();
     const outside = (event: PointerEvent) => {

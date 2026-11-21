@@ -563,6 +563,12 @@ def test_the_menus_of_the_header_stay_in_the_window(url, page):
             assert abs(box["x"] - button["x"]) < 1
         page.keyboard.press("Escape")
         menu.wait_for(state="detached")
+    # an Esc right after the click closes the menu: its focus and its keys are there
+    # before it is painted
+    for name in ["File", "Help", "Theme"]:
+        page.get_by_role("button", name=name, exact=True).click()
+        page.keyboard.press("Escape")
+        page.get_by_role("menu", name=name, exact=True).wait_for(state="detached")
 
 
 def test_the_compact_layout_of_a_phone(url, page):
