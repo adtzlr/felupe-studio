@@ -744,6 +744,17 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       sections: { label: "Sections", placeholder: "all" },
       constraints: { label: "Constraints", placeholder: "all" },
       loads: { label: "Loads", placeholder: "all" },
+      // steps that switch boundaries on and off (#393)
+      boundaries: {
+        label: "Boundaries",
+        hint: "Boundaries, load cases and symmetry planes of the step; one that it does not have is off: its points are free",
+        placeholder: "all",
+      },
+      switched_on: {
+        label: "Switched on",
+        hint: "The values of the boundaries that the step switches on (off in the step before it): the displacements of their points at the start of the step or of the job; a ramp adds to them",
+        placeholder: "step",
+      },
       ramp: { label: "Ramp" },
       "ramp.num": { label: "Increments", default: 5 },
       "ramp.items": {
@@ -753,6 +764,12 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       "ramp.items.target": { label: "Item", unique: true },
       "ramp.items.start": { label: "Start", placeholder: "0" },
       "ramp.items.end": { label: "End", default: 1 },
+    },
+    options: {
+      switched_on: {
+        step: "At the start of the step",
+        job: "At the start of the job",
+      },
     },
   },
   "job.add": {

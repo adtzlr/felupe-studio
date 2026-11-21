@@ -120,6 +120,8 @@ export const REFERENCES: Partial<
     sections: ["section", true],
     constraints: ["constraint", true],
     loads: [["load", "pressure"], true],
+    // the boundaries, load cases and symmetry planes of a step (#393)
+    boundaries: [["boundary", "symmetry"], true],
   },
   // the curve of a job: a boundary (force-displacement) or a point load
   "job.add": { steps: ["step", true], curve: [["boundary", "load"], false] },

@@ -1,0 +1,146 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "mesh.import",
+      "name": "bar",
+      "file": "bar.vtu"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "all_cells",
+      "mesh": "bar"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHookeCompressible",
+      "parameters": {
+        "mu": 1.0,
+        "lmbda": 2.0
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "body",
+      "cellset": "all_cells",
+      "material": "rubber",
+      "formulation": "u"
+    },
+    {
+      "command": "pointset.add",
+      "name": "left",
+      "select": {
+        "axis": "x",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "right",
+      "select": {
+        "axis": "x",
+        "value": 3
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "left",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "move",
+      "pointset": "right",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "load.add",
+      "name": "push",
+      "points": "right",
+      "force": [
+        0.02,
+        0,
+        0
+      ]
+    },
+    {
+      "command": "step.add",
+      "name": "push_free",
+      "boundaries": [
+        "fixed"
+      ],
+      "ramp": {
+        "num": 4,
+        "items": [
+          {
+            "target": "push",
+            "start": 0,
+            "end": 1
+          }
+        ]
+      }
+    },
+    {
+      "command": "step.add",
+      "name": "clamp",
+      "ramp": {
+        "num": 4,
+        "items": [
+          {
+            "target": "push",
+            "start": 1,
+            "end": 0
+          }
+        ]
+      }
+    },
+    {
+      "command": "step.add",
+      "name": "release",
+      "boundaries": [
+        "fixed"
+      ]
+    },
+    {
+      "command": "step.add",
+      "name": "back",
+      "switched_on": "job",
+      "ramp": {
+        "num": 4,
+        "items": [
+          {
+            "target": "move",
+            "start": 0,
+            "end": 0.1
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "push_free",
+        "clamp"
+      ],
+      "curve": "move"
+    },
+    {
+      "command": "job.add",
+      "name": "job_2",
+      "steps": [
+        "release",
+        "back"
+      ],
+      "curve": "move"
+    }
+  ]
+}

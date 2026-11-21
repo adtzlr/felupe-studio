@@ -117,6 +117,8 @@ describe("fieldSpecs", () => {
       "sections:reference",
       "constraints:reference",
       "loads:reference",
+      "boundaries:reference",
+      "switched_on:choice",
       "ramp:toggle",
       "ramp.num:number*",
       "ramp.items:rows*",
@@ -705,6 +707,35 @@ describe("drafts", () => {
     ).toBe("Each object may appear only once.");
   });
 
+  it("chooses the boundaries of a step and their values when switched on (#393)", () => {
+    const specs = fieldSpecs("step.add", find("step_1"));
+    const spec = (key: string) => specs.find((s) => s.key === key)!;
+    expect(spec("boundaries").input).toMatchObject({
+      type: "reference",
+      kind: ["boundary", "symmetry"],
+      multiple: true,
+      minItems: 1,
+    });
+    expect(spec("boundaries").placeholder).toBe("all");
+    expect(spec("boundaries").required).toBe(false);
+    // the start of the step by default, the start of the job as the other option
+    expect(choiceOptions(spec("switched_on"), undefined)).toEqual({
+      empty: "At the start of the step (default)",
+      options: [{ value: "job", label: "At the start of the job" }],
+    });
+    // a ramp of a boundary that is off in the step is an issue of the model
+    const commands = structuredClone(fixture.commands) as Command[];
+    const step = commands.find((c) => c.name === "step_1")!;
+    Object.assign(step, { boundaries: ["fixed"] });
+    expect(validate(commands)).toMatchObject([
+      {
+        name: "step_1",
+        message: "commands/11: step 'step_1' ramps 'move', which is off in it.",
+        field: "ramp.items",
+      },
+    ]);
+  });
+
   it("adds the step after the last one, after the last the first (#331)", () => {
     const names = ["load", "unload"];
     expect(nextReference(names, [])).toBe("load");
@@ -949,6 +980,8 @@ describe("editing a draft", () => {
       "sections:reference",
       "constraints:reference",
       "loads:reference",
+      "boundaries:reference",
+      "switched_on:choice",
       "ramp:toggle",
     ]);
     const on = setValue("step.add", off, ["ramp"], {}, context);

@@ -23,6 +23,7 @@ KIND_NAMES = {
     "faceset": "face set",
     # a load case is referenced like a boundary
     "boundary": "boundary, load case",
+    "symmetry": "symmetry plane",
     "constraint": "multi-point constraint, contact",
     "load": "point load",
     "pressure": "pressure",
@@ -61,6 +62,11 @@ def _join(words):
     return " or ".join([", ".join(words[:-1]), words[-1]])
 
 
+def _plural(word):
+    """The plural of the name of a kind, e.g. ``boundaries``."""
+    return word[:-1] + "ies" if word.endswith("ry") else word + "s"
+
+
 def _kinds(command, key, plural=False):
     """The names of the kinds that a reference field points to, if it is one."""
     if command == "step.add" and key == "ramp.items[].target":
@@ -71,7 +77,7 @@ def _kinds(command, key, plural=False):
         kinds = reference[0]
     kinds = (kinds,) if isinstance(kinds, str) else kinds
     words = [w for k in kinds for w in KIND_NAMES[k].split(", ")]
-    return _join([f"{w}s" for w in words] if plural else words)
+    return _join([_plural(w) for w in words] if plural else words)
 
 
 def _bounds(node):

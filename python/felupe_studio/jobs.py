@@ -224,6 +224,29 @@ def step_items(context, step):
     )
 
 
+def switches(steps):
+    """Whether a step has not all boundaries, so that steps switch boundaries on and
+    off (#393)."""
+    return any("boundaries" in step for step in steps)
+
+
+def step_boundaries(step):
+    """The boundaries of a step: all of them by default, or those of its boundaries,
+    load cases and symmetry planes (#393).
+
+    Examples
+    --------
+    >>> step_boundaries({"name": "pull"})
+    'boundaries=boundaries'
+    >>> str(step_boundaries({"name": "release", "boundaries": ["fixed", "tension"]}))
+    'boundaries=pick(boundaries, ["fixed", "tension"])'
+    """
+    if "boundaries" not in step:
+        return "boundaries=boundaries"
+    names = List(map(quote, step["boundaries"]))
+    return Call("boundaries=pick", ["boundaries", names])
+
+
 def step_add(context, step):
     """A step, after its ramp."""
     lines, args = [], [List(step_items(context, step), prefix="items=")]
@@ -231,8 +254,22 @@ def step_add(context, step):
         lines, arrays = ramp_arrays(step)
         entries = [e for t, v in arrays.items() for e in ramped(context, t, v)]
         args.append(Dict(entries, prefix="ramp="))
-    args.append("boundaries=boundaries")
+    args.append(step_boundaries(step))
     return [*lines, f"{step['name']} = fem.Step(\n{explode(args)})"]
+
+
+def boundary_switch(context):
+    """The plugin of the jobs that sets the values of the boundaries that a step
+    switches on (#393): the steps whose values are those at the start of the job."""
+    steps = [
+        s["name"] for s in context.get("step.add") if s.get("switched_on") == "job"
+    ]
+    args = [List(steps, prefix="job_start=")] if steps else []
+    return [
+        "\n# the boundaries that a step switches on take the displacements of their "
+        "points at\n# the start of the step, or of the job",
+        call("boundary_switch", "BoundarySwitch", args),
+    ]
 
 
 def curve(context, name):
@@ -254,10 +291,15 @@ def job_add(context, job):
             # the force of a load: the sum of the internal forces at its points
             reacting = context.solids + [c["name"] for c in context.constraints]
             args.append(List(reacting, prefix="items="))
+    # the values of the boundaries switched on (#393) before a cutback, which
+    # subdivides the substeps with them
+    plugins = ["boundary_switch"] if switches(context.get("step.add")) else []
     cutback = cutback_options(job)
     if cutback is not None:
         options = ", ".join(f"{k}={v!r}" for k, v in cutback.items())
-        args.append(f"plugins=[fem.CutbackPlugin({options})]")
+        plugins.append(f"fem.CutbackPlugin({options})")
+    if plugins:
+        args.append(List(plugins, prefix="plugins="))
     func = "fem.CharacteristicCurve" if "curve" in job else "fem.Job"
     return [call(job["name"], func, args)]
 
@@ -278,8 +320,12 @@ JOBS = {"job.add": job_add}
 
 
 def steps(context):
-    """The part of the steps."""
-    return context.emit(STEPS, "# steps")
+    """The part of the steps, with the plugin of the boundaries that they switch on
+    (#393)."""
+    lines = context.emit(STEPS, "# steps")
+    if switches(context.get("step.add")):
+        lines += boundary_switch(context)
+    return lines
 
 
 def jobs(context):

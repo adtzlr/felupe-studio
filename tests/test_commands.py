@@ -55,7 +55,8 @@ def test_reserved_keywords_are_python_keywords():
 
 
 def test_names_of_the_helpers_are_reserved():
-    # every name that the helpers of the generated scripts define (#226)
+    # every name that the helpers of the generated scripts define (#226), also a
+    # class, e.g. the plugin of the boundaries that steps switch on (#393)
     import ast
     from importlib.resources import files
 
@@ -66,7 +67,7 @@ def test_names_of_the_helpers_are_reserved():
     defined = {
         node.name if hasattr(node, "name") else node.targets[0].id
         for node in tree.body
-        if isinstance(node, ast.FunctionDef | ast.Assign)
+        if isinstance(node, ast.FunctionDef | ast.ClassDef | ast.Assign)
     }
     _, names, _ = commands.reserved()
     assert defined - names == set()

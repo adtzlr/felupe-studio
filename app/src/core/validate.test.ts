@@ -3,9 +3,9 @@ import cases from "../../../tests/data/validation_cases.json";
 import type { Command } from "./commands";
 import { resolveCommands } from "./resolve";
 import { NAME_MAX_LENGTH, RESERVED_KEYWORDS, SCHEMA_VERSION } from "./schema";
-import { symmetryNotes } from "./symmetry";
 import {
   nameProblem,
+  notes,
   order,
   references,
   renameReferences,
@@ -18,9 +18,10 @@ describe("validate", () => {
     const commands = c.document.commands as Command[];
     const issues = validate(commands);
     expect(issues.map((i) => i.message)).toEqual(c.errors);
-    // the notes that are no errors, e.g. a repeated symmetry plane (#186)
+    // the notes that are no errors, e.g. a repeated symmetry plane (#186) or a
+    // curve that is off in a step (#393)
     const resolved = resolveCommands(commands).commands;
-    expect(symmetryNotes(resolved).map((i) => i.message)).toEqual(c.notes);
+    expect(notes(resolved).map((i) => i.message)).toEqual(c.notes);
   });
 
   it("returns index and name of the command", () => {

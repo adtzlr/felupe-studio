@@ -107,8 +107,7 @@ class Call:
         inner = f"{pad}    {', '.join(map(str, self.args))}"
         if len(inner) <= LINE_LENGTH:
             return f"{self.func}(\n{inner}\n{pad})"
-        args = "".join(f"{pad}    {arg},\n" for arg in self.args)
-        return f"{self.func}(\n{args}{pad})"
+        return f"{self.func}(\n{explode(self.args, level + 1)}{pad})"
 
 
 def assign(target, expression):

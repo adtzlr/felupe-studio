@@ -7,6 +7,7 @@ import { KINDS } from "./validate";
 import { describeLoadcase } from "./loadcases";
 import { describeSolver } from "./solvers";
 import { describeSymmetry } from "./symmetry";
+import { isOn } from "./steps";
 import {
   boundaryQuantity,
   rampedQuantity,
@@ -147,14 +148,23 @@ const boundaryDetail: Detail<"boundary.add"> = (cmd, { commands, units }) => {
   return `${cmd.pointset} · ${components(cmd.constrained)}${text}`;
 };
 
-const stepDetail: Detail<"step.add"> = ({ ramp }, { commands, units }) => {
-  if (!ramp) return "no ramp";
-  const items = ramp.items.map((i) => {
+/** The boundaries, load cases and symmetry planes that are off in a step (#393). */
+const BOUNDARIES = ["boundary.add", "loadcase.add", "symmetry.add"];
+
+const stepDetail: Detail<"step.add"> = (step, { commands, units }) => {
+  const { ramp } = step;
+  const off = commands
+    .filter((c) => BOUNDARIES.includes(c.command) && !isOn(step, c.name))
+    .map((c) => c.name);
+  const items = (ramp?.items ?? []).map((i) => {
     const unit = unitOf(rampedQuantity(commands, i.target), units);
     const from = valueText(i.start ?? 0);
     return `${i.target}: ${from} → ${valueWithUnit(valueText(i.end), unit)}`;
   });
-  return `${items.join(", ")} (${ramp.num})`;
+  return joined(
+    ramp ? `${items.join(", ")} (${ramp.num})` : "no ramp",
+    off.length && `off: ${off.join(", ")}`,
+  );
 };
 
 /** The details of the commands by their type: short texts in the browser. */

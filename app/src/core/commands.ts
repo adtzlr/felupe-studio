@@ -1605,7 +1605,7 @@ export interface PressureAdd {
   pressure: number | string;
 }
 /**
- * A step with all boundaries, optionally ramping items, each with its own values (fem.Step).
+ * A step with its items and boundaries (all by default), optionally ramping items, each with its own values (fem.Step).
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "StepAdd".
@@ -1631,6 +1631,16 @@ export interface StepAdd {
    * @minItems 1
    */
   loads?: [Name, ...Name[]];
+  /**
+   * Boundaries, load cases and symmetry planes of the step (default: all). A boundary that the step does not have is off in it: its points are free, and its reaction force is released at once.
+   *
+   * @minItems 1
+   */
+  boundaries?: [Name, ...Name[]];
+  /**
+   * The values of the boundaries that the step switches on, those that the step evaluated before it does not have: the displacements of their points at the start of the step (default), or at the start of the job (of a boundary that was on then, its values then). A ramp of such a boundary is relative to these values.
+   */
+  switched_on?: "step" | "job";
   /**
    * Ramp the values of items with fem.math.linsteps([start, end], num), with the same number of increments for all items.
    */

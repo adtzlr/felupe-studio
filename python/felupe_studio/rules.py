@@ -225,6 +225,18 @@ def ramp_values(model, cmd):
     return problems
 
 
+def ramp_off(model, cmd):
+    """A step ramps no boundary or load case that is off in it (#393)."""
+    if "boundaries" not in cmd:
+        return []
+    return [
+        f"step '{cmd['name']}' ramps '{item['target']}', which is off in it."
+        for item in cmd.get("ramp", {}).get("items", [])
+        if model.kind_of(item["target"]) == "boundary"
+        and item["target"] not in cmd["boundaries"]
+    ]
+
+
 def boundary_values(model, cmd):
     """A boundary with a value per constrained component (#225)."""
     value, constrained = cmd.get("value"), len(cmd["constrained"])
@@ -450,7 +462,7 @@ LAST = (single, reserved_name, duplicate_name)
 
 # the rules of a command type, in this order
 RULES = {
-    "step.add": (ramp_targets, ramp_twice, ramp_values),
+    "step.add": (ramp_targets, ramp_twice, ramp_values, ramp_off),
     "boundary.add": (boundary_values,),
     "mesh.generate": (mesh_tool, mesh_inputs),
     "cellset.from_tag": (cellset_tag, cellset_model_mesh),
