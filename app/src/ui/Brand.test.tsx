@@ -116,6 +116,23 @@ describe("the app of a brand (ADR 0020)", () => {
     expect(open).toHaveBeenCalledWith("acme", 1);
   });
 
+  it("keeps the theme with the storage prefix of the brand (#375)", async () => {
+    const { App } = await app();
+    render(<App store={new ModelStore()} fetchSample={list} />);
+    fireEvent.click(screen.getByRole("button", { name: "Theme" }));
+    fireEvent.click(
+      within(screen.getByRole("menu", { name: "Theme" })).getByRole(
+        "menuitemradio",
+        { name: /^Light/ },
+      ),
+    );
+    expect(document.documentElement.dataset.theme).toBe("light");
+    expect(localStorage.getItem("acme.theme")).toBe("light");
+    expect(localStorage.getItem("felupe-studio.theme")).toBeNull();
+    localStorage.removeItem("acme.theme");
+    delete document.documentElement.dataset.theme;
+  });
+
   it("loads Pyodide of the CDN, or its own copy (ADR 0020)", async () => {
     const { pyodideUrl } = await import("../pyodide");
     const base = "https://fem.acme.example/app/";

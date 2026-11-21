@@ -13,6 +13,7 @@ import { join, resolve } from "node:path";
 import Ajv2020 from "ajv/dist/2020";
 import type { Plugin } from "vite";
 import type { Brand } from "../brand";
+import { THEME_KEY, themeScript } from "../core/theme";
 import schema from "./brand.schema.json";
 
 export const BRAND_FILE = "brand.json";
@@ -202,12 +203,13 @@ export function onAccent(accent: string): string {
 }
 
 /**
- * The CSS of the accent color of a brand: the variables of the theme, with a higher
- * specificity than those of the stylesheet, which comes later in the page.
+ * The CSS of the accent color of a brand: the variables of the dark theme, with a
+ * higher specificity than those of the stylesheet, which comes later in the page.
+ * The light theme (#375) keeps its own accent, which is chosen for its background.
  */
 export function accentCss(accent: string): string {
   return (
-    `:root:root { --color-accent: ${accent}; ` +
+    `:root:root:not([data-theme="light"]) { --color-accent: ${accent}; ` +
     `--color-accent-hover: color-mix(in srgb, ${accent} 85%, white); ` +
     `--color-accent-soft: color-mix(in srgb, ${accent} 18%, transparent); ` +
     `--color-on-accent: ${onAccent(accent)}; }`
@@ -228,6 +230,13 @@ function headTags(value: Brand) {
       tag: "script",
       attrs: { type: "application/json", id: "brand" },
       children: json,
+      injectTo: "head" as const,
+    },
+    // the theme of the stored choice before the first paint (#375)
+    {
+      tag: "script",
+      attrs: { id: "theme" },
+      children: themeScript(`${value.storage}.${THEME_KEY}`),
       injectTo: "head" as const,
     },
     link("icon", `${BRAND_FOLDER}/logo.svg`, "image/svg+xml"),

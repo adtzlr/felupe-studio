@@ -38,6 +38,7 @@ import { useResults } from "./useResults";
 import { useSamples } from "./useSamples";
 import { objectMenu, useSelection } from "./useSelection";
 import { useShortcuts } from "./useShortcuts";
+import { useTheme } from "./useTheme";
 import { Viewport } from "./Viewport";
 import { Welcome } from "./Welcome";
 import "./shell.css";
@@ -147,6 +148,8 @@ export function App({
   // narrow windows show the browser and the properties as drawers (#131)
   const narrow = useMedia(NARROW);
   const [browserOpen, setBrowserOpen] = useState(false);
+  // dark or light (#375), a setting of the browser
+  const theme = useTheme();
   // the script view replaces the viewport while its ribbon tab is open (#130)
   const scriptShown = workspace === "model" && tab === "script";
   const [dragging, setDragging] = useState(false);
@@ -271,6 +274,7 @@ export function App({
         browserOpen={narrow && browserOpen}
         onBrowser={() => setBrowserOpen(!browserOpen)}
         exports={exports.exports}
+        theme={{ choice: theme.choice, onChoose: theme.choose }}
         solve={{
           blocker,
           running: run.state === "running",

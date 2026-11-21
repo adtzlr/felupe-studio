@@ -43,7 +43,7 @@
   --color-code-keyword: #c39af5;
   --color-code-string: #e5b36f;
   --color-code-number: #8fd3a7;
-  --color-code-comment: #7f8a9a;
+  --color-code-comment: #939dad;
   --color-code-constant: #6cb6ff;
   --color-code-call: #e6df9c;
 
@@ -109,6 +109,59 @@
   --z-drawer: 8;
   --z-dialog: 10;
   --z-menu: 20;
+}
+
+/* The light theme (#375): a light value of every color of the dark theme above,
+   with the same contrast of the text (WCAG AA, tokens.test.ts). The theme is the
+   attribute data-theme of the page (src/theme.ts), set before the first paint. */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  /* surfaces, from the darkest */
+  --color-bar: #e9ecf1;
+  --color-bg: #eef0f4;
+  --color-surface-sunken: #f4f5f8;
+  --color-surface: #fbfbfc;
+  --color-raised: #ffffff;
+  --color-view: #ffffff;
+  --color-hover: #e1e5ec;
+  --color-selected: #d5e3f6;
+  --color-active: #e2ecfa;
+  --color-overlay: rgba(255, 255, 255, 0.94);
+  --color-backdrop: rgba(16, 22, 32, 0.38);
+
+  --color-border: #d6dbe2;
+  --color-border-strong: #b6bec9;
+
+  --color-text: #1a202b;
+  --color-text-secondary: #353e4c;
+  --color-text-muted: #576070;
+
+  --color-accent: #0b60c4;
+  --color-accent-hover: #0a50a4;
+  --color-accent-soft: rgba(11, 96, 196, 0.12);
+  --color-on-accent: #ffffff;
+
+  --color-warning: #8a4f00;
+  --color-min: #1d55c4;
+  --color-max: #b8322a;
+  --color-error: #b3261e;
+  --color-error-surface: #fdeceb;
+  --color-error-border: #efb3ad;
+  --color-info-surface: #e7effa;
+  --color-info-border: #b4cbea;
+
+  --color-code-keyword: #7a37ab;
+  --color-code-string: #8f4f0a;
+  --color-code-number: #166b3a;
+  --color-code-comment: #545e6a;
+  --color-code-constant: #0a5ab8;
+  --color-code-call: #665200;
+
+  --shadow-sm: 0 6px 24px rgba(16, 22, 32, 0.12);
+  --shadow-md: 0 10px 30px rgba(16, 22, 32, 0.16);
+  --shadow-lg: 0 18px 50px rgba(16, 22, 32, 0.22);
+  --shadow-outline: 0 0 0 1px rgba(16, 22, 32, 0.28);
 }
 
 html,
@@ -2634,6 +2687,21 @@ button {
   background: none;
   color: var(--color-text-muted);
   font-size: var(--text-xs);
+}
+
+/* the chosen item of a choice, e.g. of the theme (#375), right of its label */
+.menu-check {
+  display: flex;
+  grid-row: 1;
+  grid-column: 2;
+  align-self: center;
+  color: var(--color-accent);
+}
+
+/* a menu at the right of the header opens to the left (#375) */
+.menu-end {
+  right: 0;
+  left: auto;
 }
 
 .menu-heading {

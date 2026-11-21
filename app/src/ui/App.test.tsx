@@ -398,6 +398,96 @@ describe("narrow windows (#131)", () => {
   });
 });
 
+describe("the theme (#375)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    localStorage.clear();
+    delete document.documentElement.dataset.theme;
+  });
+
+  /** Choose an item of the menu of the theme. */
+  const choose = (name: string) => {
+    fireEvent.click(screen.getByRole("button", { name: "Theme" }));
+    fireEvent.click(
+      within(screen.getByRole("menu", { name: "Theme" })).getByRole(
+        "menuitemradio",
+        { name: new RegExp(`^${name}`) },
+      ),
+    );
+  };
+
+  it("is dark, or the chosen one, which the browser keeps", () => {
+    render(<App store={new ModelStore()} />);
+    const root = document.documentElement;
+    const button = screen.getByRole("button", { name: "Theme" });
+    expect(root.dataset.theme).toBe("dark");
+    expect(button.title).toBe("Theme: Dark");
+
+    fireEvent.click(button);
+    const menu = screen.getByRole("menu", { name: "Theme" });
+    const items = within(menu).getAllByRole("menuitemradio");
+    expect(items.map((item) => item.getAttribute("aria-checked"))).toEqual([
+      "true",
+      "false",
+      "false",
+    ]);
+    expect(
+      items.map((item) => item.querySelector(".menu-label")?.textContent),
+    ).toEqual(["Dark", "Light", "System"]);
+    fireEvent.click(items[1]);
+    expect(root.dataset.theme).toBe("light");
+    expect(localStorage.getItem("felupe-studio.theme")).toBe("light");
+    expect(button.title).toBe("Theme: Light");
+    // the menu has closed and gives the focus back
+    expect(screen.queryByRole("menu", { name: "Theme" })).toBeNull();
+    expect(document.activeElement).toBe(button);
+
+    choose("Dark");
+    expect(root.dataset.theme).toBe("dark");
+    expect(localStorage.getItem("felupe-studio.theme")).toBe("dark");
+  });
+
+  it("follows the system with System", () => {
+    let dark = true;
+    const listeners = new Set<() => void>();
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      get matches() {
+        return query === "(prefers-color-scheme: dark)" && dark;
+      },
+      addEventListener: (_: string, listener: () => void) =>
+        listeners.add(listener),
+      removeEventListener: (_: string, listener: () => void) =>
+        listeners.delete(listener),
+    }));
+    render(<App store={new ModelStore()} />);
+    choose("System");
+    const root = document.documentElement;
+    expect(root.dataset.theme).toBe("dark");
+    dark = false;
+    act(() => listeners.forEach((listener) => listener()));
+    expect(root.dataset.theme).toBe("light");
+    expect(localStorage.getItem("felupe-studio.theme")).toBe("system");
+  });
+
+  it("starts with the stored choice and follows other tabs of the app", () => {
+    localStorage.setItem("felupe-studio.theme", "light");
+    render(<App store={new ModelStore()} />);
+    const root = document.documentElement;
+    expect(root.dataset.theme).toBe("light");
+    // another tab chose Dark
+    localStorage.setItem("felupe-studio.theme", "dark");
+    act(() => {
+      window.dispatchEvent(
+        new StorageEvent("storage", { key: "felupe-studio.theme" }),
+      );
+    });
+    expect(root.dataset.theme).toBe("dark");
+    expect(screen.getByRole("button", { name: "Theme" }).title).toBe(
+      "Theme: Dark",
+    );
+  });
+});
+
 describe("script view (#130)", () => {
   it("shows the script with the lines of the selected object", async () => {
     const scriptView = vi.fn<(document: string) => Promise<ScriptViewData>>(

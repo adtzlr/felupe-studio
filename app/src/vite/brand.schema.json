@@ -62,7 +62,7 @@
       "maxLength": 40
     },
     "accent": {
-      "description": "The accent color of the app, e.g. of buttons and selections, as #rrggbb; without it, the color of FElupe Studio.",
+      "description": "The accent color of the dark theme of the app, e.g. of buttons and selections, as #rrggbb; without it, the color of FElupe Studio. The light theme keeps the accent of FElupe Studio.",
       "type": "string",
       "pattern": "^#[0-9a-fA-F]{6}$"
     },
