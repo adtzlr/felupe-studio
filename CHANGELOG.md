@@ -2,7 +2,16 @@
 
 All notable changes of FElupe Studio (the web app and the Python package `felupe_studio`, released together with the same version).
 
-## [Unreleased]
+## [0.9.0] - 2026-11-21
+
+Pictures for reports, the range of chosen sections and the app on a phone:
+- **A light theme** (#375): *Dark* (the default), *Light* or *System* in the header, a setting of the browser. In the light theme the view is white and its symbols are darker, so *Export ▸ Picture of the view* is a picture for a report on white. A brand has the accent of the light theme (`accent_light`, else a darker shade of its accent) and its default theme (`defaults.theme`); the example brand starts light.
+- **Own colors of sections and cell sets** (#376): *Color* of a section or a cell set, like that of a mesh, for *Color by: Sections* and *Cell sets*, their legends and the pictures of the view, e.g. the rubber of a bushing in black and its steel sleeves in gray.
+- **The range of chosen sections** (#377): *Range of* in the contour settings takes the automatic range of a contour from chosen sections, e.g. from the rubber of a bushing instead of a scale set by its steel; *Min/Max* marks their extremes, and the scalar bar names them, also in the picture of the view.
+- **The app on a phone** (#378): a compact layout in windows up to 600 px wide or up to 500 px high. The header, the tabs and the status take one row each, the controls of the results one row with *More controls*, and the curve takes the bottom or the right side of the view instead of covering it: on a phone of 390 × 844 the view of the model has 83 % of its height instead of 53 %. A view higher than wide fits the whole model. The desktop and tablets are unchanged.
+- **Smaller changes:** `BRAND_FOLDER` of the CI files of a brand may be the root of its repository (`"."`), and a build without `brand.json` says what the folder is (#379); lighter comments of the script view in the dark theme; the user guide and the README with the pictures of the light theme, of the colors of sections and of a phone (#380).
+
+**The schema version stays 3:** projects of v0.8 open unchanged. The color of a section or a cell set is additive, but a project that uses it does not open in v0.8, which names it (*This project uses the property `color` of `section.add`, which FElupe Studio 0.8.0 does not know*), nor in v0.7 and earlier, which list the errors of the schema. **Brands:** `accent_light` and `defaults.theme` are new optional fields of `brand.json`, so `brand_version` stays 1; a brand with them needs `FELUPE_STUDIO_VERSION: "0.9.0"` in its CI file, since v0.8 does not build it. `felupe_studio.results.ranges()` returns an object with the ranges of all sections as `range`, the list of before, and those of every section as `sections`. FElupe 12.1.1 (adtzlr/felupe#1301 is not released yet, #345), Pyodide 314.0.7.
 
 ### Added
 
@@ -317,6 +326,7 @@ The first release: a model of hyperelastic solids, from mesh files to results, i
 - `felupe_studio.codegen()`: the command list as a readable FElupe script, checked by golden tests against reference curves.
 - JSON schema of the command list (schema version 1) as the single source of the app and of the package.
 
+[0.9.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.9.0
 [0.8.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.8.0
 [0.7.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.7.0
 [0.6.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.6.0
