@@ -18,6 +18,7 @@ import { resolve } from "node:path";
 import { MeshFiles } from "../core/meshfiles";
 import { INDEX } from "../core/samples";
 import { IndexedDBSession, type SessionStorage } from "../core/session";
+import type { FileData, PickerOptions, SaveHandle } from "../core/save";
 import { ModelStore } from "../core/store";
 import type {
   RuntimeClient,
@@ -1417,10 +1418,12 @@ describe("solve", () => {
     await act(async () => resolveScene(scene("Von Mises")));
 
     fireEvent.click(within(card).getByRole("button", { name: "CSV" }));
-    expect(download).toHaveBeenCalledWith(
-      "job_1.csv",
-      expect.stringContaining(
-        "substep,step,u_x,u_y,u_z,F_x,F_y,F_z\n1,step_1,0,0,0,0,0,0\n",
+    await waitFor(() =>
+      expect(download).toHaveBeenCalledWith(
+        "job_1.csv",
+        expect.stringContaining(
+          "substep,step,u_x,u_y,u_z,F_x,F_y,F_z\n1,step_1,0,0,0,0,0,0\n",
+        ),
       ),
     );
     // the quantities of the axes (#197): any component over any other
@@ -3028,5 +3031,206 @@ describe("session in the browser", () => {
     fileMenu("New project");
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(store.commands).toEqual([]);
+  });
+});
+
+describe("the save dialog of the system (#400)", () => {
+  /**
+   * A fake save dialog: it records its options and the written files, and chooses
+   * `next.name`, or *Cancel* without one.
+   */
+  function fakePicker() {
+    const next: { name?: string } = {};
+    const written: { name: string; data: FileData }[] = [];
+    const picker = vi.fn(
+      async (options: PickerOptions): Promise<SaveHandle> => {
+        const name = "name" in next ? next.name : options.suggestedName;
+        if (name === undefined)
+          throw new DOMException("The user aborted a request.", "AbortError");
+        return {
+          name,
+          createWritable: async () => {
+            let data: FileData = "";
+            return {
+              write: async (d: FileData) => void (data = d),
+              close: async () => void written.push({ name, data }),
+              abort: async () => {},
+            };
+          },
+        };
+      },
+    );
+    return { picker, next, written };
+  }
+
+  const banner = () => screen.getByRole("banner");
+  const save = () =>
+    fireEvent.click(screen.getByRole("button", { name: "Save project" }));
+
+  it("saves a project into the chosen file, then into it again without asking", async () => {
+    const store = new ModelStore(fixture as CommandList);
+    const download = vi.fn();
+    const { picker, next, written } = fakePicker();
+    render(<App store={store} download={download} savePicker={picker} />);
+    // the first save asks, with the name of today; the chosen name is the project's
+    next.name = "spring.felupe.json";
+    save();
+    await waitFor(() => expect(written).toHaveLength(1));
+    expect(picker).toHaveBeenCalledWith({
+      suggestedName: "untitled.felupe.json",
+      id: "felupe-studio-projects",
+      types: [
+        {
+          description: "Project file",
+          accept: { "application/json": [".felupe.json"] },
+        },
+      ],
+    });
+    expect(written[0].name).toBe("spring.felupe.json");
+    expect(JSON.parse(written[0].data as string).commands).toEqual(
+      store.commands,
+    );
+    expect(banner().textContent).toContain("spring.felupe.json");
+    expect(screen.queryByLabelText("modified")).toBeNull();
+    // a change, saved into the same file without the dialog (Ctrl+S)
+    act(() => store.apply({ type: "remove", name: "job_1" }));
+    expect(screen.getByLabelText("modified")).toBeTruthy();
+    fireEvent.keyDown(window, { key: "s", ctrlKey: true });
+    await waitFor(() => expect(written).toHaveLength(2));
+    expect(picker).toHaveBeenCalledTimes(1);
+    expect(written[1].name).toBe("spring.felupe.json");
+    expect(written[1].data).not.toContain("job_1");
+    expect(screen.queryByLabelText("modified")).toBeNull();
+    // a renamed project asks again, with its new name
+    fireEvent.click(within(banner()).getByRole("button", { name: /spring/ }));
+    const field = within(banner()).getByLabelText("Project name");
+    fireEvent.input(field, { target: { value: "bar" } });
+    fireEvent.submit(field);
+    delete next.name;
+    save();
+    await waitFor(() => expect(written).toHaveLength(3));
+    expect(picker).toHaveBeenCalledTimes(2);
+    expect(picker.mock.calls[1][0].suggestedName).toBe("bar.felupe.json");
+    // Save project as… asks every time
+    fileMenu(/Save project as/);
+    const saveAs = screen.getByRole("dialog", { name: "Save project as" });
+    expect(saveAs.textContent).toContain(
+      "Suggested in the save dialog: bar.felupe.json",
+    );
+    fireEvent.click(within(saveAs).getByRole("button", { name: "Save…" }));
+    await waitFor(() => expect(written).toHaveLength(4));
+    expect(picker).toHaveBeenCalledTimes(3);
+    // a new project asks again
+    fileMenu("New project");
+    save();
+    await waitFor(() => expect(picker).toHaveBeenCalledTimes(4));
+    expect(picker.mock.calls[3][0].suggestedName).toBe("untitled.felupe.json");
+    expect(download).not.toHaveBeenCalled();
+  });
+
+  it("saves nothing and shows no error after Cancel", async () => {
+    const store = new ModelStore(fixture as CommandList);
+    const { picker, next, written } = fakePicker();
+    render(<App store={store} download={vi.fn()} savePicker={picker} />);
+    act(() => store.apply({ type: "remove", name: "job_1" }));
+    next.name = undefined;
+    save();
+    await waitFor(() => expect(picker).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    expect(written).toEqual([]);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(banner().textContent).toContain("untitled.felupe.json");
+    expect(screen.getByLabelText("modified")).toBeTruthy();
+  });
+
+  it("asks again after a reload", async () => {
+    const store = new ModelStore(fixture as CommandList);
+    const first = fakePicker();
+    const { unmount } = render(
+      <App store={store} download={vi.fn()} savePicker={first.picker} />,
+    );
+    save();
+    await waitFor(() => expect(first.written).toHaveLength(1));
+    unmount();
+    // the file is kept in memory only
+    const second = fakePicker();
+    render(<App store={store} download={vi.fn()} savePicker={second.picker} />);
+    save();
+    await waitFor(() => expect(second.written).toHaveLength(1));
+    expect(second.picker).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not write an archive whose script fails", async () => {
+    const store = new ModelStore(fixture as CommandList);
+    const script = vi.fn(async () => {
+      throw new Error("SyntaxError: invalid syntax");
+    });
+    const { picker, written } = fakePicker();
+    render(
+      <App
+        store={store}
+        download={vi.fn()}
+        savePicker={picker}
+        client={client(Promise.resolve(readyValue), { script })}
+      />,
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toContain("ready"),
+    );
+    fileMenu(/Save project as/);
+    const saveAs = screen.getByRole("dialog", { name: "Save project as" });
+    fireEvent.click(within(saveAs).getByLabelText(/Project archive/));
+    fireEvent.click(within(saveAs).getByLabelText(/Include the Python script/));
+    fireEvent.click(within(saveAs).getByRole("button", { name: "Save…" }));
+    // the dialog first, as it needs the click; then the script, which fails
+    await waitFor(() => expect(script).toHaveBeenCalledTimes(1));
+    expect(picker.mock.invocationCallOrder[0]).toBeLessThan(
+      script.mock.invocationCallOrder[0],
+    );
+    expect(picker.mock.calls[0][0].suggestedName).toBe("untitled.felupe.zip");
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain(
+      "The script could not be made; the project was not saved.",
+    );
+    expect(written).toEqual([]);
+    expect(banner().textContent).toContain("untitled.felupe.json");
+  });
+
+  it("asks for an export with the folder of the exports", async () => {
+    const store = new ModelStore(fixture as CommandList);
+    const script = vi.fn(async () => "import felupe as fem\n");
+    const { picker, written } = fakePicker();
+    render(
+      <App
+        store={store}
+        download={vi.fn()}
+        savePicker={picker}
+        client={client(Promise.resolve(readyValue), { script })}
+      />,
+    );
+    const item = () =>
+      within(screen.getByRole("menu", { name: "Export" })).getByRole(
+        "menuitem",
+        { name: /Python script/ },
+      );
+    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    await waitFor(() =>
+      expect(item().getAttribute("aria-disabled")).toBeNull(),
+    );
+    fireEvent.click(item());
+    await waitFor(() => expect(written).toHaveLength(1));
+    expect(picker).toHaveBeenCalledWith({
+      suggestedName: "untitled.py",
+      id: "felupe-studio-exports",
+      types: [
+        { description: "Python script", accept: { "text/x-python": [".py"] } },
+      ],
+    });
+    expect(written[0]).toEqual({
+      name: "untitled.py",
+      data: "import felupe as fem\n",
+    });
+    // an export is not the file of the project
+    expect(banner().textContent).toContain("untitled.felupe.json");
   });
 });

@@ -4,6 +4,12 @@ export const SUFFIX = ".felupe.json";
 /** File name suffix of project archives: the project with its mesh files (#148). */
 export const ARCHIVE_SUFFIX = ".felupe.zip";
 
+/**
+ * Whether a project of this name is saved as an archive: `.felupe.zip`, or `.zip`
+ * of a name chosen in the save dialog (#400).
+ */
+export const isArchiveName = (name: string): boolean => name.endsWith(".zip");
+
 /** Whether the bytes are a ZIP file (its local file header or an empty archive). */
 export function isZip(bytes: Uint8Array): boolean {
   return (

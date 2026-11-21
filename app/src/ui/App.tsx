@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { mediaType } from "../core/files";
+import { type SavePicker, saver, systemPicker } from "../core/save";
 import { JobRunner, solveBlocker } from "../core/jobs";
 import {
   faceSetNotes,
@@ -48,8 +49,13 @@ interface Props {
   client?: RuntimeClient;
   /** Mesh files of the project; read with the client. */
   files?: MeshFiles;
-  /** Save a file; the default downloads it in the browser. */
+  /** Download a file; the default downloads it in the browser. */
   download?: (name: string, data: string | Blob) => void;
+  /**
+   * The save dialog of the system (#400); the default is that of the browser, if it
+   * has one (Chrome, Edge), else the files are downloaded.
+   */
+  savePicker?: SavePicker;
   /** Reports a newer deployment of the app (see updates.ts). */
   updates?: UpdateWatcher;
   /** Reload the page; the default reloads the browser window. */
@@ -94,6 +100,7 @@ export function App({
   client,
   files: given,
   download = downloadFile,
+  savePicker,
   updates,
   reload = () => window.location.reload(),
   fetchSample,
@@ -112,13 +119,17 @@ export function App({
   const results = useResults({ store, jobs, workspace, compact });
   const { run } = results;
   const dialogs = useDialogs();
+  // every file is saved with the save dialog of the system where there is one,
+  // else downloaded (#400)
+  const [picker] = useState(() => savePicker ?? systemPicker());
+  const save = saver({ picker, download });
   const project = useProject({
     store,
     files,
     client,
     jobs,
     session,
-    download,
+    save,
     fetchSample,
     // after the render, when `selection` below is there
     onReset: () => selection.reset(),
@@ -138,7 +149,7 @@ export function App({
     results,
     project,
     workspace,
-    download,
+    save,
   });
   // the meshes of scripts with the parameters of the model, made in the worker
   // (#182), after the parameters of an opened project are set (#183)
@@ -425,7 +436,7 @@ export function App({
             capture={exports.captureResults}
             showNodes={showNodes}
             onShowNodes={setShowNodes}
-            download={download}
+            saveFile={exports.saveFile}
             theme={theme.theme}
             compact={compact}
           />
@@ -483,6 +494,7 @@ export function App({
         runtime={runtime}
         project={project}
         exports={exports}
+        saveDialog={!!picker}
         script={agent.script}
         samples={samples.list}
         onOpenSample={openSample}

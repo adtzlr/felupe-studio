@@ -6,6 +6,7 @@ import type { Command } from "../core/commands";
 import {
   ARCHIVE_SUFFIX,
   formatBytes,
+  isArchiveName,
   projectNameProblem,
   stemOf,
   SUFFIX,
@@ -28,6 +29,11 @@ interface Props {
   files: MeshFiles;
   /** The script can be made (Python is ready). */
   scriptAvailable: boolean;
+  /**
+   * The save dialog of the system follows (#400): it suggests the name, and the
+   * folder and the name are chosen there.
+   */
+  saveDialog?: boolean;
   onSave: (choice: SaveChoice) => void;
   onClose: () => void;
 }
@@ -47,13 +53,14 @@ const FORMATS: { id: ProjectFormat; label: string; hint: string }[] = [
 
 /** The format of a project by the suffix of its name. */
 export const formatOf = (fileName: string): ProjectFormat =>
-  fileName.endsWith(ARCHIVE_SUFFIX) ? "archive" : "file";
+  isArchiveName(fileName) ? "archive" : "file";
 
 export function SaveAsDialog({
   fileName,
   commands,
   files,
   scriptAvailable,
+  saveDialog = false,
   onSave,
   onClose,
 }: Props) {
@@ -107,7 +114,10 @@ export function SaveAsDialog({
             id="save-name-hint"
             class={nameError ? "field-error" : "muted"}
           >
-            {nameError ?? `Saved as ${name}${suffix}`}
+            {nameError ??
+              (saveDialog
+                ? `Suggested in the save dialog: ${name}${suffix}`
+                : `Saved as ${name}${suffix}`)}
           </small>
         </div>
         <fieldset class="choices">
@@ -179,7 +189,7 @@ export function SaveAsDialog({
             Cancel
           </button>
           <button type="submit" class="button primary" disabled={!!nameError}>
-            Save
+            {saveDialog ? "Save…" : "Save"}
           </button>
         </div>
       </form>

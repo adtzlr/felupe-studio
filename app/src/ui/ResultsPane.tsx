@@ -54,7 +54,8 @@ interface Props {
   capture: Capture;
   showNodes: boolean;
   onShowNodes: (show: boolean) => void;
-  download: (name: string, data: string | Blob) => void;
+  /** Save a file, e.g. the CSV of a curve: with the save dialog where there is one (#400). */
+  saveFile: (name: string, data: string) => void;
   /** The theme of the app (#375), for the colors of the view. */
   theme?: Theme;
   /** The compact layout of a phone (#378): the cards are off by default. */
@@ -70,7 +71,7 @@ export function ResultsPane({
   capture,
   showNodes,
   onShowNodes,
-  download,
+  saveFile,
   theme,
   compact,
 }: Props) {
@@ -100,7 +101,7 @@ export function ResultsPane({
           run={finished}
           view={view}
           onChange={results.setView}
-          download={download}
+          saveFile={saveFile}
         />
       )}
       {/* the curve grows with the converged substeps (#207) */}
@@ -111,7 +112,7 @@ export function ResultsPane({
           onChange={(changed) =>
             results.changeLive({ ...changed, substep: live.view.substep })
           }
-          download={download}
+          saveFile={saveFile}
         />
       )}
     </ResultsView>

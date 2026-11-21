@@ -56,7 +56,7 @@ function Card({ initial }: { initial?: Partial<ResultView> }) {
     ...initial,
   });
   return (
-    <CurveCard run={run} view={view} onChange={setView} download={vi.fn()} />
+    <CurveCard run={run} view={view} onChange={setView} saveFile={vi.fn()} />
   );
 }
 
