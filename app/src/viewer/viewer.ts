@@ -1,7 +1,8 @@
 // Adapter of the vendored FElupe viewer (ADR 0004): the only module that talks to it.
 // Content is set in parts (meshes, markers, arrows); changes of the same task are
 // drawn together. The camera fits the model when it is first shown and keeps its
-// rotation, zoom and pan afterwards. A click (not a drag) picks the face under the
+// rotation, zoom and pan afterwards; a fit also fits the width of a view that is
+// higher than wide (#378). A click (not a drag) picks the face under the
 // pointer; the faces of a picked plane are highlighted.
 import {
   createViewer,
@@ -265,6 +266,8 @@ export class Viewer {
       }
       this.click(event);
     });
+    // a double click fits the model, after the viewer (#378)
+    root.addEventListener("dblclick", () => this.fitWidth());
     // a right click without a drag (which pans) deselects or excludes (#195)
     root.addEventListener(
       "pointerup",
@@ -543,12 +546,30 @@ export class Viewer {
     // "iso" is the default view of the scene, in which the viewer opens (onto the
     // xy-plane for a 2D model), not the isometric view of the vendored viewer
     this.handle.setView?.(view === "iso" ? this.view : view);
+    this.fitWidth();
   }
 
   /** Fit the model into the view and keep the direction. */
   fit(): void {
     this.flush();
     this.handle.setView?.(null);
+    this.fitWidth();
+  }
+
+  /**
+   * Fit the model into the width of a view that is higher than wide, e.g. of a phone
+   * in portrait (#378): the vendored viewer fits it into the height of the view, so
+   * the sides of the model were cut off there. The zoom out is the ratio of the
+   * width and the height of the view.
+   */
+  private fitWidth() {
+    const { camera, root } = this.handle;
+    const canvas = root.querySelector("canvas");
+    const width = canvas?.clientWidth ?? 0;
+    const height = canvas?.clientHeight ?? 0;
+    if (!camera || !(width > 0 && width < height)) return;
+    camera.zoom = width / height;
+    this.handle.redraw?.();
   }
 
   /** Labels at points of the view, moved with the camera (#140). */
@@ -668,6 +689,7 @@ export class Viewer {
     });
     this.view = scene.view === "xy" ? "xy" : "default";
     this.handle.update(scene, { keepView: !this.fitNext });
+    if (this.fitNext) this.fitWidth();
     // the scalar bar of a contour with settings (#139), drawn by the app
     const look = this.result?.look;
     renderScalarBar(

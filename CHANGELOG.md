@@ -20,6 +20,10 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 - The comments of the script view are lighter in the dark theme (#375), for a contrast of 4.5:1 also on a hovered or a selected line.
 - What `BRAND_FOLDER` of the CI files of a brand is (#379): the folder of `brand.json`, relative to the root of the repository of the brand, e.g. `"."` for `brand.json` at its root. The CI files, `brands/README.md` and *Your own deployment* say so. A `BRAND_DIR` without `brand.json` fails the build with a message that says what `BRAND_DIR` is and that the CI files of a brand set it from `BRAND_FOLDER`, instead of only *it has no brand.json*.
 
+### Fixed
+
+- The fit of the view of a phone in portrait (#378): *Fit*, a view of the toolbar, a double click and the first view of a model fitted the model into the height of the view only, so its sides were cut off in a view higher than wide. The adapter of the viewer zooms out by the ratio of the width and the height of such a view after the fit of the vendored viewer, which is unchanged; views wider than high, e.g. of a desktop, are the same as before.
+
 ## [0.8.0] - 2026-11-21
 
 Your own deployments, load cycles with the Mullins effect and derived parameters:
