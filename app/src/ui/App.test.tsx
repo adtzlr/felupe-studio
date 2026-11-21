@@ -2363,6 +2363,118 @@ describe("solve", () => {
     expect(solveButton().getAttribute("aria-disabled")).toBe("true");
     expect(solveButton().title).toBe("Load the mesh files of the model first.");
   });
+
+  it("shows the results of a phone in one row, without the cards (#378)", async () => {
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === NARROW || query === COMPACT,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+    const jobs = runner();
+    const resultScene = vi.fn(async (): Promise<ResultScene> => ({
+      label: "Displacement",
+      at: "point",
+      range: [0, 1],
+      points: [
+        {
+          name: "plate",
+          position: [3.5, 0.5, 0.5],
+          displacement: [0.5, 0, 0],
+          force: [5, 0, 0],
+        },
+      ],
+      surfaces: [],
+    }));
+    try {
+      render(
+        <App
+          store={new ModelStore(fixture as CommandList)}
+          files={await files()}
+          client={client(Promise.resolve(readyValue), {
+            ...jobs,
+            resultScene,
+          })}
+        />,
+      );
+      await waitFor(() =>
+        expect(solveButton().getAttribute("aria-disabled")).toBeNull(),
+      );
+      fireEvent.click(solveButton());
+      await waitFor(() => expect(jobs.run).toHaveBeenCalledTimes(1));
+      await act(async () =>
+        jobs.settle().resolve({
+          job_1: {
+            substeps: 6,
+            time: 0.1,
+            x: [0, 0.1, 0.2, 0.3, 0.4, 0.5].map((u) => [u, 0, 0]),
+            y: [0, 1, 2, 3, 4, 5].map((f) => [f, 0, 0]),
+          },
+        }),
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Show results" }));
+      await waitFor(() => expect(resultScene).toHaveBeenCalled());
+      const panel = screen.getByRole("tabpanel");
+
+      // the contour, play and the substep in one row, with their names
+      const row = panel.querySelector<HTMLElement>(".results-row")!;
+      expect(
+        within(row).getByRole("combobox", { name: "Contour" }),
+      ).toBeTruthy();
+      expect(within(row).getByRole("button", { name: "Play" })).toBeTruthy();
+      const slider = within(row).getByRole("slider", {
+        name: "Substep 6 of 6",
+      });
+      expect(row.textContent).toContain("6/6");
+      fireEvent.input(slider, { target: { value: "3" } });
+      expect(
+        within(row).getByRole("slider", { name: "Substep 3 of 6" }),
+      ).toBeTruthy();
+
+      // the other controls behind a button
+      const more = within(row).getByRole("button", { name: "More controls" });
+      const controls = document.getElementById("results-more")!;
+      expect(more.getAttribute("aria-controls")).toBe("results-more");
+      expect(more.getAttribute("aria-expanded")).toBe("false");
+      expect(controls.hidden).toBe(true);
+      expect(within(controls).getByLabelText("Scale")).toBeTruthy();
+      expect(within(controls).getByLabelText(/Speed/)).toBeTruthy();
+      expect(
+        within(controls).getByRole("button", {
+          name: "Back and forth",
+          hidden: true,
+        }),
+      ).toBeTruthy();
+      expect(controls.textContent).toContain("ux = 0.2, Fx = 2");
+      fireEvent.click(more);
+      expect(controls.hidden).toBe(false);
+      expect(more.getAttribute("aria-expanded")).toBe("true");
+
+      // the curve and the control points are off, so that the view keeps its size
+      const curve = within(controls).getByLabelText(
+        "Curve",
+      ) as HTMLInputElement;
+      expect(curve.checked).toBe(false);
+      expect(
+        screen.queryByRole("region", { name: "Force-displacement curve" }),
+      ).toBeNull();
+      // (the scene with a control point is shown)
+      const results = screen.getByRole("main", { name: "Results" });
+      await waitFor(() =>
+        expect(results.textContent).not.toContain("Loading the results"),
+      );
+      expect(
+        screen.queryByRole("region", { name: "Control points" }),
+      ).toBeNull();
+      fireEvent.click(curve);
+      expect(
+        screen.getByRole("region", { name: "Force-displacement curve" }),
+      ).toBeTruthy();
+      fireEvent.click(more);
+      expect(controls.hidden).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
 });
 
 describe("samples", () => {

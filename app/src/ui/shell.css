@@ -1742,6 +1742,225 @@ button {
   }
 }
 
+/* the controls of the results: the contour and the substep in one row, the other
+   controls below it from the button More controls */
+.shell.compact .results-controls {
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: 0;
+}
+
+.shell.compact .results-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+/* the name of the quantity is longer than the slider needs */
+.shell.compact .results-row .field-with-button {
+  flex: 3 1 0;
+  align-items: center;
+  min-width: 0;
+}
+
+.shell.compact .results-row .field {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.shell.compact .results-row select {
+  width: 100%;
+  min-height: var(--control-height);
+}
+
+.shell.compact .results-row .play-button {
+  width: var(--control-height);
+  height: var(--control-height);
+}
+
+.shell.compact .results-row .substep {
+  flex: 2 1 0;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.shell.compact .results-row .substep input {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 48px;
+  min-height: var(--control-height);
+  margin: 0;
+}
+
+.shell.compact .substep-count {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.shell.compact .results-row .icon-button[aria-expanded="true"] {
+  background: var(--color-selected);
+  color: var(--color-accent);
+}
+
+.shell.compact .results-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-6) var(--space-16);
+  padding-bottom: var(--space-4);
+}
+
+.shell.compact .results-more[hidden] {
+  display: none;
+}
+
+/* the toolbar of a view in one row that scrolls */
+.shell.compact .view-toolbar {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+
+.shell.compact .view-toolbar > * {
+  flex: none;
+}
+
+/* the cards of the results (the curve, the control points) as a sheet below the
+   view; the view gets smaller rather than covered, its scalar bars stay above */
+.shell.compact .viewport:has(> .overlay-side > *) {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.shell.compact .viewport:has(> .overlay-side > *) > .viewer {
+  position: relative;
+  inset: auto;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.shell.compact .overlay-side {
+  position: static;
+  flex: none;
+  gap: 0;
+  width: auto;
+  max-width: none;
+  max-height: 50%;
+  margin-top: auto;
+  border-top: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+}
+
+.shell.compact .overlay-side:not(:has(> *)) {
+  display: none;
+}
+
+.shell.compact .overlay-side > * {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.shell.compact .overlay-side > * + * {
+  border-top: 1px solid var(--color-border);
+}
+
+/* the panel of a job across narrow views (#128): the view and the sheet end above
+   it, with the scalar bars and the axes at the bottom of the view, not lifted */
+@container views (max-width: 760px) {
+  .shell.compact .views:has(> .job-panel) > .viewport:has(> .overlay-side > *) {
+    align-self: start;
+    height: calc(
+      100% - var(--job-panel-height, 0px) - 2 * var(--overlay-inset)
+    );
+  }
+
+  .shell.compact
+    .views:has(> .job-panel)
+    > .viewport:has(> .overlay-side > *)
+    .fv-bars {
+    bottom: 10px;
+  }
+
+  .shell.compact
+    .views:has(> .job-panel)
+    > .viewport:has(> .overlay-side > *)
+    .fv-axes {
+    bottom: 6px;
+  }
+}
+
+/* in wider views the panel is at the right, below the sheet beside the view */
+@container views (min-width: 761px) {
+  .shell.compact .views:has(> .job-panel) .overlay-side {
+    align-self: start;
+    max-height: calc(
+      100% - var(--job-panel-height, 0px) - 2 * var(--overlay-inset)
+    );
+  }
+
+  .shell.compact
+    .views:has(> .job-panel)
+    > .viewport:has(> .overlay-side > *)
+    .fv-bars {
+    left: 50%;
+  }
+}
+
+/* the space around the panel in the color of the view */
+.shell.compact .views:has(> .job-panel) {
+  background: var(--color-view);
+}
+
+/* the status of the live results and of the loading below the toolbar, as the
+   sheet takes the bottom */
+.shell.compact .viewport:has(> .overlay-side > *) > .overlay-bottom {
+  top: var(--toolbar-space);
+  bottom: auto;
+  left: var(--overlay-inset);
+}
+
+/* a short window, e.g. a phone in landscape: the controls of the results beside the
+   workspaces, and the sheet of the cards beside the view */
+@media (min-width: 601px) {
+  .shell.compact .ribbon:has(.results-controls) [role="tablist"] {
+    display: none;
+  }
+
+  .shell.compact .ribbon:has(.results-controls) .ribbon-panel {
+    grid-column: auto;
+  }
+
+  .shell.compact .viewport:has(> .overlay-side > *) {
+    flex-direction: row;
+  }
+
+  .shell.compact .overlay-side {
+    width: min(var(--side-width), 45%);
+    max-height: none;
+    margin: 0 0 0 auto;
+    border-top: none;
+    border-left: 1px solid var(--color-border-strong);
+  }
+
+  .shell.compact .viewport:has(> .overlay-side > *) > .overlay-bottom {
+    right: calc(min(var(--side-width), 45%) + var(--overlay-inset));
+  }
+
+  .shell.compact .viewport:has(> .overlay-side > *) > .view-toolbar {
+    max-width: calc(
+      100% - min(var(--side-width), 45%) - 2 * var(--overlay-inset)
+    );
+  }
+}
+
 /* files: drop zone, import dialog, file state */
 .dropzone {
   display: flex;
@@ -2362,6 +2581,16 @@ button {
 
 .results-controls .warning {
   color: var(--color-warning);
+}
+
+/* a name for assistive technology only, e.g. of a control whose value says it */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* the force-displacement curve over the results */
