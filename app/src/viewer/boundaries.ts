@@ -7,7 +7,7 @@ import { analysisOf, is2d } from "../core/analysis";
 import type { Command } from "../core/resolved";
 import { LOADCASE_DEFAULTS } from "../core/loadcases";
 import { type Symmetry, symmetryPlanes } from "../core/symmetry";
-import { MARKER_COLOR } from "./palette";
+import { AXIS_COLORS, type ViewColors } from "./palette";
 import { AXES, selectedPoints } from "./pointsets";
 import { arrowSegments, type Lines } from "./scene";
 
@@ -391,9 +391,6 @@ export function direction(symbol: BoundarySymbol): [number, number, number] {
   return d.map((x) => x / length) as [number, number, number];
 }
 
-/** The colors of the axes, like the axis triad of the viewer. */
-export const AXIS_COLORS = ["#d62728", "#2ca02c", "#1f77b4"];
-
 /**
  * The lines of the symbols of the boundaries: strokes along the fixed components
  * (in the colors of the axes) and arrows of the moved boundaries. Hidden owners are
@@ -405,12 +402,13 @@ export function boundaryLines(
     size,
     hidden = new Set<string>(),
     selected,
-    highlight,
+    colors,
   }: {
     size: number;
     hidden?: ReadonlySet<string>;
     selected?: string;
-    highlight: string;
+    /** The colors of the view in its theme (#375). */
+    colors: ViewColors;
   },
 ): Lines[] {
   const groups = new Map<
@@ -432,14 +430,14 @@ export function boundaryLines(
       const directions = new Float32Array(origins.length);
       for (let p = 0; p < origins.length; p += 3) directions.set(d, p);
       add(
-        chosen ? highlight : MARKER_COLOR,
+        chosen ? colors.highlight : colors.marker,
         chosen ? 3 : 2,
         arrowSegments({ origins, directions }),
       );
     } else {
       for (const k of symbol.components) {
         add(
-          chosen ? highlight : AXIS_COLORS[k],
+          chosen ? colors.highlight : AXIS_COLORS[k],
           chosen ? 3 : 2,
           strokes(symbol, k, 0.04 * size),
         );

@@ -1,7 +1,9 @@
 // The styles use the design tokens of the :root block only (#125), with a light
-// value of every color in the block of the light theme (#375).
+// value of every color in the block of the light theme (#375). The colors of the
+// view (`VIEW_COLORS`) are checked against the background of the view of each theme.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { VIEW_COLORS } from "../viewer/palette";
 
 // read as a file: CSS modules are empty in the tests
 const source = readFileSync(new URL("./shell.css", import.meta.url), "utf-8");
@@ -186,6 +188,34 @@ describe("design tokens", () => {
       for (const marker of ["min", "max"])
         for (const surface of [color("view"), panel])
           expect(contrast(color(marker), surface)).toBeGreaterThanOrEqual(3);
+    },
+  );
+
+  it.each(Object.entries(THEMES))(
+    "keeps the colors of the view apart from its background in the %s theme (#375)",
+    (theme, tokens) => {
+      const colors = VIEW_COLORS[theme as keyof typeof VIEW_COLORS];
+      const view = rgba(tokens.get("--color-view")!);
+      // drawn on the background: at least 3:1, like other graphics (WCAG 1.4.11);
+      // the ghost of results is translucent and faint by design
+      const drawn = {
+        highlight: colors.highlight,
+        marker: colors.marker,
+        force: colors.force,
+        control: colors.control,
+        rigid: colors.rigid,
+        construction: colors.construction,
+        ...colors.extremes,
+      };
+      const low = Object.entries(drawn)
+        .map(([name, value]) => [name, contrast(rgba(value), view)] as const)
+        .filter(([, ratio]) => ratio < 3);
+      expect(low).toEqual([]);
+      // the markers of the extremes in the colors of their labels (#140)
+      expect(colors.extremes).toEqual({
+        min: tokens.get("--color-min"),
+        max: tokens.get("--color-max"),
+      });
     },
   );
 

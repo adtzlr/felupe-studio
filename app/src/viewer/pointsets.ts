@@ -5,6 +5,7 @@
 import type { Command, PointSetAdd } from "../core/resolved";
 import type { MeshSurface } from "../worker/protocol";
 import { toName } from "../core/importmesh";
+import { OUTLINE_COLOR } from "./palette";
 import type { Vec3 } from "./picking";
 import type { Markers } from "./scene";
 
@@ -290,7 +291,10 @@ export function planeName(
   return toName(text, new Set(commands.map((c) => c.name)), "points");
 }
 
-/** Markers with a dark outline, visible on every color of the meshes. */
+/**
+ * Markers with a dark outline, visible on every color of the meshes and on the
+ * background of both themes.
+ */
 export function outlined(
   points: Float64Array,
   color: string,
@@ -299,7 +303,7 @@ export function outlined(
   if (points.length === 0) return [];
   const positions = Float32Array.from(points);
   return [
-    { positions, color: "#11151c", size: size + 4 },
+    { positions, color: OUTLINE_COLOR, size: size + 4 },
     { positions, color, size },
   ];
 }

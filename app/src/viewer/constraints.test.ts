@@ -8,7 +8,7 @@ import {
   overConstrained,
   resultPlacement,
 } from "./constraints";
-import { CONTROL_COLOR } from "./palette";
+import { VIEW_COLORS } from "./palette";
 
 // the nodes of a unit square in the plane z = 0 and of its face at x = 1
 const nodes = [Float64Array.from([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0])];
@@ -52,25 +52,25 @@ describe("multi-point constraints in the viewport (#99)", () => {
 
   it("are drawn as lines from the center, highlighted or hidden", () => {
     const shapes = constraintShapes(commands, nodes);
-    const [lines] = constraintLines(shapes, { highlight: "#ffd23f" });
-    expect(lines).toMatchObject({ color: CONTROL_COLOR, width: 1 });
+    const colors = VIEW_COLORS.dark;
+    const [lines] = constraintLines(shapes, { colors });
+    expect(lines).toMatchObject({ color: colors.control, width: 1 });
     expect([...lines.positions]).toEqual([
       1.5, 0.5, 0, 1, 0, 0, 1.5, 0.5, 0, 1, 1, 0,
     ]);
-    const [chosen] = constraintLines(shapes, {
-      highlight: "#ffd23f",
-      selected: "glue",
-    });
-    expect(chosen).toMatchObject({ color: "#ffd23f", width: 2 });
+    const [chosen] = constraintLines(shapes, { colors, selected: "glue" });
+    expect(chosen).toMatchObject({ color: colors.highlight, width: 2 });
+    // in the colors of the light theme (#375)
+    const light = VIEW_COLORS.light;
+    expect(constraintLines(shapes, { colors: light })[0].color).toBe(
+      light.control,
+    );
     expect(
-      constraintLines(shapes, {
-        highlight: "#ffd23f",
-        hidden: new Set(["glue"]),
-      }),
+      constraintLines(shapes, { colors, hidden: new Set(["glue"]) }),
     ).toEqual([]);
     // moved points, e.g. of a result
     const [moved] = constraintLines(shapes, {
-      highlight: "#ffd23f",
+      colors,
       place: (p) => [p[0] + 1, p[1], p[2]],
     });
     expect(moved.positions[0]).toBe(2.5);

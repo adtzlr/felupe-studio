@@ -12,12 +12,12 @@ import {
   resultPlacement,
 } from "../viewer/constraints";
 import { extremeShape } from "../viewer/extremes";
-import { CONTROL_COLOR, EXTREME_COLORS } from "../viewer/palette";
+import type { ViewColors } from "../viewer/palette";
 import { outlined } from "../viewer/pointsets";
 import { rigidShapes } from "../viewer/rigid";
 import { formatTick } from "../viewer/scalarbar";
 import type { Lines, Markers } from "../viewer/scene";
-import { HIGHLIGHT, type Viewer } from "../viewer/viewer";
+import type { Viewer } from "../viewer/viewer";
 import type { ResultExtreme, ResultScene } from "../worker/protocol";
 import { type Extreme, EXTREMES, extremeInfo, value } from "./ResultsCards";
 
@@ -38,6 +38,8 @@ export interface Drawing {
   pinned?: Extreme;
   onPin: (extreme: Extreme | undefined) => void;
   commands: readonly Command[];
+  /** The colors of the view in the theme of the app (#375). */
+  colors: ViewColors;
   units?: Units;
   /** The unit of the quantity of the contour. */
   unit?: string;
@@ -61,14 +63,18 @@ const shapesOf = (
     EXTREMES.map((name) => [name, extremeShape(scene, extremes[name], scale)]),
   ) as Shapes;
 
-function markersOf(points: number[], shapes?: Shapes): Markers[] {
+function markersOf(
+  points: number[],
+  colors: ViewColors,
+  shapes?: Shapes,
+): Markers[] {
   return [
-    ...outlined(Float64Array.from(points), CONTROL_COLOR, 10),
+    ...outlined(Float64Array.from(points), colors.control, 10),
     ...(shapes
       ? EXTREMES.flatMap((name) => {
           const dot = shapes[name].dot;
           return dot
-            ? outlined(Float64Array.from(dot), EXTREME_COLORS[name], 11)
+            ? outlined(Float64Array.from(dot), colors.extremes[name], 11)
             : [];
         })
       : []),
@@ -124,12 +130,12 @@ function labelsOf(
 }
 
 /** The outlines of the extremes at cells. */
-const outlinesOf = (shapes?: Shapes): Lines[] =>
+const outlinesOf = (colors: ViewColors, shapes?: Shapes): Lines[] =>
   shapes
     ? EXTREMES.flatMap((name) => {
         const outline = shapes[name].outline;
         return outline
-          ? [{ positions: outline, color: EXTREME_COLORS[name], width: 3 }]
+          ? [{ positions: outline, color: colors.extremes[name], width: 3 }]
           : [];
       })
     : [];
@@ -139,11 +145,12 @@ function rigidOf(
   scene: ResultScene,
   commands: readonly Command[],
   scale: number,
+  colors: ViewColors,
 ) {
   if (!commands.some((c) => c.command === "rigid.add"))
     return { faces: [], lines: [] };
   return rigidShapes(commands, resultPlacement(scene, scale).nodes, {
-    highlight: HIGHLIGHT,
+    colors,
     offsets: new Map(
       (scene.points ?? []).map((p) => [
         p.name,
@@ -158,18 +165,20 @@ function constraintsOf(
   scene: ResultScene,
   commands: readonly Command[],
   scale: number,
+  colors: ViewColors,
 ): Lines[] {
   if (!commands.some((c) => c.command === "mpc.add")) return [];
   const { nodes, place } = resultPlacement(scene, scale);
   return constraintLines(constraintShapes(commands, nodes), {
-    highlight: HIGHLIGHT,
+    colors,
     place,
   });
 }
 
 /** Draw a scene of the results (none without a scene or a view). */
 export function drawResults(viewer: Viewer, drawing: Drawing) {
-  const { scene, view } = drawing;
+  const { scene, view, colors } = drawing;
+  viewer.setColors(colors);
   if (!scene || !view) {
     viewer.setResult(undefined);
     viewer.setNodes(drawing.nodes);
@@ -196,18 +205,18 @@ export function drawResults(viewer: Viewer, drawing: Drawing) {
   const extremes =
     scene.extremes && drawing.extremesShown ? scene.extremes : undefined;
   const shapes = extremes ? shapesOf(scene, extremes, scale) : undefined;
-  viewer.setMarkers(markersOf(points, shapes));
+  viewer.setMarkers(markersOf(points, colors, shapes));
   viewer.setTargets(targetsOf(controls, points, shapes));
   viewer.setLabels(
     extremes && shapes ? labelsOf(scene, extremes, shapes, drawing) : [],
   );
-  const rigid = rigidOf(scene, drawing.commands, scale);
+  const rigid = rigidOf(scene, drawing.commands, scale, colors);
   viewer.setFaces(rigid.faces);
   viewer.setLines([
     ...(drawing.constraints
-      ? constraintsOf(scene, drawing.commands, scale)
+      ? constraintsOf(scene, drawing.commands, scale, colors)
       : []),
     ...rigid.lines,
-    ...outlinesOf(shapes),
+    ...outlinesOf(colors, shapes),
   ]);
 }

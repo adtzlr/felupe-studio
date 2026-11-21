@@ -12,7 +12,7 @@ import {
   sideRibbons,
 } from "./facesets";
 import { scaledSurface } from "./layers";
-import { FORCE_COLOR } from "./palette";
+import { VIEW_COLORS } from "./palette";
 import { pressureLines } from "./pressures";
 import { connectedFaces } from "./surfaces";
 
@@ -208,10 +208,11 @@ describe("the faces of the sections (#142)", () => {
         },
         { command: "pressure.add", name: "push", faces: "end", pressure },
       ] as Command[];
-    const options = { size: 10, highlight: "#ffff00" };
+    const colors = VIEW_COLORS.dark;
+    const options = { size: 10, colors };
     // onto the face: an arrow from outside to its center (shaft and two heads)
     const [onto] = pressureLines(model2(0.1), sections, options);
-    expect(onto.color).toBe(FORCE_COLOR);
+    expect(onto.color).toBe(colors.force);
     expect(Array.from(onto.positions.slice(0, 6))).toEqual(
       [2.8, 0.5, 0.5, 2, 0.5, 0.5].map(Math.fround),
     );
@@ -223,7 +224,12 @@ describe("the faces of the sections (#142)", () => {
     expect(Array.from(pull.positions.slice(0, 6))).toEqual(
       [2, 0.5, 0.5, 2.8, 0.5, 0.5].map(Math.fround),
     );
-    expect([pull.color, pull.width]).toEqual(["#ffff00", 3]);
+    expect([pull.color, pull.width]).toEqual([colors.highlight, 3]);
+    // in the colors of the light theme (#375)
+    const light = { ...options, colors: VIEW_COLORS.light };
+    expect(pressureLines(model2(0.1), sections, light)[0].color).toBe(
+      VIEW_COLORS.light.force,
+    );
     expect(
       pressureLines(model2(0.1), sections, {
         ...options,
@@ -388,7 +394,7 @@ describe("the edges of the sections of 2D models (#175)", () => {
     ] as Command[];
     const [onto] = pressureLines(model2, sections, {
       size: 10,
-      highlight: "#ffff00",
+      colors: VIEW_COLORS.dark,
     });
     // two arrows from above onto the centers of the sides
     const shaft = Array.from(onto.positions.slice(0, 6));

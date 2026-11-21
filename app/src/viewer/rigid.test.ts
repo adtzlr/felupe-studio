@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { Command } from "../core/resolved";
-import { contactPoints, extent, RIGID_COLOR, rigidShapes } from "./rigid";
+import { VIEW_COLORS } from "./palette";
+import { contactPoints, extent, rigidShapes } from "./rigid";
+
+const colors = VIEW_COLORS.dark;
 
 // the nodes of a unit cube
 const cube = [
@@ -36,7 +39,7 @@ describe("rigid surfaces (#219)", () => {
   });
 
   it("draw a plane around the model, with its normal", () => {
-    const { faces, lines } = rigidShapes([plate], cube, { highlight: "#ff0" });
+    const { faces, lines } = rigidShapes([plate], cube, { colors });
     expect(faces).toHaveLength(1);
     const corners = points(faces[0].positions);
     // a square in the plane z = 2, around the model (not the reference point)
@@ -46,7 +49,11 @@ describe("rigid surfaces (#219)", () => {
     expect(Math.min(...xs)).toBeCloseTo(0.5 - half, 5);
     expect(Math.max(...xs)).toBeCloseTo(0.5 + half, 5);
     expect([...faces[0].triangles]).toEqual([0, 1, 2, 0, 2, 3]);
-    expect(faces[0]).toMatchObject({ color: RIGID_COLOR, opacity: 0.22 });
+    expect(faces[0]).toMatchObject({ color: colors.rigid, opacity: 0.22 });
+    // in the color of the light theme (#375)
+    const light = rigidShapes([plate], cube, { colors: VIEW_COLORS.light });
+    expect(light.faces[0].color).toBe(VIEW_COLORS.light.rigid);
+    expect(light.lines[0].color).toBe(VIEW_COLORS.light.rigid);
     // the outline and the arrow of the normal at the reference point, downwards
     const [outline, arrow] = lines;
     expect(outline.positions).toHaveLength(4 * 6);
@@ -56,7 +63,7 @@ describe("rigid surfaces (#219)", () => {
 
   it("draw a cylinder as a tube along the model", () => {
     const { faces, lines } = rigidShapes([roller], cube, {
-      highlight: "#ff0",
+      colors,
       selected: "roller",
     });
     const ring = points(faces[0].positions);
@@ -67,23 +74,20 @@ describe("rigid surfaces (#219)", () => {
     const xs = ring.map((p) => p[0]);
     expect(Math.min(...xs) + Math.max(...xs)).toBeCloseTo(1, 5);
     // selected: highlighted, no arrow
-    expect(faces[0]).toMatchObject({ color: "#ff0", opacity: 0.4 });
+    expect(faces[0]).toMatchObject({ color: colors.highlight, opacity: 0.4 });
     expect(lines).toHaveLength(1);
   });
 
   it("are moved by offsets and hidden", () => {
     const moved = rigidShapes([plate], cube, {
-      highlight: "#ff0",
+      colors,
       offsets: new Map([["plate", [0, 0, -0.5]]]),
     });
     expect(points(moved.faces[0].positions).every((p) => p[2] === 1.5)).toBe(
       true,
     );
     expect(
-      rigidShapes([plate], cube, {
-        highlight: "#ff0",
-        hidden: new Set(["plate"]),
-      }),
+      rigidShapes([plate], cube, { colors, hidden: new Set(["plate"]) }),
     ).toEqual({ faces: [], lines: [] });
   });
 
@@ -106,9 +110,7 @@ describe("rigid surfaces (#219)", () => {
       coordinates: [0.5, 2, 0],
       shape: { radius: 0.5, axis: [0, 0, 1] },
     };
-    const { faces } = rigidShapes([settings, wall, wheel], flat, {
-      highlight: "#ff0",
-    });
+    const { faces } = rigidShapes([settings, wall, wheel], flat, { colors });
     const [strip, disc] = faces.map((f) => points(f.positions));
     expect([...strip, ...disc].every((p) => p[2] === 0)).toBe(true);
     // the strip along the line x = 1, on the rigid side (x > 1)

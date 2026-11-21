@@ -4,7 +4,7 @@
 import type { Command, MpcAdd } from "../core/resolved";
 import type { ResultScene } from "../worker/protocol";
 import { type BoundarySymbol, thinned } from "./boundaries";
-import { CONTROL_COLOR } from "./palette";
+import type { ViewColors } from "./palette";
 import { AXES, selectedPoints } from "./pointsets";
 import type { Lines } from "./scene";
 
@@ -62,12 +62,13 @@ export function constraintLines(
   {
     hidden = new Set<string>(),
     selected,
-    highlight,
+    colors,
     place = (p: Point3) => p,
   }: {
     hidden?: ReadonlySet<string>;
     selected?: string;
-    highlight: string;
+    /** The colors of the view in its theme (#375). */
+    colors: ViewColors;
     place?: (point: Point3) => Point3;
   },
 ): Lines[] {
@@ -84,7 +85,7 @@ export function constraintLines(
     const chosen = shape.name === selected;
     lines.push({
       positions,
-      color: chosen ? highlight : CONTROL_COLOR,
+      color: chosen ? colors.highlight : colors.control,
       width: chosen ? 2 : 1,
     });
   }

@@ -8,11 +8,9 @@ import { analysisOf, is2d } from "../core/analysis";
 import type { Command, ContactAdd, RigidAdd } from "../core/resolved";
 import { bounds } from "./boundaries";
 import { type SectionFaces, selectedFaces } from "./facesets";
+import type { ViewColors } from "./palette";
 import { selectedPoints } from "./pointsets";
 import { arrowSegments, type Highlight, type Lines } from "./scene";
-
-/** Color of the rigid surfaces; the selected one is highlighted. */
-export const RIGID_COLOR = "#aab4c3";
 
 type Vec3 = [number, number, number];
 
@@ -203,12 +201,13 @@ export function rigidShapes(
   {
     hidden = new Set<string>(),
     selected,
-    highlight,
+    colors,
     offsets = new Map<string, readonly number[]>(),
   }: {
     hidden?: ReadonlySet<string>;
     selected?: string;
-    highlight: string;
+    /** The colors of the view in its theme (#375). */
+    colors: ViewColors;
     offsets?: ReadonlyMap<string, readonly number[]>;
   },
 ): { faces: Highlight[]; lines: Lines[] } {
@@ -241,7 +240,7 @@ export function rigidShapes(
         : tube(point, (shape.axis ?? [0, 0, 1]) as Vec3, radius, center, half);
     }
     const chosen = rigid.name === selected;
-    const color = chosen ? highlight : RIGID_COLOR;
+    const color = chosen ? colors.highlight : colors.rigid;
     faces.push({
       positions: Float32Array.from(mesh.positions),
       triangles: Uint32Array.from(mesh.triangles),

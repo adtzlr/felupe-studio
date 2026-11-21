@@ -9,6 +9,8 @@ import type { Command } from "../core/resolved";
 import type { ResultView } from "../core/results";
 import { resultUnit, unitsOf, withUnit } from "../core/units";
 import { withHint } from "../core/shortcuts";
+import type { Theme } from "../core/theme";
+import { viewColors } from "../viewer/palette";
 import {
   type Capture,
   type CreateViewer,
@@ -69,6 +71,8 @@ interface Props {
    * live scenes), its view and its status. They replace the loaded scenes.
    */
   live?: { scene?: ResultScene; view: ResultView; status: string };
+  /** The theme of the app (#375), for the colors of the view; dark by default. */
+  theme?: Theme;
 }
 
 /** The wanted scene of a substep of the view; none while it is not shown. */
@@ -284,6 +288,7 @@ export function ResultsView({
   ahead = NO_SUBSTEPS,
   onShown,
   live,
+  theme,
 }: Props) {
   // the live results replace the view of the loaded results (#207)
   const view = live ? live.view : loadedView;
@@ -358,6 +363,7 @@ export function ResultsView({
       commands,
       units,
       unit,
+      colors: viewColors(theme),
     });
   }, [
     scene,
@@ -372,6 +378,7 @@ export function ResultsView({
     constraints.shown,
     commands,
     createViewer,
+    theme,
   ]);
 
   usePinnedPick(viewer, extremesShown, scene, pin);

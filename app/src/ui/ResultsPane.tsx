@@ -3,6 +3,7 @@
 // live results of a running one (#207).
 import type { JobRunner } from "../core/jobs";
 import type { ModelStore } from "../core/store";
+import type { Theme } from "../core/theme";
 import type { Capture } from "../viewer/viewer";
 import type { RuntimeClient } from "../worker/client";
 import { CurveCard } from "./CurveCard";
@@ -46,6 +47,8 @@ interface Props {
   showNodes: boolean;
   onShowNodes: (show: boolean) => void;
   download: (name: string, data: string | Blob) => void;
+  /** The theme of the app (#375), for the colors of the view. */
+  theme?: Theme;
 }
 
 /** The view of the results, with the curve of the shown job. */
@@ -58,6 +61,7 @@ export function ResultsPane({
   showNodes,
   onShowNodes,
   download,
+  theme,
 }: Props) {
   const { run, finished, view, live } = results;
   return (
@@ -77,6 +81,7 @@ export function ResultsPane({
       ahead={results.player.ahead}
       onShown={results.onShown}
       live={live}
+      theme={theme}
     >
       {finished && view?.curve && (
         <CurveCard

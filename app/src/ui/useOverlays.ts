@@ -32,7 +32,12 @@ import {
 } from "../viewer/facesets";
 import type { viewportContent } from "../viewer/layers";
 import { loadLines } from "../viewer/loads";
-import { CONTROL_COLOR, EXCLUDED_COLOR, FACE_COLOR } from "../viewer/palette";
+import {
+  EXCLUDED_COLOR,
+  FACE_COLOR,
+  POINT_COLOR,
+  type ViewColors,
+} from "../viewer/palette";
 import {
   missingPoints,
   outlined,
@@ -42,11 +47,7 @@ import {
 import { pressureLines } from "../viewer/pressures";
 import { contactPoints, rigidShapes } from "../viewer/rigid";
 import type { Highlight, Markers } from "../viewer/scene";
-import { HIGHLIGHT } from "../viewer/viewer";
 import type { Picking } from "./usePicking";
-
-/** Color of the markers of point sets, the selected one is highlighted. */
-const POINTS = "#f2f4f8";
 
 const isFaceSet = (c: Command): c is FaceSetAdd => c.command === "faceset.add";
 
@@ -101,6 +102,8 @@ interface Options {
   /** The points on the outer surface of the drawn meshes (#222). */
   outer: Float64Array[];
   picking: Picking;
+  /** The colors of the view in the theme of the app (#375). */
+  colors: ViewColors;
 }
 
 export function useOverlays({
@@ -112,6 +115,7 @@ export function useOverlays({
   nodes,
   outer,
   picking,
+  colors,
 }: Options) {
   const { combined, preview, surfacePoints, pickedNodes } = picking;
   // the nodes of a section, for point sets of a section (#241)
@@ -138,14 +142,14 @@ export function useOverlays({
           content,
           of,
           selectedFaces(c.select, of),
-          chosen ? HIGHLIGHT : FACE_COLOR,
+          chosen ? colors.highlight : FACE_COLOR,
           chosen ? 0.6 : 0.35,
         );
       }),
-      ...picks(combined.faces, HIGHLIGHT, 0.6),
+      ...picks(combined.faces, colors.highlight, 0.6),
       ...picks(combined.excluded, EXCLUDED_COLOR, 0.75),
     ];
-  }, [commands, hidden, selected, sections, content, combined]);
+  }, [commands, hidden, selected, sections, content, combined, colors]);
 
   const controls = useMemo(
     () => commands.filter(isControl).filter((c) => !hidden.has(c.name)),
@@ -172,21 +176,21 @@ export function useOverlays({
     const coordinates = (list: readonly (PointAdd | RigidAdd)[]) =>
       Float64Array.from(list.flatMap((c) => c.coordinates));
     return [
-      ...outlined(points(others), POINTS),
-      ...(chosen ? outlined(points([chosen]), HIGHLIGHT, 9) : []),
-      ...outlined(Float64Array.from(touching), HIGHLIGHT, 9),
-      ...(preview ? outlined(preview, HIGHLIGHT, 9) : []),
-      ...(surfacePoints ? outlined(surfacePoints, HIGHLIGHT, 9) : []),
-      ...outlined(Float64Array.from(pickedNodes.flat()), HIGHLIGHT, 9),
+      ...outlined(points(others), POINT_COLOR),
+      ...(chosen ? outlined(points([chosen]), colors.highlight, 9) : []),
+      ...outlined(Float64Array.from(touching), colors.highlight, 9),
+      ...(preview ? outlined(preview, colors.highlight, 9) : []),
+      ...(surfacePoints ? outlined(surfacePoints, colors.highlight, 9) : []),
+      ...outlined(Float64Array.from(pickedNodes.flat()), colors.highlight, 9),
       // the control points, always shown (#95)
       ...outlined(
         coordinates(controls.filter((c) => c.name !== selected)),
-        CONTROL_COLOR,
+        colors.control,
         10,
       ),
       ...outlined(
         coordinates(controls.filter((c) => c.name === selected)),
-        HIGHLIGHT,
+        colors.highlight,
         11,
       ),
     ];
@@ -201,6 +205,7 @@ export function useOverlays({
     pickedNodes,
     controls,
     sections,
+    colors,
   ]);
 
   // the boundaries and load cases: strokes of fixed components, arrows of moved
@@ -224,16 +229,16 @@ export function useOverlays({
       rigidShapes(commands, nodes, {
         hidden,
         selected: contactSurface ?? selected,
-        highlight: HIGHLIGHT,
+        colors,
       }),
-    [commands, nodes, hidden, selected, contactSurface],
+    [commands, nodes, hidden, selected, contactSurface, colors],
   );
   const lines = useMemo(() => {
-    const options = { size, hidden, selected, highlight: HIGHLIGHT };
+    const options = { size, hidden, selected, colors };
     return [
       ...rigid.lines,
       ...boundaryLines(symbols, options),
-      ...constraintLines(shapes, { hidden, selected, highlight: HIGHLIGHT }),
+      ...constraintLines(shapes, { hidden, selected, colors }),
       // the point loads: arrows in the direction of the force (#100)
       ...loadLines(commands, nodes, options),
       // the pressures: arrows normal to the faces of their face sets (#105)
@@ -249,6 +254,7 @@ export function useOverlays({
     nodes,
     sections,
     rigid,
+    colors,
   ]);
 
   // the selected point set and its points, for a control point at its center (#96)
