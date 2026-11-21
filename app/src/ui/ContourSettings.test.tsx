@@ -102,3 +102,96 @@ describe("the sections of an automatic range (#377)", () => {
     expect(screen.queryByRole("group", { name: "Range of" })).toBeNull();
   });
 });
+
+describe("the other sections of chosen sections (#396)", () => {
+  function open(chosen?: string[], settings = DEFAULT_CONTOUR) {
+    const onChange = vi.fn();
+    const view = render(
+      <ContourSettings
+        settings={settings}
+        onChange={onChange}
+        sections={["soft_body", "inner", "outer"]}
+        chosen={chosen}
+        onChoose={() => {}}
+        gray="#767f8c"
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Contour settings" }));
+    const group = () => screen.queryByRole("group", { name: "Other sections" });
+    return { onChange, group, view };
+  }
+
+  it("are offered only for chosen sections of an automatic range", () => {
+    expect(open().group()).toBeNull();
+    cleanup();
+    const manual = { ...DEFAULT_CONTOUR, range: "manual" as const };
+    expect(open(["inner"], manual).group()).toBeNull();
+    cleanup();
+    expect(open(["inner"]).group()).toBeTruthy();
+  });
+
+  it("keep their contour, or are drawn in one color or hidden", () => {
+    const { onChange } = open(["inner"]);
+    const radio = (name: string) =>
+      screen.getByRole("radio", { name }) as HTMLInputElement;
+    expect(radio("Contour").checked).toBe(true);
+    expect(screen.queryByRole("textbox", { name: /Color of the other/ })).toBe(
+      null,
+    );
+    fireEvent.click(radio("Hidden"));
+    expect(onChange).toHaveBeenLastCalledWith({
+      ...DEFAULT_CONTOUR,
+      others: "hidden",
+    });
+    fireEvent.click(radio("One color"));
+    expect(onChange).toHaveBeenLastCalledWith({
+      ...DEFAULT_CONTOUR,
+      others: "color",
+    });
+  });
+
+  it("take an own color, or the gray of the view with Default", () => {
+    const color = { ...DEFAULT_CONTOUR, others: "color" as const };
+    const { onChange, view } = open(["inner"], color);
+    const text = screen.getByRole("textbox", {
+      name: "Color of the other sections",
+    }) as HTMLInputElement;
+    const picker = screen.getByLabelText(
+      "Pick the color of the other sections",
+    ) as HTMLInputElement;
+    // the picker shows the gray of the view without an own color
+    expect(picker.value).toBe("#767f8c");
+    expect(text.placeholder).toBe("#767f8c");
+    const reset = screen.getByRole("button", { name: "Default" });
+    expect((reset as HTMLButtonElement).disabled).toBe(true);
+    // a typed color is kept once it is valid
+    fireEvent.input(text, { target: { value: "#3366" } });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByText(/A color like #7f8c8d/)).toBeTruthy();
+    expect(text.getAttribute("aria-invalid")).toBe("true");
+    fireEvent.input(text, { target: { value: "#336699" } });
+    expect(onChange).toHaveBeenLastCalledWith({
+      ...color,
+      othersColor: "#336699",
+    });
+    view.rerender(
+      <ContourSettings
+        settings={{ ...color, othersColor: "#336699" }}
+        onChange={onChange}
+        sections={["soft_body", "inner", "outer"]}
+        chosen={["inner"]}
+        onChoose={() => {}}
+        gray="#767f8c"
+      />,
+    );
+    expect(picker.value).toBe("#336699");
+    fireEvent.click(screen.getByRole("button", { name: "Default" }));
+    expect(onChange).toHaveBeenLastCalledWith({
+      ...color,
+      othersColor: undefined,
+    });
+    // the setting is a change: Defaults takes the contour again
+    fireEvent.click(screen.getByRole("button", { name: "Defaults" }));
+    expect(onChange).toHaveBeenLastCalledWith(DEFAULT_CONTOUR);
+  });
+});

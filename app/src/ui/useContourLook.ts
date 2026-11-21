@@ -2,13 +2,15 @@
 // bands and the range of the substep, of all substeps of the job or manual. The
 // automatic range may come from chosen sections (#377): their range and their
 // minimum and maximum, which the scene shows instead of those of all sections; the
-// values of the other sections outside of the range take the outside color.
+// values of the other sections outside of the range take the outside color, or the
+// other sections are drawn in one color or not at all (#396).
 import { useMemo } from "preact/hooks";
 import {
   type ContourSettings,
   contourLook,
   contourRange,
   jobRangeOf,
+  otherSectionsOf,
   rangeNote,
   rangeSectionsOf,
   sectionValues,
@@ -40,11 +42,8 @@ export function useContourLook({
   shown,
   generation,
 }: Options) {
-  const chosen = rangeSectionsOf(
-    contour,
-    view?.rangeSections,
-    Object.keys(loaded?.sections ?? {}),
-  );
+  const sections = Object.keys(loaded?.sections ?? {});
+  const chosen = rangeSectionsOf(contour, view?.rangeSections, sections);
   const chosenKey = chosen.join("\n");
   const own = useMemo(
     () => loaded && sectionValues(loaded, chosen),
@@ -83,7 +82,12 @@ export function useContourLook({
       all,
     );
     const note = rangeNote(chosen);
-    return note ? { ...result, note } : result;
+    const others = otherSectionsOf(contour, chosen, sections);
+    return {
+      ...result,
+      ...(note ? { note } : {}),
+      ...(others ? { others } : {}),
+    };
   }, [
     loaded,
     contour,

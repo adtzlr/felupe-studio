@@ -1853,6 +1853,7 @@ describe("solve", () => {
       bands: 8,
       range: "job",
       values: "cells",
+      others: "contour",
     });
 
     // a manual range starts at the range of the substep; values above it get

@@ -1,7 +1,8 @@
 // The settings of the contour of results (#139): the color map, the bands and the
 // range, and what the viewer draws from them (its lookup table, bands and range),
 // and the values of the strains and the stresses at the cells or the points (#231).
-// The automatic range may come from chosen sections (#377).
+// The automatic range may come from chosen sections (#377), and the other sections
+// are then drawn with their contour, in one color or not at all (#396).
 import { storageKey } from "../brand";
 import type {
   Quantity,
@@ -14,11 +15,18 @@ import {
   type ColorMapId,
   colorMap,
   COLOR_MAPS,
+  isColor,
   lookupTable,
 } from "./colormaps";
 
 /** Where the range of the contour comes from. */
 export type RangeMode = "substep" | "job" | "manual";
+
+/**
+ * How the other sections of a range of chosen sections are drawn (#396): with their
+ * contour, in one color or not at all.
+ */
+export type OthersMode = "contour" | "color" | "hidden";
 
 export interface ContourSettings {
   map: ColorMapId;
@@ -30,6 +38,10 @@ export interface ContourSettings {
   max?: number;
   /** The values of the strains and the stresses at the cells or the points (#231). */
   values: ValuesMethod;
+  /** The other sections of a range of chosen sections (#396). */
+  others: OthersMode;
+  /** The own color of the other sections in one color, `#rrggbb` (else a gray). */
+  othersColor?: string;
 }
 
 export const DEFAULT_CONTOUR: ContourSettings = {
@@ -37,6 +49,7 @@ export const DEFAULT_CONTOUR: ContourSettings = {
   bands: 0,
   range: "substep",
   values: "cells",
+  others: "contour",
 };
 
 /** The numbers of bands that can be chosen, besides continuous (0). */
@@ -46,6 +59,28 @@ export const RANGE_MODES: readonly { id: RangeMode; label: string }[] = [
   { id: "substep", label: "Substep" },
   { id: "job", label: "All substeps" },
   { id: "manual", label: "Manual" },
+];
+
+export const OTHERS_MODES: readonly {
+  id: OthersMode;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    id: "contour",
+    label: "Contour",
+    hint: "The values of the other sections outside of the range are drawn in an extra color.",
+  },
+  {
+    id: "color",
+    label: "One color",
+    hint: "The other sections are drawn without a contour, semi-transparent with Grayscale; the pointer still shows their values.",
+  },
+  {
+    id: "hidden",
+    label: "Hidden",
+    hint: "The other sections are not drawn, also not undeformed.",
+  },
 ];
 
 /** The methods of the values of the strains and the stresses (#231). */
@@ -135,6 +170,47 @@ export function rangeSectionsOf(
   return result.length === sections.length ? [] : result;
 }
 
+/**
+ * The other sections of a range of chosen sections (#396), drawn in one color or
+ * not drawn at all.
+ */
+export interface OtherSections {
+  /** The sections that are not chosen. */
+  names: readonly string[];
+  mode: "color" | "hidden";
+  /** The own color of the sections in one color, else the gray of the view. */
+  color?: string;
+  /** Semi-transparent with a map of grays, not to be mistaken for a value. */
+  opacity: number;
+}
+
+/** The opacity of the other sections in one color with a map of grays (#396). */
+export const GRAY_OTHERS_OPACITY = 0.35;
+
+/**
+ * The other sections of chosen sections (#396), if they are not drawn with their
+ * contour: none with all sections, or if they keep their contour.
+ */
+export function otherSectionsOf(
+  settings: ContourSettings,
+  chosen: readonly string[],
+  sections: readonly string[],
+): OtherSections | undefined {
+  const mode = settings.others;
+  if (!chosen.length || (mode !== "color" && mode !== "hidden")) return;
+  const names = sections.filter((s) => !chosen.includes(s));
+  if (!names.length) return;
+  return {
+    names,
+    mode,
+    ...(isColor(settings.othersColor) ? { color: settings.othersColor } : {}),
+    opacity:
+      mode === "color" && settings.map === "grayscale"
+        ? GRAY_OTHERS_OPACITY
+        : 1,
+  };
+}
+
 /** The range of ranges (null without any). */
 function unionOf(ranges: readonly (Range | null | undefined)[]): Range | null {
   const finite = ranges.filter((r): r is Range => !!r);
@@ -219,6 +295,8 @@ export interface ContourLook {
   above: boolean;
   /** The sections of the range, if chosen (#377), below the title of the bar. */
   note?: string;
+  /** The other sections, in one color or hidden (#396). */
+  others?: OtherSections;
 }
 
 /**
@@ -285,9 +363,13 @@ export function loadContour(storage?: Storage): ContourSettings {
       values: VALUES_METHODS.some((m) => m.id === value.values)
         ? (value.values as ValuesMethod)
         : DEFAULT_CONTOUR.values,
+      others: OTHERS_MODES.some((m) => m.id === value.others)
+        ? (value.others as OthersMode)
+        : DEFAULT_CONTOUR.others,
     };
     if (typeof value.min === "number") settings.min = value.min;
     if (typeof value.max === "number") settings.max = value.max;
+    if (isColor(value.othersColor)) settings.othersColor = value.othersColor;
     return settings;
   } catch {
     return DEFAULT_CONTOUR;

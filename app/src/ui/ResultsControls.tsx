@@ -19,8 +19,10 @@ import {
   substepsOf,
 } from "../core/results";
 import type { ModelStore } from "../core/store";
+import type { Theme } from "../core/theme";
 import { valueWithUnit } from "../core/units";
 import type { Quantity } from "../worker/protocol";
+import { viewColors } from "../viewer/palette";
 import { ContourSettings } from "./ContourSettings";
 import { Icon } from "./icons";
 import { type Player, type Speed, SPEEDS } from "./usePlayer";
@@ -44,6 +46,8 @@ interface Props {
   currentRange?: readonly [number, number];
   /** The values of the shown results can be shifted to the points (#231). */
   shift?: boolean;
+  /** The theme of the app (#375): the gray of the other sections (#396). */
+  theme?: Theme;
   /** Play the substeps (#141). */
   player?: Player;
   /**
@@ -133,7 +137,7 @@ function LiveNote({ view, live }: Pick<Shown, "view" | "live">) {
 /** The contour with the button of its settings (#139). */
 function ContourField({ shown, props }: { shown: Shown; props: Props }) {
   const { run, view, set } = shown;
-  const { contour, onContour, currentRange, shift, compact } = props;
+  const { contour, onContour, currentRange, shift, theme, compact } = props;
   return (
     <div class="field-with-button">
       <label class="field">
@@ -163,6 +167,7 @@ function ContourField({ shown, props }: { shown: Shown; props: Props }) {
           onChange={onContour}
           current={currentRange}
           shift={shift}
+          gray={viewColors(theme).other}
           sections={sectionsOf(run.commands)}
           chosen={view.rangeSections}
           onChoose={(sections) =>

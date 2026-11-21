@@ -2451,6 +2451,17 @@ button {
   overflow-wrap: anywhere;
 }
 
+/* the color of the other sections of chosen sections (#396), below their choices */
+.popover-color {
+  grid-column: 2;
+}
+
+.popover-color input[type="text"] {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-mono);
+}
+
 .popover-actions {
   display: flex;
   justify-content: flex-end;

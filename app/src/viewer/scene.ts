@@ -8,7 +8,7 @@ import type {
   SceneObject,
   SurfaceObject,
 } from "../vendor/felupe-viewer/viewer.js";
-import type { ContourLook } from "../core/contour";
+import type { ContourLook, OtherSections } from "../core/contour";
 import type { MeshSurface, ResultScene } from "../worker/protocol";
 import {
   EDGE_COLOR,
@@ -269,9 +269,14 @@ export function meshNodes(layer: MeshLayer): NodePoints {
   return { positions };
 }
 
-/** The nodes of the surfaces of a result, displaced like the surfaces. */
+/**
+ * The nodes of the drawn surfaces of a result, displaced like the surfaces: not of
+ * hidden sections (#396).
+ */
 export function resultNodes(result: ResultContent): NodePoints[] {
-  return result.scene.surfaces.map((s) => {
+  const hidden = hiddenSections(result);
+  const shown = result.scene.surfaces.filter((s) => !hidden.has(s.name));
+  return shown.map((s) => {
     const kept: number[] = [];
     for (let p = 0; p < s.nodes.length; p++) if (s.nodes[p] >= 0) kept.push(p);
     const pick = (data: Float32Array) => {
@@ -375,15 +380,33 @@ export function arrowObject(
   };
 }
 
+/** The sections of a result that are not drawn (#396). */
+export function hiddenSections(result: ResultContent): ReadonlySet<string> {
+  const others = result.look?.others;
+  return new Set(others?.mode === "hidden" ? others.names : []);
+}
+
+/** The sections of a result in one color instead of the contour (#396). */
+const oneColor = (others: OtherSections | undefined) =>
+  new Set(others?.mode === "color" ? others.names : []);
+
 /**
  * The surface objects of a result: the undeformed ghosts (optional) and the deformed
- * surfaces of the sections with the values in a common range (one scalar bar).
+ * surfaces of the sections with the values in a common range (one scalar bar). The
+ * other sections of a range of chosen sections may be drawn in one color, without
+ * their values, or not at all, also not as ghosts (#396).
  */
 export function resultObjects(
   result: ResultContent,
   colors: ViewColors = VIEW_COLORS.dark,
 ): SurfaceObject[] {
-  const { scene, scale, undeformed, edges = true, look } = result;
+  const { scale, undeformed, edges = true, look } = result;
+  const hidden = hiddenSections(result);
+  const plain = oneColor(look?.others);
+  const scene = {
+    ...result.scene,
+    surfaces: result.scene.surfaces.filter((s) => !hidden.has(s.name)),
+  };
   const range: [number, number] = look?.range ?? scene.range ?? [0, 1];
   const contour = look
     ? {
@@ -415,11 +438,18 @@ export function resultObjects(
       : {}),
     smooth: false,
     sharp: true,
-    values: f4(s.values),
-    valuesAt: scene.at,
-    range,
-    ...contour,
-    label: scene.label,
+    ...(plain.has(s.name)
+      ? {
+          color: look?.others?.color ?? colors.other,
+          opacity: look?.others?.opacity ?? 1,
+        }
+      : {
+          values: f4(s.values),
+          valuesAt: scene.at,
+          range,
+          ...contour,
+          label: scene.label,
+        }),
   }));
   return [...ghosts, ...deformed];
 }

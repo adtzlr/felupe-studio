@@ -2,6 +2,12 @@
 
 All notable changes of FElupe Studio (the web app and the Python package `felupe_studio`, released together with the same version).
 
+## [Unreleased]
+
+### Added
+
+- The other sections of a range of chosen sections in one color or hidden (#396): *Other sections* in the contour settings, below *Range of* when sections are chosen, draws them with their contour (*Contour*, the default, as before), in **one color** without a contour or not at all (**Hidden**), e.g. the steel sleeves of a bushing, which were mostly in the extra color of the range of the rubber and drew the eye away from it. *One color* is a gray of the theme with a contrast of at least 3:1 to the background of the view, or an own color (a picker, `#rrggbb`, *Default* for the gray); with the map *Grayscale* the sections are semi-transparent, so they are not mistaken for a value, and the hover still gives their values. Hidden sections are not drawn, also not undeformed, and the hover skips them; the view keeps its place. The setting and its color are kept in the browser with the other contour settings, and they have no effect with *All sections*. *Min/Max*, the scalar bar (*Range: soft_body*), the control points, the constraints and the rigid surfaces are drawn as before, and the picture of the view shows what the view shows. The values, the curves, the exports of the results and the results of the agents are the same.
+
 ## [0.9.0] - 2026-11-21
 
 Pictures for reports, the range of chosen sections and the app on a phone:

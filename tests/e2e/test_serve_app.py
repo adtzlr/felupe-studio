@@ -220,7 +220,60 @@ def test_the_range_of_the_rubber_beside_the_steel(url, page):
     rubber = float(high.inner_text())
     assert 0 < rubber < 0.6 * steel
     assert page.locator(".app-scalar-bar canvas.scalar-outside.above").count() == 1
+
+    # the sleeves hidden (#396): the rubber alone, with its range, also in a picture
+    def picture():
+        with page.expect_download() as download:
+            page.get_by_role("button", name="Export", exact=True).click()
+            page.get_by_role("menuitem", name="Picture of the view").click()
+        data = Path(download.value.path()).read_bytes()
+        assert data.startswith(b"\x89PNG")
+        return base64.b64encode(data).decode()
+
+    def others(mode):
+        page.get_by_role("button", name="Contour settings").click()
+        group = popover.get_by_role("group", name="Other sections")
+        group.get_by_role("radio", name=mode).check()
+        page.keyboard.press("Escape")
+
+    with_sleeves = picture()
+    others("Hidden")
+    page.wait_for_function(
+        "() => JSON.parse(localStorage.getItem('felupe-studio.contour')).others"
+        " === 'hidden'"
+    )
+    assert note.inner_text() == "Range: soft_body"
+    assert float(high.inner_text()) == rubber
+    without = picture()
+    assert page.evaluate(DIFFERENT, [with_sleeves, without]) > 1000
+    # in one color: drawn again, without their contour
+    others("One color")
+    gray = picture()
+    assert page.evaluate(DIFFERENT, [without, gray]) > 1000
+    assert page.evaluate(DIFFERENT, [with_sleeves, gray]) > 1000
     assert page.errors == []
+
+
+# the number of pixels that differ between two PNGs of the same size
+DIFFERENT = """async ([a, b]) => {
+    const pixels = async (data) => {
+        const image = new Image();
+        image.src = `data:image/png;base64,${data}`;
+        await image.decode();
+        const canvas = document.createElement("canvas");
+        [canvas.width, canvas.height] = [image.width, image.height];
+        const context = canvas.getContext("2d");
+        context.drawImage(image, 0, 0);
+        return context.getImageData(0, 0, image.width, image.height).data;
+    };
+    const [p, q] = [await pixels(a), await pixels(b)];
+    if (p.length !== q.length) return -1;
+    let count = 0;
+    for (let i = 0; i < p.length; i += 4)
+        if (p[i] !== q[i] || p[i + 1] !== q[i + 1] || p[i + 2] !== q[i + 2])
+            count += 1;
+    return count;
+}"""
 
 
 def test_a_light_app_does_not_start_dark(url, page):

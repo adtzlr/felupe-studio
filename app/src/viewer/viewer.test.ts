@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 import { describe, expect, it, vi } from "vitest";
 import type { Scene, ViewerHandle } from "../vendor/felupe-viewer/viewer.js";
-import type { MeshSurface } from "../worker/protocol";
+import { contourLook, DEFAULT_CONTOUR } from "../core/contour";
+import type { MeshSurface, ResultScene } from "../worker/protocol";
 import { VIEW_COLORS } from "./palette";
 import { type CreateViewer, LONG_PRESS, Viewer } from "./viewer";
 
@@ -187,6 +188,39 @@ describe("Viewer", () => {
     // hidden cells are not picked
     viewer.setMeshes([{ name: "bar", surface, color: "#3987e5", hidden: [1] }]);
     expect(viewer.pickAt(50, 50, 100, 100)).toBeUndefined();
+  });
+
+  it("probes the drawn sections of a result, not hidden ones (#396)", () => {
+    const { create } = fake();
+    const viewer = new Viewer(document.createElement("div"), create);
+    // the section in front, nearer to the camera at +z
+    const section = (name: string, z: number) => ({
+      name,
+      positions: new Float32Array([0, 0, z, 1, 0, z, 0, 1, z]),
+      displacement: new Float32Array(9),
+      triangles: new Uint32Array([0, 1, 2]),
+      edges: new Uint32Array([0, 1]),
+      values: new Float32Array([1, 2, 3]),
+      owners: new Uint32Array([0]),
+      nodes: new Int32Array([0, 1, 2]),
+    });
+    const scene: ResultScene = {
+      label: "Displacement",
+      at: "point",
+      range: [1, 3],
+      surfaces: [section("rubber", 0), section("steel", 0.5)],
+    };
+    const look = contourLook(DEFAULT_CONTOUR, [1, 3], [1, 3]);
+    const result = (mode: "color" | "hidden") => ({
+      scene,
+      scale: 1,
+      undeformed: false,
+      look: { ...look, others: { names: ["steel"], mode, opacity: 1 } },
+    });
+    viewer.setResult(result("color"));
+    expect(viewer.probeAt(50, 50, 100, 100)?.surface).toBe(1);
+    viewer.setResult(result("hidden"));
+    expect(viewer.probeAt(50, 50, 100, 100)?.surface).toBe(0);
   });
 
   it("picks on a click, not after a drag", () => {

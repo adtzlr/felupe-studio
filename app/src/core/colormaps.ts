@@ -15,6 +15,13 @@ export interface ColorMap {
 
 export type RGB = [number, number, number];
 
+/**
+ * A color #rrggbb (the pattern of the schema), of an object (#336, #376) or of the
+ * other sections of a contour (#396).
+ */
+export const isColor = (value: unknown): value is string =>
+  typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
+
 export const COLOR_MAPS: readonly ColorMap[] = [
   { id: "turbo", label: "Turbo", diverging: false, outside: [128, 128, 128] },
   {

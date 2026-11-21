@@ -339,7 +339,12 @@ export function App({
           </p>
         }
         results={
-          <ResultsRibbon store={store} results={results} compact={compact} />
+          <ResultsRibbon
+            store={store}
+            results={results}
+            theme={theme.theme}
+            compact={compact}
+          />
         }
       />
       <div
