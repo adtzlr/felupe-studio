@@ -17,8 +17,14 @@ mount (FElupe ex07, air as a third medium) with the stresses at the points and t
 elastic-plastic plate with a hole (the equivalent plastic strain), one of version
 0.6: the expressions of the step of the sandwich spring, two of version 0.7: the
 bushing made with the mesh tools, its revolved mesh with the tools in the browser
-and its section in the xy-plane, and one of version 0.8: the bushing with the
-Mullins effect after its first load cycle.
+and its section in the xy-plane, one of version 0.8: the bushing with the
+Mullins effect after its first load cycle, and three of version 0.9: the range of
+the contour of the rubber of the bushing with steel sleeves, and the same in the
+light theme, for a report, with the own colors of its sections.
+
+A second browser context of a phone in portrait (390 × 844) makes the picture of the
+compact layout of version 0.9: the model and the results with the curve, side by
+side (``phone.png``, needs Pillow).
 
 The app loads Pyodide and its packages from the CDN (cdn.jsdelivr.net): the script
 needs it, a stub of the runtime would not show the real versions and load times.
@@ -47,6 +53,8 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 SAMPLE = "Hyperelastic block with a rigid plate"
 SIZE = {"width": 1280, "height": 800}
+PHONE = {"width": 390, "height": 844}
+READY = "text=/FElupe [0-9.]+ ready/"
 THEMES = ("dark", "light")
 
 
@@ -92,10 +100,8 @@ def capture(context, url, out, theme="dark"):
         report(path)
 
     page.goto(url)
-    page.wait_for_selector("text=/FElupe [0-9.]+ ready/", timeout=300_000)
-    welcome = page.get_by_role("region", name="Welcome to FElupe Studio")
-    sample = welcome.locator("li", has_text=SAMPLE)
-    sample.get_by_role("button", name="Open").click()
+    page.wait_for_selector(READY, timeout=300_000)
+    open_welcome(page)
     page.wait_for_selector("text=glued-plate.felupe.zip")
 
     # the model with the multi-point constraint of the plate selected
@@ -200,9 +206,8 @@ def capture(context, url, out, theme="dark"):
     page.wait_for_selector("text=hyperelastic-spring.felupe.zip")
     solve(substep=5, quantity="strain_max")
     page.get_by_label("Curve", exact=True).set_checked(True)
-    extremes = page.get_by_role("button", name="Min/Max")
-    if extremes.get_attribute("aria-pressed") == "true":
-        extremes.click()  # the plates in the middle without labels
+    # the plates in the middle without labels
+    set_pressed(page.get_by_role("button", name="Min/Max"), False)
     shot("contact")
 
     # v0.5: the engine mount (ex07) in plane strain, with air as a third medium in
@@ -284,8 +289,109 @@ def capture(context, url, out, theme="dark"):
     page.get_by_label("Curve", exact=True).set_checked(True)
     shot("mullins")
 
+    # v0.9: the range of a contour from chosen sections (#377), the bushing with steel
+    # sleeves, whose rubber is one color at the low end of a scale set by the steel
+    # otherwise: the contour settings with the range of soft_body
+    open_sample("Bushing with steel sleeves (FElupe ex05)", "bushing.felupe.zip")
+    page.get_by_role("dialog", name=re.compile("^Parameters")).get_by_role(
+        "button", name="Open", exact=True
+    ).click()
+    page.wait_for_selector("text=bushing.felupe.zip")
+    solve(quantity="stress_mises")
+    page.get_by_label("Curve", exact=True).set_checked(False)
+    page.get_by_label("Undeformed", exact=True).set_checked(False)
+    # the extremes of the rubber, which match the scale
+    set_pressed(page.get_by_role("button", name="Min/Max"), True)
+    page.get_by_role("button", name="Contour settings").click()
+    settings = page.get_by_role("dialog", name="Contour settings")
+    settings.get_by_label("soft_body", exact=True).check()
+    shot("range-of-sections")
+
+    # the light theme for a report (#375): the same view on white
+    page.keyboard.press("Escape")
+    page.get_by_role("button", name="Theme", exact=True).click()
+    page.get_by_role("menuitemradio", name=re.compile("^Light")).click()
+    shot("light")
+
+    # own colors of the sections (#376): the rubber in black, the steel in gray
+    page.get_by_role("button", name="Model", exact=True).click()
+    browser = page.get_by_role("navigation", name="Model browser")
+    for name, color in [("soft_body", "#2b2d42"), ("sleeves", "#a3a8ad")]:
+        browser.get_by_text(name, exact=True).click()
+        page.get_by_role("textbox", name="Color", exact=True).fill(color)
+        page.get_by_role("button", name="Apply", exact=True).click()
+    page.keyboard.press("Escape")
+    # the sleeves without the symbols of the boundary, the constraint and the points
+    for name in ["fixed", "connect", "inner", "outer"]:
+        browser.get_by_role("button", name=f"Hide {name}").click()
+    page.get_by_label("Color by").select_option("section")
+    page.mouse.move(500, 20)
+    shot("section-colors")
+
     if errors:
         raise RuntimeError(f"Errors of the page: {errors}")
+
+
+def set_pressed(button, pressed):
+    """Press a toggle button of the toolbar, or release it."""
+    if (button.get_attribute("aria-pressed") == "true") != pressed:
+        button.click()
+
+
+def open_welcome(page, title=SAMPLE):
+    """Open a sample from the list of the welcome panel."""
+    welcome = page.get_by_role("region", name="Welcome to FElupe Studio")
+    sample = welcome.locator("li", has_text=title)
+    sample.get_by_role("button", name="Open").click()
+
+
+def capture_phone(context, url, out, theme="dark"):
+    """The app on a phone in portrait (v0.9, #378): the model and the results with
+    the curve below the view, side by side in one picture."""
+    try:
+        from PIL import Image
+    except ImportError:
+        print("phone.png: skipped, needs Pillow")
+        return
+    import io
+
+    prepare(context, theme)
+    page = context.new_page()
+    errors = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.goto(url)
+    page.wait_for_selector(READY, timeout=300_000)
+    open_welcome(page)
+    page.get_by_text("0 issues", exact=True).wait_for()
+    page.wait_for_timeout(800)
+    shots = [page.screenshot()]
+
+    # the results: the von Mises stress, and the curve turned on in More controls
+    page.get_by_role("button", name="Solve").first.click()
+    page.get_by_role("button", name="Show results").click(timeout=300_000)
+    page.wait_for_timeout(1500)
+    page.locator(".results-controls select").first.select_option("stress_mises")
+    more = page.get_by_role("button", name="More controls")
+    more.click()
+    page.get_by_label("Curve", exact=True).check()
+    more.click()
+    # the view is smaller with the curve below it: Fit
+    page.get_by_role("toolbar", name="View").get_by_role("button", name="Fit").click()
+    page.wait_for_timeout(1500)
+    shots.append(page.screenshot())
+    if errors:
+        raise RuntimeError(f"Errors of the page: {errors}")
+
+    # side by side, with a transparent gap
+    images = [Image.open(io.BytesIO(shot)).convert("RGBA") for shot in shots]
+    width, height = images[0].size
+    gap = width // 12
+    picture = Image.new("RGBA", (2 * width + gap, height), (0, 0, 0, 0))
+    for i, image in enumerate(images):
+        picture.paste(image, (i * (width + gap), 0))
+    path = out / "phone.png"
+    picture.quantize(colors=256, method=Image.FASTOCTREE).save(path, optimize=True)
+    report(path)
 
 
 def capture_agent(browser, dist, out, port, theme="dark"):
@@ -426,11 +532,20 @@ def main():
                 args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
                 **({"executable_path": chrome} if chrome else {}),
             )
-            context = browser.new_context(viewport=SIZE, service_workers="block")
-            if args.pyodide:
-                route_pyodide(context, args.pyodide)
             url = f"http://127.0.0.1:{args.port}/index.html"
-            capture(context, url, args.out, args.theme)
+
+            def context(**options):
+                """A browser context of the app, with Pyodide from a folder."""
+                new = browser.new_context(service_workers="block", **options)
+                if args.pyodide:
+                    route_pyodide(new, args.pyodide)
+                return new
+
+            capture(context(viewport=SIZE), url, args.out, args.theme)
+            phone = context(
+                viewport=PHONE, device_scale_factor=2, is_mobile=True, has_touch=True
+            )
+            capture_phone(phone, url, args.out, args.theme)
             capture_agent(browser, args.dist, args.out, args.port + 1, args.theme)
             browser.close()
     finally:

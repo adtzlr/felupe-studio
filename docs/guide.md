@@ -32,9 +32,15 @@ On a phone, and in short windows (up to 600 px wide or up to 500 px high, e.g. a
 - The curve and the card *Control points* are off at first, so that the view has the space: turn them on with *Curve* and with *Points* in the toolbar. They take the bottom of the view in portrait and its right side in landscape; the view gets smaller rather than covered.
 - The app keeps out of the notch and the home indicator of a phone.
 
+![The app on a phone in portrait with the sample "Hyperelastic block with a rigid plate": the model, and the results with the row of the contour, Play and the substep, the view and the curve below it](images/phone.png)
+
 The project is kept in the browser with its mesh files: a reload restores it. To keep it elsewhere, save it.
 
 The button left of **Solve** chooses the **theme**: *Dark* (the default), *Light* or *System*, which follows the color scheme of the system or the browser. The choice is a setting of the browser, not of the project, and the app starts in it after a reload, also in other tabs. The bar of the browser or of an installed app takes the color of the theme. In the light theme, the background of the viewport is white, and so is the picture of the view (*Export ▸ Picture of the view*), e.g. for a report. The symbols in the view are darker there, so they stand out on white: e.g. the selected object in dark yellow instead of yellow, the control points and the constraints in dark cyan, the loads in dark pink. The colors of the meshes, cell sets and sections are the same in both themes.
+
+![The bushing with steel sleeves in the light theme: the von Mises stress of the rubber with its range, the sleeves in the extra color, and Range: soft_body at the scalar bar](images/light.png)
+
+For a **picture in a report**, take the light theme. For the model, give the sections colors of their own, e.g. the rubber in black and the steel in gray, and color the view by sections ([1. Mesh](#1-mesh)). For the results, take the range of the part that matters, e.g. of the rubber (*Range of* in the [contour settings](#results)), and *Grayscale* for a printer. *Export ▸ Picture of the view* writes a PNG on white, with the legend or the scalar bar.
 
 ### Save and open
 
@@ -152,6 +158,8 @@ The lines with `globals().get()` are optional: they give the script values of it
 The cells of a model come from **cell sets**: **Cell set of a mesh** takes all cells, **Cell set from tag** the cells with a value of an integer cell data array (the *Cell tag* of the import, e.g. `material` or `gmsh:physical`). The meshes are merged at their common points; **Merge points** also merges points that agree to a number of decimals, e.g. of meshes from different programs.
 
 Every mesh, cell set and section has the color of its position among the objects of its kind in the viewport (*Color by: Meshes*, *Cell sets* or *Sections*). Its *Color* in the properties gives it a color of its own instead, e.g. steel in gray and rubber in black: pick it, or type it as `#rrggbb`; *Automatic* takes the color of its position again. The legend and the pictures of the view take it, and a duplicated object keeps it. The other objects keep the colors of their positions. Construction meshes of the mesh tools stay gray.
+
+![The bushing with steel sleeves in the light theme by sections: the rubber in its own black and the sleeves in gray, with the legend of the sections](images/section-colors.png)
 
 ### 2. Materials and sections
 
@@ -351,7 +359,7 @@ The Mullins effect shows in a load cycle. This tutorial turns the sample *Materi
 
 **Solve** and open the results. The curve shows the softening: the release needs much less force than the first stretch, and the second stretch follows the release back up to the peak, e.g. 0.16 instead of 0.30 at 0.25, about half, the largest softening of r = 2. At the peak (0.53) it meets the first stretch, and above it the rubber is as stiff as a new one: at the end, the force is 0.875, μ (λ − 1/λ²) of Neo-Hooke for λ = 2. The contour *Max. strain energy density* is the same everywhere in this homogeneous test: 0.146 at the peak, μ/2 (λ² + 2/λ − 3) for λ = 1.5. It stays while the cube is released and grows only beyond the peak, to 0.5 at the end. Change `peak` with *All parameters…* in the menu of a parameter in the browser, e.g. to 0.3: the steps, `final` (0.6) and the curve follow.
 
-## Limits of version 0.8
+## Limits of version 0.9
 
 FElupe Studio has no meshing from CAD: meshes come from files, Python scripts or the mesh tools of FElupe. The mesh tools of the app are the primitives point, line, rectangle and cube and eight operations, for structured meshes of lines, quads and hexahedrons; other tools of FElupe (e.g. circles, triangles and tetrahedrons, or several meshes stacked into one) need a mesh script. It has no contact between two deformable bodies or of a body with itself; contacts are of points with rigid planes and cylinders.
 
@@ -361,6 +369,10 @@ The boundaries of a model are the same in all steps; a step only ramps values, a
 
 The plasticity is von Mises plasticity with linear isotropic hardening, the Mullins effect of Ogden and Roxburgh is the only inelastic model of rubber (no viscoelasticity yet, which needs the time of a step), and there are no user-defined materials yet. The accuracy of a model in single precision depends on the model: the job panel estimates it, and an elastic-plastic material keeps the linear system in double precision.
 
-A project that uses what is new in version 0.8 (a repeated step, a derived parameter, the color of a mesh or the Mullins effect) does not open in version 0.7 and earlier; these list the errors of the schema. From version 0.8 on, an older app says which part of a project it does not know.
+There are two themes, dark and light. The picture of the view has the background of the theme, so a picture on white needs the light theme. *Range of* chooses the sections of the range in the app; the results of the MCP server and of the agent bridge have the ranges of all sections and of each section, not that choice.
 
-See the [roadmap](https://github.com/adtzlr/felupe-studio/issues/349).
+On a phone, the app is the same as on a computer, in a compact layout, not an own view for phones. It is made for opening a sample or a project, setting its parameters, solving and looking at the results; a model is easier to build in a larger window. A large model solves more slowly in the browser of a phone than on a computer.
+
+A project that uses what is new in version 0.9, the color of a section or of a cell set, does not open in version 0.8, which names it (*This project uses the property `color` of `section.add`, which FElupe Studio 0.8.0 does not know*), nor in version 0.7 and earlier, which list the errors of the schema. The same holds for a project that uses what is new in version 0.8 (a repeated step, a derived parameter, the color of a mesh or the Mullins effect) in version 0.7 and earlier.
+
+See the [roadmap](https://github.com/adtzlr/felupe-studio/issues/382).
