@@ -102,6 +102,27 @@ describe("a brand folder (ADR 0020)", () => {
     expect(brandOptions({ BRAND_DIR: none }, APP).samples).toBeNull();
   });
 
+  it("says what BRAND_DIR is if it has no brand.json (#379)", () => {
+    const empty = mkdtempSync(join(tmpdir(), "brand-"));
+    const fails = () => brandOptions({ BRAND_DIR: join(empty, "brand") }, APP);
+    expect(fails).toThrow(BrandError);
+    expect(fails).toThrow(
+      `The brand of ${join(empty, "brand")}: it has no brand.json. BRAND_DIR ` +
+        "is the folder that holds the brand.json of the brand. The CI files of " +
+        "a brand set it from BRAND_FOLDER, the folder of brand.json in the " +
+        'repository of the brand ("." for its root).',
+    );
+  });
+
+  it("is the root of a repository with BRAND_FOLDER '.' (#379)", () => {
+    // the CI files of a brand: BRAND_DIR=<repository>/<BRAND_FOLDER>
+    const dir = folder({ ...acme, samples: "samples" });
+    const options = brandOptions({ BRAND_DIR: `${dir}/.` }, APP);
+    expect(options.dir).toBe(dir);
+    expect(options.brand.name).toBe("ACME FEM");
+    expect(options.samples).toBe(join(dir, "samples"));
+  });
+
   it("is the whole configuration of a deployment", () => {
     expect(() =>
       brandOptions({ BRAND_DIR: folder(acme), SAMPLES_DIR: "/my" }, APP),

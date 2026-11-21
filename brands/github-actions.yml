@@ -1,7 +1,7 @@
 # GitHub Actions of a brand of FElupe Studio (#321, ADR 0020). Copy this file to
 # .github/workflows/brand.yml of the repository of the brand, next to its brand
-# folder brand/ (see brands/README.md of felupe-studio), and set Settings ▸ Pages ▸
-# Source to GitHub Actions.
+# folder brand/ (another folder: BRAND_FOLDER below; see brands/README.md of
+# felupe-studio), and set Settings ▸ Pages ▸ Source to GitHub Actions.
 #
 # - Every run builds a release of felupe-studio with the brand, so an invalid brand
 #   fails here, with the message of the build.
@@ -21,7 +21,8 @@ on:
 env:
   # the release of felupe-studio that the brand is built with (0.8.0 or newer)
   FELUPE_STUDIO_VERSION: "0.8.0"
-  # the brand folder of this repository
+  # the brand folder: the folder of brand.json, relative to the root of this
+  # repository, e.g. "my-brand" for my-brand/brand.json or "." for ./brand.json
   BRAND_FOLDER: brand
 
 permissions:

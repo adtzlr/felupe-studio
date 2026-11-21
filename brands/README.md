@@ -8,4 +8,4 @@ This folder has:
 - [`gitlab-ci.yml`](gitlab-ci.yml): the CI file of a brand on GitLab, deployed to its Pages. Copy it to `.gitlab-ci.yml` of the repository of the brand.
 - [`github-actions.yml`](github-actions.yml): the workflow of a brand on GitHub, deployed to GitHub Pages. Copy it to `.github/workflows/brand.yml`.
 
-Both CI files build the release `FELUPE_STUDIO_VERSION` of felupe-studio with the brand folder `brand/` of the repository.
+Both CI files build the release `FELUPE_STUDIO_VERSION` of felupe-studio with the brand folder `brand/` of the repository; `BRAND_FOLDER` names another folder of `brand.json`, e.g. `"."` for the root of the repository.

@@ -73,6 +73,8 @@ my-brand/
         └── 02_<id>/
 ```
 
+The CI files take the brand folder `brand/`. If `brand.json` is in another folder, set `BRAND_FOLDER` in the CI file to that folder, relative to the root of the repository: e.g. `BRAND_FOLDER: my-brand` for `my-brand/brand.json`, or `BRAND_FOLDER: "."` if `brand.json` is at the root. A folder without `brand.json` fails the build with *failed to load config from vite.config.ts* and the message of the brand, which names the folder it searched: *The brand of /builds/…/brand: it has no brand.json.*
+
 Start from a copy of the example brand [`brands/example`](../brands/example) of the release: it has a logo, icons, two samples of its own and a self-hosted Pyodide, and CI of FElupe Studio builds and checks it at every change.
 
 1. Copy `brands/example` to `brand/` and change its `brand.json` (below).
@@ -153,7 +155,7 @@ cd app && npm ci && BRAND_DIR=~/my-brand/brand npm run dev   # or npm run build
 
 ### CI: GitLab and GitHub
 
-The CI files of `brands/` build a release of felupe-studio with the brand folder `brand/` of the repository:
+The CI files of `brands/` build a release of felupe-studio with the brand folder `brand/` of the repository (or that of `BRAND_FOLDER`, see [the repository of a brand](#the-repository-of-a-brand)):
 
 - **every pipeline** builds the app, so an invalid brand or sample fails there with the message of the build;
 - **the default branch** deploys the app to the Pages of the repository. The app has a relative base, so it runs in any folder of a site;

@@ -116,6 +116,14 @@ export function brandOptions(
   const dir = env.BRAND_DIR
     ? resolve(home(env.BRAND_DIR))
     : resolve(root, "brand");
+  // the folder of another brand without brand.json, e.g. a wrong BRAND_FOLDER (#379)
+  if (env.BRAND_DIR && !existsSync(join(dir, BRAND_FILE)))
+    throw new BrandError(
+      `The brand of ${dir}: it has no ${BRAND_FILE}. BRAND_DIR is the folder ` +
+        `that holds the ${BRAND_FILE} of the brand. The CI files of a brand set ` +
+        `it from BRAND_FOLDER, the folder of ${BRAND_FILE} in the repository ` +
+        `of the brand ("." for its root).`,
+    );
   const brand = readBrand(dir);
   const samples = env.SAMPLES_DIR
     ? resolve(home(env.SAMPLES_DIR))

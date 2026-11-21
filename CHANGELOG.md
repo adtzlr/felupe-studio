@@ -2,6 +2,12 @@
 
 All notable changes of FElupe Studio (the web app and the Python package `felupe_studio`, released together with the same version).
 
+## [Unreleased]
+
+### Changed
+
+- What `BRAND_FOLDER` of the CI files of a brand is (#379): the folder of `brand.json`, relative to the root of the repository of the brand, e.g. `"."` for `brand.json` at its root. The CI files, `brands/README.md` and *Your own deployment* say so. A `BRAND_DIR` without `brand.json` fails the build with a message that says what `BRAND_DIR` is and that the CI files of a brand set it from `BRAND_FOLDER`, instead of only *it has no brand.json*.
+
 ## [0.8.0] - 2026-11-21
 
 Your own deployments, load cycles with the Mullins effect and derived parameters:
