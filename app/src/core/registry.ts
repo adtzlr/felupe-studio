@@ -271,6 +271,12 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     fields: {
       mesh: { label: "Mesh" },
       value: { label: "Tag value", default: 1 },
+      // an own color (#376), like that of a mesh (#336)
+      color: {
+        label: "Color",
+        hint: "Of the cell set in the viewport, with Color by: Cell sets",
+        placeholder: "automatic",
+      },
     },
   },
   "cellset.from_file": {
@@ -279,6 +285,12 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     prefix: "cells",
     fields: {
       mesh: { label: "Mesh" },
+      // an own color (#376), like that of a mesh (#336)
+      color: {
+        label: "Color",
+        hint: "Of the cell set in the viewport, with Color by: Cell sets",
+        placeholder: "automatic",
+      },
     },
   },
   "material.add": {
@@ -335,6 +347,12 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         label: "Volumetric part",
         hint: "The strain energy U(J) with the bulk modulus K",
         placeholder: "volume-ratio",
+      },
+      // an own color (#376), like that of a mesh (#336)
+      color: {
+        label: "Color",
+        hint: "Of the section in the viewport, with Color by: Sections",
+        placeholder: "automatic",
       },
     },
     options: {

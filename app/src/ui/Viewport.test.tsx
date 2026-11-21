@@ -12,7 +12,7 @@ import type { Command } from "../core/resolved";
 import { type Inspection, MeshFiles } from "../core/meshfiles";
 import { ModelStore } from "../core/store";
 import type { Scene, ViewerHandle } from "../vendor/felupe-viewer/viewer.js";
-import { automaticMeshColor, viewportContent } from "../viewer/layers";
+import { automaticColor, viewportContent } from "../viewer/layers";
 import { CATEGORICAL, CONTROL_COLOR } from "../viewer/palette";
 import { buildScene } from "../viewer/scene";
 import { type CreateViewer, HIGHLIGHT } from "../viewer/viewer";
@@ -173,9 +173,9 @@ describe("viewport content", () => {
       { label: "b", color: CATEGORICAL[1] },
     ]);
     // the automatic color of a mesh, also of a new one at the end
-    expect(automaticMeshColor(commands, "a")).toBe(CATEGORICAL[0]);
-    expect(automaticMeshColor(commands, "b")).toBe(CATEGORICAL[1]);
-    expect(automaticMeshColor(commands)).toBe(CATEGORICAL[2]);
+    expect(automaticColor(commands, "mesh.import", "a")).toBe(CATEGORICAL[0]);
+    expect(automaticColor(commands, "mesh.script", "b")).toBe(CATEGORICAL[1]);
+    expect(automaticColor(commands, "mesh.generate")).toBe(CATEGORICAL[2]);
   });
 
   it("shows the cells of the cell type of a mesh", async () => {

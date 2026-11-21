@@ -82,7 +82,7 @@ Import a mesh file (read with meshio).
 | `tag` | string |  | Name of an integer cell data array used to split the mesh into cell sets, e.g. material or gmsh:physical. |
 | `cell_type` | `tetra`, `tetra10`, `hexahedron`, `hexahedron20`, `hexahedron27`, `triangle`, `triangle6`, `quad`, `quad8` or `quad9` |  | Type of the solid cells to import, if the file has more than one (one mesh per cell type). |
 | `scale` | number > 0 (or an expression) |  | Factor of the coordinates of the points, e.g. 1000 for a mesh in m of a model in mm. The points are multiplied after reading, before the cell sets; point sets and points are in the scaled coordinates. Default `1`. |
-| `color` | string |  | An own color of the mesh in the viewport (Color by: Meshes) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position in the model. A property of the model, not of the script: the generated script is the same. |
+| `color` | string |  | An own color of a mesh, a cell set or a section in the viewport (Color by: Meshes, Cell sets or Sections) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position among the objects of its kind in the model. A property of the model, not of the script: the generated script is the same. |
 
 ### `mesh.script`
 
@@ -96,7 +96,7 @@ A mesh made by a Python script next to the project, e.g. with the mesh tools of 
 | `item` | string |  | The item of a dict of meshes, e.g. soft. |
 | `tag` | string |  | Name of an integer cell data array of a meshio.Mesh used to split the mesh into cell sets. |
 | `cell_type` | `tetra`, `tetra10`, `hexahedron`, `hexahedron20`, `hexahedron27`, `triangle`, `triangle6`, `quad`, `quad8` or `quad9` |  | Type of the solid cells to take, if the mesh has more than one. |
-| `color` | string |  | An own color of the mesh in the viewport (Color by: Meshes) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position in the model. A property of the model, not of the script: the generated script is the same. |
+| `color` | string |  | An own color of a mesh, a cell set or a section in the viewport (Color by: Meshes, Cell sets or Sections) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position among the objects of its kind in the model. A property of the model, not of the script: the generated script is the same. |
 
 ### `mesh.generate`
 
@@ -251,6 +251,7 @@ Cell set of all cells of a mesh with the given tag value.
 | `name` | name | yes | Name of the object. |
 | `mesh` | name of a mesh | yes |  |
 | `value` | integer | yes | Value of the tag of the cells, e.g. 1. |
+| `color` | string |  | An own color of a mesh, a cell set or a section in the viewport (Color by: Meshes, Cell sets or Sections) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position among the objects of its kind in the model. A property of the model, not of the script: the generated script is the same. |
 
 ### `cellset.from_file`
 
@@ -260,6 +261,7 @@ Cell set of all cells of a mesh.
 | --- | --- | --- | --- |
 | `name` | name | yes | Name of the object. |
 | `mesh` | name of a mesh | yes |  |
+| `color` | string |  | An own color of a mesh, a cell set or a section in the viewport (Color by: Meshes, Cell sets or Sections) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position among the objects of its kind in the model. A property of the model, not of the script: the generated script is the same. |
 
 ### `material.add`
 
@@ -455,6 +457,7 @@ Assign a material and a formulation to a cell set. Each section becomes a solid 
 | `formulation` | `u`, `u-p-J` or `u-isochoric` | yes | u: displacement field only. u-p-J: mixed fields (fem.FieldsMixed) for nearly incompressible materials. u-isochoric: displacement field only, with a material without a bulk modulus whose strain energy has no volumetric part, e.g. air as a third medium between the parts of a model that come into contact. |
 | `bulk` | number > 0 (or an expression) | if `formulation` is `u-p-J` | Bulk modulus of the nearly incompressible formulation (required for u-p-J). |
 | `volumetric` | `volume-ratio`, `stretch` or `log` |  | The volumetric part U(J) of the strain energy of the u-p-J formulation with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)². Default `volume-ratio`. |
+| `color` | string |  | An own color of a mesh, a cell set or a section in the viewport (Color by: Meshes, Cell sets or Sections) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position among the objects of its kind in the model. A property of the model, not of the script: the generated script is the same. |
 
 ### `pointset.add`
 

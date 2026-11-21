@@ -38,7 +38,7 @@ export type Command =
  */
 export type Name = string;
 /**
- * An own color of the mesh in the viewport (Color by: Meshes) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position in the model. A property of the model, not of the script: the generated script is the same.
+ * An own color of a mesh, a cell set or a section in the viewport (Color by: Meshes, Cell sets or Sections) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position among the objects of its kind in the model. A property of the model, not of the script: the generated script is the same.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "Color".
@@ -700,6 +700,7 @@ export interface CellSetFromTag {
    * Value of the tag of the cells, e.g. 1.
    */
   value: number;
+  color?: Color;
 }
 /**
  * Cell set of all cells of a mesh.
@@ -711,6 +712,7 @@ export interface CellSetFromFile {
   command: "cellset.from_file";
   name: Name;
   mesh: Name;
+  color?: Color;
 }
 /**
  * Linear-elastic material for small strains and small rotations (fem.LinearElastic): the stress of the symmetric part of the displacement gradient. Not for large rotations or large strains.
@@ -1091,6 +1093,7 @@ export interface SectionAdd {
    * The volumetric part U(J) of the strain energy of the u-p-J formulation with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)².
    */
   volumetric?: "volume-ratio" | "stretch" | "log";
+  color?: Color;
 }
 /**
  * Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, on the outer surface, of the cells of a section, by the coordinates of points or by point ids.

@@ -74,6 +74,16 @@ describe("createCommand", () => {
     expect(command).toMatchObject({ command: "job.add", steps });
   });
 
+  it("takes an own color of a section (#376)", async () => {
+    const { command, errors } = await createCommand(
+      "section.add",
+      { cellset: "hard", material: "umat_hard", color: "#2B2D42" },
+      context,
+    );
+    expect(errors).toEqual([]);
+    expect(command).toMatchObject({ command: "section.add", color: "#2B2D42" });
+  });
+
   it("fills a suggested name and the defaults", async () => {
     const { command, errors } = await createCommand(
       "material.add",
@@ -145,6 +155,17 @@ describe("createCommand", () => {
     [
       "mesh.import",
       { file: "a.vtu", color: "red" },
+      "color: A color like #7f8c8d: # and six hexadecimal digits.",
+    ],
+    // also that of a section and of a cell set (#376)
+    [
+      "section.add",
+      { cellset: "hard", material: "umat_hard", color: "#7f8c8" },
+      "color: A color like #7f8c8d: # and six hexadecimal digits.",
+    ],
+    [
+      "cellset.from_file",
+      { mesh: "specimen", color: "gray" },
       "color: A color like #7f8c8d: # and six hexadecimal digits.",
     ],
   ])("rejects %s %j", async (type, values, message) => {

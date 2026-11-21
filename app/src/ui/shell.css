@@ -884,7 +884,8 @@ button {
   width: 100%;
 }
 
-/* an own color of a mesh (#336): the picker, its hex value and Automatic */
+/* an own color of a mesh (#336), a cell set or a section (#376): the picker, its
+   hex value and Automatic */
 .color-field {
   display: flex;
   align-items: center;

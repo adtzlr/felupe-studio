@@ -157,6 +157,30 @@ describe("editing in the properties panel", () => {
     expect(picker().value).toBe("#3987e5");
   });
 
+  it("gives a section and a cell set an own color (#376)", () => {
+    // the automatic color of its position among the sections: the second one
+    const section = edit("section_soft");
+    const picker = () => section.field("Pick the color");
+    expect(picker().value).toBe("#d95926");
+    expect(section.field("Color").placeholder).toBe("automatic (#d95926)");
+    fireEvent.input(picker(), { target: { value: "#2b2d42" } });
+    fireEvent.click(section.button("Apply"));
+    expect(section.store.get("section_soft")).toMatchObject({
+      color: "#2b2d42",
+    });
+    fireEvent.click(section.button("Automatic"));
+    fireEvent.click(section.button("Apply"));
+    expect(section.store.get("section_soft")).not.toHaveProperty("color");
+    cleanup();
+
+    // among the cell sets: the first one
+    const cellset = edit("hard");
+    expect(cellset.field("Pick the color").value).toBe("#3987e5");
+    cellset.type("Color", "#7F8C8D");
+    fireEvent.click(cellset.button("Apply"));
+    expect(cellset.store.get("hard")).toMatchObject({ color: "#7F8C8D" });
+  });
+
   it("applies with Enter and resets with Esc (#137)", () => {
     const { store, field, type } = edit("umat_hard");
     const form = () => field("E").closest("form")!;

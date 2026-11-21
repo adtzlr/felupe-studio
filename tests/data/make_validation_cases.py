@@ -240,6 +240,15 @@ CHANGES = {
         tool(d),
         find(d, "specimen").update(color="#2B2D42"),
     ),
+    # an own color of a section and of a cell set (#376): no rule checks it
+    "section and cell set with an own color": lambda d: (
+        find(d, "section_soft").update(color="#2b2d42"),
+        find(d, "hard").update(color="#7F8C8D"),
+    ),
+    "cell set of a made mesh with an own color": lambda d: (
+        tool(d),
+        find(d, "soft").update(color="#d95926"),
+    ),
     "NeoHooke without bulk": lambda d: (
         find(d, "section_soft").update(formulation="u"),
         find(d, "section_soft").pop("bulk"),

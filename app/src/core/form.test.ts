@@ -61,6 +61,8 @@ describe("fieldSpecs", () => {
       "name:name*",
       "mesh:reference*",
       "value:number*",
+      // an own color of the cell set (#376)
+      "color:color",
     ]);
     expect(summary("material.add", find("umat_hard"))).toEqual([
       "name:name*",
@@ -246,6 +248,8 @@ describe("fieldSpecs", () => {
       "formulation:choice*",
       "bulk:number*",
       "volumetric:choice",
+      // an own color of the section (#376)
+      "color:color",
     ]);
     // the bulk modulus and the volumetric part only with u-p-J (#134)
     expect(summary("section.add", find("section_hard"))).toEqual([
@@ -253,6 +257,7 @@ describe("fieldSpecs", () => {
       "cellset:reference*",
       "material:reference*",
       "formulation:choice*",
+      "color:color",
     ]);
     const hard = { ...find("section_hard"), volumetric: "log", bulk: 1 };
     const context = { commands: (fixture as CommandList).commands };

@@ -34,7 +34,7 @@ export interface Option {
 export type Input =
   | { type: "name" }
   | { type: "text" }
-  /** A color #rrggbb, e.g. of a mesh in the viewport (#336); without it, automatic. */
+  /** A color #rrggbb of an object (#336, #376); without it, automatic. */
   | { type: "color" }
   | {
       type: "number";
@@ -1026,7 +1026,7 @@ const nameError: FieldError<"name"> = (_, __, value, context) => {
 const textError: FieldError<"text"> = (spec, _, value) =>
   isMissing(value) && spec.required ? "Required." : undefined;
 
-/** A color #rrggbb (the pattern of the schema), e.g. of a mesh (#336). */
+/** A color #rrggbb (the pattern of the schema) of an object (#336, #376). */
 export const isColor = (value: unknown): value is string =>
   typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
 
