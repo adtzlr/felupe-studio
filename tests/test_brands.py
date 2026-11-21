@@ -98,6 +98,9 @@ def test_the_ci_files_build_one_release():
     assert len(versions) == 1, versions
     assert {setting(text, "BRAND_FOLDER") for text in texts} == {"brand"}
     for text in texts:
+        # what BRAND_FOLDER is, also the root of the repository (#379)
+        assert '"." for ./brand.json' in text
+    for text in texts:
         # the wheel of the brand, checked like that of a release
         assert "FELUPE_STUDIO_REQUIRE_APP=1 python -m build --wheel" in text
         assert "tests/check_wheel.py" in text
