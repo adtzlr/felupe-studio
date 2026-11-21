@@ -19,6 +19,7 @@ The web app and the Python package `felupe_studio` are released together with on
 With real Pyodide, after the deployment of `main` has finished. Use the cases in `tests/golden` (a `commands.json` and its mesh files, opened together).
 
 - [ ] Desktop Chrome and Firefox, and one phone: the page loads, the status bar shows the versions of FElupe and the load time.
+- [ ] The phone in portrait and in landscape: the layout is compact and the page does not scroll; a tap on a tab opens its commands and a command closes them; the button of the command line opens it with the keyboard; nothing lies under the notch or the home indicator.
 - [ ] `bar_two_materials` (`u` and `u-p-J`): Solve shows progress, then Show results; the contours of displacement, strain and stress change with the substep; the curve matches `results.json` of the case.
 - [ ] `bar_mooney_rivlin`: Solve loads tensortrax first and runs.
 - [ ] `bar_cell_types` (hexahedrons and tetrahedrons in one mesh file) shows results; with the formulation of a section changed to `u-p-J`, the tetrahedrons use the MINI element.

@@ -78,6 +78,13 @@ function downloadFile(name: string, data: string | Blob) {
 export const NARROW = "(max-width: 1000px)";
 
 /**
+ * The windows of the compact layout (#378): phones in portrait and short windows,
+ * e.g. a phone in landscape. The commands of the ribbon open on a tap of their tab,
+ * and the command line is behind a button of the history bar.
+ */
+export const COMPACT = "(max-width: 600px), (max-height: 500px)";
+
+/**
  * The app (#312): it composes the state of its concerns (the project, the run and
  * the results, the selection, the exports, the dialogs, the agent bridge and the
  * shortcuts) and its layout.
@@ -147,6 +154,7 @@ export function App({
   const [tab, setTab] = useState("mesh");
   // narrow windows show the browser and the properties as drawers (#131)
   const narrow = useMedia(NARROW);
+  const compact = useMedia(COMPACT);
   const [browserOpen, setBrowserOpen] = useState(false);
   // dark or light (#375), a setting of the browser
   const theme = useTheme();
@@ -232,7 +240,9 @@ export function App({
 
   return (
     <div
-      class={dragging ? "shell dragging" : "shell"}
+      class={["shell", compact && "compact", dragging && "dragging"]
+        .filter(Boolean)
+        .join(" ")}
       onDragOver={(event) => {
         if (!event.dataTransfer?.types.includes("Files")) return;
         event.preventDefault();
@@ -312,6 +322,7 @@ export function App({
         store={store}
         workspace={workspace}
         tab={tab}
+        compact={compact}
         onWorkspace={setWorkspace}
         onTab={setTab}
         onCreate={(item) =>
@@ -443,6 +454,7 @@ export function App({
         store={store}
         runtime={runtime}
         kept={project.kept}
+        compact={compact}
         agent={
           agentAvailable
             ? { state: agent.state, onDisconnect: agent.disconnect }

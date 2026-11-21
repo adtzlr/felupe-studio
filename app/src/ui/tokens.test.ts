@@ -168,13 +168,23 @@ describe("design tokens", () => {
       p,
       ...["top", "right", "bottom", "left"].map((side) => `${p}-${side}`),
     ]);
+    // a hairline, a negative offset or a relative length is fine, and so is a
+    // safe area of a phone (#378)
+    const length =
+      /^(0|auto|1px|-\d+px|\d+(vh|vw|%)|var\(--space-\d+\)|var\(--safe-(top|right|bottom|left)\))$/;
     for (const property of properties) {
       for (const value of values(property)) {
-        for (const part of value.split(/\s+/)) {
-          // a hairline, a negative offset or a relative length is fine
-          expect(part).toMatch(
-            /^(0|auto|1px|-\d+px|\d+(vh|vw|%)|var\(--space-\d+\))$/,
-          );
+        // the parts of the value, split at the spaces outside of parentheses
+        const parts = value.match(
+          /(?:[^\s(]+|\([^()]*(?:\([^()]*\)[^()]*)*\))+/g,
+        );
+        for (const part of parts ?? []) {
+          // a sum or a maximum of them, e.g. a padding and a safe area
+          const combined = /^(?:calc|max)\((.*)\)$/.exec(part);
+          for (const term of combined
+            ? combined[1].split(/\s*[+,]\s*/)
+            : [part])
+            expect(term).toMatch(length);
         }
       }
     }

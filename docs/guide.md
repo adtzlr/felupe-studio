@@ -22,6 +22,13 @@ Every object of a model is a FElupe object, and every action creates or changes 
 
 In narrow windows (up to 1000 px, e.g. a tablet or a small laptop window), the browser and the properties are drawers over the viewport: the button left of the logo opens the browser, a selection opens the properties, Esc closes them. The ribbon is one row that scrolls.
 
+On a phone, and in short windows (up to 600 px wide or up to 500 px high, e.g. a phone in landscape), the layout is **compact**, so that the viewport gets most of the height and the page does not scroll:
+- The header is one row. Undo and Redo are in the history bar, and on a phone in portrait, Open and Export are in **File**.
+- **Model** and **Results** are two icons in the row of the tabs; their names are their tooltips. The tabs are one row that scrolls.
+- The commands of a tab open when you tap the tab, and close after a command or when you tap the tab again, so the view gets their height back.
+- The command line is behind its button beside Undo and Redo, and the status is one line with the issues.
+- The app keeps out of the notch and the home indicator of a phone.
+
 The project is kept in the browser with its mesh files: a reload restores it. To keep it elsewhere, save it.
 
 The button left of **Solve** chooses the **theme**: *Dark* (the default), *Light* or *System*, which follows the color scheme of the system or the browser. The choice is a setting of the browser, not of the project, and the app starts in it after a reload, also in other tabs. The bar of the browser or of an installed app takes the color of the theme. In the light theme, the background of the viewport is white, and so is the picture of the view (*Export ▸ Picture of the view*), e.g. for a report. The symbols in the view are darker there, so they stand out on white: e.g. the selected object in dark yellow instead of yellow, the control points and the constraints in dark cyan, the loads in dark pink. The colors of the meshes, cell sets and sections are the same in both themes.

@@ -1,5 +1,5 @@
 import type { ComponentChildren } from "preact";
-import { useEffect } from "preact/hooks";
+import { useEffect, useState } from "preact/hooks";
 import type { Tab } from "../core/registry";
 import {
   type RibbonItem,
@@ -34,10 +34,21 @@ const COMMAND_TABS = new Set<string>([
   "steps",
 ]);
 
+const WORKSPACES: { id: Workspace; label: string; icon: IconName }[] = [
+  { id: "model", label: "Model", icon: "cube" },
+  { id: "results", label: "Results", icon: "chart" },
+];
+
 interface Props {
   store: ModelStore;
   workspace: Workspace;
   tab: string;
+  /**
+   * The compact layout of phones and short windows (#378): the workspaces are icons
+   * in the row of the tabs, and the commands of a tab open on a tap of the tab and
+   * close after a command, so that the view gets their height back.
+   */
+  compact?: boolean;
   onWorkspace: (workspace: Workspace) => void;
   onTab: (tab: string) => void;
   onCreate: (item: RibbonItem) => void;
@@ -134,6 +145,7 @@ export function Ribbon({
   store,
   workspace,
   tab,
+  compact = false,
   onWorkspace,
   onTab,
   onCreate,
@@ -142,6 +154,9 @@ export function Ribbon({
 }: Props) {
   const tabs = TABS[workspace];
   const active = tabs.find((t) => t.id === tab) ?? tabs[0];
+  // the commands of a compact ribbon, closed until a tab is tapped (#378)
+  const [open, setOpen] = useState(false);
+  const commands = COMMAND_TABS.has(active.id);
 
   useEffect(() => {
     if (active.id !== tab) onTab(active.id);
@@ -158,19 +173,34 @@ export function Ribbon({
     document.getElementById(`tab-${next.id}`)?.focus();
   };
 
+  /** A tab chosen: in a compact ribbon, a tap opens its commands or closes them. */
+  const choose = (id: string) => {
+    setOpen(id !== active.id || !open);
+    onTab(id);
+  };
+
+  // a compact ribbon shows the commands of a tab only when open, and the note of the
+  // Script tab not at all; the controls of the results stay
+  const hidden = compact && (commands ? !open : active.id === "script");
+
   return (
     <div class="ribbon">
       <div class="workspace" role="group" aria-label="Workspace">
-        {(["model", "results"] as const).map((w) => (
+        {WORKSPACES.map((w) => (
           <button
-            key={w}
+            key={w.id}
             type="button"
-            aria-pressed={workspace === w}
-            class={workspace === w ? "segment active" : "segment"}
-            onClick={() => onWorkspace(w)}
+            aria-pressed={workspace === w.id}
+            class={workspace === w.id ? "segment active" : "segment"}
+            // the name of an icon of the compact ribbon
+            title={compact ? w.label : undefined}
+            onClick={() => {
+              setOpen(false);
+              onWorkspace(w.id);
+            }}
           >
-            <Icon name={w === "model" ? "cube" : "chart"} />
-            {w === "model" ? "Model" : "Results"}
+            <Icon name={w.icon} />
+            <span class="segment-label">{w.label}</span>
           </button>
         ))}
       </div>
@@ -184,9 +214,14 @@ export function Ribbon({
               role="tab"
               aria-selected={t.id === active.id}
               aria-controls="ribbon-panel"
+              aria-expanded={
+                compact && COMMAND_TABS.has(t.id)
+                  ? t.id === active.id && open
+                  : undefined
+              }
               tabIndex={t.id === active.id ? 0 : -1}
               class={t.id === active.id ? "tab active" : "tab"}
-              onClick={() => onTab(t.id)}
+              onClick={() => choose(t.id)}
             >
               {t.label}
             </button>
@@ -197,12 +232,17 @@ export function Ribbon({
           role="tabpanel"
           aria-labelledby={`tab-${active.id}`}
           class="ribbon-panel"
+          hidden={hidden}
         >
-          {COMMAND_TABS.has(active.id) ? (
+          {commands ? (
             <Commands
               store={store}
               tab={active.id as Tab}
-              onCreate={onCreate}
+              onCreate={(item) => {
+                // the view gets the height of the commands back
+                setOpen(false);
+                onCreate(item);
+              }}
             />
           ) : active.id === "script" ? (
             script

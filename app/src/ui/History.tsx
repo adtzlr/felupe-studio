@@ -1,5 +1,6 @@
 // History bar: the command list in order. A click selects the object; undo and redo
 // step through the changes.
+import type { ComponentChildren } from "preact";
 import { withHint } from "../core/shortcuts";
 import { useEffect, useRef } from "preact/hooks";
 import type { ModelStore } from "../core/store";
@@ -10,9 +11,11 @@ interface Props {
   store: ModelStore;
   selected?: string;
   onSelect: (name: string) => void;
+  /** Buttons after Undo and Redo, e.g. of the command line of a phone (#378). */
+  tools?: ComponentChildren;
 }
 
-export function History({ store, selected, onSelect }: Props) {
+export function History({ store, selected, onSelect, tools }: Props) {
   const list = useRef<HTMLOListElement>(null);
   const withIssues = new Set(store.issues.map((i) => i.name));
 
@@ -46,6 +49,7 @@ export function History({ store, selected, onSelect }: Props) {
       >
         <Icon name="redo" />
       </button>
+      {tools}
       <span class="history-separator" aria-hidden="true" />
       {store.commands.length === 0 ? (
         <span class="muted">No commands yet.</span>

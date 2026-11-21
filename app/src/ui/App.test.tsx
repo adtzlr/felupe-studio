@@ -34,7 +34,7 @@ import type {
   ValuesMethod,
 } from "../worker/protocol";
 import { readSamples } from "../vite/samples";
-import { App, NARROW } from "./App";
+import { App, COMPACT, NARROW } from "./App";
 
 afterEach(cleanup);
 
@@ -395,6 +395,121 @@ describe("narrow windows (#131)", () => {
     expect(
       document.querySelector(".body")!.classList.contains("browser-open"),
     ).toBe(false);
+  });
+});
+
+describe("compact windows (#378)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  /** A phone: a narrow window (#131) of the compact layout. */
+  const phone = () =>
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === NARROW || query === COMPACT,
+      addEventListener() {},
+      removeEventListener() {},
+    }));
+
+  it("open the commands of a tab on a tap, and close them after a command", () => {
+    phone();
+    render(<App store={new ModelStore(fixture as CommandList)} />);
+    expect(document.querySelector(".shell")!.classList).toContain("compact");
+    const panel = document.getElementById("ribbon-panel")!;
+    const tab = (name: string) => screen.getByRole("tab", { name });
+    // closed, so that the view has the height
+    expect(panel.hidden).toBe(true);
+    expect(tab("Mesh").getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(tab("Materials"));
+    expect(panel.hidden).toBe(false);
+    expect(tab("Materials").getAttribute("aria-selected")).toBe("true");
+    expect(tab("Materials").getAttribute("aria-expanded")).toBe("true");
+    expect(tab("Mesh").getAttribute("aria-expanded")).toBe("false");
+    // a second tap closes them
+    fireEvent.click(tab("Materials"));
+    expect(panel.hidden).toBe(true);
+    expect(tab("Materials").getAttribute("aria-expanded")).toBe("false");
+
+    // another tab opens its commands, a command closes them
+    fireEvent.click(tab("Materials"));
+    fireEvent.click(tab("Sections"));
+    expect(panel.hidden).toBe(false);
+    fireEvent.click(within(panel).getByRole("button", { name: "Section" }));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(panel.hidden).toBe(true);
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Cancel",
+      }),
+    );
+
+    // a command of a menu of the ribbon, e.g. Hyperelasticity (#136)
+    fireEvent.click(tab("Materials"));
+    fireEvent.click(
+      within(panel).getByRole("button", { name: "Hyperelasticity" }),
+    );
+    fireEvent.click(screen.getByRole("menuitem", { name: "Neo-Hooke" }));
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(panel.hidden).toBe(true);
+
+    // the Script tab has no commands, and so no panel
+    fireEvent.click(tab("Script"));
+    expect(tab("Script").hasAttribute("aria-expanded")).toBe(false);
+    expect(panel.hidden).toBe(true);
+  });
+
+  it("show the workspaces as icons with their names", () => {
+    phone();
+    render(<App store={new ModelStore(fixture as CommandList)} />);
+    const workspaces = screen.getByRole("group", { name: "Workspace" });
+    const results = within(workspaces).getByRole("button", { name: "Results" });
+    expect(results.title).toBe("Results");
+    expect(
+      within(workspaces).getByRole("button", { name: "Model" }).title,
+    ).toBe("Model");
+    // the controls of the results stay open
+    fireEvent.click(results);
+    expect(document.getElementById("ribbon-panel")!.hidden).toBe(false);
+  });
+
+  it("have the command line behind a button and the status in one line", () => {
+    phone();
+    render(<App store={new ModelStore(fixture as CommandList)} />);
+    const line = document.getElementById("command-line")!;
+    const toggle = screen.getByRole("button", { name: "Command line" });
+    expect(line.hidden).toBe(true);
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    // without the number of commands, which the history bar shows
+    const status = screen.getByRole("status").textContent;
+    expect(status).toContain("0 issues");
+    expect(status).not.toContain("commands");
+
+    fireEvent.click(toggle);
+    expect(line.hidden).toBe(false);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(document.activeElement).toBe(
+      screen.getByRole("combobox", { name: "Command" }),
+    );
+    fireEvent.click(toggle);
+    expect(line.hidden).toBe(true);
+  });
+
+  it("are not the layout of wide windows", () => {
+    render(<App store={new ModelStore(fixture as CommandList)} />);
+    expect(document.querySelector(".shell")!.classList).not.toContain(
+      "compact",
+    );
+    expect(document.getElementById("ribbon-panel")!.hidden).toBe(false);
+    expect(document.getElementById("command-line")!.hidden).toBe(false);
+    expect(screen.queryByRole("button", { name: "Command line" })).toBeNull();
+    expect(
+      screen.getByRole("tab", { name: "Mesh" }).hasAttribute("aria-expanded"),
+    ).toBe(false);
+    expect(
+      within(screen.getByRole("group", { name: "Workspace" }))
+        .getByRole("button", { name: "Model" })
+        .hasAttribute("title"),
+    ).toBe(false);
+    expect(screen.getByRole("status").textContent).toContain("commands");
   });
 });
 

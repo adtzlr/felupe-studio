@@ -306,3 +306,93 @@ def test_a_light_picture_of_the_view(url, page):
     assert dark["corners"] == [[38, 43, 54]] * 4
     assert dark["drawn"] > 1000
     assert page.errors == []
+
+
+# the rows of the app and the viewport in the window, and whether the page scrolls
+LAYOUT = """() => {
+    const box = (selector) => {
+        const element = [...document.querySelectorAll(selector)].find(
+            (e) => !e.hidden,
+        );
+        const { top, bottom } = element.getBoundingClientRect();
+        return { top, bottom };
+    };
+    const page = document.scrollingElement;
+    return {
+        width: innerWidth,
+        height: innerHeight,
+        scrolls: page.scrollWidth > innerWidth || page.scrollHeight > innerHeight,
+        compact: document.querySelector(".shell").classList.contains("compact"),
+        viewport: box(".viewport"),
+        footer: box(".footer"),
+    };
+}"""
+
+
+def test_the_compact_layout_of_a_phone(url, page):
+    """The compact layout of phones and short windows (#378): the page does not
+    scroll, the footer is below the viewport, which has at least 70 % of the height
+    in portrait, and every control is in the window."""
+    page.goto(url)
+    page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
+    page.get_by_role("button", name="File", exact=True).click()
+    page.get_by_role("menuitem", name="Samples…").click()
+    title = page.get_by_role(
+        "heading", name="Hyperelastic block with a rigid plate", exact=True
+    )
+    page.get_by_role("dialog").locator("li").filter(has=title).get_by_role(
+        "button", name="Open"
+    ).click()
+    page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)
+    # the desktop keeps its layout
+    assert not page.evaluate(LAYOUT)["compact"]
+    assert page.get_by_role("button", name="Undo").is_visible()
+    assert page.get_by_role("combobox", name="Command").is_visible()
+
+    def inside(name, width, height, role="button"):
+        box = page.get_by_role(role, name=name, exact=True).bounding_box()
+        assert box, name
+        assert box["x"] >= 0 and box["x"] + box["width"] <= width, name
+        assert box["y"] >= 0 and box["y"] + box["height"] <= height, name
+
+    tabs = ["Mesh", "Materials", "Sections", "Loads & BCs", "Steps & Job", "Script"]
+    for width, height, compact in [
+        (390, 844, True),
+        (844, 390, True),
+        (768, 1024, False),
+    ]:
+        page.set_viewport_size({"width": width, "height": height})
+        page.wait_for_timeout(300)
+        layout = page.evaluate(LAYOUT)
+        assert layout["compact"] == compact, (width, height)
+        assert not layout["scrolls"], (width, height)
+        assert layout["footer"]["bottom"] <= height
+        assert layout["viewport"]["bottom"] <= layout["footer"]["top"]
+        share = (layout["viewport"]["bottom"] - layout["viewport"]["top"]) / height
+        if height > width:
+            assert share >= 0.7, (width, height, share)
+        for name in ["Solve", "File", "Help", "Theme", "Model", "Results"]:
+            inside(name, width, height)
+        # every tab, in a row that scrolls; a compact one opens its commands
+        for name in tabs:
+            tab = page.get_by_role("tab", name=name, exact=True)
+            tab.click()
+            assert tab.get_attribute("aria-selected") == "true"
+            inside(name, width, height, role="tab")
+        page.get_by_role("tab", name="Mesh", exact=True).click()
+        if compact:
+            panel = page.locator("#ribbon-panel")
+            assert panel.is_visible()
+            assert not page.evaluate(LAYOUT)["scrolls"]
+            panel.get_by_role("button", name="Point set").click()
+            page.get_by_role("dialog").get_by_role("button", name="Cancel").click()
+            assert not panel.is_visible()
+            # the command line behind its button
+            command = page.get_by_role("combobox", name="Command")
+            assert not command.is_visible()
+            page.get_by_role("button", name="Command line").click()
+            assert command.is_visible()
+            assert page.evaluate("document.activeElement.id") == "command"
+            assert not page.evaluate(LAYOUT)["scrolls"]
+            page.get_by_role("button", name="Command line").click()
+    assert page.errors == []

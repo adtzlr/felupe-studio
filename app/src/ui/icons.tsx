@@ -65,6 +65,8 @@ const PATHS = {
   themeLight:
     "M12 8 A4 4 0 1 0 12 16 A4 4 0 1 0 12 8 M12 2.5 V5 M12 19 V21.5 M2.5 12 H5 M19 12 H21.5 M5.3 5.3 L7 7 M17 17 L18.7 18.7 M5.3 18.7 L7 17 M17 7 L18.7 5.3",
   themeSystem: "M3 5 H21 V16 H3 Z M8.5 20 H15.5 M12 16 V20",
+  // the command line behind a button of a compact layout (#378): a prompt
+  terminal: "M3 5 H21 V19 H3 Z M7 9.5 L10 12 L7 14.5 M12.5 15 H17",
 } as const;
 
 export type IconName = keyof typeof PATHS;
