@@ -18,7 +18,12 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 ### Changed
 
 - The comments of the script view are lighter in the dark theme (#375), for a contrast of 4.5:1 also on a hovered or a selected line.
+- The documentation of v0.9 (#380): the user guide has the pictures of the light theme, of the own colors of the sections and of the app on a phone, a paragraph on pictures for a report (the light theme, the colors of the sections, the range of the rubber, *Grayscale*) and the limits of version 0.9; the README lists what 0.9 adds, with a light picture of the bushing with the range of the rubber and the app on a phone; the release checklist has the smoke tests of the light theme, the colors of sections, the range of chosen sections, a project of 0.9 in 0.8, the results on a phone in portrait and in landscape, and the light theme of the example brand. `docs/make_screenshots.py` also makes the range of the sections of the bushing, the same view and the colors of its sections in the light theme (`light.png`, `section-colors.png`) and, with Pillow, the model and the results on a phone side by side (`phone.png`); it made the pictures again with the real Pyodide, and the roadmap links go to #382.
 - What `BRAND_FOLDER` of the CI files of a brand is (#379): the folder of `brand.json`, relative to the root of the repository of the brand, e.g. `"."` for `brand.json` at its root. The CI files, `brands/README.md` and *Your own deployment* say so. A `BRAND_DIR` without `brand.json` fails the build with a message that says what `BRAND_DIR` is and that the CI files of a brand set it from `BRAND_FOLDER`, instead of only *it has no brand.json*.
+
+### Fixed
+
+- The fit of the view of a phone in portrait (#378): *Fit*, a view of the toolbar, a double click and the first view of a model fitted the model into the height of the view only, so its sides were cut off in a view higher than wide. The adapter of the viewer zooms out by the ratio of the width and the height of such a view after the fit of the vendored viewer, which is unchanged; views wider than high, e.g. of a desktop, are the same as before.
 
 ## [0.8.0] - 2026-11-21
 

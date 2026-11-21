@@ -35,6 +35,7 @@ function fake(webgl = true) {
     },
     update: vi.fn<(scene: Scene, options?: { keepView?: boolean }) => void>(),
     setView: vi.fn<(view: string | null) => void>(),
+    redraw: vi.fn(),
     dispose: vi.fn(),
   };
   if (!webgl) delete (handle as Partial<typeof handle>).setView;
@@ -93,6 +94,57 @@ describe("Viewer", () => {
     expect(handle.update).toHaveBeenCalledTimes(1);
     viewer.dispose();
     expect(handle.dispose).toHaveBeenCalled();
+  });
+
+  it("fits the model also into the width of a view higher than wide (#378)", async () => {
+    const { handle, create } = fake();
+    // like the viewer: a fit or a new scene fits the model into the height (zoom 1)
+    handle.setView.mockImplementation(() => {
+      handle.camera.zoom = 1;
+    });
+    handle.update.mockImplementation((_, options) => {
+      if (!options?.keepView) handle.camera.zoom = 1;
+    });
+    const canvas = handle.root.querySelector("canvas")!;
+    const size = (width: number, height: number) => {
+      Object.defineProperty(canvas, "clientWidth", {
+        value: width,
+        configurable: true,
+      });
+      Object.defineProperty(canvas, "clientHeight", {
+        value: height,
+        configurable: true,
+      });
+    };
+    // a phone in portrait
+    size(390, 650);
+    const viewer = new Viewer(document.createElement("div"), create);
+    const mesh = { name: "bar", surface, color: "#3987e5" };
+    viewer.setMeshes([mesh]);
+    await tick();
+    // the first fit zooms out by the ratio of the width and the height
+    expect(handle.camera.zoom).toBeCloseTo(0.6);
+    expect(handle.redraw).toHaveBeenCalled();
+
+    // a kept view keeps its zoom
+    handle.camera.zoom = 2.5;
+    viewer.setMeshes([mesh, { ...mesh, name: "other" }]);
+    await tick();
+    expect(handle.camera.zoom).toBe(2.5);
+
+    // Fit, a view of the toolbar and a double click (after the viewer reset it)
+    viewer.fit();
+    expect(handle.camera.zoom).toBeCloseTo(0.6);
+    viewer.setView("xz");
+    expect(handle.camera.zoom).toBeCloseTo(0.6);
+    handle.camera.zoom = 1;
+    canvas.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+    expect(handle.camera.zoom).toBeCloseTo(0.6);
+
+    // a view wider than high, e.g. of a desktop, keeps the fit of the viewer
+    size(800, 400);
+    viewer.fit();
+    expect(handle.camera.zoom).toBe(1);
   });
 
   it("shows the nodes of the meshes", async () => {
