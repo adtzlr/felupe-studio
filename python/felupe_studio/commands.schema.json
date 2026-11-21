@@ -308,6 +308,12 @@
           "$ref": "#/$defs/MeshCube"
         },
         {
+          "$ref": "#/$defs/MeshCircle"
+        },
+        {
+          "$ref": "#/$defs/MeshTriangle"
+        },
+        {
           "$ref": "#/$defs/MeshExpand"
         },
         {
@@ -565,6 +571,158 @@
                 "minimum": 2
               },
               "default": [2, 2, 2]
+            }
+          }
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        }
+      }
+    },
+    "MeshCircle": {
+      "description": "A circle in the xy-plane (fem.Circle): quads in quarters of a circle about the centerpoint, each with a square inside, with n points on the edges of a quarter. The sections are the start angles of the quarters, e.g. 0 for a quarter circle or 0, 90, 180, 270 for a full circle.",
+      "x-label": "Circle",
+      "x-group": "Primitives",
+      "x-felupe": "fem.Circle",
+      "x-dimension": {
+        "points": 2,
+        "cells": 2,
+        "cell_type": "quad"
+      },
+      "type": "object",
+      "required": ["command", "name", "tool", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "mesh.generate"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "tool": {
+          "const": "Circle"
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["radius", "centerpoint", "n", "sections"],
+          "additionalProperties": false,
+          "properties": {
+            "radius": {
+              "x-label": "radius",
+              "x-quantity": "length",
+              "description": "The radius of the circle.",
+              "type": ["number", "string"],
+              "exclusiveMinimum": 0,
+              "default": 1
+            },
+            "centerpoint": {
+              "x-label": "centerpoint",
+              "x-quantity": "length",
+              "description": "The center of the circle, x and y.",
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": ["number", "string"]
+              },
+              "default": [0, 0]
+            },
+            "n": {
+              "x-label": "n",
+              "description": "The number of points on the edges of a quarter (at least 2).",
+              "type": ["integer", "string"],
+              "minimum": 2,
+              "default": 2
+            },
+            "sections": {
+              "x-label": "sections",
+              "x-quantity": "angle",
+              "description": "The start angles of the quarters in degrees, at least 90 apart, e.g. 0 for a quarter circle or 0, 90, 180, 270 for a full circle.",
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 4,
+              "items": {
+                "type": ["number", "string"]
+              },
+              "default": [0, 90, 180, 270]
+            }
+          }
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        }
+      }
+    },
+    "MeshTriangle": {
+      "description": "A triangle in the xy-plane (fem.mesh.Triangle): three quad sections between the corners a, b and c, counterclockwise, with n points on the edges of a section.",
+      "x-label": "Triangle",
+      "x-group": "Primitives",
+      "x-felupe": "fem.mesh.Triangle",
+      "x-dimension": {
+        "points": 2,
+        "cells": 2,
+        "cell_type": "quad"
+      },
+      "type": "object",
+      "required": ["command", "name", "tool", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "mesh.generate"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "tool": {
+          "const": "Triangle"
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["a", "b", "c", "n"],
+          "additionalProperties": false,
+          "properties": {
+            "a": {
+              "x-label": "a",
+              "x-quantity": "length",
+              "description": "The first corner, x and y.",
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": ["number", "string"]
+              },
+              "default": [0, 0]
+            },
+            "b": {
+              "x-label": "b",
+              "x-quantity": "length",
+              "description": "The second corner, x and y, counterclockwise from a.",
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": ["number", "string"]
+              },
+              "default": [1, 0]
+            },
+            "c": {
+              "x-label": "c",
+              "x-quantity": "length",
+              "description": "The third corner, x and y, counterclockwise from b.",
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "items": {
+                "type": ["number", "string"]
+              },
+              "default": [0, 1]
+            },
+            "n": {
+              "x-label": "n",
+              "description": "The number of points on the edges of a section (at least 2).",
+              "type": ["integer", "string"],
+              "minimum": 2,
+              "default": 2
             }
           }
         },

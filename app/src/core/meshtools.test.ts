@@ -27,6 +27,8 @@ describe("the mesh tools (ADR 0019)", () => {
       ["Line", "Primitives", "fem.mesh.Line"],
       ["Rectangle", "Primitives", "fem.Rectangle"],
       ["Cube", "Primitives", "fem.Cube"],
+      ["Circle", "Primitives", "fem.Circle"],
+      ["Triangle", "Primitives", "fem.mesh.Triangle"],
       ["expand", "Operations", ".expand"],
       ["revolve", "Operations", ".revolve"],
       ["embed", "Operations", "embed"],
@@ -70,6 +72,34 @@ describe("the mesh tools (ADR 0019)", () => {
     expect(toolProblems(made("Point", { a: 1 }))).toEqual([]);
   });
 
+  it("need the corners of a triangle counterclockwise, like Python (#394)", () => {
+    const triangle = (b: number[], c: number[]) =>
+      toolProblems(made("Triangle", { a: [0, 0], b, c, n: 2 }));
+    expect(triangle([1, 0], [0, 1])).toEqual([]);
+    expect(triangle([0, 1], [1, 0])).toEqual([
+      "a, b and c go around clockwise; swap b and c.",
+    ]);
+    expect(triangle([1, 1], [2, 2])).toEqual(["a, b and c lie on a line."]);
+    expect(triangle([0, 0], [0, 0])).toEqual(["a, b and c lie on a line."]);
+  });
+
+  it("need quarters of a circle that do not overlap, like Python (#394)", () => {
+    const circle = (sections: number[]) =>
+      toolProblems(
+        made("Circle", { radius: 1, centerpoint: [0, 0], sections }),
+      );
+    expect(circle([0])).toEqual([]);
+    expect(circle([0, 90, 180, 270])).toEqual([]);
+    // a turn further is the same quarter
+    expect(circle([-90, 0, 90, 180])).toEqual([]);
+    expect(circle([90, 450])).toEqual([
+      "sections 90 and 450 overlap: the quarters need 90 degrees between them.",
+    ]);
+    expect(circle([0, 270, 300.5])).toEqual([
+      "sections 0 and 300.5 overlap: the quarters need 90 degrees between them.",
+    ]);
+  });
+
   it("have a form from the schema, a vector per corner and points per axis", () => {
     const context = { commands: [] };
     const draft = initialDraft("mesh.generate", context);
@@ -104,6 +134,17 @@ describe("the mesh tools (ADR 0019)", () => {
       context,
     );
     expect(rectangle.parameters).toEqual({ a: [0, 0], b: [1, 1], n: [2, 2] });
+    // a tool of one value of n: its defaults, not the lists of the cube
+    const line = setValue("mesh.generate", draft, ["tool"], "Line", context);
+    expect(line.parameters).toEqual({ a: 0, b: 1, n: 2 });
+    const expand = setValue(
+      "mesh.generate",
+      draft,
+      ["tool"],
+      "expand",
+      context,
+    );
+    expect(expand.parameters).toEqual({ n: 11, z: 1 });
     // whole numbers of at least 2 points per axis
     const errors = (n: unknown[]) =>
       draftErrors(
@@ -120,16 +161,86 @@ describe("the mesh tools (ADR 0019)", () => {
     expect(errors([3, 1, 3])).toBe("Enter numbers of at least 2.");
   });
 
+  it("have a form of a circle and a triangle (#394)", () => {
+    const context = { commands: [] };
+    const draft = initialDraft("mesh.generate", context);
+    const circle = setValue(
+      "mesh.generate",
+      draft,
+      ["tool"],
+      "Circle",
+      context,
+    );
+    // the defaults of FElupe: a full circle
+    expect(circle.parameters).toEqual({
+      radius: 1,
+      centerpoint: [0, 0],
+      n: 2,
+      sections: [0, 90, 180, 270],
+    });
+    const specs = fieldSpecs("mesh.generate", circle);
+    expect(specs.map((s) => s.key)).toEqual([
+      "name",
+      "tool",
+      "parameters.radius",
+      "parameters.centerpoint",
+      "parameters.n",
+      "parameters.sections",
+      "color",
+    ]);
+    // one to four start angles, which may be expressions
+    expect(
+      specs.find((s) => s.key === "parameters.sections")!.input,
+    ).toMatchObject({
+      type: "numbers",
+      minItems: 1,
+      maxItems: 4,
+      expressions: true,
+    });
+    const errors = (sections: unknown[]) =>
+      draftErrors(
+        "mesh.generate",
+        {
+          ...circle,
+          name: "disc",
+          parameters: { ...(circle.parameters as object), sections },
+        },
+        context,
+      )["parameters.sections"];
+    expect(errors([0])).toBeUndefined();
+    expect(errors([0, 90, 180, 270, 360])).toBeDefined();
+    const triangle = setValue(
+      "mesh.generate",
+      draft,
+      ["tool"],
+      "Triangle",
+      context,
+    );
+    expect(triangle.parameters).toEqual({
+      a: [0, 0],
+      b: [1, 0],
+      c: [0, 1],
+      n: 2,
+    });
+  });
+
   it("are described in the browser", () => {
     const tree = deriveTree([
       made("Cube", { a: [0, 0, 0], b: [1, 1, 1], n: [3, 3, 2] }, "block"),
       made("Point", { a: 0 }, "corner"),
+      made(
+        "Circle",
+        { radius: 1, centerpoint: [0, 0], n: 4, sections: [0] },
+        "disc",
+      ),
     ]);
     const meshes = tree.find((g) => g.id === "group:mesh")!.children;
     expect(meshes.map((m) => [m.label, m.detail])).toEqual([
       ["block", "Cube · n = 3 × 3 × 2"],
       // a point is a construction mesh of a 3D model
       ["corner", "Point · construction"],
+      // a circle too, with its 2D points (#394)
+      ["disc", "Circle · n = 4 · construction"],
     ]);
   });
 });

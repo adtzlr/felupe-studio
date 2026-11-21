@@ -14,6 +14,7 @@ from functools import cache
 
 from .commands import schema
 from .formatting import vector
+from .project import js_number
 
 __all__ = [
     "call",
@@ -37,8 +38,8 @@ def tools():
 
     Examples
     --------
-    >>> list(tools())[:5]
-    ['Point', 'Line', 'Rectangle', 'Cube', 'expand']
+    >>> list(tools())[:7]
+    ['Point', 'Line', 'Rectangle', 'Cube', 'Circle', 'Triangle', 'expand']
     >>> tools()["Rectangle"]["x-dimension"]
     {'points': 2, 'cells': 2, 'cell_type': 'quad'}
     """
@@ -108,7 +109,8 @@ def model_mesh(dimension, dim):
 
 def problems(command):
     """Return what is wrong with the values of a tool beyond the schema: the corner
-    ``b`` (the end of a line) is larger than ``a`` in every axis.
+    ``b`` (the end of a line) is larger than ``a`` in every axis, the corners of a
+    triangle go around counterclockwise, and the quarters of a circle do not overlap.
 
     Examples
     --------
@@ -116,8 +118,51 @@ def problems(command):
     ['b must be larger than a in y.']
     >>> problems({"tool": "Line", "parameters": {"a": 1, "b": 1}})
     ['b must be larger than a.']
+    >>> problems({"tool": "Circle", "parameters": {"sections": [0, 45]}})
+    ['sections 0 and 45 overlap: the quarters need 90 degrees between them.']
     """
-    parameters = command["parameters"]
+    if command["tool"] == "Triangle":
+        return _triangle_problems(command["parameters"])
+    if command["tool"] == "Circle":
+        return _circle_problems(command["parameters"])
+    return _corner_problems(command["parameters"])
+
+
+def _triangle_problems(parameters):
+    """The corners of a triangle go around counterclockwise, else its cells are
+    inverted, and they do not lie on a line."""
+    corners = [parameters.get(key) for key in "abc"]
+    if not all(isinstance(p, list) and len(p) == 2 for p in corners):
+        return []
+    (ax, ay), (bx, by), (cx, cy) = ([float(x) for x in p] for p in corners)
+    area = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax)
+    size = max((bx - ax) ** 2 + (by - ay) ** 2, (cx - ax) ** 2 + (cy - ay) ** 2)
+    if abs(area) <= 1e-12 * size:
+        return ["a, b and c lie on a line."]
+    if area < 0:
+        return ["a, b and c go around clockwise; swap b and c."]
+    return []
+
+
+def _circle_problems(parameters):
+    """The quarters of a circle start at least 90 degrees apart, else they overlap."""
+    if not isinstance(parameters.get("sections"), list):
+        return []
+    sections = [float(s) for s in parameters["sections"]]
+    for i, first in enumerate(sections):
+        for second in sections[i + 1 :]:
+            gap = abs(second - first) % 360
+            if min(gap, 360 - gap) < 90 - 1e-9:
+                pair = f"{js_number(first)} and {js_number(second)}"
+                return [
+                    f"sections {pair} overlap: the quarters need 90 degrees between "
+                    "them."
+                ]
+    return []
+
+
+def _corner_problems(parameters):
+    """The corner ``b`` (the end of a line) is larger than ``a`` in every axis."""
     if "a" not in parameters or "b" not in parameters:
         return []
     a, b = parameters["a"], parameters["b"]

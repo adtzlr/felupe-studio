@@ -55,6 +55,8 @@ export type MeshGenerate =
   | MeshLine
   | MeshRectangle
   | MeshCube
+  | MeshCircle
+  | MeshTriangle
   | MeshExpand
   | MeshRevolve
   | MeshEmbed
@@ -416,6 +418,85 @@ export interface MeshCube {
      * @maxItems 3
      */
     n: [number | string, number | string, number | string];
+  };
+  color?: Color;
+}
+/**
+ * A circle in the xy-plane (fem.Circle): quads in quarters of a circle about the centerpoint, each with a square inside, with n points on the edges of a quarter. The sections are the start angles of the quarters, e.g. 0 for a quarter circle or 0, 90, 180, 270 for a full circle.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MeshCircle".
+ */
+export interface MeshCircle {
+  command: "mesh.generate";
+  name: Name;
+  tool: "Circle";
+  parameters: {
+    /**
+     * The radius of the circle.
+     */
+    radius: number | string;
+    /**
+     * The center of the circle, x and y.
+     *
+     * @minItems 2
+     * @maxItems 2
+     */
+    centerpoint: [number | string, number | string];
+    /**
+     * The number of points on the edges of a quarter (at least 2).
+     */
+    n: number | string;
+    /**
+     * The start angles of the quarters in degrees, at least 90 apart, e.g. 0 for a quarter circle or 0, 90, 180, 270 for a full circle.
+     *
+     * @minItems 1
+     * @maxItems 4
+     */
+    sections:
+      | [number | string]
+      | [number | string, number | string]
+      | [number | string, number | string, number | string]
+      | [number | string, number | string, number | string, number | string];
+  };
+  color?: Color;
+}
+/**
+ * A triangle in the xy-plane (fem.mesh.Triangle): three quad sections between the corners a, b and c, counterclockwise, with n points on the edges of a section.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MeshTriangle".
+ */
+export interface MeshTriangle {
+  command: "mesh.generate";
+  name: Name;
+  tool: "Triangle";
+  parameters: {
+    /**
+     * The first corner, x and y.
+     *
+     * @minItems 2
+     * @maxItems 2
+     */
+    a: [number | string, number | string];
+    /**
+     * The second corner, x and y, counterclockwise from a.
+     *
+     * @minItems 2
+     * @maxItems 2
+     */
+    b: [number | string, number | string];
+    /**
+     * The third corner, x and y, counterclockwise from b.
+     *
+     * @minItems 2
+     * @maxItems 2
+     */
+    c: [number | string, number | string];
+    /**
+     * The number of points on the edges of a section (at least 2).
+     */
+    n: number | string;
   };
   color?: Color;
 }

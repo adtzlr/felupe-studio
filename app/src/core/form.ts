@@ -911,7 +911,11 @@ export function setValue(
   return normalize(type, next, context, known);
 }
 
-/** Remove the lists of a draft whose length does not fit their property, in place. */
+/**
+ * Remove the lists of a draft whose length does not fit their property, in place,
+ * and the lists of a property of one value, e.g. the points of a line after those
+ * of a cube.
+ */
 function dropMisfits(
   object: Node,
   value: Draft,
@@ -922,12 +926,14 @@ function dropMisfits(
     const property = resolve(raw);
     const child = value[name];
     const path = [...prefix, name];
+    const one =
+      property.type !== undefined && ![property.type].flat().includes("array");
     if (isObject(child) && property.type === "object") {
       dropMisfits(property, child, path, known);
     } else if (
       Array.isArray(child) &&
-      property.type === "array" &&
-      (child.length < (property.minItems ?? 0) ||
+      (one ||
+        child.length < (property.minItems ?? 0) ||
         child.length > (property.maxItems ?? Infinity))
     ) {
       delete value[name];

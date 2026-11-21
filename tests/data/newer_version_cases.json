@@ -47,17 +47,17 @@
         {
           "command": "mesh.generate",
           "name": "block",
-          "tool": "Circle",
+          "tool": "triangulate",
           "parameters": {
-            "radius": 1
+            "mode": 3
           }
         }
       ]
     },
     "features": [
-      "the tool `Circle` of `mesh.generate`"
+      "the tool `triangulate` of `mesh.generate`"
     ],
-    "message": "This project uses the tool `Circle` of `mesh.generate`, which FElupe Studio {version} does not know. It may have been saved with a newer version: please update FElupe Studio."
+    "message": "This project uses the tool `triangulate` of `mesh.generate`, which FElupe Studio {version} does not know. It may have been saved with a newer version: please update FElupe Studio."
   },
   {
     "name": "a material model",
