@@ -3,7 +3,12 @@
 // substeps of a job (#139).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { SceneCache } from "../core/scenecache";
-import type { Quantity, ResultScene, ValuesMethod } from "../worker/protocol";
+import type {
+  Quantity,
+  ResultRanges,
+  ResultScene,
+  ValuesMethod,
+} from "../worker/protocol";
 
 /** Loads the result scenes of substeps (the worker client). */
 export interface ResultSource {
@@ -13,47 +18,44 @@ export interface ResultSource {
     quantity: Quantity,
     method?: ValuesMethod,
   ): Promise<ResultScene>;
-  /** The ranges of a quantity of every substep of a job (#139). */
+  /**
+   * The ranges of a quantity of every substep of a job (#139), of all sections and
+   * of every section (#377).
+   */
   resultRanges?(
     job: string,
     quantity: Quantity,
     method?: ValuesMethod,
-  ): Promise<([number, number] | null)[]>;
+  ): Promise<ResultRanges>;
 }
 
-/** The range over all substeps of a job (#139), from the ranges of its substeps. */
-export function useJobRange(
+/**
+ * The ranges of the substeps of a job (#139), for the range over all substeps, of
+ * all sections or of chosen sections (#377, `jobRangeOf()`).
+ */
+export function useJobRanges(
   source: ResultSource | undefined,
   key: string | undefined,
   job: string,
   quantity: Quantity,
   method: ValuesMethod,
-): readonly [number, number] | undefined {
+): ResultRanges | undefined {
   const [ranges, setRanges] = useState<{
     key: string;
-    range?: [number, number];
+    ranges?: ResultRanges;
   }>();
   useEffect(() => {
     if (!key || !source?.resultRanges || ranges?.key === key) return;
     let alive = true;
     source.resultRanges(job, quantity, method).then(
-      (list) => {
-        const finite = list.filter((r): r is [number, number] => r !== null);
-        const range: [number, number] | undefined = finite.length
-          ? [
-              Math.min(...finite.map((r) => r[0])),
-              Math.max(...finite.map((r) => r[1])),
-            ]
-          : undefined;
-        if (alive) setRanges({ key, range });
-      },
+      (loaded) => alive && setRanges({ key, ranges: loaded }),
       () => alive && setRanges({ key }),
     );
     return () => {
       alive = false;
     };
   }, [source, key]);
-  return key && ranges?.key === key ? ranges.range : undefined;
+  return key && ranges?.key === key ? ranges.ranges : undefined;
 }
 
 export type Loaded =

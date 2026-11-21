@@ -13,8 +13,10 @@ quadrature points of every cell, or at the points (#231, see :data:`METHODS`).
 The surfaces are triangulated once per section (``triangulate_surface`` of FElupe,
 subdivided for quadratic cells) and returned as little-endian bytes, like
 :func:`felupe_studio.scene.surface`. :func:`ranges` gives the range of a quantity
-of every substep of a job. :func:`export` writes the results of a job as a VTU file
-of a substep or as an XDMF time series of all substeps.
+of every substep of a job. Both give the ranges also per section, so the app takes
+the range of a contour from chosen sections (#377). :func:`export` writes the
+results of a job as a VTU file of a substep or as an XDMF time series of all
+substeps.
 """
 
 import json
@@ -510,26 +512,51 @@ def _extend(bounds, *arrays):
     return low, high
 
 
+def _range(bounds):
+    """The bounds as ``[low, high]``, or ``None`` without finite values."""
+    low, high = bounds
+    return [float(low), float(high)] if low <= high else None
+
+
+def _union(ranges):
+    """The range of ranges (``None`` without any)."""
+    ranges = [r for r in ranges if r is not None]
+    if not ranges:
+        return None
+    return [min(r[0] for r in ranges), max(r[1] for r in ranges)]
+
+
 def ranges(job, quantity, method="cells"):
-    """Return the ranges of a quantity of all substeps of a job, as the JSON text
-    of a list of ``[low, high]`` per substep (``null`` without finite values), like
-    the ``range`` of :func:`scene` (for a range of the contour over all substeps,
-    #139), with the values of the strains and the stresses of a method of
-    :data:`METHODS` (#231). The ranges are kept until the next run."""
+    """Return the ranges of a quantity of all substeps of a job, for a range of the
+    contour over all substeps (#139), with the values of the strains and the
+    stresses of a method of :data:`METHODS` (#231). The ranges are kept until the
+    next run.
+
+    Returns
+    -------
+    str
+        The JSON text of the ``range`` of all sections, a list of ``[low, high]``
+        per substep (``null`` without finite values) like the ``range`` of
+        :func:`scene`, and of the ranges of every section (``sections``, by name),
+        lists like it, for the range of chosen sections (#377).
+    """
     kind, component, _ = QUANTITIES[quantity]
     method = method_of(method) if kind != "displacement" else "cells"
     key = (job, quantity, method)
     cache = _state.setdefault("ranges", {})
     if key not in cache:
-        result = []
-        for substep in range(1, len(_state["records"].get(job, [])) + 1):
+        count = len(_state["records"].get(job, []))
+        sections = {section: [] for section in _state["sections"]}
+        for substep in range(1, count + 1):
             _restore(job, substep)
-            low, high = np.inf, -np.inf
-            for section in _state["sections"]:
+            for section, result in sections.items():
                 data, values, _ = _values(section, kind, component, method)
-                low, high = _extend((low, high), data, values)
-            result.append([float(low), float(high)] if low <= high else None)
-        cache[key] = result
+                result.append(_range(_extend((np.inf, -np.inf), data, values)))
+        # all sections: the union of the sections of every substep
+        cache[key] = {
+            "range": [_union(r[i] for r in sections.values()) for i in range(count)],
+            "sections": sections,
+        }
     return json.dumps(cache[key])
 
 
@@ -568,9 +595,11 @@ def scene(job, substep, quantity, method="cells"):
         over all cells of all sections (``None`` without finite values), of the
         ``extremes`` (``min`` and ``max`` with their ``value``, ``section``, ``at``,
         ``index`` of the node or the cell, whether it is at the ``surface``, its
-        ``position`` and ``displacement``; ``None`` without finite values) and of
-        the control ``points`` (``name``,
-        ``position`` and ``displacement``), and the surface of every section: its
+        ``position`` and ``displacement``; ``None`` without finite values), of the
+        ``range`` and the ``extremes`` of every section (``sections``, by name, for
+        the range of chosen sections, #377) and of the control ``points``
+        (``name``, ``position`` and ``displacement``), and the surface of every
+        section: its
         ``name``, ``positions`` (three coordinates per point of the surface),
         ``displacement`` (three components per point), ``triangles``, ``faces`` (to
         shade the faces of linear cells flat; ``None`` for curved faces), ``edges``,
@@ -590,19 +619,16 @@ def current_scene(job, substep, quantity, method="cells"):
     method = method_of(method)
     at = "point" if kind == "displacement" or method != "cells" else "cell"
     surfaces = []
-    low, high = np.inf, -np.inf
-    extremes = {}
+    # the ranges and the extremes of every section (#377)
+    sections = {}
     for section in _state["sections"]:
         surface, cells, order = _surface(section)
         mesh = _state["namespace"][f"field_{section}"][0].region.mesh
         data, values, displacement = _values(section, kind, component, method)
-        low, high = _extend((low, high), data, values)
-        for name, candidate in _extremes(section, at, data).items():
-            sign = -1 if name == "min" else 1
-            if name not in extremes or (
-                sign * candidate["value"] > sign * extremes[name]["value"]
-            ):
-                extremes[name] = candidate
+        sections[section] = {
+            "range": _range(_extend((np.inf, -np.inf), data, values)),
+            "extremes": _extremes(section, at, data) or None,
+        }
         surfaces.append(
             {
                 "name": section,
@@ -622,11 +648,26 @@ def current_scene(job, substep, quantity, method="cells"):
         "at": at,
         **({"method": method} if kind != "displacement" else {}),
         "shift": shift(),
-        "range": [float(low), float(high)] if low <= high else None,
-        "extremes": extremes or None,
+        "range": _union(s["range"] for s in sections.values()),
+        "extremes": _combined_extremes(sections.values()),
+        "sections": sections,
         "points": _control_points(job, substep),
     }
     return json.dumps(meta), surfaces
+
+
+def _combined_extremes(sections):
+    """Return the minimum and the maximum of the extremes of sections (``None``
+    without any): of the first section with the smallest or the largest value."""
+    extremes = {}
+    for section in sections:
+        for name, candidate in (section["extremes"] or {}).items():
+            sign = -1 if name == "min" else 1
+            if name not in extremes or (
+                sign * candidate["value"] > sign * extremes[name]["value"]
+            ):
+                extremes[name] = candidate
+    return extremes or None
 
 
 def _extremes(section, at, data):

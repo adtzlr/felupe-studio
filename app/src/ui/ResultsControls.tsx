@@ -12,6 +12,7 @@ import {
   QUANTITY_GROUPS,
   quantityGroups,
   type ResultView,
+  sectionsOf,
   stepOf,
   substepsOf,
 } from "../core/results";
@@ -175,6 +176,11 @@ export function ResultsControls({
             onChange={onContour}
             current={currentRange}
             shift={shift}
+            sections={sectionsOf(run.commands)}
+            chosen={view.rangeSections}
+            onChoose={(sections) =>
+              set({ rangeSections: sections.length ? sections : undefined })
+            }
           />
         )}
       </div>

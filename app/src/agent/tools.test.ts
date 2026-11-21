@@ -200,6 +200,8 @@ describe("the tools of the agent bridge in the app (#258)", () => {
       label: "Displacement",
       at: "point",
       range: [0, 1],
+      // the range of every section is the app's (#377), not the agent's
+      sections: { body: { range: [0, 1], extremes: null } },
       surfaces: [{}],
     };
     const client = {

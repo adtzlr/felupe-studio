@@ -1,7 +1,8 @@
 // The scalar bar of a contour (#139), drawn by the app into the root of the viewer
 // with the classes of the scalar bars of the viewer (so the picture export takes
 // it): the map in its bands over the shown range, and the outside color below and
-// above it if values are outside of the range.
+// above it if values are outside of the range. A note below the title names the
+// sections of a range of chosen sections (#377).
 import { colorMap, lookupTable } from "../core/colormaps";
 import type { ContourLook } from "../core/contour";
 
@@ -63,6 +64,11 @@ export function renderScalarBar(root: HTMLElement, bar?: ScalarBar): void {
   const title = document.createElement("div");
   title.className = "fv-bar-title";
   title.textContent = label;
+  const note = look.note ? document.createElement("div") : undefined;
+  if (note) {
+    note.className = "fv-bar-note";
+    note.textContent = look.note ?? "";
+  }
 
   const scale = document.createElement("div");
   scale.className = "scalar-scale";
@@ -97,7 +103,7 @@ export function renderScalarBar(root: HTMLElement, bar?: ScalarBar): void {
     look.above ? swatch("above", high) : document.createElement("span"),
     ticks,
   );
-  element.append(title, scale);
+  element.append(title, ...(note ? [note] : []), scale);
   container.appendChild(element);
   root.appendChild(container);
 }

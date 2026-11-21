@@ -67,6 +67,19 @@ describe("results view", () => {
     };
     expect(viewOf(run, previous)).toEqual({ ...previous, substep: 2 });
     expect(viewOf(run, { ...previous, job: "gone" }).job).toBe("job_1");
+    // the sections of the range of the contour (#377): a removed or renamed
+    // section leaves them, none left is all sections
+    const sections = [
+      ...commands,
+      { command: "section.add", name: "rubber" },
+      { command: "section.add", name: "steel" },
+    ] as unknown as Command[];
+    const solved = { ...run, commands: sections };
+    const chosen = { ...previous, rangeSections: ["glass", "rubber"] };
+    expect(viewOf(solved, chosen).rangeSections).toEqual(["rubber"]);
+    expect(
+      viewOf(solved, { ...previous, rangeSections: ["glass"] }),
+    ).not.toHaveProperty("rangeSections");
     expect(substepsOf(run, "job_2")).toBe(2);
     expect(substepsOf(run, "gone")).toBe(0);
   });

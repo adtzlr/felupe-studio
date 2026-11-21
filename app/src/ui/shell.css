@@ -2041,6 +2041,17 @@ button {
   font-size: var(--text-xs);
 }
 
+/* the sections of an automatic range (#377): a list that scrolls in a model of
+   many sections */
+.range-sections .popover-choices {
+  max-height: 168px;
+  overflow-y: auto;
+}
+
+.range-sections .check {
+  overflow-wrap: anywhere;
+}
+
 .popover-actions {
   display: flex;
   justify-content: flex-end;
@@ -2141,6 +2152,13 @@ button {
 
 .app-scalar-bar canvas.scalar-outside {
   width: 14px;
+}
+
+/* the sections of a range of chosen sections (#377), below the title */
+.app-scalar-bar .fv-bar-note {
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
 }
 
 .app-scalar-bar .scalar-scale > .fv-ticks {

@@ -1,6 +1,6 @@
 // The settings of the contour (#139) in a popover beside *Contour*: the color map,
-// the bands, the range and the values at the cells or the points (#231). Esc or a
-// click outside closes it.
+// the bands, the range, the sections of an automatic range (#377) and the values at
+// the cells or the points (#231). Esc or a click outside closes it.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { COLOR_MAPS, type ColorMapId, colorOf } from "../core/colormaps";
 import {
@@ -24,6 +24,74 @@ interface Props {
    * points (#231); false: they are projected instead (unknown without results).
    */
   shift?: boolean;
+  /**
+   * The sections of the results, for an automatic range of chosen sections (#377):
+   * the chosen ones (none for all sections) and their choice, a part of the view of
+   * the results, not of the settings.
+   */
+  sections?: readonly string[];
+  chosen?: readonly string[];
+  onChoose?: (sections: string[]) => void;
+}
+
+/**
+ * The sections of an automatic range (#377): *All sections*, or the chosen ones.
+ * The values of the others outside of the range take the outside color.
+ */
+function RangeSections({
+  sections,
+  chosen,
+  onChoose,
+}: {
+  sections: readonly string[];
+  chosen: readonly string[];
+  onChoose: (sections: string[]) => void;
+}) {
+  // all of them are all sections, a removed or renamed one is not chosen
+  const choose = (next: string[]) =>
+    onChoose(next.length === sections.length ? [] : next);
+  return (
+    <fieldset class="popover-row range-sections">
+      <legend>Range of</legend>
+      <div class="popover-choices">
+        <label class="check">
+          <input
+            type="checkbox"
+            checked={!chosen.length}
+            onChange={(event) => {
+              // all sections stay chosen until a section is chosen
+              if (!chosen.length) event.currentTarget.checked = true;
+              else choose([]);
+            }}
+          />
+          All sections
+        </label>
+        {sections.map((section) => (
+          <label key={section} class="check">
+            <input
+              type="checkbox"
+              checked={chosen.includes(section)}
+              onChange={(event) =>
+                choose(
+                  sections.filter((s) =>
+                    s === section
+                      ? event.currentTarget.checked
+                      : chosen.includes(s),
+                  ),
+                )
+              }
+            />
+            {section}
+          </label>
+        ))}
+      </div>
+      <small class="muted popover-note">
+        {chosen.length
+          ? "The values of the other sections outside of the range are drawn in an extra color."
+          : "The range of the values of all sections."}
+      </small>
+    </fieldset>
+  );
 }
 
 /** A small gradient of a map, beside its name. */
@@ -43,7 +111,16 @@ function Swatch({ map }: { map: ColorMapId }) {
 const numberText = (x: number | undefined) =>
   x === undefined ? "" : String(+x.toPrecision(6));
 
-export function ContourSettings({ settings, onChange, current, shift }: Props) {
+export function ContourSettings({
+  settings,
+  onChange,
+  current,
+  shift,
+  sections = [],
+  chosen: stored,
+  onChoose,
+}: Props) {
+  const chosen = sections.filter((s) => stored?.includes(s));
   const [open, setOpen] = useState(false);
   const [place, setPlace] = useState({ top: 0, left: 0 });
   const button = useRef<HTMLButtonElement>(null);
@@ -132,7 +209,9 @@ export function ContourSettings({ settings, onChange, current, shift }: Props) {
     settings.range === "manual" && !manualRange(settings)
       ? "The minimum must be less than the maximum."
       : undefined;
-  const changed = JSON.stringify(settings) !== JSON.stringify(DEFAULT_CONTOUR);
+  const changed =
+    JSON.stringify(settings) !== JSON.stringify(DEFAULT_CONTOUR) ||
+    chosen.length > 0;
   // the values are projected if they cannot be shifted to the points (#231)
   const fallback = settings.values === "topoints" && shift === false;
   const values = fallback ? "project" : settings.values;
@@ -207,6 +286,13 @@ export function ContourSettings({ settings, onChange, current, shift }: Props) {
               ))}
             </div>
           </fieldset>
+          {settings.range !== "manual" && sections.length > 1 && onChoose && (
+            <RangeSections
+              sections={sections}
+              chosen={chosen}
+              onChoose={onChoose}
+            />
+          )}
           {settings.range === "manual" && (
             <div class="popover-limits">
               <label>
@@ -268,6 +354,7 @@ export function ContourSettings({ settings, onChange, current, shift }: Props) {
               disabled={!changed}
               onClick={() => {
                 onChange(DEFAULT_CONTOUR);
+                onChoose?.([]);
                 setMin("");
                 setMax("");
               }}

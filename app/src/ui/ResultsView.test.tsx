@@ -7,6 +7,7 @@ import {
   waitFor,
 } from "@testing-library/preact";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_CONTOUR } from "../core/contour";
 import type { Command } from "../core/resolved";
 import type { ResultView } from "../core/results";
 import type { Scene, ViewerHandle } from "../vendor/felupe-viewer/viewer.js";
@@ -155,6 +156,105 @@ describe("ResultsView", () => {
     fireEvent.keyDown(window, { key: "c" });
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
     await waitFor(() => expect(drawn().lines).toBeGreaterThan(0));
+  });
+
+  it("takes the range of chosen sections (#377)", async () => {
+    // the rubber beside the steel: the steel sets the range of all sections
+    const extreme = (section: string, value: number, index: number) => ({
+      value,
+      section,
+      at: "cell" as const,
+      index,
+      surface: true,
+      position: [index, 0, 0] as [number, number, number],
+      displacement: [0, 0, 0] as [number, number, number],
+    });
+    const two: ResultScene = {
+      ...scene,
+      label: "Von Mises",
+      at: "cell",
+      range: [0, 12],
+      extremes: { min: extreme("rubber", 0, 0), max: extreme("steel", 12, 1) },
+      sections: {
+        rubber: {
+          range: [0, 4],
+          extremes: {
+            min: extreme("rubber", 0, 0),
+            max: extreme("rubber", 4, 0),
+          },
+        },
+        steel: {
+          range: [1, 12],
+          extremes: {
+            min: extreme("steel", 1, 1),
+            max: extreme("steel", 12, 1),
+          },
+        },
+      },
+    };
+    const viewer = fakeViewer();
+    const onRange = vi.fn();
+    const resultRanges = vi.fn(async () => ({
+      range: [
+        [0, 12],
+        [0, 16],
+      ] as [number, number][],
+      sections: {
+        rubber: [
+          [0, 4],
+          [0, 5],
+        ] as [number, number][],
+        steel: [
+          [1, 12],
+          [1, 16],
+        ] as [number, number][],
+      },
+    }));
+    const show = (props: Partial<Parameters<typeof ResultsView>[0]>) => (
+      <ResultsView
+        source={{ resultScene: async () => two, resultRanges }}
+        view={{ ...view, rangeSections: ["rubber"] }}
+        generation={1}
+        active
+        running={false}
+        createViewer={viewer.create}
+        onRange={onRange}
+        {...props}
+      />
+    );
+    const bar = () => viewer.handle.root.querySelector(".app-scalar-bar");
+    const ticks = () =>
+      [...(bar()?.querySelectorAll(".fv-ticks span") ?? [])].map(
+        (s) => s.textContent,
+      );
+    const { rerender } = render(show({}));
+    // the range of the rubber, the steel above it in the outside color, named
+    await waitFor(() => expect(ticks()).toEqual(["0", "1", "2", "3", "4"]));
+    expect(bar()!.querySelector(".fv-bar-note")!.textContent).toBe(
+      "Range: rubber",
+    );
+    expect(bar()!.querySelector("canvas.scalar-outside.above")).toBeTruthy();
+    // the start of a manual range is the range of the rubber
+    expect(onRange).toHaveBeenLastCalledWith([0, 4]);
+    // the markers of the rubber: its maximum, not that of the steel
+    fireEvent.click(screen.getByRole("button", { name: "Min/Max" }));
+    await waitFor(() =>
+      expect(viewer.handle.root.textContent).toContain("Max. 4"),
+    );
+    expect(viewer.handle.root.textContent).not.toContain("Max. 12");
+
+    // all substeps: of the rubber over the substeps of the job
+    rerender(show({ contour: { ...DEFAULT_CONTOUR, range: "job" } }));
+    await waitFor(() =>
+      expect(ticks()).toEqual(["0", "1.25", "2.5", "3.75", "5"]),
+    );
+    expect(resultRanges).toHaveBeenCalledTimes(1);
+
+    // a removed section: all sections, without a note
+    rerender(show({ view: { ...view, rangeSections: ["gone"] } }));
+    await waitFor(() => expect(ticks()).toEqual(["0", "3", "6", "9", "12"]));
+    expect(bar()!.querySelector(".fv-bar-note")).toBeNull();
+    expect(onRange).toHaveBeenLastCalledWith([0, 12]);
   });
 
   it("has no toggle of the constraints without them (#335)", async () => {

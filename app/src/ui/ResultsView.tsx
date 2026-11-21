@@ -2,8 +2,6 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import {
   type ContourSettings,
-  contourLook,
-  contourRange,
   DEFAULT_CONTOUR,
   methodOf,
 } from "../core/contour";
@@ -25,10 +23,10 @@ import { drawResults } from "./resultsDrawing";
 import {
   type Loaded,
   type ResultSource,
-  useJobRange,
   useResultScene,
   type Wanted,
 } from "./useResultScene";
+import { useContourLook } from "./useContourLook";
 import { useHover, usePinnedPick } from "./useResultsPointer";
 
 export type { ResultSource } from "./useResultScene";
@@ -314,7 +312,16 @@ export function ResultsView({
     wanted,
     wanted.key ? ahead.map((substep) => wantedOf(view, substep, loads)) : [],
   );
-  const scene = sceneOf(live, view, loaded, generation);
+  // the contour (#139), with the range of chosen sections (#377)
+  const { scene, look, range } = useContourLook({
+    source,
+    scene: sceneOf(live, view, loaded, generation),
+    view,
+    contour,
+    method,
+    shown: loads.shown,
+    generation,
+  });
   const error = live ? undefined : errorOf(view, loaded, wanted);
   // the units of the model (#132): the title of the scalar bar and the tooltips
   const units = unitsOf(commands);
@@ -324,28 +331,8 @@ export function ResultsView({
     [scene, unit],
   );
 
-  // the look of the contour (#139): the map, the bands and the range, of the
-  // substep, of all substeps of the job or manual
-  const jobRange = useJobRange(
-    source,
-    view && loads.shown && contour.range === "job"
-      ? `${generation}/${view.job}/${method}/${view.quantity}`
-      : undefined,
-    view?.job ?? "",
-    view?.quantity ?? "displacement",
-    method,
-  );
-  const values = scene?.range ?? undefined;
-  const look = useMemo(() => {
-    if (!scene) return undefined;
-    const substep: [number, number] = values ?? [0, 0];
-    return contourLook(
-      contour,
-      contourRange(contour, substep, jobRange),
-      substep,
-    );
-  }, [scene, contour, jobRange?.[0], jobRange?.[1]]);
-  useEffect(() => onRange?.(values ?? undefined), [values?.[0], values?.[1]]);
+  // the start of a manual range: the range of the substep, of the chosen sections
+  useEffect(() => onRange?.(range ?? undefined), [range?.[0], range?.[1]]);
   useEffect(() => onShift?.(scene?.shift), [scene?.shift]);
   const pin = useState<Extreme>();
   const [pinned, setPinned] = pin;

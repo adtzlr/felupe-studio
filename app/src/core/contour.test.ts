@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { lookupTable } from "./colormaps";
+import type { ResultExtreme, ResultScene } from "../worker/protocol";
 import {
   contourLook,
   contourRange,
   DEFAULT_CONTOUR,
+  jobRangeOf,
   loadContour,
   manualRange,
   methodOf,
+  rangeNote,
+  rangeSectionsOf,
   saveContour,
+  sectionValues,
 } from "./contour";
 
 /** A storage in memory, like localStorage. */
@@ -133,5 +138,123 @@ describe("contour settings (#139)", () => {
     const settings = { ...DEFAULT_CONTOUR, values: "project" as const };
     expect(methodOf("displacement_x", settings)).toBe("cells");
     expect(methodOf("stress_mises", settings)).toBe("project");
+  });
+});
+
+/** An extreme of a section with a value. */
+const extreme = (section: string, value: number): ResultExtreme => ({
+  value,
+  section,
+  at: "cell",
+  index: 0,
+  surface: true,
+  position: [0, 0, 0],
+  displacement: [0, 0, 0],
+});
+
+/** A scene of a soft and a steel section and air without finite values. */
+const scene: ResultScene = {
+  label: "Von Mises",
+  at: "cell",
+  range: [0.2, 13],
+  extremes: { min: extreme("rubber", 0.2), max: extreme("steel", 13) },
+  sections: {
+    rubber: {
+      range: [0.2, 6],
+      extremes: { min: extreme("rubber", 0.2), max: extreme("rubber", 6) },
+    },
+    steel: {
+      range: [0.3, 13],
+      extremes: { min: extreme("steel", 0.3), max: extreme("steel", 13) },
+    },
+    air: { range: null, extremes: null },
+  },
+  surfaces: [],
+};
+
+describe("the range of chosen sections (#377)", () => {
+  const sections = ["rubber", "steel", "air"];
+
+  it("chooses the sections of the results, in their order", () => {
+    expect(rangeSectionsOf(DEFAULT_CONTOUR, undefined, sections)).toEqual([]);
+    expect(rangeSectionsOf(DEFAULT_CONTOUR, [], sections)).toEqual([]);
+    expect(
+      rangeSectionsOf(DEFAULT_CONTOUR, ["steel", "rubber"], sections),
+    ).toEqual(["rubber", "steel"]);
+    // a removed or renamed section leaves the choice, none left is all sections
+    expect(
+      rangeSectionsOf(DEFAULT_CONTOUR, ["glass", "rubber"], sections),
+    ).toEqual(["rubber"]);
+    expect(rangeSectionsOf(DEFAULT_CONTOUR, ["glass"], sections)).toEqual([]);
+    // all of them are all sections; a manual range does not need them
+    expect(rangeSectionsOf(DEFAULT_CONTOUR, sections, sections)).toEqual([]);
+    const manual = { ...DEFAULT_CONTOUR, range: "manual" as const };
+    expect(rangeSectionsOf(manual, ["rubber"], sections)).toEqual([]);
+    const job = { ...DEFAULT_CONTOUR, range: "job" as const };
+    expect(rangeSectionsOf(job, ["rubber"], sections)).toEqual(["rubber"]);
+  });
+
+  it("takes the range and the extremes of the chosen sections", () => {
+    expect(sectionValues(scene, [])).toEqual({
+      range: scene.range,
+      extremes: scene.extremes,
+    });
+    const rubber = sectionValues(scene, ["rubber"]);
+    expect(rubber.range).toEqual([0.2, 6]);
+    expect(rubber.extremes?.max).toEqual(extreme("rubber", 6));
+    const both = sectionValues(scene, ["rubber", "air"]);
+    expect(both.range).toEqual([0.2, 6]);
+    const steel = sectionValues(scene, ["rubber", "steel"]);
+    expect(steel.range).toEqual([0.2, 13]);
+    expect(steel.extremes).toEqual({
+      min: extreme("rubber", 0.2),
+      max: extreme("steel", 13),
+    });
+    // a section without finite values has no range
+    expect(sectionValues(scene, ["air"])).toEqual({
+      range: null,
+      extremes: null,
+    });
+    // a scene without sections, e.g. of an older runtime, has those of all
+    const older = { ...scene, sections: undefined };
+    expect(sectionValues(older, ["rubber"]).range).toEqual([0.2, 13]);
+  });
+
+  it("draws the other sections outside of the range in the outside color", () => {
+    const own = sectionValues(scene, ["rubber"]).range!;
+    const look = contourLook(
+      DEFAULT_CONTOUR,
+      contourRange(DEFAULT_CONTOUR, own),
+      scene.range!,
+    );
+    expect(look.shown).toEqual([0.2, 6]);
+    expect(look).toMatchObject({ below: false, above: true });
+    // a diverging map is still centered at zero
+    const diverging = { ...DEFAULT_CONTOUR, map: "coolwarm" as const };
+    expect(contourRange(diverging, [-2, 6])).toEqual([-6, 6]);
+  });
+
+  it("takes the range of all substeps of the chosen sections", () => {
+    const ranges = {
+      range: [[0, 2], null, [0, 13]] as ([number, number] | null)[],
+      sections: {
+        rubber: [[0, 1], null, [0, 6]] as ([number, number] | null)[],
+        steel: [[0, 2], null, [0, 13]] as ([number, number] | null)[],
+      },
+    };
+    expect(jobRangeOf(ranges, [])).toEqual([0, 13]);
+    expect(jobRangeOf(ranges, ["rubber"])).toEqual([0, 6]);
+    // a section that is not in the ranges: none, the range of the substep instead
+    expect(jobRangeOf(ranges, ["glass"])).toBeUndefined();
+    expect(jobRangeOf({ range: [null], sections: {} }, [])).toBeUndefined();
+  });
+
+  it("names the sections at the scalar bar", () => {
+    expect(rangeNote([])).toBeUndefined();
+    expect(rangeNote(["rubber"])).toBe("Range: rubber");
+    expect(rangeNote(["a", "b", "c"])).toBe("Range: a, b, c");
+    expect(rangeNote(["a", "b", "c", "d", "e"])).toBe(
+      "Range: a, b and 3 more sections",
+    );
   });
 });

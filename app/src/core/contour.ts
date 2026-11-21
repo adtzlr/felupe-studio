@@ -1,8 +1,15 @@
 // The settings of the contour of results (#139): the color map, the bands and the
 // range, and what the viewer draws from them (its lookup table, bands and range),
 // and the values of the strains and the stresses at the cells or the points (#231).
+// The automatic range may come from chosen sections (#377).
 import { storageKey } from "../brand";
-import type { Quantity, ValuesMethod } from "../worker/protocol";
+import type {
+  Quantity,
+  ResultExtremes,
+  ResultRanges,
+  ResultScene,
+  ValuesMethod,
+} from "../worker/protocol";
 import {
   type ColorMapId,
   colorMap,
@@ -112,6 +119,89 @@ export function contourRange(
   return [low, high];
 }
 
+/**
+ * The chosen sections of the automatic range of a contour (#377), among the
+ * sections of the results and in their order. None, for all sections: without a
+ * choice, with a manual range, if all of them are chosen, or if none of them is in
+ * the results (e.g. removed or renamed).
+ */
+export function rangeSectionsOf(
+  settings: ContourSettings,
+  chosen: readonly string[] | undefined,
+  sections: readonly string[],
+): string[] {
+  if (settings.range === "manual" || !chosen?.length) return [];
+  const result = sections.filter((s) => chosen.includes(s));
+  return result.length === sections.length ? [] : result;
+}
+
+/** The range of ranges (null without any). */
+function unionOf(ranges: readonly (Range | null | undefined)[]): Range | null {
+  const finite = ranges.filter((r): r is Range => !!r);
+  if (!finite.length) return null;
+  return [
+    Math.min(...finite.map((r) => r[0])),
+    Math.max(...finite.map((r) => r[1])),
+  ];
+}
+
+/** The smallest minimum and the largest maximum of extremes (the first of equals). */
+function extremesOf(
+  all: readonly (ResultExtremes | null | undefined)[],
+): ResultExtremes | null {
+  const found = all.filter((e): e is ResultExtremes => !!e);
+  if (!found.length) return null;
+  return {
+    min: found.reduce((a, b) => (b.min.value < a.min.value ? b : a)).min,
+    max: found.reduce((a, b) => (b.max.value > a.max.value ? b : a)).max,
+  };
+}
+
+/**
+ * The range and the extremes of the values of the chosen sections of a scene
+ * (#377), of all sections without a choice. The range is null if the chosen
+ * sections have no finite values.
+ */
+export function sectionValues(
+  scene: ResultScene,
+  chosen: readonly string[],
+): { range: Range | null; extremes: ResultExtremes | null } {
+  if (!chosen.length || !scene.sections)
+    return { range: scene.range, extremes: scene.extremes ?? null };
+  const parts = chosen.flatMap((s) => scene.sections?.[s] ?? []);
+  return {
+    range: unionOf(parts.map((p) => p.range)),
+    extremes: extremesOf(parts.map((p) => p.extremes)),
+  };
+}
+
+/**
+ * The range over all substeps of a job (#139), of the chosen sections (#377) or of
+ * all sections; undefined without finite values.
+ */
+export function jobRangeOf(
+  ranges: ResultRanges,
+  chosen: readonly string[],
+): Range | undefined {
+  const lists = chosen.length
+    ? chosen.map((s) => ranges.sections[s] ?? [])
+    : [ranges.range];
+  return unionOf(lists.flat()) ?? undefined;
+}
+
+/**
+ * The note of the scalar bar of a range of chosen sections (#377), also in a picture
+ * of the view, e.g. "Range: soft_body"; none for all sections.
+ */
+export function rangeNote(chosen: readonly string[]): string | undefined {
+  if (!chosen.length) return undefined;
+  const names =
+    chosen.length > 3
+      ? `${chosen.slice(0, 2).join(", ")} and ${chosen.length - 2} more sections`
+      : chosen.join(", ");
+  return `Range: ${names}`;
+}
+
 /** What the viewer draws of a contour. */
 export interface ContourLook {
   /** The lookup table (256 RGB colors) of the surfaces. */
@@ -127,6 +217,8 @@ export interface ContourLook {
   /** Values below or above the shown range, drawn in the outside color. */
   below: boolean;
   above: boolean;
+  /** The sections of the range, if chosen (#377), below the title of the bar. */
+  note?: string;
 }
 
 /**
