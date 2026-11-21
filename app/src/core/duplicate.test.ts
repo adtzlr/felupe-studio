@@ -39,6 +39,18 @@ describe("duplicate (#138)", () => {
     expect(store.get(copy)).toMatchObject({ color: "#7f8c8d" });
   });
 
+  it("keeps the own color of a cell set and of a section (#376)", () => {
+    const document = structuredClone(fixture) as CommandList;
+    for (const command of document.commands)
+      if (command.name === "hard" || command.name === "section_soft")
+        Object.assign(command, { color: "#2b2d42" });
+    const store = new ModelStore(document);
+    for (const name of ["hard", "section_soft"]) {
+      const copy = store.duplicate(name)!;
+      expect(store.get(copy)).toMatchObject({ color: "#2b2d42" });
+    }
+  });
+
   it("adds the copy after the original as one undo step", () => {
     const store = new ModelStore(fixture as CommandList);
     expect(store.duplicate("umat_hard")).toBe("umat_hard_2");

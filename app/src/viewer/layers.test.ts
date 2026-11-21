@@ -3,12 +3,13 @@ import type { Command } from "../core/resolved";
 import { MeshFiles } from "../core/meshfiles";
 import type { MeshSurface } from "../worker/protocol";
 import {
+  automaticColor,
   cellMask,
   defaultColorBy,
   scaledSurface,
   viewportContent,
 } from "./layers";
-import { CATEGORICAL, UNASSIGNED } from "./palette";
+import { CATEGORICAL, OTHER, UNASSIGNED } from "./palette";
 import { meshObjects } from "./scene";
 
 /** Three cells in two regions of the tag material, each region with own points. */
@@ -137,6 +138,86 @@ describe("color by", () => {
       "right",
       "everything",
     ]);
+  });
+
+  // an own color of a cell set or a section (#376), like that of a mesh (#336)
+  const colored = (colors: Record<string, string>) =>
+    model.map((c) =>
+      c.name in colors ? ({ ...c, color: colors[c.name] } as Command) : c,
+    );
+
+  it("colors a section in its own color", async () => {
+    const files = await loaded();
+    const own = colored({ body: "#2b2d42" });
+    const content = viewportContent(own, files, new Set(), "section");
+    expect(content.meshes[0].groups).toEqual([
+      { color: "#2b2d42", cells: [1, 2] },
+    ]);
+    // the legend, and so the pictures of the view, take it
+    expect(content.legend).toEqual([
+      { label: "body", color: "#2b2d42" },
+      { label: "No section", color: UNASSIGNED },
+    ]);
+    // the own color of the cell set of the section is not that of the section
+    const set = viewportContent(
+      colored({ right: "#7f8c8d" }),
+      files,
+      new Set(),
+      "section",
+    );
+    expect(set.legend![0]).toEqual({ label: "body", color: CATEGORICAL[0] });
+  });
+
+  it("colors a cell set in its own color, the others by their position", async () => {
+    const files = await loaded();
+    const own = colored({ right: "#7f8c8d", everything: "#2B2D42" });
+    const content = viewportContent(own, files, new Set(), "cellset");
+    expect(content.meshes[0].groups!.map((g) => g.color)).toEqual([
+      CATEGORICAL[0],
+      "#7f8c8d",
+      "#2B2D42",
+    ]);
+    // a hidden cell set keeps the colors of the others
+    const hidden = viewportContent(own, files, new Set(["left"]), "cellset");
+    expect(hidden.legend).toEqual([
+      { label: "right", color: "#7f8c8d" },
+      { label: "everything", color: "#2B2D42" },
+    ]);
+    const shown = viewportContent(
+      colored({ left: "#7f8c8d" }),
+      files,
+      new Set(["right"]),
+      "cellset",
+    );
+    expect(shown.legend).toEqual([
+      { label: "left", color: "#7f8c8d" },
+      { label: "everything", color: CATEGORICAL[2] },
+    ]);
+    // the meshes are colored by meshes, without the colors of the cell sets
+    const meshes = viewportContent(own, files, new Set(), "mesh");
+    expect(meshes.meshes[0]).toMatchObject({ color: CATEGORICAL[0] });
+  });
+
+  it("names the automatic color of each kind by its position", () => {
+    expect(automaticColor(model, "mesh.import", "bar")).toBe(CATEGORICAL[0]);
+    // the two kinds of cell sets are one list
+    expect(automaticColor(model, "cellset.from_tag", "right")).toBe(
+      CATEGORICAL[1],
+    );
+    expect(automaticColor(model, "cellset.from_file", "everything")).toBe(
+      CATEGORICAL[2],
+    );
+    expect(automaticColor(model, "section.add", "body")).toBe(CATEGORICAL[0]);
+    // a new one is the last one; the ninth and further are gray
+    expect(automaticColor(model, "cellset.from_file")).toBe(CATEGORICAL[3]);
+    expect(automaticColor(model, "section.add")).toBe(CATEGORICAL[1]);
+    const many = Array.from({ length: 8 }, (_, i) => ({
+      command: "section.add",
+      name: `s${i}`,
+    }));
+    expect(automaticColor(many, "section.add")).toBe(OTHER);
+    // other commands have none
+    expect(automaticColor(model, "material.add", "rubber")).toBeUndefined();
   });
 
   it("names the meshes by color with meshes", async () => {

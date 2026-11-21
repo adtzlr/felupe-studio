@@ -11,7 +11,8 @@ import {
   nextReference,
   offered,
 } from "../core/form";
-import { automaticMeshColor } from "../viewer/layers";
+import { automaticColor } from "../viewer/layers";
+import { OTHER } from "../viewer/palette";
 import {
   coordinatesText,
   numberText,
@@ -94,12 +95,13 @@ function TextControl({
 }
 
 /**
- * An own color (#336): a color picker, its hex value and back to the automatic color,
- * which the picker shows without an own one.
+ * An own color of a mesh (#336), a cell set or a section (#376): a color picker, its
+ * hex value and back to the automatic color, which the picker shows without an own
+ * one.
  */
 function ColorControl({ form, spec, common, value }: Args<"color">) {
   const { commands, editing } = form.context;
-  const automatic = automaticMeshColor(commands, editing);
+  const automatic = automaticColor(commands, form.type, editing) ?? OTHER;
   return (
     <div class="color-field">
       <input

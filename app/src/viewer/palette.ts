@@ -1,8 +1,9 @@
-// Colors of the viewer. The categorical colors give meshes (and later sections) their
-// identity, in a fixed order by their position in the model, so hiding one does not
-// repaint the others. The eight steps pass the categorical checks against the
-// background of the viewport (#262b36): lightness band, chroma, CVD and normal-vision
-// separation of neighbors; green is below 3:1, so the legend names every color.
+// Colors of the viewer. The categorical colors give meshes, cell sets and sections
+// their identity, in a fixed order by their position in the model, so hiding one does
+// not repaint the others; an own color of an object replaces it (#336, #376). The
+// eight steps pass the categorical checks against the background of the viewport
+// (#262b36): lightness band, chroma, CVD and normal-vision separation of neighbors;
+// green is below 3:1, so the legend names every color.
 export const CATEGORICAL = [
   "#3987e5", // blue
   "#d95926", // orange

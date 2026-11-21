@@ -1,7 +1,8 @@
 // What the viewport shows of the model: the imported meshes whose file is read,
-// colored by mesh, cell set or section. Colors follow the position of an object in
-// the model, so hiding an object keeps the colors of the others. Hiding a mesh, a
-// cell set or a section hides its cells.
+// colored by mesh, cell set or section. Colors are the own colors of the objects
+// (#336, #376), else they follow the position of an object in the model, so hiding an
+// object keeps the colors of the others. Hiding a mesh, a cell set or a section hides
+// its cells.
 import type {
   CellSetFromFile,
   CellSetFromTag,
@@ -33,20 +34,30 @@ type MeshCommand = Extract<
 export type ColorBy = "mesh" | "cellset" | "section";
 
 /**
- * The automatic color of a mesh (#336): that of its position among the meshes of the
- * model, so hiding a mesh keeps the colors of the others; a new mesh is the last one.
+ * The automatic color of a mesh (#336), a cell set or a section (#376): that of its
+ * position among the objects of its kind in the model, so hiding one keeps the colors
+ * of the others; a new one is the last one. Undefined for other commands.
  */
-export function automaticMeshColor(
+export function automaticColor(
   commands: readonly { command: string; name: string }[],
+  type: string,
   name?: string,
-): string {
-  // the mesh objects of isMeshObject, also of commands with expressions (a form)
-  const meshes = commands.filter((c) => MESH_OBJECTS.has(c.command));
-  const index = meshes.findIndex((c) => c.name === name);
-  return categorical(index < 0 ? meshes.length : index);
+): string | undefined {
+  // the commands of a kind, also with expressions (a form)
+  const kind = COLORED.find((commands) => commands.has(type));
+  if (!kind) return undefined;
+  const objects = commands.filter((c) => kind.has(c.command));
+  const index = objects.findIndex((c) => c.name === name);
+  return categorical(index < 0 ? objects.length : index);
 }
 
-const MESH_OBJECTS = new Set(["mesh.import", "mesh.script", "mesh.generate"]);
+// the kinds of objects with a color: the mesh objects of isMeshObject, the cell sets
+// and the sections
+const COLORED: readonly ReadonlySet<string>[] = [
+  new Set(["mesh.import", "mesh.script", "mesh.generate"]),
+  new Set(["cellset.from_tag", "cellset.from_file"]),
+  new Set(["section.add"]),
+];
 
 export const COLOR_BY: readonly { id: ColorBy; label: string }[] = [
   { id: "mesh", label: "Meshes" },
@@ -134,7 +145,10 @@ const indices = (mask: Uint8Array) => {
   return result;
 };
 
-/** The groups of cells of a mesh to color, and the label of the other cells. */
+/**
+ * The groups of cells of a mesh to color: of the cell sets or the sections, each with
+ * its own color (#376), else that of its position.
+ */
 function groupsOf(
   mesh: MeshCommand,
   masks: Map<string, Uint8Array>,
@@ -145,7 +159,14 @@ function groupsOf(
     return commands.filter(isCellSet).flatMap((c, index) => {
       const mask = c.mesh === mesh.name ? masks.get(c.name) : undefined;
       return mask
-        ? [{ name: c.name, color: categorical(index), mask, order: index }]
+        ? [
+            {
+              name: c.name,
+              color: c.color ?? categorical(index),
+              mask,
+              order: index,
+            },
+          ]
         : [];
     });
   }
@@ -155,7 +176,14 @@ function groupsOf(
       .flatMap((c, index) => {
         const mask = masks.get(c.cellset);
         return mask
-          ? [{ name: c.name, color: categorical(index), mask, order: index }]
+          ? [
+              {
+                name: c.name,
+                color: c.color ?? categorical(index),
+                mask,
+                order: index,
+              },
+            ]
           : [];
       });
   }

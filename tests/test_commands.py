@@ -87,6 +87,17 @@ def test_own_color_of_a_mesh(document):
     assert codegen(document, evaluate=False) == script
 
 
+def test_own_color_of_a_section_and_a_cell_set(document):
+    "Like that of a mesh (#376): valid, and the script is the same."
+    from felupe_studio.codegen import codegen
+
+    script = codegen(document, evaluate=False)
+    find(document, "hard").update(color="#7F8C8D")
+    find(document, "section_soft").update(color="#2b2d42")
+    assert commands.errors(document) == []
+    assert codegen(document, evaluate=False) == script
+
+
 @pytest.mark.parametrize(
     "change",
     [
@@ -123,6 +134,9 @@ def test_own_color_of_a_mesh(document):
         # an own color of a mesh is #rrggbb (#336)
         lambda d: find(d, "specimen").update(color="gray"),
         lambda d: find(d, "specimen").update(color="#7f8c8"),
+        # also that of a section and of a cell set (#376)
+        lambda d: find(d, "section_hard").update(color="black"),
+        lambda d: find(d, "hard").update(color="#7f8c8d0"),
         lambda d: find(d, "section_soft").update(volumetric="quadratic"),
         lambda d: find(d, "specimen").update(cell_type="wedge"),
         lambda d: find(d, "left").update(select={"axis": "w", "value": 0}),

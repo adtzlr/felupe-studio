@@ -33,6 +33,9 @@ def test_schema_of_the_commands():
     material = schema("material.add")
     assert material["$ref"] == "#/$defs/MaterialAdd"
     assert {"MaterialNeoHooke", "Name"} <= set(material["$defs"])
+    # the own color of a section and of a cell set (#376), like that of a mesh
+    for command in ("section.add", "cellset.from_tag", "cellset.from_file"):
+        assert "Color" in schema(command)["$defs"]
     with pytest.raises(ToolError, match="Unknown command 'mesh.load'"):
         schema("mesh.load")
 

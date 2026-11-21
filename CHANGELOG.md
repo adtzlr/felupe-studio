@@ -4,6 +4,10 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ## [Unreleased]
 
+### Added
+
+- An own color per section and per cell set (#376), like that of a mesh (#336): *Color* in the properties of a section (`section.add`) and of a cell set (`cellset.from_tag`, `cellset.from_file`), a color picker with its value `#rrggbb` and *Automatic* for the color of its position among the sections or the cell sets, as before. *Color by: Sections* and *Cell sets*, their legends and the pictures of the view take it, e.g. the rubber of a bushing in black and its steel sleeves in gray; the other sections and cell sets keep the colors of their positions, also when one is hidden, and a duplicated one keeps its color. A cell tag of a mesh file gets a color through its cell set from tag. The optional property `color` of the schema is additive, so the schema version stays 3; it is a property of the model, and the generated script is the same.
+
 ### Changed
 
 - What `BRAND_FOLDER` of the CI files of a brand is (#379): the folder of `brand.json`, relative to the root of the repository of the brand, e.g. `"."` for `brand.json` at its root. The CI files, `brands/README.md` and *Your own deployment* say so. A `BRAND_DIR` without `brand.json` fails the build with a message that says what `BRAND_DIR` is and that the CI files of a brand set it from `BRAND_FOLDER`, instead of only *it has no brand.json*.
