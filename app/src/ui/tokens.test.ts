@@ -251,6 +251,7 @@ describe("design tokens", () => {
         force: colors.force,
         control: colors.control,
         rigid: colors.rigid,
+        other: colors.other,
         construction: colors.construction,
         ...colors.extremes,
       };

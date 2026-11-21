@@ -308,6 +308,72 @@ describe("ResultsView", () => {
     expect(onRange).toHaveBeenLastCalledWith([0, 12]);
   });
 
+  it("draws the other sections in one color or hides them (#396)", async () => {
+    const two: ResultScene = {
+      ...scene,
+      surfaces: ["rubber", "steel"].map((name) => ({
+        ...scene.surfaces[0],
+        name,
+      })),
+      sections: {
+        rubber: { range: [0, 0.2], extremes: null },
+        steel: { range: [0, 0.5], extremes: null },
+      },
+    };
+    const viewer = fakeViewer();
+    const show = (contour = DEFAULT_CONTOUR, theme?: "light") => (
+      <ResultsView
+        source={{ resultScene: async () => two }}
+        view={{ ...view, undeformed: true, rangeSections: ["rubber"] }}
+        generation={1}
+        active
+        running={false}
+        createViewer={viewer.create}
+        contour={contour}
+        theme={theme}
+      />
+    );
+    const surfaces = () =>
+      viewer.handle.update.mock.lastCall![0].objects.filter(
+        (o) => o.type === "surface",
+      );
+    const { rerender } = render(show());
+    // the contour on both sections, and their ghosts
+    await waitFor(() => expect(surfaces()).toHaveLength(4));
+    expect(surfaces().filter((o) => o.values)).toHaveLength(2);
+
+    // the steel in the gray of the view, with the edges of its cells
+    const color = { ...DEFAULT_CONTOUR, others: "color" as const };
+    rerender(show(color, "light"));
+    await waitFor(() =>
+      expect(surfaces()[3]).toMatchObject({
+        color: VIEW_COLORS.light.other,
+        opacity: 1,
+        edgeColor: "#000000",
+      }),
+    );
+    expect(surfaces()[3].values).toBeUndefined();
+    expect(surfaces()[2].values).toBeDefined();
+    // semi-transparent with a map of grays, in an own color
+    rerender(
+      show({ ...color, map: "grayscale", othersColor: "#336699" }, "light"),
+    );
+    await waitFor(() =>
+      expect(surfaces()[3]).toMatchObject({ color: "#336699" }),
+    );
+    expect(surfaces()[3].opacity).toBeLessThan(1);
+
+    // hidden: not drawn, also not as a ghost
+    rerender(show({ ...DEFAULT_CONTOUR, others: "hidden" }));
+    await waitFor(() => expect(surfaces()).toHaveLength(2));
+    expect(surfaces()[1].values).toBeDefined();
+    // the range of the rubber, named
+    const bar = viewer.handle.root.querySelector(".app-scalar-bar")!;
+    expect(bar.querySelector(".fv-bar-note")!.textContent).toBe(
+      "Range: rubber",
+    );
+  });
+
   it("has no toggle of the constraints without them (#335)", async () => {
     const viewer = fakeViewer();
     render(

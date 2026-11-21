@@ -5,6 +5,7 @@
 // definition only.
 import type { Quantity } from "./units";
 import type { Command } from "./commands";
+import { isColor } from "./colormaps";
 import { ExpressionError, evaluate } from "./expressions";
 import { type Loadcase, loadcaseFieldErrors } from "./loadcases";
 import { MATERIAL_MODELS } from "./materials";
@@ -1026,9 +1027,8 @@ const nameError: FieldError<"name"> = (_, __, value, context) => {
 const textError: FieldError<"text"> = (spec, _, value) =>
   isMissing(value) && spec.required ? "Required." : undefined;
 
-/** A color #rrggbb (the pattern of the schema) of an object (#336, #376). */
-export const isColor = (value: unknown): value is string =>
-  typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
+/** A color #rrggbb of an object (#336, #376). */
+export { isColor };
 
 const colorError: FieldError<"color"> = (_, __, value) =>
   isMissing(value) || isColor(value)

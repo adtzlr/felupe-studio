@@ -6,6 +6,7 @@ import { categorical, CATEGORICAL, OTHER, VIEW_COLORS } from "./palette";
 import {
   arrowSegments,
   buildScene,
+  hiddenSections,
   meshNodes,
   meshObjects,
   nodeObject,
@@ -362,5 +363,69 @@ describe("results", () => {
     });
     expect(built.objects).toHaveLength(2);
     expect(built.legend).toBeNull();
+  });
+
+  describe("the other sections of chosen sections (#396)", () => {
+    const look = contourLook(DEFAULT_CONTOUR, [0, 0.5], [0, 0.5]);
+    const others = (
+      mode: "color" | "hidden",
+      change: { color?: string; opacity?: number } = {},
+    ) => ({
+      ...look,
+      others: { names: ["right"], mode, opacity: 1, ...change },
+    });
+
+    it("are drawn in one color without values, with their edges", () => {
+      const objects = resultObjects(
+        { scene, scale: 2, undeformed: true, look: others("color") },
+        VIEW_COLORS.light,
+      );
+      expect(objects).toHaveLength(4);
+      const [, ghost, left, right] = objects;
+      expect(ghost.color).toBe(VIEW_COLORS.light.ghost);
+      expect(left.values).toBeDefined();
+      expect(right).toMatchObject({
+        color: VIEW_COLORS.light.other,
+        opacity: 1,
+        factor: 2,
+        edgeColor: "#000000",
+      });
+      expect(right.values).toBeUndefined();
+      expect(right.lut).toBeUndefined();
+      expect(right.label).toBeUndefined();
+      // an own color, semi-transparent with a map of grays
+      const [, own] = resultObjects({
+        scene,
+        scale: 1,
+        undeformed: false,
+        look: others("color", { color: "#336699", opacity: 0.35 }),
+      });
+      expect(own).toMatchObject({ color: "#336699", opacity: 0.35 });
+      // their nodes are drawn
+      const nodes = resultNodes({
+        scene,
+        scale: 1,
+        undeformed: false,
+        look: others("color"),
+      });
+      expect(nodes).toHaveLength(2);
+    });
+
+    it("are not drawn if hidden, also not as ghosts or nodes", () => {
+      const result = {
+        scene,
+        scale: 2,
+        undeformed: true,
+        look: others("hidden"),
+      };
+      const objects = resultObjects(result);
+      expect(objects).toHaveLength(2);
+      const [ghost, left] = objects;
+      expect(ghost.displacement).toBeUndefined();
+      expect(left.values!.data).toBe(scene.surfaces[0].values);
+      expect(resultNodes(result)).toHaveLength(1);
+      expect(hiddenSections(result)).toEqual(new Set(["right"]));
+      expect(hiddenSections({ ...result, look: others("color") }).size).toBe(0);
+    });
   });
 });

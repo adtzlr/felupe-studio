@@ -1,17 +1,25 @@
 // The settings of the contour (#139) in a popover beside *Contour*: the color map,
-// the bands, the range, the sections of an automatic range (#377) and the values at
-// the cells or the points (#231). Esc or a click outside closes it.
+// the bands, the range, the sections of an automatic range (#377) with the look of
+// the other sections (#396) and the values at the cells or the points (#231). Esc
+// or a click outside closes it.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { COLOR_MAPS, type ColorMapId, colorOf } from "../core/colormaps";
+import {
+  COLOR_MAPS,
+  type ColorMapId,
+  colorOf,
+  isColor,
+} from "../core/colormaps";
 import {
   BAND_COUNTS,
   type ContourSettings as Settings,
   DEFAULT_CONTOUR,
   manualRange,
+  OTHERS_MODES,
   RANGE_MODES,
   type RangeMode,
   VALUES_METHODS,
 } from "../core/contour";
+import { VIEW_COLORS } from "../viewer/palette";
 import type { ValuesMethod } from "../worker/protocol";
 
 interface Props {
@@ -32,6 +40,8 @@ interface Props {
   sections?: readonly string[];
   chosen?: readonly string[];
   onChoose?: (sections: string[]) => void;
+  /** The gray of the other sections in one color in the theme of the view (#396). */
+  gray?: string;
 }
 
 /**
@@ -87,8 +97,91 @@ function RangeSections({
       </div>
       <small class="muted popover-note">
         {chosen.length
-          ? "The values of the other sections outside of the range are drawn in an extra color."
+          ? "The range of the values of the chosen sections."
           : "The range of the values of all sections."}
+      </small>
+    </fieldset>
+  );
+}
+
+/**
+ * The other sections of a range of chosen sections (#396): with their contour, in
+ * one color (an own one, or the gray of the view) or hidden.
+ */
+function OtherSections({
+  settings,
+  set,
+  gray,
+}: {
+  settings: Settings;
+  set: (change: Partial<Settings>) => void;
+  gray: string;
+}) {
+  // the typed color, while it is edited
+  const [text, setText] = useState(settings.othersColor ?? "");
+  useEffect(() => {
+    if (!text.trim() || isColor(text.trim()))
+      setText(settings.othersColor ?? "");
+  }, [settings.othersColor]);
+  const typed = text.trim();
+  const invalid = typed !== "" && !isColor(typed);
+  const color = (value: string) => {
+    setText(value);
+    const trimmed = value.trim();
+    if (!trimmed) set({ othersColor: undefined });
+    else if (isColor(trimmed)) set({ othersColor: trimmed });
+  };
+  const mode = OTHERS_MODES.find((m) => m.id === settings.others);
+  return (
+    <fieldset class="popover-row other-sections">
+      <legend>Other sections</legend>
+      <div class="popover-choices">
+        {OTHERS_MODES.map((m) => (
+          <label key={m.id} class="check">
+            <input
+              type="radio"
+              name="contour-others"
+              checked={settings.others === m.id}
+              onChange={() => set({ others: m.id })}
+            />
+            {m.label}
+          </label>
+        ))}
+      </div>
+      {settings.others === "color" && (
+        <div class="color-field popover-color">
+          <input
+            type="color"
+            aria-label="Pick the color of the other sections"
+            value={(settings.othersColor ?? gray).toLowerCase()}
+            onInput={(event) => color(event.currentTarget.value)}
+          />
+          <input
+            type="text"
+            aria-label="Color of the other sections"
+            value={text}
+            placeholder={gray}
+            title="An own color, #rrggbb; empty for the gray of the view"
+            aria-invalid={invalid ? true : undefined}
+            autocomplete="off"
+            spellcheck={false}
+            onInput={(event) => color(event.currentTarget.value)}
+          />
+          <button
+            type="button"
+            class="button"
+            title="The gray of the view"
+            disabled={!settings.othersColor && !text}
+            onClick={() => color("")}
+          >
+            Default
+          </button>
+        </div>
+      )}
+      <small class={`popover-note ${invalid ? "field-error" : "muted"}`}>
+        {invalid
+          ? "A color like #7f8c8d: # and six hexadecimal digits."
+          : mode?.hint}
       </small>
     </fieldset>
   );
@@ -119,6 +212,7 @@ export function ContourSettings({
   sections = [],
   chosen: stored,
   onChoose,
+  gray = VIEW_COLORS.dark.other,
 }: Props) {
   const chosen = sections.filter((s) => stored?.includes(s));
   const [open, setOpen] = useState(false);
@@ -212,6 +306,8 @@ export function ContourSettings({
   const changed =
     JSON.stringify(settings) !== JSON.stringify(DEFAULT_CONTOUR) ||
     chosen.length > 0;
+  // the sections of an automatic range (#377), and then the other sections (#396)
+  const ranged = settings.range !== "manual" && sections.length > 1 && onChoose;
   // the values are projected if they cannot be shifted to the points (#231)
   const fallback = settings.values === "topoints" && shift === false;
   const values = fallback ? "project" : settings.values;
@@ -286,12 +382,15 @@ export function ContourSettings({
               ))}
             </div>
           </fieldset>
-          {settings.range !== "manual" && sections.length > 1 && onChoose && (
+          {ranged && (
             <RangeSections
               sections={sections}
               chosen={chosen}
               onChoose={onChoose}
             />
+          )}
+          {ranged && chosen.length > 0 && (
+            <OtherSections settings={settings} set={set} gray={gray} />
           )}
           {settings.range === "manual" && (
             <div class="popover-limits">

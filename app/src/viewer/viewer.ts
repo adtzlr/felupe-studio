@@ -19,6 +19,7 @@ import {
   type Arrows,
   buildScene,
   type Highlight,
+  hiddenSections,
   type LegendEntry,
   type Lines,
   type Markers,
@@ -185,9 +186,13 @@ export class Viewer {
   private lines: readonly Lines[] = [];
   private legend: readonly LegendEntry[] | undefined;
   private result: ResultContent | undefined;
-  /** The drawn surfaces of the result, for probing (cached per scene and scale). */
+  /**
+   * The drawn surfaces of the result, for probing (cached per scene, scale and
+   * hidden sections).
+   */
   private drawn?: {
     result: ResultContent;
+    hidden: string;
     surfaces: { positions: Float32Array; triangles: Uint32Array }[];
   };
   private plane: { point: Vec3; normal: Vec3 } | undefined;
@@ -313,23 +318,30 @@ export class Viewer {
     return ray ? probeAt(ray, surfaces) : undefined;
   }
 
-  /** The drawn (deformed and scaled) surfaces of the result, or none. */
+  /**
+   * The drawn (deformed and scaled) surfaces of the result, or none: a hidden
+   * section (#396) without triangles, so the indices stay those of the scene.
+   */
   private drawnSurfaces() {
     const result = this.result;
     if (!result) return undefined;
+    const hidden = hiddenSections(result);
+    const key = [...hidden].join("\n");
     if (
       this.drawn?.result.scene !== result.scene ||
-      this.drawn.result.scale !== result.scale
+      this.drawn.result.scale !== result.scale ||
+      this.drawn.hidden !== key
     ) {
       this.drawn = {
         result,
+        hidden: key,
         surfaces: result.scene.surfaces.map((s) => ({
           positions: deformedPositions(
             s.positions,
             s.displacement,
             result.scale,
           ),
-          triangles: s.triangles,
+          triangles: hidden.has(s.name) ? new Uint32Array() : s.triangles,
         })),
       };
     }

@@ -9,6 +9,7 @@ import {
   loadContour,
   manualRange,
   methodOf,
+  otherSectionsOf,
   rangeNote,
   rangeSectionsOf,
   saveContour,
@@ -115,16 +116,19 @@ describe("contour settings (#139)", () => {
       min: -1,
       max: 2,
       values: "project" as const,
+      others: "color" as const,
+      othersColor: "#336699",
     };
     saveContour(settings, storage);
     expect(loadContour(storage)).toEqual(settings);
     // unknown values fall back to the defaults
     storage.setItem(
       "felupe-studio.contour",
-      '{"map": "jet", "bands": 7, "range": "x", "values": "nodes"}',
+      '{"map": "jet", "bands": 7, "range": "x", "values": "nodes", "others": "x", "othersColor": "gray"}',
     );
     expect(loadContour(storage)).toEqual(DEFAULT_CONTOUR);
-    // the settings of earlier versions: the values at the cells (#231)
+    // the settings of earlier versions: the values at the cells (#231) and the
+    // contour of the other sections (#396)
     storage.setItem("felupe-studio.contour", '{"map": "viridis"}');
     expect(loadContour(storage)).toEqual({
       ...DEFAULT_CONTOUR,
@@ -256,5 +260,55 @@ describe("the range of chosen sections (#377)", () => {
     expect(rangeNote(["a", "b", "c", "d", "e"])).toBe(
       "Range: a, b and 3 more sections",
     );
+  });
+});
+
+describe("the other sections of chosen sections (#396)", () => {
+  const sections = ["rubber", "steel", "air"];
+  const color = { ...DEFAULT_CONTOUR, others: "color" as const };
+  const hidden = { ...DEFAULT_CONTOUR, others: "hidden" as const };
+
+  it("keep their contour by default and with all sections", () => {
+    expect(DEFAULT_CONTOUR.others).toBe("contour");
+    expect(otherSectionsOf(DEFAULT_CONTOUR, ["rubber"], sections)).toBe(
+      undefined,
+    );
+    expect(otherSectionsOf(color, [], sections)).toBe(undefined);
+    expect(otherSectionsOf(hidden, [], sections)).toBe(undefined);
+  });
+
+  it("are drawn in one color, semi-transparent with Grayscale, or hidden", () => {
+    expect(otherSectionsOf(color, ["rubber"], sections)).toEqual({
+      names: ["steel", "air"],
+      mode: "color",
+      opacity: 1,
+    });
+    expect(
+      otherSectionsOf(
+        { ...color, othersColor: "#336699" },
+        ["rubber", "air"],
+        sections,
+      ),
+    ).toEqual({
+      names: ["steel"],
+      mode: "color",
+      color: "#336699",
+      opacity: 1,
+    });
+    // a gray of the map of grays would look like a value
+    const gray = { ...color, map: "grayscale" as const };
+    expect(otherSectionsOf(gray, ["rubber"], sections)?.opacity).toBeLessThan(
+      1,
+    );
+    expect(otherSectionsOf(hidden, ["steel"], sections)).toEqual({
+      names: ["rubber", "air"],
+      mode: "hidden",
+      opacity: 1,
+    });
+    // an invalid own color is the gray of the view
+    expect(
+      otherSectionsOf({ ...color, othersColor: "gray" }, ["rubber"], sections)
+        ?.color,
+    ).toBe(undefined);
   });
 });

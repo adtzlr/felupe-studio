@@ -15,10 +15,13 @@ import type { Results } from "./useResults";
 export function ResultsRibbon({
   store,
   results,
+  theme,
   compact,
 }: {
   store: ModelStore;
   results: Results;
+  /** The theme of the app (#375), for the gray of the other sections (#396). */
+  theme?: Theme;
   /** The compact layout of a phone (#378). */
   compact?: boolean;
 }) {
@@ -36,6 +39,7 @@ export function ResultsRibbon({
       onContour={results.setContour}
       currentRange={results.shownRange}
       shift={results.shift}
+      theme={theme}
       player={results.player}
       compact={compact}
     />

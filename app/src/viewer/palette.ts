@@ -72,6 +72,11 @@ export interface ViewColors {
   rigid: string;
   /** The undeformed ghost of results, translucent (faint by design, not 3:1). */
   ghost: string;
+  /**
+   * The other sections of a contour of chosen sections in one color (#396), with
+   * the edges of their cells: a neutral gray, not a color of a map.
+   */
+  other: string;
   /** The construction meshes of the mesh tools (ADR 0019): inputs, not the model. */
   construction: string;
 }
@@ -85,6 +90,7 @@ export const VIEW_COLORS: Readonly<Record<Theme, Readonly<ViewColors>>> = {
     extremes: { min: "#8ab4ff", max: "#ff8a80" },
     rigid: "#aab4c3",
     ghost: "#c4c8cf",
+    other: "#a3aab6",
     construction: "#9aa4b2",
   },
   light: {
@@ -95,6 +101,7 @@ export const VIEW_COLORS: Readonly<Record<Theme, Readonly<ViewColors>>> = {
     extremes: { min: "#1d55c4", max: "#b8322a" },
     rigid: "#6b7686",
     ghost: "#3b414b",
+    other: "#767f8c",
     construction: "#7d8796",
   },
 };
