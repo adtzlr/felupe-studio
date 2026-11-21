@@ -25,7 +25,7 @@ def test_the_registry_of_the_tools():
     assert list(meshtools.tools()) == [
         *("Point", "Line", "Rectangle", "Cube", "Circle", "Triangle"),
         *("expand", "revolve", "embed", "translate", "rotate", "mirror"),
-        *("fill_between", "add_runouts"),
+        *("fill_between", "add_runouts", "stack"),
     ]
     for name, definition in meshtools.tools().items():
         rule = definition["x-dimension"]
@@ -68,6 +68,7 @@ def test_the_lines_of_the_script():
     assert meshtools.call(made("Line", a=0, b=2.5, n=6)) == (
         "fem.mesh.Line",
         ["a=0", "b=2.5", "n=6"],
+        "",
     )
     document = {
         "schema_version": 3,
@@ -280,6 +281,21 @@ def operation(tool, inputs, **parameters):
             CUBE,
             operation("add_runouts", ["block"], values=[0.1, 0.2], axis="x"),
         ],
+        [
+            LINE,
+            made("Line", "next", a=2, b=3, n=2),
+            operation("stack", ["line", "next"], decimals=10),
+        ],
+        [
+            RECTANGLE,
+            made("Rectangle", "beside", a=[2, 0], b=[3, 1], n=[2, 2]),
+            operation("stack", ["face", "beside"], decimals=6),
+        ],
+        [
+            CUBE,
+            made("Cube", "above", a=[0, 0, 1], b=[2, 1, 2], n=[3, 2, 2]),
+            operation("stack", ["block", "above"], decimals=10),
+        ],
     ],
 )
 def test_the_dimensions_of_the_operations_are_those_of_felupe(chain):
@@ -318,3 +334,92 @@ def test_the_lines_of_the_operations():
     assert "runouts = face.add_runouts(values=[0.2], axis=1, normalize=True)" in script
     # the helper only in scripts with embedded meshes
     assert "def embed" not in codegen({"schema_version": 3, "commands": [LINE]})
+
+
+def pieces(x=(0, 1, 2)):
+    """A profile of three rectangles side by side, off the x-axis (#394)."""
+    names = ("left", "middle", "right")
+    return [
+        made("Rectangle", name, a=[x0, 1], b=[x0 + 1, 2], n=[3, 3])
+        for name, x0 in zip(names, x, strict=True)
+    ]
+
+
+PROFILE = {
+    **made("stack", "profile", decimals=10),
+    "inputs": ["left", "middle", "right"],
+}
+
+
+def test_a_stack_is_that_of_felupe():
+    # the line of the script makes the mesh of FElupe called directly (#394)
+    document = {"schema_version": 3, "commands": [*pieces(), PROFILE]}
+    assert errors(document) == []
+    line = (
+        "profile = fem.MeshContainer([left, middle, right], merge=True, decimals=10)"
+        ".stack()"
+    )
+    assert line in codegen(document, evaluate=False)
+    mesh = meshtools.generate(document["commands"])["profile"]
+    rectangles = [fem.Rectangle(a=(x, 1), b=(x + 1, 2), n=3) for x in (0, 1, 2)]
+    felupe = fem.MeshContainer(rectangles, merge=True, decimals=10).stack()
+    assert mesh.cell_type == felupe.cell_type == "quad"
+    np.testing.assert_allclose(mesh.points, felupe.points)
+    np.testing.assert_array_equal(mesh.cells, felupe.cells)
+    # the points of the common edges once: 7 x 3 points, the cells of all pieces
+    assert mesh.npoints == 21 and len(mesh.cells) == 3 * 4
+    assert (fem.RegionQuad(mesh).dV > 0).all()
+
+
+def test_the_inputs_of_a_stack():
+    # two or more meshes, each once, of the same cells and points (#394)
+    def stack(*inputs, before=()):
+        commands = [*pieces(), *before, {**PROFILE, "inputs": list(inputs)}]
+        return errors({"schema_version": 3, "commands": commands})
+
+    assert stack("left", "right") == []
+    assert stack("left") != []
+    assert stack("left", "left") != []
+    assert stack("left", "block", before=[CUBE]) == [
+        "commands/4: mesh 'profile': stack needs meshes of the same cells and points: "
+        "'left' quad cells with 2D points, 'block' hexahedron cells with 3D points."
+    ]
+
+
+def by_coordinates(mesh):
+    """The points and the cells of a mesh by their coordinates, without their order:
+    each cell as its sorted points."""
+    points = mesh.points.round(8)
+    cells = sorted(tuple(sorted(map(tuple, points[cell]))) for cell in mesh.cells)
+    return sorted(set(map(tuple, points))), cells
+
+
+def test_a_profile_stacked_and_revolved_is_revolved_piece_by_piece():
+    # one revolve of the stacked profile, the same as each piece revolved (#394)
+    revolve = {"n": 5, "phi": 90, "axis": "x"}
+    body = {**made("revolve", "body", **revolve), "inputs": ["profile"]}
+    stacked = meshtools.generate([*pieces(), PROFILE, body])["body"]
+    revolved = [
+        {**made("revolve", f"{c['name']}_body", **revolve), "inputs": [c["name"]]}
+        for c in pieces()
+    ]
+    made_pieces = meshtools.generate([*pieces(), *revolved])
+    one_by_one = fem.mesh.concatenate([made_pieces[c["name"]] for c in revolved])
+    assert stacked.cell_type == "hexahedron"
+    assert len(stacked.cells) == len(one_by_one.cells) == 3 * 4 * 4
+    # the points of the common faces once
+    assert stacked.npoints == 7 * 3 * 5 < one_by_one.npoints
+    assert by_coordinates(stacked) == by_coordinates(one_by_one)
+    assert (fem.RegionHexahedron(stacked).dV > 0).all()
+
+
+def test_a_body_of_a_stacked_profile_is_checked_like_a_file(tmp_path):
+    # the revolved profile is one mesh of the model, its cells in one section (#394)
+    document = json.loads((GOLDEN / "cube_made_by_tools" / "commands.json").read_text())
+    body = {**made("revolve", "cube", n=5, phi=90, axis="x"), "inputs": ["profile"]}
+    document["commands"][1:2] = [*pieces(), PROFILE, body]
+    assert errors(document) == []
+    report = checks.check(document, tmp_path)
+    assert report["ok"]
+    assert report["cells"]["total"] == 3 * 4 * 4
+    assert report["cells"]["unassigned"] == []

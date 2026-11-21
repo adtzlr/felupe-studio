@@ -64,7 +64,8 @@ export type MeshGenerate =
   | MeshRotate
   | MeshMirror
   | MeshFillBetween
-  | MeshAddRunouts;
+  | MeshAddRunouts
+  | MeshStack;
 /**
  * Add a material to the material library. Every model is a definition below (the material registry): its label, the FElupe class or tensortrax function, and its parameters with label, description, bounds and default.
  *
@@ -754,6 +755,30 @@ export interface MeshAddRunouts {
      * Keep the shape of the ends, the runouts become indents.
      */
     normalize?: boolean;
+  };
+  color?: Color;
+}
+/**
+ * Stack several meshes of the same cells and points into one (fem.MeshContainer(meshes, merge=True, decimals).stack()): the points of all meshes, with the points at the same place merged, and the cells of all meshes, e.g. a profile of several rectangles that is revolved at once.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MeshStack".
+ */
+export interface MeshStack {
+  command: "mesh.generate";
+  name: Name;
+  tool: "stack";
+  /**
+   * The meshes that the tool stacks: two or more meshes made by tools before, of the same cell type and dimension of the points.
+   *
+   * @minItems 2
+   */
+  inputs: [Name, Name, ...Name[]];
+  parameters: {
+    /**
+     * Points whose coordinates agree to this number of decimals are merged (default 10), so meshes of different tools merge despite round-off errors.
+     */
+    decimals: number;
   };
   color?: Color;
 }

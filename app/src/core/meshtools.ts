@@ -14,12 +14,12 @@ export interface MeshDimension {
 }
 
 /**
- * The rule of the dimensions of an operation (`x-dimension`): the cell type of its
- * mesh by the cell type of its input (or the same), and the dimensions that its
- * points gain.
+ * The rule of the dimensions of an operation (`x-dimension`): the number of its
+ * inputs (`list` for two or more, stacked into one), the cell type of its mesh by
+ * the cell type of its input (or the same), and the dimensions that its points gain.
  */
 export interface OperationRule {
-  inputs: number;
+  inputs: number | "list";
   cell_type: Record<string, string> | "same";
   points: number | Record<string, number>;
 }

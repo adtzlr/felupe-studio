@@ -9,6 +9,7 @@ import { isColor } from "./colormaps";
 import { ExpressionError, evaluate } from "./expressions";
 import { type Loadcase, loadcaseFieldErrors } from "./loadcases";
 import { MATERIAL_MODELS } from "./materials";
+import { usersOf } from "./meshtools";
 import { KIND_LABELS, REGISTRY } from "./registry";
 import { numberText, parameterValues } from "./resolve";
 import { schema } from "./schema";
@@ -672,7 +673,12 @@ function defaultOf(
     return [seedRow(type, key, resolve(property.items!), [], context)];
   if (property.type === "array" && refName(property.items!) === "Name") {
     const all = available(context, referenceKind(type, key));
-    return all.length ? all : undefined;
+    // the inputs of a mesh tool: the meshes that no other tool takes yet, those at
+    // the top of the browser (ADR 0019), the latest as many as the tool takes
+    const names =
+      type === "mesh.generate" && key === "inputs" ? unused(all, context) : all;
+    const latest = names.slice(-(property.maxItems ?? names.length));
+    return latest.length ? latest : undefined;
   }
   if (property.oneOf || property.type === "object") return {};
   return undefined;
@@ -735,6 +741,13 @@ export function normalize(
   };
 
   return fill(definition(type, source).node, source, []);
+}
+
+/** The meshes that no other tool takes than the edited one (ADR 0019). */
+function unused(names: readonly string[], context: Context): string[] {
+  const others = context.commands.filter((c) => c.name !== context.editing);
+  const used = usersOf(others);
+  return names.filter((name) => !used.has(name));
 }
 
 /** A new row of rows: the defaults, and the latest object that is not used yet. */
@@ -957,6 +970,10 @@ function assign(draft: Draft, path: string[], value: unknown) {
 
 const article = (word: string) => (/^[aeiou]/i.test(word) ? "an" : "a");
 
+/** A small number in words, e.g. "two" of 2. */
+const count = (n: number) =>
+  ["one", "two", "three", "four"][n - 1] ?? String(n);
+
 /**
  * The value of an expression of the parameters (#242) in a field, with the values
  * of the parameters of the model, or the message of its problem.
@@ -1101,11 +1118,14 @@ const referencesError: FieldError<"reference"> = (
   const names = available(context, input.kind);
   const kind = kindLabel(input.kind);
   const items = Array.isArray(value) ? (value as string[]) : [];
-  if (items.length < Math.max(input.minItems, 1)) {
+  const least = Math.max(input.minItems, 1);
+  if (items.length < least) {
     return names.length
-      ? "Select at least one."
+      ? `Select at least ${count(least)}.`
       : `Create ${article(kind)} ${kind} first.`;
   }
+  if (items.length > (input.maxItems ?? Infinity))
+    return `Select at most ${count(input.maxItems!)}.`;
   const unknown = items.find((item) => !names.includes(item));
   if (unknown) return `There is no ${kind} '${unknown}'.`;
   return !input.repeats && new Set(items).size < items.length

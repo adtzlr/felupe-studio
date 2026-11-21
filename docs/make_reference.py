@@ -270,6 +270,9 @@ def _variants(name, node, command):
             # the meshes of an operation of the mesh tools (ADR 0019)
             count = inputs.get("maxItems")
             noun = "one mesh" if count == 1 else f"{count} meshes"
+            if count is None:
+                # a list of any length, e.g. the meshes of a stack (#394)
+                noun = f"{inputs['minItems']} or more meshes, each once"
             out.append(f"Inputs (`inputs`): {noun}. {inputs['description']}")
         params = resolved.get("properties", {}).get("parameters")
         if params:

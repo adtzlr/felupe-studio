@@ -17191,6 +17191,502 @@
     "notes": []
   },
   {
+    "name": "a profile of rectangles stacked in a 2D model",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "model.settings",
+          "name": "settings",
+          "analysis": "plane-strain"
+        },
+        {
+          "command": "mesh.generate",
+          "name": "face",
+          "tool": "Rectangle",
+          "parameters": {
+            "a": [
+              0,
+              0
+            ],
+            "b": [
+              3,
+              1
+            ],
+            "n": [
+              4,
+              2
+            ]
+          }
+        },
+        {
+          "command": "mesh.generate",
+          "name": "face_2",
+          "tool": "Rectangle",
+          "parameters": {
+            "a": [
+              3,
+              0
+            ],
+            "b": [
+              6,
+              1
+            ],
+            "n": [
+              4,
+              2
+            ]
+          }
+        },
+        {
+          "command": "mesh.generate",
+          "name": "specimen",
+          "tool": "stack",
+          "parameters": {
+            "decimals": 10
+          },
+          "inputs": [
+            "face",
+            "face_2"
+          ]
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "hard",
+          "mesh": "specimen"
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "soft",
+          "mesh": "specimen"
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [],
+    "notes": []
+  },
+  {
+    "name": "a profile of rectangles stacked and revolved",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.generate",
+          "name": "face",
+          "tool": "Rectangle",
+          "parameters": {
+            "a": [
+              0,
+              0
+            ],
+            "b": [
+              3,
+              1
+            ],
+            "n": [
+              4,
+              2
+            ]
+          }
+        },
+        {
+          "command": "mesh.generate",
+          "name": "face_2",
+          "tool": "Rectangle",
+          "parameters": {
+            "a": [
+              3,
+              0
+            ],
+            "b": [
+              6,
+              1
+            ],
+            "n": [
+              4,
+              2
+            ]
+          }
+        },
+        {
+          "command": "mesh.generate",
+          "name": "profile",
+          "tool": "stack",
+          "inputs": [
+            "face",
+            "face_2"
+          ],
+          "parameters": {
+            "decimals": 10
+          }
+        },
+        {
+          "command": "mesh.generate",
+          "name": "specimen",
+          "tool": "revolve",
+          "parameters": {
+            "n": 3,
+            "phi": 90,
+            "axis": "x"
+          },
+          "inputs": [
+            "profile"
+          ]
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "hard",
+          "mesh": "specimen"
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "soft",
+          "mesh": "specimen"
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [],
+    "notes": []
+  },
+  {
+    "name": "a stack of a rectangle and a cube",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.generate",
+          "name": "face",
+          "tool": "Rectangle",
+          "parameters": {
+            "a": [
+              0,
+              0
+            ],
+            "b": [
+              3,
+              1
+            ],
+            "n": [
+              4,
+              2
+            ]
+          }
+        },
+        {
+          "command": "mesh.generate",
+          "name": "block",
+          "tool": "Cube",
+          "parameters": {
+            "a": [
+              0,
+              0,
+              0
+            ],
+            "b": [
+              3,
+              1,
+              1
+            ],
+            "n": [
+              4,
+              2,
+              2
+            ]
+          }
+        },
+        {
+          "command": "mesh.generate",
+          "name": "specimen",
+          "tool": "stack",
+          "parameters": {
+            "decimals": 10
+          },
+          "inputs": [
+            "face",
+            "block"
+          ]
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "hard",
+          "mesh": "specimen"
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "soft",
+          "mesh": "specimen"
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/2: mesh 'specimen': stack needs meshes of the same cells and points: 'face' quad cells with 2D points, 'block' hexahedron cells with 3D points."
+    ],
+    "notes": []
+  },
+  {
     "name": "an operation of a later mesh",
     "document": {
       "schema_version": 3,

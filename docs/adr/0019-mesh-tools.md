@@ -17,6 +17,7 @@ The tools change the dimensions of a mesh (FElupe 12.1.1):
 | `mesh.expand(n, z)`, `mesh.revolve(n, phi)`         | one dimension more: vertex → line → quad → hexahedron | at least the dimension of the cells |
 | `fem.mesh.fill_between(a, b, n)`                    | one dimension more than the two inputs          | those of the inputs                  |
 | `translate`, `rotate`, `mirror`, `add_runouts`      | as the input                                   | as the input                         |
+| `fem.MeshContainer(meshes, merge=True).stack()`     | as the inputs, of one cell type                | as the inputs                        |
 
 So a mesh has two dimensions: of its **points** and of its **cells**. They differ e.g. for the two lines of `fill_between`, which ex05 puts into the plane with `np.pad`. The app is 3D, or 2D by the analysis of the model (ADR 0010).
 
@@ -28,8 +29,8 @@ So a mesh has two dimensions: of its **points** and of its **cells**. They diffe
 - **A registry of tools in the schema, like the materials (#136):** a definition per tool (`MeshLine`, `MeshRectangle`, …) with `tool` as its constant, its label and group, its FElupe call (`x-felupe`), the number of its inputs and its parameters with labels, descriptions, defaults, bounds and quantities. The forms, the validation and the script are made from it. A new tool is a new definition and an emitter of its line, not a new command type.
   - M35 (#193): `Point`, `Line`, `Rectangle`, `Cube`.
   - M36 (#314): `expand`, `revolve`, `fill_between`, `embed`, `translate`, `rotate`, `mirror`, `add_runouts`.
-  - M48 (#394): `Circle`, `Triangle`.
-  - Later: `concatenate`, `triangulate`, `convert`.
+  - M48 (#394): `Circle`, `Triangle`, `stack` (a list of two or more inputs, `"inputs": "list"` in its `x-dimension`; the line of the script is `fem.MeshContainer([a, b, c], merge=True, decimals=10).stack()`).
+  - Later: `triangulate`, `convert`, a cell tag per input of a stack.
 - **The dimensions are known before Python runs.** Each definition has `x-dimension`:
   - for a primitive, the dimensions of its points and cells and its cell type, e.g. `{"points": 2, "cells": 2, "cell_type": "quad"}`;
   - for an operation, its output as a rule of its inputs (the same dimensions, one more dimension of the cells and the next cell type, one more dimension of the points), and what the inputs need, e.g. *cells of the dimension of the points* for `revolve`, or *two meshes of the same cell type* for `fill_between`.
