@@ -4,16 +4,20 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import commands from "../../../python/felupe_studio/commands.schema.json";
 import type { Brand } from "../brand";
-import { themeScript } from "../core/theme";
+import { THEME_COLORS, themeScript } from "../core/theme";
 import {
   accentCss,
   brand,
+  brandAccents,
   BrandError,
   brandOptions,
+  contrast,
+  lightAccent,
   manifest,
   onAccent,
   pngSize,
   readBrand,
+  softAlpha,
 } from "./brand";
 import schema from "./brand.schema.json";
 import { readSamples } from "./samples";
@@ -233,10 +237,61 @@ describe("the plugin of the brand", () => {
     // the stored choice with the storage prefix of the brand
     expect(script.children).toContain('localStorage.getItem("acme.theme")');
     expect(script.children).toBe(themeScript("acme.theme"));
-    // the accent of the brand is one of the dark theme
-    expect(accentCss("#ffcc00")).toMatch(
-      /^:root:root:not\(\[data-theme="light"\]\) \{/,
-    );
+    // after the theme color, which it sets too
+    const names = tags.map((t) => ("name" in t.attrs ? t.attrs.name : t.tag));
+    expect(names.indexOf("theme-color")).toBeLessThan(tags.indexOf(script));
+    // the accent of the brand in the dark theme, a darker one in the light theme
+    const style = tags.find((t) => t.tag === "style")!.children.split("\n");
+    expect(style).toHaveLength(2);
+    expect(style[0]).toMatch(/^:root:root:not\(\[data-theme="light"\]\) \{/);
+    expect(style[0]).toContain("--color-accent: #ffcc00;");
+    expect(style[1]).toMatch(/^:root:root\[data-theme="light"\] \{/);
+    expect(style[1]).toContain(`--color-accent: ${lightAccent("#ffcc00")};`);
+  });
+
+  it("starts in the theme of the brand (#375)", () => {
+    const light = { ...acme, defaults: { theme: "light" as const } };
+    const { tags } = transform(light);
+    const script = tags.find(
+      (t) => t.tag === "script" && "id" in t.attrs && t.attrs.id === "theme",
+    )!;
+    expect(script.children).toBe(themeScript("acme.theme", "light"));
+    // the theme color of the page and the manifest in the light theme
+    const meta = tags.find((t) => t.tag === "meta")!;
+    expect(meta.attrs).toEqual({ name: "theme-color", content: "#e9ecf1" });
+    expect(manifest(light)).toMatchObject({
+      theme_color: THEME_COLORS.light.bar,
+      background_color: THEME_COLORS.light.background,
+    });
+    // dark for System, as a manifest has one theme color
+    const system = { ...acme, defaults: { theme: "system" as const } };
+    expect(manifest(system)).toMatchObject({ theme_color: "#171a21" });
+    expect(() =>
+      readBrand(folder({ ...acme, defaults: { theme: "sepia" } })),
+    ).toThrow("/defaults/theme: must be equal to one of the allowed values");
+  });
+
+  it("darkens the accent of a brand for the light theme (#375)", () => {
+    // a light accent: the first darker shade with 4.5:1 on the light surfaces
+    for (const accent of ["#ffcc00", "#f08c3a", "#5aa9ff", "#22c55e"]) {
+      const light = lightAccent(accent);
+      expect(contrast(light, "#d5e3f6")).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(light, accent)).toBeGreaterThan(1);
+    }
+    // a dark one as it is
+    expect(lightAccent("#0b3d91")).toBe("#0b3d91");
+    // accent_light instead, or only in the light theme
+    expect(brandAccents({ ...acme, accent_light: "#7a5c00" })).toEqual({
+      dark: "#ffcc00",
+      light: "#7a5c00",
+    });
+    expect(
+      brandAccents({ ...acme, accent: undefined, accent_light: "#7a5c00" }),
+    ).toEqual({ light: "#7a5c00" });
+    expect(brandAccents({ ...acme, accent: undefined })).toEqual({});
+    expect(() =>
+      readBrand(folder({ ...acme, accent_light: "dark yellow" })),
+    ).toThrow("/accent_light: must match pattern");
   });
 
   it("keeps the colors of the theme without an accent", () => {
@@ -249,8 +304,22 @@ describe("the plugin of the brand", () => {
     expect(onAccent("#5aa9ff")).toBe("#0b1220");
     expect(onAccent("#0b3d91")).toBe("#ffffff");
     expect(accentCss("#0b3d91")).toContain(
-      "--color-accent-soft: color-mix(in srgb, #0b3d91 18%, transparent);",
+      "--color-accent-soft: rgba(11, 61, 145, 0.18);",
     );
+    // hovered lighter in the dark theme, darker in the light one
+    expect(accentCss("#0b3d91")).toContain("--color-accent-hover: #305aa2;");
+    expect(accentCss("#0b3d91", "light")).toContain(
+      "--color-accent-hover: #09347b;",
+    );
+    // a tint no darker (light) or lighter (dark) than that of FElupe Studio, so the
+    // text on a selected line keeps its contrast
+    expect(accentCss("#0b3d91", "light")).toContain(
+      "--color-accent-soft: rgba(11, 61, 145, 0.1);",
+    );
+    expect(softAlpha("#0b60c4", "light")).toBe(0.12);
+    expect(softAlpha("#5aa9ff", "dark")).toBe(0.18);
+    expect(softAlpha("#ffcc00", "dark")).toBeLessThan(0.18);
+    expect(softAlpha("#000000", "light")).toBeLessThan(0.12);
   });
 
   it("links the logo, the icons and the manifest", () => {

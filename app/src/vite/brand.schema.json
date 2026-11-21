@@ -62,7 +62,12 @@
       "maxLength": 40
     },
     "accent": {
-      "description": "The accent color of the dark theme of the app, e.g. of buttons and selections, as #rrggbb; without it, the color of FElupe Studio. The light theme keeps the accent of FElupe Studio.",
+      "description": "The accent color of the dark theme of the app, e.g. of buttons and selections, as #rrggbb; without it, the color of FElupe Studio. Without accent_light, the light theme takes a darker shade of it.",
+      "type": "string",
+      "pattern": "^#[0-9a-fA-F]{6}$"
+    },
+    "accent_light": {
+      "description": "The accent color of the light theme (#375), as #rrggbb, with a contrast of at least 4.5:1 on the light surfaces of the app; without it, a darker shade of accent with that contrast, else the color of FElupe Studio.",
       "type": "string",
       "pattern": "^#[0-9a-fA-F]{6}$"
     },
@@ -127,6 +132,10 @@
               "enum": ["N", "kN"]
             }
           }
+        },
+        "theme": {
+          "description": "The theme of the app without a choice in the browser (#375): dark (the default of FElupe Studio), light, or system, which follows the color scheme of the system or the browser. The choice in the header replaces it.",
+          "enum": ["dark", "light", "system"]
         }
       }
     }

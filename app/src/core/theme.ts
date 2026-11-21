@@ -3,8 +3,9 @@
 // is a setting of the browser with the storage prefix of the brand (ADR 0020), not
 // a part of the project. The page sets the theme before its first paint, from the
 // stored choice (themeScript, in the head of index.html), and the app follows a
-// changed choice and the system (useTheme).
-import { storageKey } from "../brand";
+// changed choice and the system (useTheme). A brand may start in another theme
+// (`defaults.theme`).
+import { currentBrand, storageKey } from "../brand";
 
 export type Theme = "dark" | "light";
 export type ThemeChoice = Theme | "system";
@@ -27,8 +28,27 @@ export const THEME_CHOICES: readonly {
   },
 ];
 
-/** The theme without a stored choice: nothing changes for those who do not switch. */
+/**
+ * The theme of FElupe Studio without a stored choice: nothing changes for those who
+ * do not switch.
+ */
 export const DEFAULT_THEME: ThemeChoice = "dark";
+
+/** The theme without a stored choice: of the brand (`defaults.theme`), else dark. */
+export const defaultTheme = (): ThemeChoice =>
+  currentBrand()?.defaults?.theme ?? DEFAULT_THEME;
+
+/**
+ * The colors around the content of the app per theme, the tokens `--color-bar` and
+ * `--color-bg` of shell.css (`tokens.test.ts`): the theme color of the page, which
+ * browsers and installed apps take for their bars, and the colors of the manifest.
+ */
+export const THEME_COLORS: Readonly<
+  Record<Theme, { readonly bar: string; readonly background: string }>
+> = {
+  dark: { bar: "#171a21", background: "#1b1f27" },
+  light: { bar: "#e9ecf1", background: "#eef0f4" },
+};
 
 /** The name of the stored choice, after the storage prefix of the brand. */
 export const THEME_KEY = "theme";
@@ -39,13 +59,13 @@ export const DARK_QUERY = "(prefers-color-scheme: dark)";
 const isChoice = (value: unknown): value is ThemeChoice =>
   THEME_CHOICES.some((c) => c.id === value);
 
-/** The stored choice, or the default. */
+/** The stored choice, or the default of the brand. */
 export function loadTheme(storage?: Storage): ThemeChoice {
   try {
     const value = (storage ?? localStorage).getItem(storageKey(THEME_KEY));
-    return isChoice(value) ? value : DEFAULT_THEME;
+    return isChoice(value) ? value : defaultTheme();
   } catch {
-    return DEFAULT_THEME;
+    return defaultTheme();
   }
 }
 
@@ -67,20 +87,34 @@ export function applyTheme(theme: Theme, root = document.documentElement) {
   if (root.dataset.theme !== theme) root.dataset.theme = theme;
 }
 
+/** The theme color of the page in a theme: the bar of the app, also in the browser. */
+export function applyThemeColor(theme: Theme, page: ParentNode = document) {
+  for (const meta of page.querySelectorAll('meta[name="theme-color"]'))
+    meta.setAttribute("content", THEME_COLORS[theme].bar);
+}
+
 /**
  * The script in the head of the page that sets the theme before the first paint, so
  * a light app does not start dark: the theme of the stored choice (`key`), else of
- * the default. A plain script with the same rules as `loadTheme` and `themeOf`.
+ * the default of the brand, and the theme color of the page before it (in the head
+ * after its `theme-color`). A plain script with the same rules as `loadTheme`,
+ * `themeOf` and `applyThemeColor`.
  */
 export function themeScript(key: string, fallback = DEFAULT_THEME): string {
   // a value in the script, safe in HTML
   const value = (v: unknown) => JSON.stringify(v).replace(/</g, "\\u003c");
   const choices = value(THEME_CHOICES.map((c) => c.id));
+  const bars = value({
+    dark: THEME_COLORS.dark.bar,
+    light: THEME_COLORS.light.bar,
+  });
   return (
     `(function(){var c;try{c=localStorage.getItem(${value(key)})}` +
     `catch(e){}if(${choices}.indexOf(c)<0)c=${value(fallback)};` +
     `if(c==="system"){try{c=matchMedia(${value(DARK_QUERY)}).matches` +
     `?"dark":"light"}catch(e){c="light"}}` +
-    `document.documentElement.setAttribute("data-theme",c)})();`
+    `document.documentElement.setAttribute("data-theme",c);` +
+    `var m=document.querySelectorAll('meta[name="theme-color"]');` +
+    `for(var i=0;i<m.length;i++)m[i].setAttribute("content",${bars}[c])})();`
   );
 }

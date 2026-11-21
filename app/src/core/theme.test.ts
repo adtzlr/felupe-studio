@@ -3,10 +3,12 @@
 import { describe, expect, it } from "vitest";
 import {
   applyTheme,
+  applyThemeColor,
   DEFAULT_THEME,
   loadTheme,
   saveTheme,
   THEME_CHOICES,
+  THEME_COLORS,
   themeOf,
   type ThemeChoice,
   themeScript,
@@ -26,13 +28,34 @@ function memory(): Storage {
   };
 }
 
+/** A page with a theme color, for the script and `applyThemeColor`. */
+function fakePage() {
+  const attributes: Record<string, string> = {};
+  const meta = { content: "#000000" };
+  return {
+    attributes,
+    meta,
+    documentElement: {
+      setAttribute: (name: string, value: string) => (attributes[name] = value),
+    },
+    querySelectorAll: (selector: string) => {
+      expect(selector).toBe('meta[name="theme-color"]');
+      return [
+        {
+          setAttribute: (_: "content", value: string) => (meta.content = value),
+        },
+      ];
+    },
+  };
+}
+
 /** The theme that the script of the page sets, with a stored value and a system. */
 function scriptTheme(
   stored: string | null,
   systemDark: boolean | "none",
   fallback?: ThemeChoice,
 ) {
-  const attributes: Record<string, string> = {};
+  const page = fakePage();
   const storage = memory();
   if (stored !== null) storage.setItem("acme.theme", stored);
   const matchMedia = (query: string) => {
@@ -40,18 +63,16 @@ function scriptTheme(
     expect(query).toBe("(prefers-color-scheme: dark)");
     return { matches: systemDark };
   };
-  const document = {
-    documentElement: {
-      setAttribute: (name: string, value: string) => (attributes[name] = value),
-    },
-  };
   new Function(
     "localStorage",
     "matchMedia",
     "document",
     themeScript("acme.theme", fallback),
-  )(storage, matchMedia, document);
-  return attributes["data-theme"];
+  )(storage, matchMedia, page);
+  const theme = page.attributes["data-theme"] as "dark" | "light";
+  // and the theme color of the page
+  expect(page.meta.content).toBe(THEME_COLORS[theme].bar);
+  return theme;
 }
 
 describe("the theme", () => {
@@ -90,6 +111,14 @@ describe("the theme", () => {
     expect(themeOf("system", false)).toBe("light");
   });
 
+  it("is the theme color of the page, for the bars of a browser", () => {
+    const page = fakePage();
+    applyThemeColor("light", page as unknown as ParentNode);
+    expect(page.meta.content).toBe(THEME_COLORS.light.bar);
+    applyThemeColor("dark", page as unknown as ParentNode);
+    expect(page.meta.content).toBe(THEME_COLORS.dark.bar);
+  });
+
   it("is the attribute of the root of the page", () => {
     const root = { dataset: {} as DOMStringMap } as HTMLElement;
     applyTheme("light", root);
@@ -113,7 +142,7 @@ describe("the theme", () => {
     expect(scriptTheme("system", "none")).toBe("light");
     // a page without storage
     const script = themeScript("acme.theme");
-    const attributes: Record<string, string> = {};
+    const page = fakePage();
     new Function("localStorage", "matchMedia", "document", script)(
       {
         getItem: () => {
@@ -121,13 +150,10 @@ describe("the theme", () => {
         },
       },
       undefined,
-      {
-        documentElement: {
-          setAttribute: (n: string, v: string) => (attributes[n] = v),
-        },
-      },
+      page,
     );
-    expect(attributes["data-theme"]).toBe("dark");
+    expect(page.attributes["data-theme"]).toBe("dark");
+    expect(page.meta.content).toBe("#171a21");
     // safe in HTML: no end of the script in it
     expect(themeScript("a</script>")).not.toMatch(/<\/script/i);
   });

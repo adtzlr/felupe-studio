@@ -3,17 +3,24 @@
 // default brand app/brand, which is FElupe Studio itself. The JSON schema
 // brand.schema.json validates it, and an invalid brand fails the build.
 //
-// The plugin writes the brand into index.html: the title, the accent color and the
-// brand as a JSON block, the one source of the brand in the app (src/brand.ts). The
-// samples of a brand are the folder of its `samples` (#350). This module runs in
-// Node (the config of Vite), not in the app.
+// The plugin writes the brand into index.html: the title, the accent colors of the
+// themes, the theme before the first paint and the brand as a JSON block, the one
+// source of the brand in the app (src/brand.ts). The samples of a brand are the
+// folder of its `samples` (#350). This module runs in Node (the config of Vite), not
+// in the app.
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import Ajv2020 from "ajv/dist/2020";
 import type { Plugin } from "vite";
 import type { Brand } from "../brand";
-import { THEME_KEY, themeScript } from "../core/theme";
+import {
+  DEFAULT_THEME,
+  type Theme,
+  THEME_COLORS,
+  THEME_KEY,
+  themeScript,
+} from "../core/theme";
 import schema from "./brand.schema.json";
 
 export const BRAND_FILE = "brand.json";
@@ -138,9 +145,12 @@ export function brandOptions(
 export const BRAND_FOLDER = "brand";
 /** The manifest of the app, for an installed app. */
 export const MANIFEST = "manifest.webmanifest";
-/** The colors of the app around the brand (shell.css): the bar and the background. */
-const BAR = "#171a21";
-const BACKGROUND = "#1b1f27";
+/**
+ * The theme of the manifest and of the theme color of the page before its script
+ * runs: of the default of the brand (#375), dark for System, as a manifest has one.
+ */
+const manifestTheme = (value: Brand): Theme =>
+  (value.defaults?.theme ?? DEFAULT_THEME) === "light" ? "light" : "dark";
 
 /** The files that the build copies: their names in the build and their paths. */
 export function brandFiles(dir: string, value: Brand): [string, string][] {
@@ -155,16 +165,20 @@ export function brandFiles(dir: string, value: Brand): [string, string][] {
   ];
 }
 
-/** The manifest of the app of a brand: its names, its icons and the colors. */
+/**
+ * The manifest of the app of a brand: its names, its icons and the colors of its
+ * default theme.
+ */
 export function manifest(value: Brand): object {
+  const colors = THEME_COLORS[manifestTheme(value)];
   return {
     name: value.name,
     short_name: value.short_name,
     start_url: ".",
     scope: ".",
     display: "standalone",
-    background_color: BACKGROUND,
-    theme_color: BAR,
+    background_color: colors.background,
+    theme_color: colors.bar,
     icons: [
       { src: `${BRAND_FOLDER}/logo.svg`, sizes: "any", type: "image/svg+xml" },
       ...Object.keys(value.icons ?? {}).map((size) => ({
@@ -192,28 +206,139 @@ export function pageBrand(value: Brand): Brand {
 const escapeHtml = (text: string) =>
   text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+type Rgb = [number, number, number];
+
+/** The channels of a color `#rrggbb`. */
+const channels = (color: string): Rgb =>
+  [1, 3, 5].map((i) => parseInt(color.slice(i, i + 2), 16)) as Rgb;
+
+/** A color `#rrggbb` of channels. */
+const hex = (rgb: Rgb): string =>
+  `#${rgb.map((c) => Math.round(c).toString(16).padStart(2, "0")).join("")}`;
+
+/** A part `t` of the way from one color to another, like `color-mix()` in sRGB. */
+const mix = (from: Rgb, to: Rgb, t: number): Rgb =>
+  from.map((c, i) => c + (to[i] - c) * t) as Rgb;
+
+/** The relative luminance of a color `#rrggbb` (WCAG 2). */
+function luminance(color: string): number {
+  const [r, g, b] = channels(color).map((c) => {
+    const s = c / 255;
+    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+/** The contrast ratio of two colors `#rrggbb` (WCAG 2). */
+export function contrast(a: string, b: string): number {
+  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (high + 0.05) / (low + 0.05);
+}
+
 /** The color of a text on the accent color: dark on a light one, else light. */
 export function onAccent(accent: string): string {
-  const [r, g, b] = [1, 3, 5].map((i) => {
-    const c = parseInt(accent.slice(i, i + 2), 16) / 255;
-    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  });
-  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return luminance > 0.18 ? "#0b1220" : "#ffffff";
+  return luminance(accent) > 0.18 ? "#0b1220" : "#ffffff";
 }
 
 /**
- * The CSS of the accent color of a brand: the variables of the dark theme, with a
- * higher specificity than those of the stylesheet, which comes later in the page.
- * The light theme (#375) keeps its own accent, which is chosen for its background.
+ * The darkest surface of the light theme with text in the accent color, the token
+ * `--color-selected` of shell.css (`tokens.test.ts` checks the accents of brands on
+ * every surface).
  */
-export function accentCss(accent: string): string {
-  return (
-    `:root:root:not([data-theme="light"]) { --color-accent: ${accent}; ` +
-    `--color-accent-hover: color-mix(in srgb, ${accent} 85%, white); ` +
-    `--color-accent-soft: color-mix(in srgb, ${accent} 18%, transparent); ` +
-    `--color-on-accent: ${onAccent(accent)}; }`
-  );
+const LIGHT_SURFACE = "#d5e3f6";
+
+/**
+ * The accent of the light theme from the accent of a brand (#375): the accent itself
+ * or, if it is too light, the first darker shade (towards black) with a contrast of
+ * 4.5:1 on the light surfaces, e.g. a dark orange of an orange.
+ */
+export function lightAccent(accent: string): string {
+  const rgb = channels(accent);
+  for (let step = 0; step <= 50; step++) {
+    const shade = hex(mix(rgb, [0, 0, 0], step / 50));
+    if (contrast(shade, LIGHT_SURFACE) >= 4.5) return shade;
+  }
+  return "#000000";
+}
+
+/**
+ * The accents of FElupe Studio and the alphas of their soft tints, the tokens of
+ * shell.css (`tokens.test.ts`).
+ */
+export const UPSTREAM_ACCENTS: Readonly<
+  Record<Theme, { readonly accent: string; readonly soft: number }>
+> = {
+  dark: { accent: "#5aa9ff", soft: 0.18 },
+  light: { accent: "#0b60c4", soft: 0.12 },
+};
+
+/**
+ * The alpha of the soft tint of an accent, e.g. of a selected line: that of FElupe
+ * Studio, or less, so the tint on the bar is no lighter in the dark theme and no
+ * darker in the light one than that of FElupe Studio, and the text on it keeps its
+ * contrast, also with a very light or a very dark accent.
+ */
+export function softAlpha(accent: string, theme: Theme): number {
+  const bar = THEME_COLORS[theme].bar;
+  // how much a tint lightens the bar (dark) or darkens it (light)
+  const sign = theme === "dark" ? -1 : 1;
+  const shift = (color: string, alpha: number) =>
+    sign *
+    (luminance(bar) -
+      luminance(hex(mix(channels(bar), channels(color), alpha))));
+  const upstream = UPSTREAM_ACCENTS[theme];
+  const limit = shift(upstream.accent, upstream.soft);
+  let percent = Math.round(upstream.soft * 100);
+  while (percent > 2 && shift(accent, percent / 100) > limit) percent--;
+  return percent / 100;
+}
+
+/**
+ * The variables of the accent color of a brand in a theme, as colors: hovered
+ * lighter in the dark theme and darker in the light one, and a soft tint.
+ */
+export function accentTokens(
+  accent: string,
+  theme: Theme,
+): Record<string, string> {
+  const rgb = channels(accent);
+  const dark = theme === "dark";
+  const hover = mix(rgb, dark ? [255, 255, 255] : [0, 0, 0], 0.15);
+  return {
+    "--color-accent": accent,
+    "--color-accent-hover": hex(hover),
+    "--color-accent-soft": `rgba(${rgb.join(", ")}, ${softAlpha(accent, theme)})`,
+    "--color-on-accent": onAccent(accent),
+  };
+}
+
+/**
+ * The CSS of the accent color of a brand in a theme, with a higher specificity than
+ * the tokens of the stylesheet, which comes later in the page.
+ */
+export function accentCss(accent: string, theme: Theme = "dark"): string {
+  const selector =
+    theme === "dark"
+      ? ':root:root:not([data-theme="light"])'
+      : ':root:root[data-theme="light"]';
+  const tokens = Object.entries(accentTokens(accent, theme))
+    .map(([name, color]) => `${name}: ${color};`)
+    .join(" ");
+  return `${selector} { ${tokens} }`;
+}
+
+/**
+ * The accents of a brand per theme: `accent` in the dark theme, `accent_light` in the
+ * light one, else a darker shade of `accent` (`lightAccent()`). A theme without one
+ * keeps the accent of FElupe Studio.
+ */
+export function brandAccents(value: Brand): Partial<Record<Theme, string>> {
+  const light =
+    value.accent_light ?? (value.accent && lightAccent(value.accent));
+  return {
+    ...(value.accent ? { dark: value.accent } : {}),
+    ...(light ? { light } : {}),
+  };
 }
 
 /** The tags of the brand in the head of a page. */
@@ -225,18 +350,12 @@ function headTags(value: Brand) {
     attrs: { rel, href, ...(type ? { type } : {}) },
     injectTo: "head" as const,
   });
+  const accents = Object.entries(brandAccents(value)) as [Theme, string][];
   return [
     {
       tag: "script",
       attrs: { type: "application/json", id: "brand" },
       children: json,
-      injectTo: "head" as const,
-    },
-    // the theme of the stored choice before the first paint (#375)
-    {
-      tag: "script",
-      attrs: { id: "theme" },
-      children: themeScript(`${value.storage}.${THEME_KEY}`),
       injectTo: "head" as const,
     },
     link("icon", `${BRAND_FOLDER}/logo.svg`, "image/svg+xml"),
@@ -246,15 +365,31 @@ function headTags(value: Brand) {
     link("manifest", MANIFEST),
     {
       tag: "meta",
-      attrs: { name: "theme-color", content: BAR },
+      attrs: {
+        name: "theme-color",
+        content: THEME_COLORS[manifestTheme(value)].bar,
+      },
       injectTo: "head" as const,
     },
-    ...(value.accent
+    // the theme of the stored choice, else of the brand, before the first paint,
+    // and the theme color above (#375)
+    {
+      tag: "script",
+      attrs: { id: "theme" },
+      children: themeScript(
+        `${value.storage}.${THEME_KEY}`,
+        value.defaults?.theme ?? DEFAULT_THEME,
+      ),
+      injectTo: "head" as const,
+    },
+    ...(accents.length
       ? [
           {
             tag: "style",
             attrs: { id: "brand-accent" },
-            children: accentCss(value.accent),
+            children: accents
+              .map(([theme, accent]) => accentCss(accent, theme))
+              .join("\n"),
             injectTo: "head" as const,
           },
         ]

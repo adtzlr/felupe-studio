@@ -16,5 +16,8 @@
     "source": "https://github.com/adtzlr/felupe-studio/tree/main/brands/example"
   },
   "samples": "samples",
-  "pyodide": "self-hosted"
+  "pyodide": "self-hosted",
+  "defaults": {
+    "theme": "light"
+  }
 }

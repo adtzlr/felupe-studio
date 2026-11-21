@@ -1,6 +1,7 @@
 """The example brand (brands/example, #321, ADR 0020) in a browser without internet:
-its name, its manifest and its own samples, solved with the self-hosted Pyodide,
-which the service worker keeps for the next visit.
+its name, its manifest, its light theme with a darker shade of its accent (#375) and
+its own samples, solved with the self-hosted Pyodide, which the service worker keeps
+for the next visit.
 
 Needs the build of the brand, e.g. in app/:
 
@@ -109,7 +110,9 @@ def test_the_files_of_the_brand(site):
         manifest = json.loads(response.read())
     assert manifest["name"] == BRAND["name"]
     assert manifest["short_name"] == BRAND["short_name"]
-    assert manifest["theme_color"] == "#171a21"
+    # the colors of the light theme, the default of the brand (#375)
+    assert manifest["theme_color"] == "#e9ecf1"
+    assert manifest["background_color"] == "#eef0f4"
     assert [icon["sizes"] for icon in manifest["icons"]] == [
         "any",
         "192x192",
@@ -131,6 +134,17 @@ def test_a_sample_of_the_brand_solved_without_internet(site, page):
     page.goto(url(site))
     assert page.title() == BRAND["name"]
     page.get_by_text(READY).wait_for(timeout=120_000)
+
+    # the light theme of the brand without a choice, with a darker shade of its
+    # orange accent for the light surfaces (#375)
+    assert page.evaluate("document.documentElement.dataset.theme") == "light"
+    theme_color = page.locator('meta[name="theme-color"]').get_attribute("content")
+    assert theme_color == "#e9ecf1"
+    accent = page.evaluate(
+        "getComputedStyle(document.documentElement)"
+        ".getPropertyValue('--color-accent').trim()"
+    )
+    assert accent == "#905423"
 
     # the welcome panel of the brand, with its samples only
     welcome = page.get_by_role("region", name=f"Welcome to {BRAND['name']}")

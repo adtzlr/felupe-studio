@@ -24,7 +24,7 @@ In narrow windows (up to 1000 px, e.g. a tablet or a small laptop window), the b
 
 The project is kept in the browser with its mesh files: a reload restores it. To keep it elsewhere, save it.
 
-The button left of **Solve** chooses the **theme**: *Dark* (the default), *Light* or *System*, which follows the color scheme of the system or the browser. The choice is a setting of the browser, not of the project, and the app starts in it after a reload, also in other tabs. In the light theme, the background of the viewport is white, and so is the picture of the view (*Export ▸ Picture of the view*), e.g. for a report. The symbols in the view are darker there, so they stand out on white: e.g. the selected object in dark yellow instead of yellow, the control points and the constraints in dark cyan, the loads in dark pink. The colors of the meshes, cell sets and sections are the same in both themes.
+The button left of **Solve** chooses the **theme**: *Dark* (the default), *Light* or *System*, which follows the color scheme of the system or the browser. The choice is a setting of the browser, not of the project, and the app starts in it after a reload, also in other tabs. The bar of the browser or of an installed app takes the color of the theme. In the light theme, the background of the viewport is white, and so is the picture of the view (*Export ▸ Picture of the view*), e.g. for a report. The symbols in the view are darker there, so they stand out on white: e.g. the selected object in dark yellow instead of yellow, the control points and the constraints in dark cyan, the loads in dark pink. The colors of the meshes, cell sets and sections are the same in both themes.
 
 ### Save and open
 

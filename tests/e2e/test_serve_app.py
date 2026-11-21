@@ -6,6 +6,7 @@ chromium``, or ``CHROME`` with the path of a Chrome) and the built app
 (``npm run build`` in app/). Run with ``pytest -m e2e``.
 """
 
+import base64
 import os
 import re
 import socket
@@ -224,7 +225,7 @@ def test_the_range_of_the_rubber_beside_the_steel(url, page):
 
 def test_a_light_app_does_not_start_dark(url, page):
     """The theme of the stored choice before the first paint (#375): without the
-    scripts of the app, the page is light already."""
+    scripts of the app, the page is light already, and so is its theme color."""
     page.context.add_init_script("localStorage.setItem('felupe-studio.theme', 'light')")
     page.route(re.compile(r"/assets/.*\.js$"), lambda route: route.abort())
     page.goto(url)
@@ -234,6 +235,8 @@ def test_a_light_app_does_not_start_dark(url, page):
     )
     assert background == "rgb(238, 240, 244)"
     assert page.evaluate("document.getElementById('app').childElementCount") == 0
+    theme_color = page.locator('meta[name="theme-color"]')
+    assert theme_color.get_attribute("content") == "#e9ecf1"
 
     # the default stays dark
     page.context.add_init_script("localStorage.removeItem('felupe-studio.theme')")
@@ -243,3 +246,63 @@ def test_a_light_app_does_not_start_dark(url, page):
         "getComputedStyle(document.documentElement).backgroundColor"
     )
     assert background == "rgb(27, 31, 39)"
+    assert theme_color.get_attribute("content") == "#171a21"
+
+
+# the pixels of a PNG: its size, its corners and how many differ from the top left
+PIXELS = """async (data) => {
+    const image = new Image();
+    image.src = `data:image/png;base64,${data}`;
+    await image.decode();
+    const canvas = document.createElement("canvas");
+    [canvas.width, canvas.height] = [image.width, image.height];
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0);
+    const { data: rgba } = context.getImageData(0, 0, image.width, image.height);
+    const at = (x, y) => {
+        const i = 4 * (y * image.width + x);
+        return [...rgba.slice(i, i + 3)];
+    };
+    const [w, h] = [image.width - 1, image.height - 1];
+    let drawn = 0;
+    for (let i = 0; i < rgba.length; i += 4)
+        if (rgba[i] !== rgba[0] || rgba[i + 1] !== rgba[1] || rgba[i + 2] !== rgba[2])
+            drawn += 1;
+    return { corners: [at(0, 0), at(w, 0), at(0, h), at(w, h)], drawn };
+}"""
+
+
+def test_a_light_picture_of_the_view(url, page):
+    """The picture of the view in the light theme (#375): on the white background of
+    the view, e.g. for a report; in the dark theme on its dark background."""
+    page.context.add_init_script("localStorage.setItem('felupe-studio.theme', 'light')")
+    page.goto(url)
+    page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
+    page.get_by_role("button", name="File", exact=True).click()
+    page.get_by_role("menuitem", name="Samples…").click()
+    samples = page.get_by_role("dialog")
+    title = page.get_by_role(
+        "heading", name="Hyperelastic block with a rigid plate", exact=True
+    )
+    samples.locator("li").filter(has=title).get_by_role("button", name="Open").click()
+    page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)
+
+    def picture():
+        with page.expect_download() as download:
+            page.get_by_role("button", name="Export", exact=True).click()
+            page.get_by_role("menuitem", name="Picture of the view").click()
+        data = Path(download.value.path()).read_bytes()
+        assert data.startswith(b"\x89PNG")
+        return page.evaluate(PIXELS, base64.b64encode(data).decode())
+
+    light = picture()
+    assert light["corners"] == [[255, 255, 255]] * 4
+    assert light["drawn"] > 1000
+
+    # the picture follows a new theme
+    page.get_by_role("button", name="Theme").click()
+    page.get_by_role("menuitemradio", name=re.compile("^Dark")).click()
+    dark = picture()
+    assert dark["corners"] == [[38, 43, 54]] * 4
+    assert dark["drawn"] > 1000
+    assert page.errors == []

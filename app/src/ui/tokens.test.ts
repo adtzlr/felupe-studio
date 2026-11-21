@@ -3,7 +3,9 @@
 // view (`VIEW_COLORS`) are checked against the background of the view of each theme.
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { THEME_COLORS } from "../core/theme";
 import { VIEW_COLORS } from "../viewer/palette";
+import { accentTokens, lightAccent, UPSTREAM_ACCENTS } from "../vite/brand";
 
 // read as a file: CSS modules are empty in the tests
 const source = readFileSync(new URL("./shell.css", import.meta.url), "utf-8");
@@ -97,6 +99,52 @@ const SURFACES = [
   "active",
 ];
 
+/** The contrast of the text and the markers of the tokens of a theme (WCAG AA). */
+function expectContrast(tokens: ReadonlyMap<string, string>) {
+  const color = (name: string) => rgba(tokens.get(`--color-${name}`)!);
+  const pairs: [string, Rgba, string, Rgba][] = [];
+  const add = (texts: string[], surfaces: [string, Rgba][]) => {
+    for (const text of texts)
+      for (const [name, surface] of surfaces)
+        pairs.push([text, color(text), name, surface]);
+  };
+  const opaque = (names: string[]): [string, Rgba][] =>
+    names.map((name) => [name, color(name)]);
+  // the texts of the app on its surfaces, and over the viewport
+  const panel = over(color("overlay"), color("view"));
+  add(
+    ["text", "text-secondary", "text-muted", "accent", "warning", "error"],
+    [...opaque(SURFACES), ["overlay", panel]],
+  );
+  add(
+    ["accent"],
+    [["accent-soft", over(color("accent-soft"), color("surface"))]],
+  );
+  add(["on-accent"], opaque(["accent", "accent-hover"]));
+  add(["text", "error"], opaque(["error-surface"]));
+  add(["text"], opaque(["info-surface"]));
+  // the script view (#130): its lines on the bar, hovered and selected
+  const code = [...tokens.keys()]
+    .filter((name) => name.startsWith("--color-code-"))
+    .map((name) => name.slice("--color-".length));
+  expect(code).toHaveLength(6);
+  add(
+    [...code, "text", "text-muted"],
+    [
+      ...opaque(["bar", "hover"]),
+      ["selected line", over(color("accent-soft"), color("bar"))],
+    ],
+  );
+  const low = pairs
+    .map(([text, t, surface, s]) => [text, surface, contrast(t, s)] as const)
+    .filter(([, , ratio]) => ratio < 4.5);
+  expect(low).toEqual([]);
+  // the markers of the minimum and the maximum (#140) on the view, as graphics
+  for (const marker of ["min", "max"])
+    for (const surface of [color("view"), panel])
+      expect(contrast(color(marker), surface)).toBeGreaterThanOrEqual(3);
+}
+
 describe("design tokens", () => {
   it("has no colors outside the token blocks", () => {
     expect(rest.length).toBeGreaterThan(10000);
@@ -143,51 +191,40 @@ describe("design tokens", () => {
 
   it.each(Object.entries(THEMES))(
     "keeps the contrast of the text in the %s theme (WCAG AA)",
-    (_, tokens) => {
-      const color = (name: string) => rgba(tokens.get(`--color-${name}`)!);
-      const pairs: [string, Rgba, string, Rgba][] = [];
-      const add = (texts: string[], surfaces: [string, Rgba][]) => {
-        for (const text of texts)
-          for (const [name, surface] of surfaces)
-            pairs.push([text, color(text), name, surface]);
-      };
-      const opaque = (names: string[]): [string, Rgba][] =>
-        names.map((name) => [name, color(name)]);
-      // the texts of the app on its surfaces, and over the viewport
-      const panel = over(color("overlay"), color("view"));
-      add(
-        ["text", "text-secondary", "text-muted", "accent", "warning", "error"],
-        [...opaque(SURFACES), ["overlay", panel]],
+    (_, tokens) => expectContrast(tokens),
+  );
+
+  // the accent of a brand in the light theme: as it is, or a darker shade (#375)
+  it.each(["#ffcc00", "#f08c3a", "#5aa9ff", "#22c55e", "#0b3d91", "#e66767"])(
+    "keeps the contrast of the text with the accent %s of a brand in the light theme",
+    (accent) =>
+      expectContrast(
+        new Map([
+          ...THEMES.light,
+          ...Object.entries(accentTokens(lightAccent(accent), "light")),
+        ]),
+      ),
+  );
+
+  it.each(Object.entries(THEMES))(
+    "has the accent of FElupe Studio for the accents of brands in the %s theme",
+    (theme, tokens) => {
+      const { accent } = UPSTREAM_ACCENTS[theme as keyof typeof THEMES];
+      const brand = accentTokens(accent, theme as keyof typeof THEMES);
+      expect(tokens.get("--color-accent")).toBe(accent);
+      expect(tokens.get("--color-accent-soft")).toBe(
+        brand["--color-accent-soft"],
       );
-      add(
-        ["accent"],
-        [["accent-soft", over(color("accent-soft"), color("surface"))]],
-      );
-      add(["on-accent"], opaque(["accent", "accent-hover"]));
-      add(["text", "error"], opaque(["error-surface"]));
-      add(["text"], opaque(["info-surface"]));
-      // the script view (#130): its lines on the bar, hovered and selected
-      const code = [...tokens.keys()]
-        .filter((name) => name.startsWith("--color-code-"))
-        .map((name) => name.slice("--color-".length));
-      expect(code).toHaveLength(6);
-      add(
-        [...code, "text", "text-muted"],
-        [
-          ...opaque(["bar", "hover"]),
-          ["selected line", over(color("accent-soft"), color("bar"))],
-        ],
-      );
-      const low = pairs
-        .map(
-          ([text, t, surface, s]) => [text, surface, contrast(t, s)] as const,
-        )
-        .filter(([, , ratio]) => ratio < 4.5);
-      expect(low).toEqual([]);
-      // the markers of the minimum and the maximum (#140) on the view, as graphics
-      for (const marker of ["min", "max"])
-        for (const surface of [color("view"), panel])
-          expect(contrast(color(marker), surface)).toBeGreaterThanOrEqual(3);
+    },
+  );
+
+  it.each(Object.entries(THEMES))(
+    "has the theme colors of the page of the %s theme (#375)",
+    (theme, tokens) => {
+      expect(THEME_COLORS[theme as keyof typeof THEME_COLORS]).toEqual({
+        bar: tokens.get("--color-bar"),
+        background: tokens.get("--color-bg"),
+      });
     },
   );
 
