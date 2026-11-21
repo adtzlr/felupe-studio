@@ -22,16 +22,16 @@ An institute or a company wants to run FElupe Studio under its own name, e.g. on
 - **A brand is a folder, given at build time:** `BRAND_DIR=~/my-brand npm run build` (also `npm run dev`). Without it, the build takes the default brand `app/brand/`, which is felupe-studio itself. The folder has a `brand.json` and its files: the logo, the icons and the samples. A JSON schema validates `brand.json` in the plugin of Vite, and an invalid brand fails the build with the message, like a folder of samples (#350). `SAMPLES_DIR` beside `BRAND_DIR` is an error, so the brand folder is the whole configuration of a deployment.
 - **What a brand sets** in its `brand.json`:
   - `name` and `short_name`: the title, the header, the welcome panel, the texts of the app and the manifest;
-  - `logo` (SVG, the header and the favicon), `icons` (PNG of 192 and 512 px, the manifest), `accent` (a color: `--color-accent` and the theme color of the manifest) and `welcome` (the text below the title of the welcome panel);
+  - `logo` (SVG, the header and the favicon), `icons` (PNG of 192 and 512 px, the manifest), `accent` (the color of `--color-accent` of the dark theme), `accent_light` (that of the light theme, else a darker shade of `accent` with 4.5:1 on the light surfaces, #375) and `welcome` (the text below the title of the welcome panel);
   - `links`: `help`, `documentation`, `tutorial`, `issues` and `source`. The GPL asks for the source of the deployed version: the release tag of felupe-studio and the brand;
   - `samples`: the folder of its samples, relative to the brand folder (#350); without it, the brand has no samples;
   - `pyodide`: `cdn` (the default) or `self-hosted`;
   - `storage`: the prefix of the browser storage;
-  - `defaults.units`: the units of a new model (`model.settings`, #132).
+  - `defaults.units`: the units of a new model (`model.settings`, #132), and `defaults.theme`: the theme until a user chooses one (#375).
 - **A brand inherits no identity from upstream:** `name`, `short_name`, `logo`, `storage` and the links `help`, `issues` and `source` are required and have no defaults. So a missing link never sends the issues of a company upstream, and a change upstream never changes a brand. Only technical options have defaults: Pyodide from the CDN, no samples, the units of today.
 - **The build writes the brand into static files:**
-  - `index.html`: the title, the favicon, the link of the manifest, the theme color, and the brand as a JSON block (`<script type="application/json" id="brand">`). This block is the one source of the brand in the app: `app/src/brand.ts` reads it before the other modules use it, and `APP_NAME` and `LINKS` come from it;
-  - `manifest.webmanifest` with the name, the short name, the icons and the colors;
+  - `index.html`: the title, the favicon, the link of the manifest, the theme color, the accent colors, the script that sets the theme before the first paint (#375), and the brand as a JSON block (`<script type="application/json" id="brand">`). This block is the one source of the brand in the app: `app/src/brand.ts` reads it before the other modules use it, and `APP_NAME` and `LINKS` come from it;
+  - `manifest.webmanifest` with the name, the short name, the icons and the colors of the default theme;
   - the folder of samples with its list (#350), and with `self-hosted` the files of Pyodide.
 
   The app fetches no `brand.json`. The service worker gets the prefix of its cache from the URL that registers it (`sw.js?storage=<prefix>`, none for FElupe Studio), so `sw.js` stays a static file.
@@ -77,4 +77,4 @@ An institute or a company wants to run FElupe Studio under its own name, e.g. on
 - **A static copy made from the wheel** (`felupe-studio brand <folder> --out public/`): it has the drawbacks of both ways. The wheel has no wheels of Pyodide, and the name is compiled into the bundle.
 - **A `brand.json` fetched at runtime:** the title, the manifest and the icons would be wrong until it loads, an invalid brand would fail in the browser of a user, and a self-hosted Pyodide needs a build anyway.
 - **A fork:** it drifts from the releases. The GPL allows it, but a brand folder is less work for both sides.
-- **Themes and plugins:** beyond an accent color, not in v0.8.
+- **Themes and plugins:** beyond an accent color, not in v0.8; v0.9 adds the accent of the light theme and the default theme (#375), and no other themes.

@@ -16,8 +16,13 @@ export interface Brand {
   icons?: { "192": string; "512": string };
   /** The prefix of the browser storage, e.g. `felupe-studio` (see storageKey). */
   storage: string;
-  /** The accent color, `#rrggbb` (the build sets the variables of the theme). */
+  /** The accent color of the dark theme, `#rrggbb` (the build sets the variables). */
   accent?: string;
+  /**
+   * The accent color of the light theme (#375), `#rrggbb`; without it, a darker shade
+   * of `accent` with a contrast of 4.5:1 on the light surfaces.
+   */
+  accent_light?: string;
   /** The text below the title of the welcome panel. */
   welcome?: string;
   links: {
@@ -34,6 +39,8 @@ export interface Brand {
   defaults?: {
     /** The units of the model settings of a new model (#132). */
     units?: { length: "mm" | "m"; force: "N" | "kN" };
+    /** The theme without a stored choice (#375); FElupe Studio is dark. */
+    theme?: "dark" | "light" | "system";
   };
 }
 

@@ -133,6 +133,39 @@ describe("the app of a brand (ADR 0020)", () => {
     delete document.documentElement.dataset.theme;
   });
 
+  it("starts in the theme of the brand without a choice (#375)", async () => {
+    document.getElementById("brand")!.textContent = JSON.stringify({
+      ...acme,
+      defaults: { ...acme.defaults, theme: "light" },
+    });
+    const meta = document.createElement("meta");
+    meta.name = "theme-color";
+    document.head.append(meta);
+    const { App } = await app();
+    render(<App store={new ModelStore()} fetchSample={list} />);
+    expect(document.documentElement.dataset.theme).toBe("light");
+    // the bar of the light theme, also of the browser
+    expect(meta.content).toBe("#e9ecf1");
+    fireEvent.click(screen.getByRole("button", { name: "Theme" }));
+    const choice = within(
+      screen.getByRole("menu", { name: "Theme" }),
+    ).getByRole("menuitemradio", { name: /^Light/ });
+    expect(choice.getAttribute("aria-checked")).toBe("true");
+    // a choice replaces it
+    fireEvent.click(
+      within(screen.getByRole("menu", { name: "Theme" })).getByRole(
+        "menuitemradio",
+        { name: /^Dark/ },
+      ),
+    );
+    expect(document.documentElement.dataset.theme).toBe("dark");
+    expect(meta.content).toBe("#171a21");
+    expect(localStorage.getItem("acme.theme")).toBe("dark");
+    localStorage.removeItem("acme.theme");
+    delete document.documentElement.dataset.theme;
+    meta.remove();
+  });
+
   it("loads Pyodide of the CDN, or its own copy (ADR 0020)", async () => {
     const { pyodideUrl } = await import("../pyodide");
     const base = "https://fem.acme.example/app/";

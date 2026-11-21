@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useState } from "preact/hooks";
 import { storageKey } from "../brand";
 import {
   applyTheme,
+  applyThemeColor,
   DARK_QUERY,
   loadTheme,
   saveTheme,
@@ -25,7 +26,10 @@ export function useTheme(): ThemeState {
   const [choice, setChoice] = useState(() => loadTheme());
   const systemDark = useMedia(DARK_QUERY);
   const theme = themeOf(choice, systemDark);
-  useLayoutEffect(() => applyTheme(theme), [theme]);
+  useLayoutEffect(() => {
+    applyTheme(theme);
+    applyThemeColor(theme);
+  }, [theme]);
   // a choice in another tab of the app
   useEffect(() => {
     const key = storageKey(THEME_KEY);

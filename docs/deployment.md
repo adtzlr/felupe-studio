@@ -75,7 +75,7 @@ my-brand/
 
 The CI files take the brand folder `brand/`. If `brand.json` is in another folder, set `BRAND_FOLDER` in the CI file to that folder, relative to the root of the repository: e.g. `BRAND_FOLDER: my-brand` for `my-brand/brand.json`, or `BRAND_FOLDER: "."` if `brand.json` is at the root. A folder without `brand.json` fails the build with *failed to load config from vite.config.ts* and the message of the brand, which names the folder it searched: *The brand of /builds/…/brand: it has no brand.json.*
 
-Start from a copy of the example brand [`brands/example`](../brands/example) of the release: it has a logo, icons, two samples of its own and a self-hosted Pyodide, and CI of FElupe Studio builds and checks it at every change.
+Start from a copy of the example brand [`brands/example`](../brands/example) of the release: it has a logo, icons, an orange accent, the light theme as its default, two samples of its own and a self-hosted Pyodide, and CI of FElupe Studio builds and checks it at every change.
 
 1. Copy `brands/example` to `brand/` and change its `brand.json` (below).
 2. Replace `logo.svg`, and make the icons from it in a clone of felupe-studio: `python app/scripts/make_icons.py <brand folder>` (with Playwright and Chromium; `CHROME` for another Chrome).
@@ -101,7 +101,7 @@ Start from a copy of the example brand [`brands/example`](../brands/example) of 
   },
   "samples": "samples",
   "pyodide": "self-hosted",
-  "defaults": { "units": { "length": "mm", "force": "N" } }
+  "defaults": { "units": { "length": "mm", "force": "N" }, "theme": "light" }
 }
 ```
 
@@ -113,7 +113,8 @@ Start from a copy of the example brand [`brands/example`](../brands/example) of 
 | `logo` | required | An SVG file of the brand folder: the header, the favicon and the manifest. |
 | `icons` | | PNG files of 192 × 192 and 512 × 512 px for an installed app and the home screen of a phone; without them, the manifest has the logo only. |
 | `storage` | required | The prefix of the browser storage of the app ([below](#the-storage-of-a-brand)): lowercase letters, digits, `.`, `_` and `-`. |
-| `accent` | | The accent color of the dark theme, `#rrggbb`, e.g. of buttons and selections; without it, that of FElupe Studio. The light theme keeps the accent of FElupe Studio. |
+| `accent` | | The accent color of the dark theme, `#rrggbb`, e.g. of buttons and selections; without it, that of FElupe Studio. |
+| `accent_light` | | The accent color of the light theme, `#rrggbb`, for a contrast of at least 4.5:1 on its light surfaces (the build takes it as it is). Without it, the light theme takes `accent` or, if that is too light, the first darker shade of it with that contrast, e.g. a brown `#905423` of the orange `#f08c3a`; without both, the accent of FElupe Studio. |
 | `welcome` | | The text below the title of the welcome panel. |
 | `links.help` | required | *Help ▸ User guide* and the welcome panel. |
 | `links.documentation` | | *Help ▸ Command reference*; without it, no item. |
@@ -123,6 +124,7 @@ Start from a copy of the example brand [`brands/example`](../brands/example) of 
 | `samples` | | The folder of the samples, relative to the brand folder; without it, the brand has no samples. |
 | `pyodide` | | `cdn` (the default) or `self-hosted` ([below](#pyodide-cdn-or-self-hosted)). |
 | `defaults.units` | | The units of a new model (`mm` or `m`, `N` or `kN`). |
+| `defaults.theme` | | The theme of the app until a user chooses one in the header: `dark` (the default, like FElupe Studio), `light` or `system`, which follows the color scheme of the system or the browser. The manifest and the theme color of the page, e.g. of the bar of an installed app, have the colors of this theme (of the dark theme for `system`, as a manifest has one), and the app sets the theme color of the theme it shows. |
 
 A brand inherits no identity of FElupe Studio: the name, the short name, the logo, the storage prefix and the links of help, issues and source have no defaults, so a missing link never sends the questions of your users to FElupe Studio. An invalid `brand.json` fails the build with a message that starts with *The brand of &lt;folder&gt;:*, e.g. *brand.json is invalid: /links: must have required property 'source'.*
 

@@ -30,11 +30,16 @@ not reachable.
 With ``felupe-studio[serve,mcp]`` installed, it also makes the picture of an agent
 on the open app (``felupe-studio serve --agent``, version 0.6): the agent opened a
 sample and wrote a mesh script, which the user reads before it runs.
+
+``--theme light`` makes them in the light theme (#375), e.g. into another folder with
+``--out``; the default is the dark theme, the default of the app. ``CHROME`` is the
+path of another Chrome, like for the browser tests.
 """
 
 import argparse
 import functools
 import http.server
+import os
 import re
 import threading
 from pathlib import Path
@@ -42,10 +47,11 @@ from pathlib import Path
 ROOT = Path(__file__).parent.parent
 SAMPLE = "Hyperelastic block with a rigid plate"
 SIZE = {"width": 1280, "height": 800}
+THEMES = ("dark", "light")
 
 
 def shrink(path):
-    """Reduce a PNG to 256 colors (if Pillow is installed): the dark UI has few."""
+    """Reduce a PNG to 256 colors (if Pillow is installed): the UI has few."""
     try:
         from PIL import Image
     except ImportError:
@@ -55,11 +61,25 @@ def shrink(path):
     small.save(path, optimize=True)
 
 
-def capture(context, url, out):
+def report(path):
+    """Print the name (in the repository) and the size of a written picture."""
+    name = path.relative_to(ROOT) if path.is_relative_to(ROOT) else path
+    print(f"{name}: {path.stat().st_size // 1024} kB")
+
+
+def prepare(context, theme):
+    """The app of a browser context in a theme, without the tip about picking of the
+    first visit."""
+    context.add_init_script(
+        "localStorage.setItem('felupe-studio.tip.pick', 'seen');"
+        f"localStorage.setItem('felupe-studio.theme', '{theme}')"
+    )
+
+
+def capture(context, url, out, theme="dark"):
     """Open the app at ``url`` in a browser context and write the screenshots."""
     out.mkdir(parents=True, exist_ok=True)
-    # without the tip about picking of the first visit
-    context.add_init_script("localStorage.setItem('felupe-studio.tip.pick', 'seen')")
+    prepare(context, theme)
     page = context.new_page()
     errors = []
     page.on("pageerror", lambda error: errors.append(str(error)))
@@ -69,8 +89,7 @@ def capture(context, url, out):
         path = out / f"{name}.png"
         page.screenshot(path=str(path))
         shrink(path)
-        name = path.relative_to(ROOT) if path.is_relative_to(ROOT) else path
-        print(f"{name}: {path.stat().st_size // 1024} kB")
+        report(path)
 
     page.goto(url)
     page.wait_for_selector("text=/FElupe [0-9.]+ ready/", timeout=300_000)
@@ -269,7 +288,7 @@ def capture(context, url, out):
         raise RuntimeError(f"Errors of the page: {errors}")
 
 
-def capture_agent(browser, dist, out, port):
+def capture_agent(browser, dist, out, port, theme="dark"):
     """An agent on the open app (v0.6): ``felupe-studio serve --agent`` with the
     built app, a tab connected by *Help ▸ Connect an agent*, and an MCP client as the
     agent, which opens a sample and writes a mesh script; the picture shows the
@@ -325,9 +344,7 @@ def capture_agent(browser, dist, out, port):
     try:
         assert "FElupe Studio runs at" in server.stdout.readline()
         context = browser.new_context(viewport=SIZE)
-        context.add_init_script(
-            "localStorage.setItem('felupe-studio.tip.pick', 'seen')"
-        )
+        prepare(context, theme)
         page = context.new_page()
         page.goto(f"http://127.0.0.1:{port}/?token={token}")
         page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
@@ -345,7 +362,7 @@ def capture_agent(browser, dist, out, port):
         path = out / "agent.png"
         page.screenshot(path=str(path))
         shrink(path)
-        print(f"{path.relative_to(ROOT)}: {path.stat().st_size // 1024} kB")
+        report(path)
         consent.get_by_role("button", name="Run it", exact=True).click()
         thread.join(60)
         context.close()
@@ -387,6 +404,9 @@ def main():
     parser.add_argument(
         "--pyodide", type=Path, help="a folder with the files of Pyodide of the CDN"
     )
+    parser.add_argument(
+        "--theme", choices=THEMES, default="dark", help="the theme of the app (#375)"
+    )
     args = parser.parse_args()
 
     from playwright.sync_api import sync_playwright
@@ -401,14 +421,17 @@ def main():
     try:
         with sync_playwright() as playwright:
             # WebGL without a GPU
+            chrome = os.environ.get("CHROME")
             browser = playwright.chromium.launch(
-                args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"]
+                args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+                **({"executable_path": chrome} if chrome else {}),
             )
             context = browser.new_context(viewport=SIZE, service_workers="block")
             if args.pyodide:
                 route_pyodide(context, args.pyodide)
-            capture(context, f"http://127.0.0.1:{args.port}/index.html", args.out)
-            capture_agent(browser, args.dist, args.out, args.port + 1)
+            url = f"http://127.0.0.1:{args.port}/index.html"
+            capture(context, url, args.out, args.theme)
+            capture_agent(browser, args.dist, args.out, args.port + 1, args.theme)
             browser.close()
     finally:
         server.shutdown()
