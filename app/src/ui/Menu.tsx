@@ -2,7 +2,7 @@
 // sections. Keyboard: Enter, Space or ↓ open it on the first item, ↑ on the last;
 // ↑/↓, Home and End move, Esc and Tab close it. The same list is the context menu
 // of the browser (#138), at the pointer or at a row. Items with a state are a choice
-// of one, e.g. of the theme (#375).
+// of one, e.g. of the theme (#375). Every menu stays inside the window (#402).
 import { type ComponentChildren, Fragment } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Icon } from "./icons";
@@ -51,6 +51,18 @@ interface Props {
   class?: string;
 }
 
+/** The margin of a menu to the edges of the window (#402). */
+const MARGIN = 8;
+
+/**
+ * The shift of a menu from `start` to `end` along a window of `size` that keeps it
+ * inside with a margin (#402): forward if it starts outside, back if it ends
+ * outside, but not past the start of the window; 0 if it fits.
+ */
+export function fitShift(start: number, end: number, size: number): number {
+  return Math.max(MARGIN - start, Math.min(0, size - MARGIN - end));
+}
+
 /** A list of menu items in sections, open: focus, keyboard and closing. */
 function MenuList({
   id,
@@ -78,16 +90,31 @@ function MenuList({
   onClose: (focus: boolean) => void;
 }) {
   const list = useRef<HTMLDivElement>(null);
-  // a menu at a place stays in the window, e.g. at a row near the bottom
+  // every menu stays in the window (#402): a menu at a place, e.g. at a row near
+  // the bottom, and a menu below its button, e.g. of the theme on a phone
   const [shift, setShift] = useState({ top: 0, left: 0 });
+  const applied = useRef(shift);
+  applied.current = shift;
   useLayoutEffect(() => {
-    if (!place || !list.current) return;
-    const rect = list.current.getBoundingClientRect();
-    const margin = 8;
-    setShift({
-      top: Math.min(0, window.innerHeight - margin - rect.bottom),
-      left: Math.min(0, window.innerWidth - margin - rect.right),
-    });
+    const fit = () => {
+      if (!list.current) return;
+      // the rect without the shift, which it includes; none without a layout
+      const rect = list.current.getBoundingClientRect();
+      if (!rect.width && !rect.height) return;
+      const { top, left } = applied.current;
+      const next = {
+        // a menu below its button is not moved up over it
+        top: place
+          ? fitShift(rect.top - top, rect.bottom - top, window.innerHeight)
+          : 0,
+        left: fitShift(rect.left - left, rect.right - left, window.innerWidth),
+      };
+      if (next.top !== top || next.left !== left) setShift(next);
+    };
+    fit();
+    // e.g. a phone turned with the menu open
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
   }, [place?.top, place?.left]);
 
   const items = () => [
@@ -165,10 +192,12 @@ function MenuList({
       style={
         place
           ? {
-              top: `${Math.max(0, place.top + shift.top)}px`,
-              left: `${Math.max(0, place.left + shift.left)}px`,
+              top: `${place.top + shift.top}px`,
+              left: `${place.left + shift.left}px`,
             }
-          : undefined
+          : shift.left
+            ? { transform: `translateX(${shift.left}px)` }
+            : undefined
       }
       role="menu"
       aria-label={label}
