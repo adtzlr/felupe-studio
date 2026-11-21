@@ -2,7 +2,16 @@
 
 All notable changes of FElupe Studio (the web app and the Python package `felupe_studio`, released together with the same version).
 
-## [Unreleased]
+## [0.8.0] - 2026-11-21
+
+Your own deployments, load cycles with the Mullins effect and derived parameters:
+- **Your own deployment** (ADR 0020): a build of a release with a brand folder has its own name, logo, icons, links, welcome text, accent color, samples and storage, and optionally a self-hosted Pyodide for a deployment without internet access. The CI files of a brand for GitLab and GitHub build a tag of felupe-studio, deploy the app to Pages and keep the wheel of the brand as a file, whose `felupe-studio serve` serves the app and the samples of the brand. The page *Your own deployment* (`docs/deployment.md`) describes it, and CI builds and checks the example brand `brands/example`.
+- **Samples are folders** that describe themselves (`sample.json`), and the app loads their list at runtime: one folder of samples per build, read with the same rules by the build, `felupe-studio serve` and the MCP server.
+- **Load cycles and the Mullins effect:** a job may repeat a step, e.g. load, unload, load. The hyperelastic materials have the Mullins effect of Ogden and Roxburgh, the first hyperelastic material with a load history, and the contour *Max. strain energy density* shows where the rubber is softened. The sample *Bushing with the Mullins effect* and a tutorial of the user guide load, unload and load again.
+- **Derived parameters** (ADR 0021): the value of a parameter may be an expression of other parameters, e.g. the total height of a spring, evaluated in the order of their dependencies, with cycles as errors.
+- **Smaller changes:** the app says when a project is of a newer version and names what it does not know, instead of listing the errors of the schema; an own color per mesh; *Constraints* in the toolbar of the Results view; *A graphical modeling environment for FElupe* in the README and in *Help ▸ About*.
+
+**The schema version stays 3:** projects of v0.7 open unchanged. Repeated steps, derived parameters, the color of a mesh and the Mullins effect are additive, but a project that uses one of them does not open in v0.7 and earlier, which list the errors of the schema. **The variables of the build changed:** `SAMPLES_DIR=<folder>` replaces `EXTRA_SAMPLES_DIR` and `BUILT_IN_SAMPLES=false`, and there is no section *More samples* any more; to keep some samples of upstream, copy their folders. A folder of `FELUPE_STUDIO_SAMPLES` of the MCP server has the same layout. FElupe 12.1.1, Pyodide 314.0.7.
 
 ### Added
 
@@ -285,6 +294,7 @@ The first release: a model of hyperelastic solids, from mesh files to results, i
 - `felupe_studio.codegen()`: the command list as a readable FElupe script, checked by golden tests against reference curves.
 - JSON schema of the command list (schema version 1) as the single source of the app and of the package.
 
+[0.8.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.8.0
 [0.7.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.7.0
 [0.6.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.6.0
 [0.5.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.5.0
