@@ -46,4 +46,22 @@ describe("scalar bar of a contour (#139)", () => {
     renderScalarBar(root, undefined);
     expect(root.querySelector(".app-scalar-bar")).toBeNull();
   });
+
+  it("names the sections of a range of chosen sections (#377)", () => {
+    const root = document.createElement("div");
+    const look = contourLook(DEFAULT_CONTOUR, [0, 6], [0, 13]);
+    renderScalarBar(root, {
+      label: "Von Mises [MPa]",
+      look: { ...look, note: "Range: soft_body" },
+    });
+    // below the title, a text of the bars, so a picture of the view has it
+    const bar = root.querySelector(".fv-bars .fv-bar")!;
+    const note = bar.querySelector(".fv-bar-note")!;
+    expect(note.textContent).toBe("Range: soft_body");
+    expect(note.previousElementSibling!.className).toBe("fv-bar-title");
+    expect(bar.querySelector("canvas.scalar-outside.above")).toBeTruthy();
+    // without chosen sections, no note
+    renderScalarBar(root, { label: "Von Mises [MPa]", look });
+    expect(root.querySelector(".fv-bar-note")).toBeNull();
+  });
 });

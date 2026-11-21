@@ -88,6 +88,12 @@ export interface ResultView {
    */
   curveX?: Series;
   curveY?: Series;
+  /**
+   * The sections whose values give the automatic range of the contour (#377); none
+   * or empty for all sections. A part of the view, not of the stored settings of
+   * the contour: the names belong to a project.
+   */
+  rangeSections?: string[];
 }
 
 export type Finished = Extract<JobRun, { state: "finished" }>;
@@ -161,7 +167,7 @@ export function viewOf(
   const jobs = Object.keys(run.results);
   const job =
     previous && jobs.includes(previous.job) ? previous.job : (jobs[0] ?? "");
-  return {
+  const view: ResultView = {
     quantity: "displacement",
     scale: 1,
     undeformed: true,
@@ -170,7 +176,19 @@ export function viewOf(
     job,
     substep: substepsOf(run, job),
   };
+  // a removed or renamed section leaves the sections of the range (#377)
+  if (view.rangeSections) {
+    const sections = sectionsOf(run.commands);
+    const kept = view.rangeSections.filter((s) => sections.includes(s));
+    if (kept.length) view.rangeSections = kept;
+    else delete view.rangeSections;
+  }
+  return view;
 }
+
+/** The names of the sections of the commands of a run, in their order. */
+export const sectionsOf = (commands: readonly Command[]): string[] =>
+  commands.flatMap((c) => (c.command === "section.add" ? [c.name] : []));
 
 /** The step (its name, counted from 1) and the substep in the step of a substep. */
 export function stepOf(

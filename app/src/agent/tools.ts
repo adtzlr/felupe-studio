@@ -375,8 +375,11 @@ export function agentTools(host: AgentHost): Handler {
         quantity,
         method,
       );
+      // the range of all sections; that of chosen sections is the app's (#377)
       const meta = Object.fromEntries(
-        Object.entries(scene).filter(([key]) => key !== "surfaces"),
+        Object.entries(scene).filter(
+          ([key]) => key !== "surfaces" && key !== "sections",
+        ),
       );
       return { job, substep, substeps: last, ...meta };
     },

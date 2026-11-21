@@ -96,7 +96,7 @@ def test_the_requests_of_the_app(answers, tmp_path, monkeypatch):
     [ranges] = answers(
         {"type": "result-ranges", "id": 7, "job": "job_1", "quantity": "displacement"}
     )
-    assert len(json.loads(ranges["text"])) == 6
+    assert len(json.loads(ranges["text"])["range"]) == 6
     [vtu] = answers(
         {
             "type": "export-results",

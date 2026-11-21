@@ -29,6 +29,7 @@ import type {
   JobResult,
   LiveSettings,
   Quantity,
+  ResultRanges,
   ResultScene,
   ValuesMethod,
 } from "../worker/protocol";
@@ -1572,10 +1573,9 @@ describe("solve", () => {
       points: [],
       surfaces: [],
     }));
-    let resolveRanges: (ranges: ([number, number] | null)[]) => void = () => {};
+    let resolveRanges: (ranges: ResultRanges) => void = () => {};
     const resultRanges = vi.fn(
-      () =>
-        new Promise<([number, number] | null)[]>((r) => (resolveRanges = r)),
+      () => new Promise<ResultRanges>((r) => (resolveRanges = r)),
     );
     render(
       <App
@@ -1635,7 +1635,9 @@ describe("solve", () => {
         "cells",
       ),
     );
-    await act(async () => resolveRanges([[0, 1], null, [0, 3]]));
+    await act(async () =>
+      resolveRanges({ range: [[0, 1], null, [0, 3]], sections: {} }),
+    );
     // the viewer draws in a microtask
     await waitFor(() =>
       expect(ticks()).toEqual(["0", "0.75", "1.5", "2.25", "3"]),
@@ -1671,6 +1673,80 @@ describe("solve", () => {
     localStorage.clear();
   });
 
+  it("takes the range of the contour from chosen sections (#377)", async () => {
+    localStorage.clear();
+    const jobs = runner();
+    const resultScene = vi.fn(async (): Promise<ResultScene> => ({
+      label: "Von Mises",
+      at: "cell",
+      range: [0, 8],
+      sections: {
+        section_hard: { range: [0, 8], extremes: null },
+        section_soft: { range: [0, 2], extremes: null },
+      },
+      points: [],
+      surfaces: [],
+    }));
+    render(
+      <App
+        store={new ModelStore(fixture as CommandList)}
+        files={await files()}
+        client={client(Promise.resolve(readyValue), {
+          ...jobs,
+          resultScene,
+        })}
+      />,
+    );
+    await waitFor(() =>
+      expect(solveButton().getAttribute("aria-disabled")).toBeNull(),
+    );
+    const result = {
+      job_1: {
+        substeps: 1,
+        time: 0.1,
+        x: [[1, 0, 0]],
+        y: [[9, 0, 0]],
+      },
+    };
+    fireEvent.click(solveButton());
+    await waitFor(() => expect(jobs.run).toHaveBeenCalledTimes(1));
+    await act(async () => jobs.settle().resolve(result));
+    fireEvent.click(screen.getByRole("button", { name: "Show results" }));
+    const ticks = () =>
+      [...document.querySelectorAll(".app-scalar-bar .fv-ticks span")].map(
+        (t) => t.textContent,
+      );
+    await waitFor(() => expect(ticks()).toEqual(["0", "2", "4", "6", "8"]));
+
+    // the sections of the model in the contour settings
+    fireEvent.click(screen.getByRole("button", { name: "Contour settings" }));
+    const popover = screen.getByRole("dialog", { name: "Contour settings" });
+    const group = within(popover).getByRole("group", { name: "Range of" });
+    expect(
+      within(group)
+        .getAllByRole("checkbox")
+        .map((c) => c.parentElement!.textContent),
+    ).toEqual(["All sections", "section_hard", "section_soft"]);
+    fireEvent.click(within(group).getByLabelText("section_soft"));
+    await waitFor(() => expect(ticks()).toEqual(["0", "0.5", "1", "1.5", "2"]));
+    expect(document.querySelector(".fv-bar-note")!.textContent).toBe(
+      "Range: section_soft",
+    );
+    // a part of the view, not of the stored settings
+    expect(localStorage.getItem("felupe-studio.contour")).toBeNull();
+
+    // kept for the next run
+    fireEvent.click(solveButton());
+    await waitFor(() => expect(jobs.run).toHaveBeenCalledTimes(2));
+    await act(async () => jobs.settle().resolve(result));
+    await waitFor(() =>
+      expect(document.querySelector(".fv-bar-note")?.textContent).toBe(
+        "Range: section_soft",
+      ),
+    );
+    expect(ticks().at(-1)).toBe("2");
+  });
+
   it("shows the strains and the stresses at the points (#231)", async () => {
     localStorage.clear();
     const jobs = runner();
@@ -1691,7 +1767,10 @@ describe("solve", () => {
         surfaces: [],
       }),
     );
-    const resultRanges = vi.fn(async () => [[0, 1]] as [number, number][]);
+    const resultRanges = vi.fn(async (): Promise<ResultRanges> => ({
+      range: [[0, 1]],
+      sections: {},
+    }));
     const exportResults = vi.fn(async () => new Uint8Array([1]));
     render(
       <App

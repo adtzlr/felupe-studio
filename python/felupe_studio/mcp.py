@@ -514,7 +514,10 @@ class Session:
             meta, _ = results_.scene(job, substep, quantity, method)
         except ValueError as error:
             raise ToolError(str(error)) from error
-        return {"job": job, "substep": substep, "substeps": last, **json.loads(meta)}
+        meta = json.loads(meta)
+        # the range of all sections; the range of chosen sections is the app's (#377)
+        meta.pop("sections", None)
+        return {"job": job, "substep": substep, "substeps": last, **meta}
 
     def export(self, job, file_format, path, substep=None, method="cells"):
         self._need_results(job)

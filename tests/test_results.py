@@ -74,6 +74,7 @@ def test_substeps_restore_the_fields(two_materials):
         meta, surfaces = results.scene("job_1", substep, "displacement_x")
         meta = json.loads(meta)
         extremes = meta.pop("extremes")
+        meta.pop("sections")
         assert meta == {
             "label": "Displacement x",
             "at": "point",
@@ -133,14 +134,72 @@ def test_ranges_of_all_substeps(two_materials, quantity):
         json.loads(results.scene("job_1", substep, quantity)[0])["range"]
         for substep in range(1, 7)
     ]
-    ranges = json.loads(results.ranges("job_1", quantity))
+    text = results.ranges("job_1", quantity)
+    ranges = json.loads(text)["range"]
     assert len(ranges) == 6
     for got, want in zip(ranges, expected, strict=True):
         np.testing.assert_allclose(got, want, rtol=1e-12, atol=1e-15)
     # kept until the next run, and the scenes are not changed by it
-    assert results.ranges("job_1", quantity) == json.dumps(ranges)
+    assert results.ranges("job_1", quantity) == text
     assert json.loads(results.scene("job_1", 3, quantity)[0])["range"] == expected[2]
-    assert json.loads(results.ranges("job_2", quantity)) == []
+    assert json.loads(results.ranges("job_2", quantity)) == {
+        "range": [],
+        "sections": {"hard_body": [], "soft_body": []},
+    }
+
+
+@pytest.mark.parametrize("quantity", ["displacement_x", "stress_mises"])
+def test_ranges_of_every_section(two_materials, quantity):
+    # the range of chosen sections (#377): the ranges and the extremes of every
+    # section, of the scenes and of all substeps
+    ranges = json.loads(results.ranges("job_1", quantity))
+    assert list(ranges["sections"]) == ["hard_body", "soft_body"]
+    for substep in range(1, 7):
+        meta = json.loads(results.scene("job_1", substep, quantity)[0])
+        sections = meta["sections"]
+        assert list(sections) == ["hard_body", "soft_body"]
+        for name, section in sections.items():
+            assert ranges["sections"][name][substep - 1] == section["range"]
+            # the extremes of a section are its own, at its range
+            if section["range"]:
+                low, high = section["range"]
+                assert section["extremes"]["min"]["section"] == name
+                assert section["extremes"]["min"]["value"] == pytest.approx(low)
+                assert section["extremes"]["max"]["value"] == pytest.approx(high)
+        # all sections: the union of the ranges, the extremes of the sections
+        lows, highs = zip(*(s["range"] for s in sections.values()), strict=True)
+        assert meta["range"] == [min(lows), max(highs)]
+        assert meta["extremes"]["max"] in [
+            s["extremes"]["max"] for s in sections.values()
+        ]
+        assert meta["extremes"]["max"]["value"] == max(highs)
+    # the sections have ranges of their own
+    last = json.loads(results.scene("job_1", 6, quantity)[0])["sections"]
+    assert last["hard_body"]["range"] != last["soft_body"]["range"]
+
+
+def test_range_of_the_rubber_beside_the_steel(monkeypatch):
+    # the bushing with steel sleeves (#377): the stresses of the steel set the range
+    # of all sections, the range of the rubber covers its values only
+    from felupe_studio.project import loads
+
+    folder = samples.folder_of(Path(__file__).parents[1] / "app" / "samples", "bushing")
+    monkeypatch.chdir(folder)
+    run(loads(Path("model.felupe.json").read_text(encoding="utf-8")))
+    last = results.substeps("job")
+    meta, surfaces = results.scene("job", last, "stress_mises")
+    meta = json.loads(meta)
+    rubber, steel = meta["sections"]["soft_body"], meta["sections"]["sleeves"]
+    assert meta["range"] == [rubber["range"][0], steel["range"][1]]
+    assert meta["extremes"]["max"] == steel["extremes"]["max"]
+    assert rubber["range"][1] < 0.6 * steel["range"][1]
+    values = arrays(next(s for s in surfaces if s["name"] == "soft_body"))["values"]
+    assert rubber["range"][0] <= values.min() and values.max() <= rubber["range"][1]
+    assert rubber["extremes"]["max"]["section"] == "soft_body"
+    # over all substeps
+    ranges = json.loads(results.ranges("job", "stress_mises"))
+    assert ranges["range"][-1] == meta["range"]
+    assert ranges["sections"]["soft_body"][-1] == rubber["range"]
 
 
 def test_extremes_of_a_contour(two_materials):
@@ -583,7 +642,7 @@ def test_projected_peak_at_a_hole(monkeypatch):
     for method in results.METHODS:
         meta = json.loads(results.scene("job", last, "stress_mises", method)[0])
         peaks[method] = meta["range"][1]
-        ranges = json.loads(results.ranges("job", "stress_mises", method))
+        ranges = json.loads(results.ranges("job", "stress_mises", method))["range"]
         assert ranges[-1] == pytest.approx(meta["range"])
         assert meta["extremes"]["max"]["at"] == meta["at"]
     assert meta["method"] == "topoints" and meta["shift"]
@@ -648,7 +707,7 @@ def test_plastic_strain_and_stress_of_every_substep(plastic, tmp_path):
     end = json.loads(results.scene("job_1", 11, "plastic_strain", "project")[0])
     assert end["range"][0] == pytest.approx(0.0037914691943128, rel=1e-8)
     assert end["at"] == "point"
-    ranges = json.loads(results.ranges("job_1", "plastic_strain"))
+    ranges = json.loads(results.ranges("job_1", "plastic_strain"))["range"]
     assert ranges[1] == [0.0, 0.0]
     assert ranges[2] == pytest.approx([ep, ep])
     # the export has the equivalent plastic strain of the last substep
@@ -724,7 +783,8 @@ def test_mullins_energy_of_every_substep(mullins, tmp_path):
         assert meta["label"] == "Max. strain energy density"
         assert meta["range"] == pytest.approx([energy(stretch)] * 2, rel=1e-3)
     # zero at the start, never smaller than in a substep before
-    highs = [r[1] for r in json.loads(results.ranges("job_1", "mullins_energy"))]
+    ranges = json.loads(results.ranges("job_1", "mullins_energy"))["range"]
+    highs = [r[1] for r in ranges]
     assert highs[0] == pytest.approx(0, abs=1e-12)
     assert np.all(np.diff(highs) >= -1e-12)
     assert highs[18] == pytest.approx(highs[5], rel=1e-10)

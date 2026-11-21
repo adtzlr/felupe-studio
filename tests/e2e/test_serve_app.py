@@ -173,3 +173,50 @@ def test_a_hidden_mesh_is_dimmed_after_another_project(url, page):
         )
         assert label.evaluate("e => getComputedStyle(e).opacity") == "0.45"
     assert page.errors == []
+
+
+def test_the_range_of_the_rubber_beside_the_steel(url, page):
+    # the bushing with steel sleeves (#377): the von Mises stress with the range of
+    # the rubber, the steel above it in the outside color, the rubber named at the
+    # scalar bar
+    page.goto(url)
+    page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
+    page.get_by_role("button", name="File", exact=True).click()
+    page.get_by_role("menuitem", name="Samples…").click()
+    samples = page.get_by_role("dialog")
+    title = page.get_by_role(
+        "heading", name="Bushing with steel sleeves (FElupe ex05)", exact=True
+    )
+    samples.locator("li").filter(has=title).get_by_role("button", name="Open").click()
+    page.get_by_role("dialog", name=re.compile("^Parameters")).get_by_role(
+        "button", name="Open", exact=True
+    ).click()
+    page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)
+    page.get_by_role("button", name="Solve").click()
+    results = page.get_by_role("button", name="Show results")
+    results.wait_for(timeout=120_000)
+    results.click()
+    contour = page.locator(".results-controls select").filter(
+        has=page.locator("option[value=stress_mises]")
+    )
+    contour.select_option("stress_mises")
+    bar = page.locator(".app-scalar-bar .fv-bar-title", has_text="Von Mises")
+    bar.wait_for(timeout=60_000)
+    ticks = ".app-scalar-bar .fv-ticks span"
+    high = page.locator(ticks).last
+    steel = float(high.inner_text())
+
+    page.get_by_role("button", name="Contour settings").click()
+    popover = page.get_by_role("dialog", name="Contour settings")
+    popover.get_by_role("checkbox", name="soft_body").check()
+    note = page.locator(".app-scalar-bar .fv-bar-note")
+    note.wait_for(timeout=60_000)
+    assert note.inner_text() == "Range: soft_body"
+    page.wait_for_function(
+        f"() => Number([...document.querySelectorAll({ticks!r})].at(-1)"
+        f".textContent) < {steel}"
+    )
+    rubber = float(high.inner_text())
+    assert 0 < rubber < 0.6 * steel
+    assert page.locator(".app-scalar-bar canvas.scalar-outside.above").count() == 1
+    assert page.errors == []

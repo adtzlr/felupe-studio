@@ -74,6 +74,8 @@ def test_build_solve_and_save(tmp_path):
     result = session.results("job_1", "stress_max")
     assert result["substep"] == result["substeps"] == 6
     assert result["extremes"]["max"]["value"] == pytest.approx(result["range"][1])
+    # the range of all sections, without those of every section (#377)
+    assert "sections" not in result
     with pytest.raises(ToolError, match="Unknown quantity"):
         session.results("job_1", "stress")
     written = session.export("job_1", "vtu", "results/cube.vtu")

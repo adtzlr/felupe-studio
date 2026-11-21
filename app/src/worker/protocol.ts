@@ -269,10 +269,36 @@ export interface ResultScene {
   /** The range of the values of all sections (null without finite values). */
   range: [number, number] | null;
   /** The minimum and the maximum of the values (#140). */
-  extremes?: { min: ResultExtreme; max: ResultExtreme } | null;
+  extremes?: ResultExtremes | null;
+  /**
+   * The range and the extremes of every section, by name, for the range of chosen
+   * sections (#377).
+   */
+  sections?: Record<string, ResultSection>;
   /** The control points with their positions and displacements (#95). */
   points?: ResultPoint[];
   surfaces: ResultSurface[];
+}
+
+/** The minimum and the maximum of a contour (#140). */
+export interface ResultExtremes {
+  min: ResultExtreme;
+  max: ResultExtreme;
+}
+
+/** The range and the extremes of the values of a section (#377). */
+export interface ResultSection {
+  range: [number, number] | null;
+  extremes: ResultExtremes | null;
+}
+
+/**
+ * The ranges of a quantity of every substep of a job (#139): of all sections and
+ * of every section, by name (#377); null for a substep without finite values.
+ */
+export interface ResultRanges {
+  range: ([number, number] | null)[];
+  sections: Record<string, ([number, number] | null)[]>;
 }
 
 /** The minimum or the maximum of a contour: its value, node or cell (#140). */
