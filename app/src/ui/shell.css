@@ -73,6 +73,12 @@
   --space-16: 16px;
   --space-24: 24px;
   --space-32: 32px;
+  /* the safe areas of a phone (#378): its notch and its home indicator, with
+     viewport-fit=cover of index.html */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
 
   /* shapes and depth */
   --radius-sm: 4px;
@@ -164,19 +170,25 @@
   --shadow-outline: 0 0 0 1px rgba(16, 22, 32, 0.28);
 }
 
+/* the height of the window without the bars of a phone's browser (#378) */
 html,
 body,
 #app {
   height: 100%;
+  height: 100dvh;
   margin: 0;
   padding: 0;
 }
 
+/* within the safe areas of a phone (#378): the shell at the sides, the header at
+   the top and the history bar at the bottom */
 .shell {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   height: 100%;
   min-height: 0;
+  padding: 0 var(--safe-right) 0 var(--safe-left);
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
@@ -358,7 +370,7 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-8);
-  padding: var(--space-4) var(--space-12);
+  padding: calc(var(--space-4) + var(--safe-top)) var(--space-12) var(--space-4);
   background: var(--color-bar);
   border-bottom: 1px solid var(--color-border);
 }
@@ -546,6 +558,11 @@ button {
   padding: var(--space-4) var(--space-4) 0;
 }
 
+/* the closed commands of a compact ribbon (#378) */
+.ribbon-panel[hidden] {
+  display: none;
+}
+
 .ribbon-commands {
   display: flex;
   flex-wrap: wrap;
@@ -605,7 +622,9 @@ button {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding: 10vh var(--space-16) var(--space-16);
+  padding: 10vh max(var(--space-16), var(--safe-right))
+    max(var(--space-16), var(--safe-bottom))
+    max(var(--space-16), var(--safe-left));
   background: var(--color-backdrop);
   overflow: auto;
 }
@@ -1383,6 +1402,15 @@ button {
   padding: var(--space-4) var(--space-12);
 }
 
+/* the command line, behind a button in a compact layout (#378) */
+.command-slot {
+  display: contents;
+}
+
+.command-slot[hidden] {
+  display: none;
+}
+
 .command-box {
   flex: 999 1 420px;
   display: flex;
@@ -1492,10 +1520,17 @@ button {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-4) var(--space-12);
+  padding: var(--space-4) var(--space-12)
+    calc(var(--space-4) + var(--safe-bottom));
   background: var(--color-surface);
   border-top: 1px solid var(--color-border);
   font-size: var(--text-sm);
+}
+
+/* the open command line of a compact layout (#378), like an open drawer */
+.history .icon-button[aria-expanded="true"] {
+  background: var(--color-selected);
+  color: var(--color-accent);
 }
 
 .history-separator {
@@ -1611,6 +1646,98 @@ button {
 @media (max-width: 800px) {
   .project-name,
   .brand-name {
+    display: none;
+  }
+}
+
+/* the compact layout of phones and short windows (#378; COMPACT of App.tsx): the
+   rows above and below the viewport take one line each, so that the view gets most
+   of the height, and the page does not scroll */
+.shell.compact .header {
+  flex-wrap: nowrap;
+}
+
+/* a wrapped header while the project is renamed */
+.shell.compact .header:has(.project-rename) {
+  flex-wrap: wrap;
+}
+
+/* Undo and Redo are in the history bar */
+.shell.compact .header-undo {
+  display: none;
+}
+
+/* the workspaces as icons beside the tabs, the commands of a tab below them */
+.shell.compact .ribbon {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0 var(--space-8);
+  padding: var(--space-4) var(--space-8);
+}
+
+.shell.compact .ribbon-tabs {
+  display: contents;
+}
+
+.shell.compact .workspace {
+  flex-direction: row;
+}
+
+/* touch targets of the size of the other controls */
+.shell.compact .segment {
+  justify-content: center;
+  min-width: var(--control-height);
+  min-height: var(--control-height);
+  padding: 0;
+}
+
+/* the names of the workspaces stay as their accessible names and titles */
+.shell.compact .segment-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.shell.compact .tab {
+  min-height: var(--control-height);
+}
+
+.shell.compact .ribbon-panel {
+  grid-column: 1 / -1;
+  min-height: 0;
+}
+
+/* the view takes the rest of the window, however short */
+.shell.compact .viewport {
+  min-height: 0;
+}
+
+/* the status in one line, the command line above it when open */
+.shell.compact .command-line {
+  padding: var(--space-2) var(--space-12);
+}
+
+.shell.compact .status {
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.shell.compact .status-runtime {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* the header of a phone in portrait: Open and Export are in File */
+@media (max-width: 440px) {
+  .shell.compact .header-open,
+  .shell.compact .header-export {
     display: none;
   }
 }

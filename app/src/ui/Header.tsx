@@ -369,9 +369,10 @@ export function Header({
           />
         </div>
         <span class="header-separator" aria-hidden="true" />
+        {/* Open and Export are also in File, and leave the header of a phone (#378) */}
         <button
           type="button"
-          class="icon-button"
+          class="icon-button header-open"
           aria-label="Open project"
           title={withHint(
             "Open a project file with its mesh files, a project archive, or mesh files to import",
@@ -397,10 +398,13 @@ export function Header({
           title="Export the script, the results or a picture"
           sections={[{ items: exports }]}
           hints
+          class="header-export"
         />
+        {/* Undo and Redo are also in the history bar, the only ones of a compact
+            layout (#378) */}
         <button
           type="button"
-          class="icon-button"
+          class="icon-button header-undo"
           aria-label="Undo"
           title={withHint("Undo", "undo")}
           disabled={!store.canUndo}
@@ -410,7 +414,7 @@ export function Header({
         </button>
         <button
           type="button"
-          class="icon-button"
+          class="icon-button header-undo"
           aria-label="Redo"
           title={withHint("Redo", "redo")}
           disabled={!store.canRedo}

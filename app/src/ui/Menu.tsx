@@ -47,6 +47,8 @@ interface Props {
   hints?: boolean;
   /** The menu opens at the end of its button, e.g. at the right of the header. */
   end?: boolean;
+  /** A class of the root, e.g. to hide the menu in a compact header (#378). */
+  class?: string;
 }
 
 /** A list of menu items in sections, open: focus, keyboard and closing. */
@@ -260,6 +262,7 @@ export function Menu({
   sections,
   hints,
   end,
+  class: className,
 }: Props) {
   const [open, setOpen] = useState<false | "first" | "last">(false);
   const [place, setPlace] = useState<{ top: number; left: number }>();
@@ -288,7 +291,7 @@ export function Menu({
   };
 
   return (
-    <div class="menu-root">
+    <div class={className ? `menu-root ${className}` : "menu-root"}>
       <button
         ref={trigger}
         type="button"
