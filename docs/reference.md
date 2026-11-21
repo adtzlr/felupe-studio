@@ -142,6 +142,28 @@ A cube (fem.Cube): hexahedrons between the corners a and b, with n points per ax
 | `b` (b) | list of 3 numbers | yes | The corner with the largest coordinates x, y and z. Default `[1, 1, 1]`. |
 | `n` (n) | list of 3 integers ≥ 2 | yes | The number of points per axis x, y and z (at least 2). Default `[2, 2, 2]`. |
 
+#### Circle (`tool: "Circle"`)
+
+A circle in the xy-plane (fem.Circle): quads in quarters of a circle about the centerpoint, each with a square inside, with n points on the edges of a quarter. The sections are the start angles of the quarters, e.g. 0 for a quarter circle or 0, 90, 180, 270 for a full circle.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `radius` (radius) | number > 0 | yes | The radius of the circle. Default `1`. |
+| `centerpoint` (centerpoint) | list of 2 numbers | yes | The center of the circle, x and y. Default `[0, 0]`. |
+| `n` (n) | integer ≥ 2 | yes | The number of points on the edges of a quarter (at least 2). Default `2`. |
+| `sections` (sections) | list of 1 to 4 numbers | yes | The start angles of the quarters in degrees, at least 90 apart, e.g. 0 for a quarter circle or 0, 90, 180, 270 for a full circle. Default `[0, 90, 180, 270]`. |
+
+#### Triangle (`tool: "Triangle"`)
+
+A triangle in the xy-plane (fem.mesh.Triangle): three quad sections between the corners a, b and c, counterclockwise, with n points on the edges of a section.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `a` (a) | list of 2 numbers | yes | The first corner, x and y. Default `[0, 0]`. |
+| `b` (b) | list of 2 numbers | yes | The second corner, x and y, counterclockwise from a. Default `[1, 0]`. |
+| `c` (c) | list of 2 numbers | yes | The third corner, x and y, counterclockwise from b. Default `[0, 1]`. |
+| `n` (n) | integer ≥ 2 | yes | The number of points on the edges of a section (at least 2). Default `2`. |
+
 #### Expand (`tool: "expand"`)
 
 Expand a mesh along a new axis (mesh.expand): a point to a line, a line to quads in the xy-plane, quads to hexahedrons along z, with n points over the length z.

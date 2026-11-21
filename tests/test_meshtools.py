@@ -23,7 +23,7 @@ def made(tool, name="mesh", **parameters):
 
 def test_the_registry_of_the_tools():
     assert list(meshtools.tools()) == [
-        *("Point", "Line", "Rectangle", "Cube"),
+        *("Point", "Line", "Rectangle", "Cube", "Circle", "Triangle"),
         *("expand", "revolve", "embed", "translate", "rotate", "mirror"),
         *("fill_between", "add_runouts"),
     ]
@@ -39,6 +39,10 @@ def test_the_registry_of_the_tools():
             assert set(rule) == {"points", "cells", "cell_type"}
 
 
+CIRCLE = made("Circle", radius=2, centerpoint=[1, 1], n=3, sections=[0, 90])
+TRIANGLE = made("Triangle", a=[0, 0], b=[2, 0], c=[0.5, 1], n=4)
+
+
 @pytest.mark.parametrize(
     ("command", "dimension"),
     [
@@ -46,6 +50,8 @@ def test_the_registry_of_the_tools():
         (made("Line", a=0, b=2, n=5), (1, 1, "line")),
         (made("Rectangle", a=[0, 0], b=[2, 1], n=[3, 2]), (2, 2, "quad")),
         (made("Cube", a=[0, 0, 0], b=[2, 1, 1], n=[3, 2, 2]), (3, 3, "hexahedron")),
+        (CIRCLE, (2, 2, "quad")),
+        (TRIANGLE, (2, 2, "quad")),
     ],
 )
 def test_the_dimensions_are_those_of_felupe(command, dimension):
@@ -87,6 +93,59 @@ def test_the_values_of_the_tools():
     assert meshtools.problems(made("Point", a=1)) == []
 
 
+@pytest.mark.parametrize(
+    ("command", "felupe", "line"),
+    [
+        (
+            CIRCLE,
+            fem.Circle(radius=2, centerpoint=[1, 1], n=3, sections=[0, 90]),
+            "mesh = fem.Circle(radius=2, centerpoint=[1, 1], n=3, sections=[0, 90])",
+        ),
+        (
+            TRIANGLE,
+            fem.mesh.Triangle(a=[0, 0], b=[2, 0], c=[0.5, 1], n=4),
+            "mesh = fem.mesh.Triangle(a=[0, 0], b=[2, 0], c=[0.5, 1], n=4)",
+        ),
+    ],
+)
+def test_a_circle_and_a_triangle_are_those_of_felupe(command, felupe, line):
+    # the line of the script makes the mesh of FElupe called directly (#394)
+    document = {"schema_version": 3, "commands": [command]}
+    assert errors(document) == []
+    assert line in codegen(document, evaluate=False)
+    mesh = meshtools.generate([command])["mesh"]
+    assert mesh.cell_type == felupe.cell_type == "quad"
+    np.testing.assert_allclose(mesh.points, felupe.points)
+    np.testing.assert_array_equal(mesh.cells, felupe.cells)
+    # counterclockwise quads, without points twice
+    assert (fem.RegionQuad(mesh).dV > 0).all()
+    assert len(np.unique(mesh.points.round(10), axis=0)) == mesh.npoints
+
+
+def test_the_values_of_a_circle_and_a_triangle():
+    # quarters that do not overlap; corners counterclockwise, not on a line (#394)
+    def circle(*sections):
+        return meshtools.problems(made("Circle", radius=1, sections=list(sections)))
+
+    assert circle(0) == circle(0, 90, 180, 270) == circle(-90, 0, 90, 180) == []
+    assert circle(0, 90, 135) == [
+        "sections 90 and 135 overlap: the quarters need 90 degrees between them."
+    ]
+    assert circle(90, 450) == [
+        "sections 90 and 450 overlap: the quarters need 90 degrees between them."
+    ]
+
+    def triangle(b, c):
+        return meshtools.problems(made("Triangle", a=[0, 0], b=b, c=c, n=2))
+
+    assert triangle([1, 0], [0, 1]) == []
+    assert triangle([0, 1], [1, 0]) == ["a, b and c go around clockwise; swap b and c."]
+    assert triangle([1, 1], [2, 2]) == ["a, b and c lie on a line."]
+    # n = 1 would be one triangle cell in FElupe: at least 2 points, as of the others
+    single = {**TRIANGLE, "parameters": {**TRIANGLE["parameters"], "n": 1}}
+    assert errors({"schema_version": 3, "commands": [single]}) != []
+
+
 def test_a_cube_made_by_a_tool_is_checked_like_a_file(tmp_path):
     # the cells of a mesh of the model made by a tool are assigned to its section;
     # a construction mesh is no mesh of the model
@@ -96,6 +155,19 @@ def test_a_cube_made_by_a_tool_is_checked_like_a_file(tmp_path):
     report = checks.check(document, tmp_path)
     assert report["ok"]
     assert report["cells"]["total"] == 8
+    assert report["cells"]["unassigned"] == []
+
+
+def test_a_cylinder_of_a_circle_is_checked_like_a_file(tmp_path):
+    # a quarter of a circle expanded along z: a mesh of a 3D model (#394)
+    document = json.loads((GOLDEN / "cube_made_by_tools" / "commands.json").read_text())
+    quarter = made("Circle", "quarter", radius=1, centerpoint=[0, 0], n=3, sections=[0])
+    cylinder = {**made("expand", "cube", n=4, z=2), "inputs": ["quarter"]}
+    document["commands"][1:2] = [quarter, cylinder]
+    assert errors(document) == []
+    report = checks.check(document, tmp_path)
+    assert report["ok"]
+    assert report["cells"]["total"] == 3 * 4 * 3
     assert report["cells"]["unassigned"] == []
 
 

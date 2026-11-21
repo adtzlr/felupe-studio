@@ -258,11 +258,55 @@ const axesText = (axes: string[]) =>
     : `${axes.slice(0, -1).join(", ")} and ${axes.at(-1)}`;
 
 /**
- * What is wrong with the values of a tool beyond the schema: the corner `b` (the
- * end of a line) is larger than `a` in every axis, like Python.
+ * What is wrong with the values of a tool beyond the schema, like Python: the
+ * corner `b` (the end of a line) is larger than `a` in every axis, the corners of
+ * a triangle go around counterclockwise, and the quarters of a circle do not
+ * overlap.
  */
 export function toolProblems(command: MeshGenerate): string[] {
   const parameters = command.parameters as Record<string, unknown>;
+  if (command.tool === "Triangle") return triangleProblems(parameters);
+  if (command.tool === "Circle") return circleProblems(parameters);
+  return cornerProblems(parameters);
+}
+
+/**
+ * The corners of a triangle go around counterclockwise, else its cells are
+ * inverted, and they do not lie on a line.
+ */
+function triangleProblems(parameters: Record<string, unknown>): string[] {
+  const corners = ["a", "b", "c"].map((key) => parameters[key]);
+  if (!corners.every((p) => Array.isArray(p) && p.length === 2)) return [];
+  const [[ax, ay], [bx, by], [cx, cy]] = (corners as unknown[][]).map((p) =>
+    p.map(Number),
+  );
+  const area = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+  const size = Math.max(
+    (bx - ax) ** 2 + (by - ay) ** 2,
+    (cx - ax) ** 2 + (cy - ay) ** 2,
+  );
+  if (Math.abs(area) <= 1e-12 * size) return ["a, b and c lie on a line."];
+  if (area < 0) return ["a, b and c go around clockwise; swap b and c."];
+  return [];
+}
+
+/** The quarters of a circle start at least 90 degrees apart, else they overlap. */
+function circleProblems(parameters: Record<string, unknown>): string[] {
+  if (!Array.isArray(parameters.sections)) return [];
+  const sections = parameters.sections.map(Number);
+  for (const [i, first] of sections.entries())
+    for (const second of sections.slice(i + 1)) {
+      const gap = Math.abs(second - first) % 360;
+      if (Math.min(gap, 360 - gap) < 90 - 1e-9)
+        return [
+          `sections ${first} and ${second} overlap: the quarters need 90 degrees between them.`,
+        ];
+    }
+  return [];
+}
+
+/** The corner `b` (the end of a line) is larger than `a` in every axis. */
+function cornerProblems(parameters: Record<string, unknown>): string[] {
   const { a, b } = parameters;
   if (a === undefined || b === undefined) return [];
   if (!Array.isArray(a))

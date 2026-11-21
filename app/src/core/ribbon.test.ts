@@ -25,6 +25,8 @@ describe("ribbonGroups", () => {
         "Line",
         "Rectangle",
         "Cube",
+        "Circle",
+        "Triangle",
         "Expand",
         "Revolve",
         "Embed",

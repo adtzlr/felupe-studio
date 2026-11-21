@@ -49,6 +49,8 @@ def tool(document, tool="Cube", tags=False, **parameters):
         "Line": {"a": 0, "b": 3, "n": 4},
         "Rectangle": {"a": [0, 0], "b": [3, 1], "n": [4, 2]},
         "Cube": {"a": [0, 0, 0], "b": [3, 1, 1], "n": [4, 2, 2]},
+        "Circle": {"radius": 1, "centerpoint": [0, 0], "n": 3, "sections": [0, 90]},
+        "Triangle": {"a": [0, 0], "b": [3, 0], "c": [0, 1], "n": 3},
     }
     mesh = find(document, "specimen")
     mesh.clear()
@@ -1146,6 +1148,27 @@ CHANGES = {
     "tags of a made mesh": lambda d: tool(d, tags=True),
     "a cube with b not larger than a": lambda d: tool(d, b=[3, 0, -1]),
     "a line with b not larger than a": lambda d: tool(d, "Line", b=0),
+    # a circle and a triangle (#394): quads with 2D points
+    "a circle in a 2D model": lambda d: (tool(d, "Circle"), planar(d)),
+    "a triangle in a 2D model": lambda d: (tool(d, "Triangle"), planar(d)),
+    "a cell set of a circle in a 3D model": lambda d: tool(d, "Circle"),
+    "a circle of overlapping quarters": lambda d: (
+        tool(d, "Circle", sections=[0, 90, 135]),
+        planar(d),
+    ),
+    "a triangle with clockwise corners": lambda d: (
+        tool(d, "Triangle", b=[0, 1], c=[3, 0]),
+        planar(d),
+    ),
+    "a triangle with corners on a line": lambda d: (
+        tool(d, "Triangle", c=[6, 0]),
+        planar(d),
+    ),
+    "a circle with expressions": lambda d: (
+        tool(d, "Circle", radius="length", n="cells", sections=[0, "90 + stroke"]),
+        parameters(d),
+        planar(d),
+    ),
     "a cube with expressions": lambda d: (
         tool(d, b=["length", 1, 1], n=["cells", 2, 2]),
         parameters(d),

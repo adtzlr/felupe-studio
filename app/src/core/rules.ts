@@ -349,11 +349,11 @@ const cellsetModelMesh: Rule<
   ];
 };
 
-/** The values of a mesh tool (ADR 0019). */
+/** The values of a mesh tool (ADR 0019), at the field of the sections of a circle. */
 const meshTool: Rule<CommandOf<"mesh.generate">> = (_, cmd) =>
   toolProblems(cmd).map((problem) => ({
     message: `mesh '${cmd.name}': ${problem}`,
-    field: "parameters.b",
+    field: cmd.tool === "Circle" ? "parameters.sections" : "parameters.b",
   }));
 
 /**
