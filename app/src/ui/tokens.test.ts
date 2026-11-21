@@ -1,25 +1,102 @@
-// The styles use the design tokens of the :root block only (#125).
+// The styles use the design tokens of the :root block only (#125), with a light
+// value of every color in the block of the light theme (#375).
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 // read as a file: CSS modules are empty in the tests
 const source = readFileSync(new URL("./shell.css", import.meta.url), "utf-8");
 const css = source.replace(/\/\*[\s\S]*?\*\//g, "");
-const end = css.indexOf("}", css.indexOf(":root {")) + 1;
-const root = css.slice(0, end);
-const rest = css.slice(end);
 
-const defined = new Set([...root.matchAll(/(--[\w-]+):/g)].map((m) => m[1]));
+/** A block of tokens: where it is in the stylesheet, and its tokens. */
+function block(selector: string) {
+  const start = css.indexOf(`${selector} {`);
+  const end = css.indexOf("}", start) + 1;
+  const tokens = new Map(
+    [...css.slice(start, end).matchAll(/(--[\w-]+):\s*([^;]+);/g)].map(
+      (m): [string, string] => [m[1], m[2].trim()],
+    ),
+  );
+  return { start, end, tokens };
+}
+
+const dark = block(":root");
+const light = block(':root[data-theme="light"]');
+const rest =
+  css.slice(0, dark.start) +
+  css.slice(dark.end, light.start) +
+  css.slice(light.end);
+
+const defined = new Set(dark.tokens.keys());
 const used = new Set([...css.matchAll(/var\((--[\w-]+)\)/g)].map((m) => m[1]));
 
-/** The values of a property outside the token block. */
+/** The values of a property outside the token blocks. */
 function values(property: string): string[] {
   const pattern = new RegExp(`(?:^|[\\s;{])${property}:\\s*([^;]+);`, "g");
   return [...rest.matchAll(pattern)].map((m) => m[1].trim());
 }
 
+const COLOR = /#[0-9a-fA-F]{3,8}\b|\brgba?\(/;
+
+type Rgba = [number, number, number, number];
+
+/** The channels of a color of a token: #rrggbb or rgba(). */
+function rgba(value: string): Rgba {
+  const hex = /^#([0-9a-f]{6})$/i.exec(value);
+  if (hex)
+    return [0, 2, 4]
+      .map((i) => parseInt(hex[1].slice(i, i + 2), 16))
+      .concat(1) as Rgba;
+  const parts = /^rgba?\(([^)]*)\)$/.exec(value);
+  if (!parts) throw new Error(`no color: ${value}`);
+  const [r, g, b, a = 1] = parts[1].split(",").map(Number);
+  return [r, g, b, a];
+}
+
+/** A color over an opaque one. */
+const over = (top: Rgba, below: Rgba): Rgba => [
+  ...([0, 1, 2].map((i) => top[i] * top[3] + below[i] * (1 - top[3])) as [
+    number,
+    number,
+    number,
+  ]),
+  1,
+];
+
+/** The relative luminance (WCAG 2). */
+function luminance([r, g, b]: Rgba): number {
+  const linear = (c: number) => {
+    const s = c / 255;
+    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
+}
+
+/** The contrast ratio of two opaque colors (WCAG 2). */
+function contrast(a: Rgba, b: Rgba): number {
+  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (high + 0.05) / (low + 0.05);
+}
+
+const THEMES = {
+  dark: dark.tokens,
+  light: new Map([...dark.tokens, ...light.tokens]),
+};
+
+/** The opaque surfaces of the app. */
+const SURFACES = [
+  "bar",
+  "bg",
+  "surface-sunken",
+  "surface",
+  "raised",
+  "view",
+  "hover",
+  "selected",
+  "active",
+];
+
 describe("design tokens", () => {
-  it("has no colors outside the tokens", () => {
+  it("has no colors outside the token blocks", () => {
     expect(rest.length).toBeGreaterThan(10000);
     expect(rest.match(/#[0-9a-fA-F]{3,8}\b/g)).toBeNull();
     expect(rest.match(/\brgba?\(/g)).toBeNull();
@@ -52,6 +129,65 @@ describe("design tokens", () => {
       }
     }
   });
+
+  it("has a light value of every color of the dark theme (#375)", () => {
+    const colors = [...dark.tokens]
+      .filter(([, value]) => COLOR.test(value))
+      .map(([name]) => name);
+    expect(colors.length).toBeGreaterThan(30);
+    expect([...light.tokens.keys()].sort()).toEqual(colors.sort());
+    expect(css.slice(light.start, light.end)).toContain("color-scheme: light;");
+  });
+
+  it.each(Object.entries(THEMES))(
+    "keeps the contrast of the text in the %s theme (WCAG AA)",
+    (_, tokens) => {
+      const color = (name: string) => rgba(tokens.get(`--color-${name}`)!);
+      const pairs: [string, Rgba, string, Rgba][] = [];
+      const add = (texts: string[], surfaces: [string, Rgba][]) => {
+        for (const text of texts)
+          for (const [name, surface] of surfaces)
+            pairs.push([text, color(text), name, surface]);
+      };
+      const opaque = (names: string[]): [string, Rgba][] =>
+        names.map((name) => [name, color(name)]);
+      // the texts of the app on its surfaces, and over the viewport
+      const panel = over(color("overlay"), color("view"));
+      add(
+        ["text", "text-secondary", "text-muted", "accent", "warning", "error"],
+        [...opaque(SURFACES), ["overlay", panel]],
+      );
+      add(
+        ["accent"],
+        [["accent-soft", over(color("accent-soft"), color("surface"))]],
+      );
+      add(["on-accent"], opaque(["accent", "accent-hover"]));
+      add(["text", "error"], opaque(["error-surface"]));
+      add(["text"], opaque(["info-surface"]));
+      // the script view (#130): its lines on the bar, hovered and selected
+      const code = [...tokens.keys()]
+        .filter((name) => name.startsWith("--color-code-"))
+        .map((name) => name.slice("--color-".length));
+      expect(code).toHaveLength(6);
+      add(
+        [...code, "text", "text-muted"],
+        [
+          ...opaque(["bar", "hover"]),
+          ["selected line", over(color("accent-soft"), color("bar"))],
+        ],
+      );
+      const low = pairs
+        .map(
+          ([text, t, surface, s]) => [text, surface, contrast(t, s)] as const,
+        )
+        .filter(([, , ratio]) => ratio < 4.5);
+      expect(low).toEqual([]);
+      // the markers of the minimum and the maximum (#140) on the view, as graphics
+      for (const marker of ["min", "max"])
+        for (const surface of [color("view"), panel])
+          expect(contrast(color(marker), surface)).toBeGreaterThanOrEqual(3);
+    },
+  );
 
   it("defines every token that is used, and uses every token", () => {
     const external = [...used].filter((name) => name.startsWith("--fv-"));

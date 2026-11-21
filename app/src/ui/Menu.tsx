@@ -1,9 +1,11 @@
 // A menu of the header (#126): a button that opens a list of actions and links, in
 // sections. Keyboard: Enter, Space or ↓ open it on the first item, ↑ on the last;
 // ↑/↓, Home and End move, Esc and Tab close it. The same list is the context menu
-// of the browser (#138), at the pointer or at a row.
+// of the browser (#138), at the pointer or at a row. Items with a state are a choice
+// of one, e.g. of the theme (#375).
 import { type ComponentChildren, Fragment } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { Icon } from "./icons";
 
 export interface MenuItem {
   id: string;
@@ -17,6 +19,8 @@ export interface MenuItem {
   /** An action, or a link opened in a new tab. */
   onSelect?: () => void;
   href?: string;
+  /** The item is a choice of one of its section (`menuitemradio`), chosen or not. */
+  checked?: boolean;
 }
 
 export interface MenuSection {
@@ -41,6 +45,8 @@ interface Props {
   sections: MenuSection[];
   /** Show the hints of the items as a second line (otherwise as tooltips). */
   hints?: boolean;
+  /** The menu opens at the end of its button, e.g. at the right of the header. */
+  end?: boolean;
 }
 
 /** A list of menu items in sections, open: focus, keyboard and closing. */
@@ -49,6 +55,7 @@ function MenuList({
   label,
   sections,
   hints,
+  end,
   at,
   place,
   anchor,
@@ -58,6 +65,7 @@ function MenuList({
   label: string;
   sections: MenuSection[];
   hints?: boolean;
+  end?: boolean;
   /** The item to focus first. */
   at: "first" | "last";
   /** A place in the window (fixed), or below the parent (absolute). */
@@ -81,7 +89,8 @@ function MenuList({
   }, [place?.top, place?.left]);
 
   const items = () => [
-    ...(list.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? []),
+    ...(list.current?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ??
+      []),
   ];
 
   useEffect(() => {
@@ -148,7 +157,9 @@ function MenuList({
     <div
       ref={list}
       id={id}
-      class={place ? "menu menu-fixed" : "menu"}
+      class={["menu", place && "menu-fixed", end && "menu-end"]
+        .filter(Boolean)
+        .join(" ")}
       style={
         place
           ? {
@@ -183,6 +194,11 @@ function MenuList({
                       {item.shortcut.text}
                     </kbd>
                   )}
+                  {item.checked && (
+                    <span class="menu-check">
+                      <Icon name="check" size={14} />
+                    </span>
+                  )}
                   {hints && note && (
                     <span id={`${id}-${item.id}-hint`} class="menu-hint">
                       {note}
@@ -191,7 +207,11 @@ function MenuList({
                 </>
               );
               const common = {
-                role: "menuitem" as const,
+                role:
+                  item.checked === undefined
+                    ? ("menuitem" as const)
+                    : ("menuitemradio" as const),
+                "aria-checked": item.checked,
                 class: "menu-item",
                 tabIndex: -1,
                 title: hints ? undefined : note,
@@ -232,7 +252,15 @@ function MenuList({
 const menuId = (label: string) =>
   `menu-${label.toLowerCase().replace(/\W+/g, "-")}`;
 
-export function Menu({ label, button, title, kind, sections, hints }: Props) {
+export function Menu({
+  label,
+  button,
+  title,
+  kind,
+  sections,
+  hints,
+  end,
+}: Props) {
   const [open, setOpen] = useState<false | "first" | "last">(false);
   const [place, setPlace] = useState<{ top: number; left: number }>();
   const trigger = useRef<HTMLButtonElement>(null);
@@ -287,6 +315,7 @@ export function Menu({ label, button, title, kind, sections, hints }: Props) {
           label={label}
           sections={sections}
           hints={hints}
+          end={end}
           at={open}
           place={kind === "ribbon" ? place : undefined}
           anchor={trigger}

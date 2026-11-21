@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import commands from "../../../python/felupe_studio/commands.schema.json";
 import type { Brand } from "../brand";
+import { themeScript } from "../core/theme";
 import {
   accentCss,
   brand,
@@ -220,6 +221,21 @@ describe("the plugin of the brand", () => {
     // the benchmark keeps its title
     expect(transform(acme, "/app/spike.html").html).toContain(
       "<title>FElupe Studio</title>",
+    );
+  });
+
+  it("sets the theme before the first paint (#375)", () => {
+    const { tags } = transform(acme);
+    const script = tags.find(
+      (t) => t.tag === "script" && "id" in t.attrs && t.attrs.id === "theme",
+    )!;
+    expect(script.attrs).toEqual({ id: "theme" });
+    // the stored choice with the storage prefix of the brand
+    expect(script.children).toContain('localStorage.getItem("acme.theme")');
+    expect(script.children).toBe(themeScript("acme.theme"));
+    // the accent of the brand is one of the dark theme
+    expect(accentCss("#ffcc00")).toMatch(
+      /^:root:root:not\(\[data-theme="light"\]\) \{/,
     );
   });
 

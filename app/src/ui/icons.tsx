@@ -58,6 +58,13 @@ const PATHS = {
   chevronRight: "M9 6 L15 12 L9 18",
   chevronDown: "M6 9 L12 15 L18 9",
   trash: "M4 7 H20 M9 7 V4 H15 V7 M6 7 L7 20 H17 L18 7",
+  // the chosen item of a choice in a menu, e.g. of the theme (#375)
+  check: "M5 12.5 L10 17.5 L19 7",
+  // the themes (#375): a moon, a sun and a screen of the system
+  themeDark: "M20 14.5 A8.5 8.5 0 1 1 9.5 4 A6.8 6.8 0 0 0 20 14.5 Z",
+  themeLight:
+    "M12 8 A4 4 0 1 0 12 16 A4 4 0 1 0 12 8 M12 2.5 V5 M12 19 V21.5 M2.5 12 H5 M19 12 H21.5 M5.3 5.3 L7 7 M17 17 L18.7 18.7 M5.3 18.7 L7 17 M17 7 L18.7 5.3",
+  themeSystem: "M3 5 H21 V16 H3 Z M8.5 20 H15.5 M12 16 V20",
 } as const;
 
 export type IconName = keyof typeof PATHS;

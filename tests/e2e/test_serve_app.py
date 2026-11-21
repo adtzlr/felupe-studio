@@ -220,3 +220,26 @@ def test_the_range_of_the_rubber_beside_the_steel(url, page):
     assert 0 < rubber < 0.6 * steel
     assert page.locator(".app-scalar-bar canvas.scalar-outside.above").count() == 1
     assert page.errors == []
+
+
+def test_a_light_app_does_not_start_dark(url, page):
+    """The theme of the stored choice before the first paint (#375): without the
+    scripts of the app, the page is light already."""
+    page.context.add_init_script("localStorage.setItem('felupe-studio.theme', 'light')")
+    page.route(re.compile(r"/assets/.*\.js$"), lambda route: route.abort())
+    page.goto(url)
+    assert page.evaluate("document.documentElement.dataset.theme") == "light"
+    background = page.evaluate(
+        "getComputedStyle(document.documentElement).backgroundColor"
+    )
+    assert background == "rgb(238, 240, 244)"
+    assert page.evaluate("document.getElementById('app').childElementCount") == 0
+
+    # the default stays dark
+    page.context.add_init_script("localStorage.removeItem('felupe-studio.theme')")
+    page.goto(url)
+    assert page.evaluate("document.documentElement.dataset.theme") == "dark"
+    background = page.evaluate(
+        "getComputedStyle(document.documentElement).backgroundColor"
+    )
+    assert background == "rgb(27, 31, 39)"

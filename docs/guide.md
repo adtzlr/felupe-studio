@@ -14,7 +14,7 @@ Every object of a model is a FElupe object, and every action creates or changes 
 
 ![The Model workspace with the sample "Hyperelastic block with a rigid plate": the model browser, the viewport with the multi-point constraint of the plate selected, and its properties](images/model.png)
 
-- **Header:** the menus **File** (new, open, samples, save and the exports) and **Help** (this guide, the command reference, the keyboard shortcuts and *About* with the versions of FElupe, Python and Pyodide), buttons for Open, Save, Export, Undo and Redo, and **Solve**.
+- **Header:** the menus **File** (new, open, samples, save and the exports) and **Help** (this guide, the command reference, the keyboard shortcuts and *About* with the versions of FElupe, Python and Pyodide), buttons for Open, Save, Export, Undo and Redo, the **theme** and **Solve**.
 - **Ribbon:** the workspaces **Model** and **Results**. The tabs of the model create its objects in the order in which a model is usually built: Mesh, Materials, Sections, Loads & BCs, Steps & Job. A button that cannot be used yet tells you what is missing, e.g. "Create a cell set and a material first."
 - **Model browser** (left): the objects of the model in groups. A number at an object counts its issues. A click on an object selects it in the viewport and opens its **properties**, where you edit and **Apply** or **Delete** it. After a change, **Apply** (Enter) takes it over and **Reset** (Esc) discards it; an issue of the object is shown at its field, e.g. a missing material at *Material*. The tooltip of a symbol, e.g. C₁₀, names its key in the project file (`C10`). A right click on an object, its **⋯** button or Shift+F10 opens its menu: **Duplicate** (Ctrl+D) creates a copy with the next free name, e.g. `soft_2`, right after the original and selects it, so a second material or boundary that differs in one value is quick to make; objects that use the original keep using it. The menu of a mesh has **Export mesh…**: the mesh as the model uses it, also the mesh of a script with the current parameters, as a VTU, VTK, Gmsh, Abaqus or Nastran file with its solid cells and their tags, e.g. for ParaView or another solver. **Rename** (F2), **Show/Hide** (H) and **Delete** (Del) work on the selected object too.
 - **Viewport:** the meshes with their point sets, face sets, boundaries, symmetry planes, control points, rigid surfaces, contacts, constraints, point loads and pressures. The toolbar has the views, *Fit*, *Color by* (mesh, cell set or section) and *Nodes*.
@@ -23,6 +23,8 @@ Every object of a model is a FElupe object, and every action creates or changes 
 In narrow windows (up to 1000 px, e.g. a tablet or a small laptop window), the browser and the properties are drawers over the viewport: the button left of the logo opens the browser, a selection opens the properties, Esc closes them. The ribbon is one row that scrolls.
 
 The project is kept in the browser with its mesh files: a reload restores it. To keep it elsewhere, save it.
+
+The button left of **Solve** chooses the **theme**: *Dark* (the default), *Light* or *System*, which follows the color scheme of the system or the browser. The choice is a setting of the browser, not of the project, and the app starts in it after a reload, also in other tabs. In the light theme, the background of the viewport is white, and so is the picture of the view (*Export ▸ Picture of the view*), e.g. for a report.
 
 ### Save and open
 

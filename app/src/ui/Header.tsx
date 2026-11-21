@@ -3,7 +3,8 @@ import { APP_NAME, BRAND, formatVersion, LINKS } from "../app";
 import { projectNameProblem, stemOf, suffixOf } from "../core/files";
 import { ariaKeys, hint, withHint } from "../core/shortcuts";
 import type { ModelStore } from "../core/store";
-import { Icon } from "./icons";
+import { THEME_CHOICES, type ThemeChoice } from "../core/theme";
+import { Icon, type IconName } from "./icons";
 import { Menu, type MenuItem } from "./Menu";
 
 /** An export of the project: the script, the results or a picture. */
@@ -33,6 +34,8 @@ interface Props {
   browserOpen: boolean;
   onBrowser: () => void;
   exports: ExportItem[];
+  /** The chosen theme (#375), and a new choice. */
+  theme: { choice: ThemeChoice; onChoose: (choice: ThemeChoice) => void };
   solve: {
     /** Why the jobs cannot be run, if so. */
     blocker?: string;
@@ -170,6 +173,44 @@ function BrandMark() {
   );
 }
 
+const THEME_ICONS: Record<ThemeChoice, IconName> = {
+  dark: "themeDark",
+  light: "themeLight",
+  system: "themeSystem",
+};
+
+/** The menu of the theme (#375): Dark, Light or System, with the icon of the choice. */
+function ThemeMenu({
+  choice,
+  onChoose,
+}: {
+  choice: ThemeChoice;
+  onChoose: (choice: ThemeChoice) => void;
+}) {
+  const chosen = THEME_CHOICES.find((c) => c.id === choice);
+  return (
+    <Menu
+      kind="icon"
+      label="Theme"
+      button={<Icon name={THEME_ICONS[choice]} />}
+      title={`Theme: ${chosen?.label ?? choice}`}
+      sections={[
+        {
+          items: THEME_CHOICES.map((c) => ({
+            id: c.id,
+            label: c.label,
+            hint: c.hint,
+            checked: c.id === choice,
+            onSelect: () => onChoose(c.id),
+          })),
+        },
+      ]}
+      hints
+      end
+    />
+  );
+}
+
 export function Header({
   store,
   fileName,
@@ -186,6 +227,7 @@ export function Header({
   browserOpen,
   onBrowser,
   exports,
+  theme,
   solve,
 }: Props) {
   const [renaming, setRenaming] = useState(false);
@@ -385,6 +427,7 @@ export function Header({
         onRename={onRename}
       />
       <div class="header-group">
+        <ThemeMenu choice={theme.choice} onChoose={theme.onChoose} />
         {solve.running ? (
           <button type="button" class="button" onClick={solve.onCancel}>
             <Icon name="stop" size={12} />

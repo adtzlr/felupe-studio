@@ -113,7 +113,7 @@ Start from a copy of the example brand [`brands/example`](../brands/example) of 
 | `logo` | required | An SVG file of the brand folder: the header, the favicon and the manifest. |
 | `icons` | | PNG files of 192 × 192 and 512 × 512 px for an installed app and the home screen of a phone; without them, the manifest has the logo only. |
 | `storage` | required | The prefix of the browser storage of the app ([below](#the-storage-of-a-brand)): lowercase letters, digits, `.`, `_` and `-`. |
-| `accent` | | The accent color, `#rrggbb`, e.g. of buttons and selections; without it, that of FElupe Studio. |
+| `accent` | | The accent color of the dark theme, `#rrggbb`, e.g. of buttons and selections; without it, that of FElupe Studio. The light theme keeps the accent of FElupe Studio. |
 | `welcome` | | The text below the title of the welcome panel. |
 | `links.help` | required | *Help ▸ User guide* and the welcome panel. |
 | `links.documentation` | | *Help ▸ Command reference*; without it, no item. |
