@@ -1,8 +1,11 @@
 // The project of the app (#312): its name and whether it is saved, opening files,
 // archives and samples, saving it, a new project, and its session in the browser.
+// Saved with the save dialog of the system, *Save project* writes into the chosen
+// file again (#400).
 import { useCallback, useEffect, useRef, useState } from "preact/hooks";
 import {
   ARCHIVE_SUFFIX,
+  isArchiveName,
   isZip,
   mediaType,
   stemOf,
@@ -11,6 +14,7 @@ import {
 import type { JobRunner } from "../core/jobs";
 import { isScript, type MeshFiles, meshFileNames } from "../core/meshfiles";
 import { REGISTRY } from "../core/registry";
+import type { Save, SaveHandle } from "../core/save";
 import type { RibbonItem } from "../core/ribbon";
 import { type Sample, sampleFiles } from "../core/samples";
 import { SCHEMA_VERSION } from "../core/schema";
@@ -34,7 +38,8 @@ interface Options {
   client?: RuntimeClient;
   jobs?: JobRunner;
   session?: SessionStorage;
-  download: (name: string, data: string | Blob) => void;
+  /** Save a file: with the save dialog of the system, else as a download (#400). */
+  save: Save;
   fetchSample?: typeof fetch;
   /** A project was opened or started: the selection and the hidden objects go. */
   onReset: () => void;
@@ -94,8 +99,7 @@ async function unpack(
 }
 
 export function useProject(options: Options) {
-  const { store, files, client, jobs, session, download, fetchSample } =
-    options;
+  const { store, files, client, jobs, session, save, fetchSample } = options;
   // the callbacks of the latest render, e.g. for the memoized openFiles
   const latest = useRef(options);
   latest.current = options;
@@ -113,7 +117,7 @@ export function useProject(options: Options) {
     const before = meshesBefore.current;
     meshesBefore.current = meshCount;
     if (!fresh || before > 0 || meshCount === 0) return;
-    if (!fileName.endsWith(ARCHIVE_SUFFIX)) {
+    if (!isArchiveName(fileName)) {
       // the format of a new project changes, it is not renamed (#205)
       const archive = `${stemOf(fileName)}${ARCHIVE_SUFFIX}`;
       if (savedName === fileName) setSavedName(archive);
@@ -127,6 +131,9 @@ export function useProject(options: Options) {
     store.commands,
   );
   const modified = store.commands !== saved || fileName !== savedName;
+  // the file of the last save in the save dialog (#400), written again by *Save
+  // project*; in memory only, so the first save after a reload asks again
+  const [file, setFile] = useState<SaveHandle>();
   const [error, setError] = useState<Banner>();
   const failed = (title: string) => (reason: unknown) =>
     setError({
@@ -148,6 +155,7 @@ export function useProject(options: Options) {
         setFileName(name);
         setSavedName(name);
         setSaved(store.commands);
+        setFile(undefined);
         setError(undefined);
         return true;
       } catch (e) {
@@ -290,6 +298,7 @@ export function useProject(options: Options) {
     setFileName(restored.fileName);
     setSavedName(restored.fileName);
     setSaved(restored.modified ? undefined : store.commands);
+    setFile(undefined);
     await files.addFiles(
       restored.files.map((f) => new File([f.data as BlobPart], f.name)),
     );
@@ -311,6 +320,7 @@ export function useProject(options: Options) {
     setFileName(`untitled${SUFFIX}`);
     setSavedName(`untitled${SUFFIX}`);
     setSaved(store.commands);
+    setFile(undefined);
     latest.current.onReset();
     setError(undefined);
     setConfirmNew(false);
@@ -338,29 +348,40 @@ export function useProject(options: Options) {
 
   /**
    * Save the project under a name in the format of its suffix: a project file or
-   * an archive with the mesh files and optionally the script (#149, #150).
+   * an archive with the mesh files and optionally the script (#149, #150). With the
+   * save dialog (#400), the name chosen there is the name of the project, and
+   * `into` is the file of its last save, written again without the dialog.
    */
-  const saveProject = async (name: string, withScript = false) => {
-    const { serialize } = await import("../core/project");
-    const project = serialize(store.document);
+  const saveProject = async (
+    name: string,
+    {
+      script: withScript = false,
+      into,
+    }: { script?: boolean; into?: SaveHandle } = {},
+  ) => {
+    // the project when it is saved: the dialog is modal
+    const document = store.document;
     const commands = store.commands;
-    if (!name.endsWith(ARCHIVE_SUFFIX)) {
-      download(name, project);
-    } else {
+    let missing: string[] = [];
+    let noScript = false;
+    const make = async (chosen: string) => {
+      const { serialize } = await import("../core/project");
+      const project = serialize(document);
+      if (!isArchiveName(chosen)) return project;
       let script: string | undefined;
       if (withScript && client) {
         try {
           script = await client.script(project);
         } catch (e) {
-          failed("The script could not be made; the project was not saved.")(e);
-          return;
+          noScript = true;
+          throw e;
         }
       }
       const { writeArchive } = await import("../core/archive");
       const names = meshFileNames(commands);
-      const missing = names.filter((file) => !files.dataOf(file));
+      missing = names.filter((file) => !files.dataOf(file));
       const archive = writeArchive({
-        name: stemOf(name),
+        name: stemOf(chosen),
         project,
         files: names.flatMap((file) => {
           const data = files.dataOf(file);
@@ -368,26 +389,48 @@ export function useProject(options: Options) {
         }),
         script,
       });
-      download(name, new Blob([archive], { type: mediaType(name) }));
-      if (missing.length) {
-        setError({
-          title: `${name} was saved without the mesh files that are not loaded:`,
-          lines: missing,
-          info: true,
-        });
-      }
+      return new Blob([archive], { type: mediaType(chosen) });
+    };
+    let done;
+    try {
+      done = await save({ name, kind: "project", into }, make);
+    } catch (e) {
+      failed(
+        noScript
+          ? "The script could not be made; the project was not saved."
+          : "The project could not be saved.",
+      )(e);
+      return;
     }
-    setFileName(name);
-    setSavedName(name);
+    // Cancel of the save dialog
+    if (!done) return;
+    if (missing.length) {
+      setError({
+        title: `${done.name} was saved without the mesh files that are not loaded:`,
+        lines: missing,
+        info: true,
+      });
+    }
+    setFileName(done.name);
+    setSavedName(done.name);
+    setFile(done.handle);
     setFresh(false);
     setSaved(commands);
   };
-  const save = () => saveProject(fileName);
+  /** Save the project: into the file of its last save, if any, else as a new one. */
+  const saveCurrent = () =>
+    saveProject(fileName, { into: file?.name === fileName ? file : undefined });
 
   return {
     fileName,
-    /** A new name without saving: the next save and the exports take it (#205). */
-    rename: setFileName,
+    /**
+     * A new name without saving: the next save and the exports take it (#205); the
+     * next save asks for the file again (#400).
+     */
+    rename: (name: string) => {
+      setFileName(name);
+      setFile(undefined);
+    },
     modified,
     error,
     setError,
@@ -403,7 +446,7 @@ export function useProject(options: Options) {
     cancelNew: () => setConfirmNew(false),
     openSample,
     saveProject,
-    save,
+    save: saveCurrent,
   };
 }
 

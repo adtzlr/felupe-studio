@@ -69,6 +69,8 @@ interface Props {
   runtime: Runtime;
   project: Project;
   exports: Exports;
+  /** Files are saved with the save dialog of the system (#400). */
+  saveDialog?: boolean;
   script?: ScriptRequest;
   /** The samples of the app (#350). */
   samples: readonly Sample[];
@@ -84,6 +86,7 @@ export function Dialogs({
   runtime,
   project,
   exports,
+  saveDialog,
   script,
   samples,
   onOpenSample,
@@ -110,9 +113,10 @@ export function Dialogs({
           commands={store.commands}
           files={files}
           scriptAvailable={!!client && runtime.state === "ready"}
+          saveDialog={saveDialog}
           onSave={({ name, script }) => {
             dialogs.setSavingAs(false);
-            void project.saveProject(name, script);
+            void project.saveProject(name, { script });
           }}
           onClose={() => dialogs.setSavingAs(false)}
         />

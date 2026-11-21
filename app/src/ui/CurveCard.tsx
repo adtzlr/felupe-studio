@@ -34,7 +34,8 @@ interface Props {
   run: Finished;
   view: ResultView;
   onChange: (view: ResultView) => void;
-  download: (name: string, text: string) => void;
+  /** Save the CSV of the curve: with the save dialog where there is one (#400). */
+  saveFile: (name: string, text: string) => void;
 }
 
 // the size of the chart in pixels and the margins of the plot area
@@ -102,7 +103,7 @@ const spoken = (label: SeriesLabel) =>
  * substep is marked; hovering shows the values of the nearest substep, a click
  * selects it.
  */
-export function CurveCard({ run, view, onChange, download }: Props) {
+export function CurveCard({ run, view, onChange, saveFile }: Props) {
   const [hover, setHover] = useState<number>();
   const [table, setTable] = useState(false);
   const [settings, setSettings] = useState<Settings>(loadCurve);
@@ -224,8 +225,8 @@ export function CurveCard({ run, view, onChange, download }: Props) {
         <button
           type="button"
           class="link-button"
-          title="Download the curve (all components) as CSV"
-          onClick={() => download(`${view.job}.csv`, curveCsv(run, view.job))}
+          title="Save the curve (all components) as CSV"
+          onClick={() => saveFile(`${view.job}.csv`, curveCsv(run, view.job))}
         >
           CSV
         </button>

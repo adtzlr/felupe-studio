@@ -69,6 +69,57 @@ def page(url):
         browser.close()
 
 
+# The save dialog of the system (#400), replaced by one that records the written
+# files. The real dialog of Chromium checks the options first: without a window, it
+# cancels at once, and it throws a TypeError for options that it does not take.
+# `window.chosen` is the name chosen in the dialog, `window.cancel` is its Cancel.
+RECORD_SAVES = """(() => {
+  if (!window.showSaveFilePicker) return;
+  const real = window.showSaveFilePicker.bind(window);
+  Object.assign(window, { picked: [], saved: [], cancel: false });
+  window.showSaveFilePicker = async (options) => {
+    await real(options).catch((error) => {
+      if (error.name !== "AbortError") throw error;
+    });
+    window.picked.push(options);
+    if (window.cancel)
+      throw new DOMException("The user aborted a request.", "AbortError");
+    const name = window.chosen ?? options.suggestedName;
+    return {
+      name,
+      createWritable: async () => {
+        const parts = [];
+        return {
+          write: async (data) => void parts.push(data),
+          close: async () => {
+            const bytes = new Uint8Array(await new Blob(parts).arrayBuffer());
+            let text = "";
+            for (const byte of bytes) text += String.fromCharCode(byte);
+            window.saved.push({ name, data: btoa(text) });
+          },
+          abort: async () => {},
+        };
+      },
+    };
+  };
+})()"""
+
+
+def saved(page, action):
+    """The name and the bytes of the file that `action` saves in the save dialog."""
+    count = page.evaluate("window.saved.length")
+    action()
+    page.wait_for_function(f"window.saved.length > {count}")
+    file = page.evaluate(f"window.saved[{count}]")
+    return file["name"], base64.b64decode(file["data"])
+
+
+def export(page, name):
+    """Choose an item of the Export menu of the header."""
+    page.get_by_role("button", name="Export", exact=True).click()
+    page.get_by_role("menuitem", name=name).click()
+
+
 def test_a_sample_solved_with_the_local_python(url, page):
     page.goto(url)
     page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
@@ -180,6 +231,7 @@ def test_the_range_of_the_rubber_beside_the_steel(url, page):
     # the bushing with steel sleeves (#377): the von Mises stress with the range of
     # the rubber, the steel above it in the outside color, the rubber named at the
     # scalar bar
+    page.context.add_init_script(RECORD_SAVES)
     page.goto(url)
     page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
     page.get_by_role("button", name="File", exact=True).click()
@@ -223,10 +275,7 @@ def test_the_range_of_the_rubber_beside_the_steel(url, page):
 
     # the sleeves hidden (#396): the rubber alone, with its range, also in a picture
     def picture():
-        with page.expect_download() as download:
-            page.get_by_role("button", name="Export", exact=True).click()
-            page.get_by_role("menuitem", name="Picture of the view").click()
-        data = Path(download.value.path()).read_bytes()
+        _, data = saved(page, lambda: export(page, "Picture of the view"))
         assert data.startswith(b"\x89PNG")
         return base64.b64encode(data).decode()
 
@@ -329,6 +378,7 @@ def test_a_light_picture_of_the_view(url, page):
     """The picture of the view in the light theme (#375): on the white background of
     the view, e.g. for a report; in the dark theme on its dark background."""
     page.context.add_init_script("localStorage.setItem('felupe-studio.theme', 'light')")
+    page.context.add_init_script(RECORD_SAVES)
     page.goto(url)
     page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
     page.get_by_role("button", name="File", exact=True).click()
@@ -341,10 +391,7 @@ def test_a_light_picture_of_the_view(url, page):
     page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)
 
     def picture():
-        with page.expect_download() as download:
-            page.get_by_role("button", name="Export", exact=True).click()
-            page.get_by_role("menuitem", name="Picture of the view").click()
-        data = Path(download.value.path()).read_bytes()
+        _, data = saved(page, lambda: export(page, "Picture of the view"))
         assert data.startswith(b"\x89PNG")
         return page.evaluate(PIXELS, base64.b64encode(data).decode())
 
@@ -362,6 +409,99 @@ def test_a_light_picture_of_the_view(url, page):
 
 
 # the rows of the app and the viewport in the window, and whether the page scrolls
+def open_block(page):
+    """Open the sample *Hyperelastic block with a rigid plate*, ready to solve."""
+    page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
+    page.get_by_role("button", name="File", exact=True).click()
+    page.get_by_role("menuitem", name="Samples…").click()
+    title = page.get_by_role(
+        "heading", name="Hyperelastic block with a rigid plate", exact=True
+    )
+    page.get_by_role("dialog").locator("li").filter(has=title).get_by_role(
+        "button", name="Open"
+    ).click()
+    page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)
+    # the shortcuts work once the dialog of the samples has closed
+    page.wait_for_function("!document.querySelector('[role=dialog][aria-modal=true]')")
+
+
+def test_saving_with_the_save_dialog(url, page):
+    """Save and export with the save dialog of the system (#400): the first save
+    asks, the next one writes into the chosen file without asking, an export asks in
+    the folder of the exports, and Cancel saves nothing. The real dialog of Chromium
+    checks the options of each."""
+    page.context.add_init_script(RECORD_SAVES)
+    page.goto(url)
+    open_block(page)
+    header = page.get_by_role("banner")
+
+    # the first save asks; the name chosen there is the name of the project
+    page.evaluate("window.chosen = 'block.felupe.zip'")
+    name, data = saved(page, lambda: page.keyboard.press("Control+s"))
+    assert name == "block.felupe.zip"
+    assert data.startswith(b"PK")
+    assert page.evaluate("window.picked") == [
+        {
+            "suggestedName": "glued-plate.felupe.zip",
+            "id": "felupe-studio-projects",
+            "types": [
+                {
+                    "description": "Project archive",
+                    "accept": {"application/zip": [".felupe.zip"]},
+                }
+            ],
+        }
+    ]
+    assert "block.felupe.zip" in header.inner_text()
+
+    # the next save writes into the same file without asking
+    page.evaluate("window.chosen = undefined")
+    save = header.get_by_role("button", name="Save project")
+    name, data = saved(page, save.click)
+    assert name == "block.felupe.zip"
+    assert data.startswith(b"PK")
+    assert page.evaluate("window.picked.length") == 1
+
+    # an export asks, in the folder of the exports; then the script is made
+    name, data = saved(page, lambda: export(page, "Python script"))
+    assert name == "block.py"
+    assert b"import felupe" in data
+    assert page.evaluate("window.picked[1]") == {
+        "suggestedName": "block.py",
+        "id": "felupe-studio-exports",
+        "types": [
+            {"description": "Python script", "accept": {"text/x-python": [".py"]}}
+        ],
+    }
+
+    # Cancel saves nothing and shows no error
+    page.evaluate("window.cancel = true")
+    export(page, "Picture of the view")
+    page.wait_for_function("window.picked.length === 3")
+    page.wait_for_timeout(500)
+    # the two saves and the script
+    assert page.evaluate("window.saved.length") == 3
+    assert page.get_by_role("alert").count() == 0
+    assert page.errors == []
+
+
+def test_downloads_without_the_save_dialog(url, page):
+    """A browser without the save dialog (Firefox, Safari) downloads the files as
+    before (#400)."""
+    page.context.add_init_script("delete window.showSaveFilePicker")
+    page.goto(url)
+    assert page.evaluate("typeof window.showSaveFilePicker") == "undefined"
+    open_block(page)
+    with page.expect_download() as download:
+        page.keyboard.press("Control+s")
+    assert download.value.suggested_filename == "glued-plate.felupe.zip"
+    assert Path(download.value.path()).read_bytes().startswith(b"PK")
+    with page.expect_download() as download:
+        export(page, "Python script")
+    assert download.value.suggested_filename == "glued-plate.py"
+    assert page.errors == []
+
+
 LAYOUT = """() => {
     const box = (selector) => {
         const element = [...document.querySelectorAll(selector)].find(
