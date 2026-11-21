@@ -37,6 +37,7 @@ describe("the mesh tools (ADR 0019)", () => {
       ["mirror", "Operations", ".mirror"],
       ["fill_between", "Operations", "fem.mesh.fill_between"],
       ["add_runouts", "Operations", ".add_runouts"],
+      ["stack", "Operations", "fem.MeshContainer"],
     ]);
   });
 
@@ -282,5 +283,115 @@ describe("the operations of the mesh tools (ADR 0019)", () => {
     expect([
       ...hiddenObjects([face, block], new Set(["face", "block"])),
     ]).toEqual(["block"]);
+  });
+});
+
+describe("a stack of meshes (#394)", () => {
+  const rectangle = (name: string, x: number) =>
+    made("Rectangle", { a: [x, 1], b: [x + 1, 2], n: [3, 3] }, name);
+  const pieces = [
+    rectangle("left", 0),
+    rectangle("middle", 1),
+    rectangle("right", 2),
+  ];
+  const stack = (inputs: string[], name = "profile") =>
+    ({ ...made("stack", { decimals: 10 }, name), inputs }) as MeshGenerate;
+  const revolved = {
+    ...made("revolve", { n: 5, phi: 90, axis: "x" }, "body"),
+    inputs: ["profile"],
+  } as MeshGenerate;
+
+  it("has the dimensions of its meshes, which have the same cells and points", () => {
+    const profile = stack(["left", "middle", "right"]);
+    const known = dimensions([...pieces, profile, revolved]);
+    expect(known.get("profile")).toEqual({
+      points: 2,
+      cells: 2,
+      cell_type: "quad",
+    });
+    expect(known.get("body")?.cell_type).toBe("hexahedron");
+    expect(inputProblems(profile, known)).toEqual([]);
+    const block = made(
+      "Cube",
+      { a: [0, 0, 0], b: [1, 1, 1], n: [2, 2, 2] },
+      "block",
+    );
+    const mixed = stack(["left", "block"]);
+    const all = dimensions([...pieces, block, mixed]);
+    expect(all.has("profile")).toBe(false);
+    expect(inputProblems(mixed, all)).toEqual([
+      "stack needs meshes of the same cells and points: 'left' quad cells with 2D points, 'block' hexahedron cells with 3D points.",
+    ]);
+  });
+
+  it("has a form of checkboxes, its meshes those that no other tool takes", () => {
+    const used = {
+      ...made("expand", { n: 2, z: 1 }, "slab"),
+      inputs: ["left"],
+    };
+    const context = { commands: [...pieces, used] as Command[] };
+    const draft = initialDraft("mesh.generate", context);
+    const form = setValue("mesh.generate", draft, ["tool"], "stack", context);
+    expect(form.inputs).toEqual(["middle", "right", "slab"]);
+    expect(form.parameters).toEqual({ decimals: 10 });
+    const specs = fieldSpecs("mesh.generate", form);
+    expect(specs.map((s) => s.key)).toEqual([
+      "name",
+      "tool",
+      "inputs",
+      "parameters.decimals",
+      "color",
+    ]);
+    // two or more meshes, each once: a checkbox per mesh
+    const inputs = specs.find((s) => s.key === "inputs")!.input;
+    expect(inputs).toEqual({
+      type: "reference",
+      kind: "mesh",
+      multiple: true,
+      minItems: 2,
+    });
+    const errors = (meshes: string[]) =>
+      draftErrors(
+        "mesh.generate",
+        { ...form, name: "profile", inputs: meshes },
+        context,
+      ).inputs;
+    expect(errors(["left", "middle"])).toBeUndefined();
+    expect(errors(["left"])).toBe("Select at least two.");
+    expect(errors(["left", "left"])).toBe("Each object may appear only once.");
+  });
+
+  it("is taken by the next operation, as the latest mesh that no tool takes", () => {
+    // an operation of one mesh takes one, not all meshes made before
+    const commands = [...pieces, stack(["left", "middle", "right"])];
+    const context = { commands: commands as Command[] };
+    const draft = initialDraft("mesh.generate", context);
+    const form = setValue("mesh.generate", draft, ["tool"], "revolve", context);
+    expect(form.inputs).toEqual(["profile"]);
+    const between = setValue("mesh.generate", draft, ["tool"], "fill_between", {
+      commands: pieces as Command[],
+    });
+    expect(between.inputs).toEqual(["middle", "right"]);
+    expect(
+      draftErrors(
+        "mesh.generate",
+        { ...form, name: "body", inputs: ["left", "middle"] },
+        context,
+      ).inputs,
+    ).toBe("Select at most one.");
+  });
+
+  it("shows its meshes below it in the browser", () => {
+    const tree = deriveTree([...pieces, stack(["left", "middle", "right"])]);
+    const [mesh] = tree.find((g) => g.id === "group:mesh")!.children;
+    expect([mesh.label, mesh.detail]).toEqual([
+      "profile",
+      "stack left, middle, right · construction",
+    ]);
+    expect(mesh.children.map((c) => c.label)).toEqual([
+      "left",
+      "middle",
+      "right",
+    ]);
   });
 });

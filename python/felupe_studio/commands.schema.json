@@ -336,6 +336,9 @@
         },
         {
           "$ref": "#/$defs/MeshAddRunouts"
+        },
+        {
+          "$ref": "#/$defs/MeshStack"
         }
       ]
     },
@@ -1234,6 +1237,58 @@
               "x-label": "normalize",
               "description": "Keep the shape of the ends, the runouts become indents.",
               "type": "boolean"
+            }
+          }
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        }
+      }
+    },
+    "MeshStack": {
+      "description": "Stack several meshes of the same cells and points into one (fem.MeshContainer(meshes, merge=True, decimals).stack()): the points of all meshes, with the points at the same place merged, and the cells of all meshes, e.g. a profile of several rectangles that is revolved at once.",
+      "x-label": "Stack",
+      "x-group": "Operations",
+      "x-felupe": "fem.MeshContainer",
+      "x-dimension": {
+        "inputs": "list",
+        "cell_type": "same",
+        "points": 0
+      },
+      "type": "object",
+      "required": ["command", "name", "tool", "inputs", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "mesh.generate"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "tool": {
+          "const": "stack"
+        },
+        "inputs": {
+          "description": "The meshes that the tool stacks: two or more meshes made by tools before, of the same cell type and dimension of the points.",
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Name"
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "required": ["decimals"],
+          "additionalProperties": false,
+          "properties": {
+            "decimals": {
+              "x-label": "decimals",
+              "description": "Points whose coordinates agree to this number of decimals are merged (default 10), so meshes of different tools merge despite round-off errors.",
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 15,
+              "default": 10
             }
           }
         },

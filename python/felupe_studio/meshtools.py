@@ -13,7 +13,7 @@ a construction mesh. :func:`call` is the line of a tool in the script, and
 from functools import cache
 
 from .commands import schema
-from .formatting import vector
+from .formatting import List, vector
 from .project import js_number
 
 __all__ = [
@@ -280,19 +280,25 @@ def _values(command, known):
 
 
 def call(command, known=None):
-    """Return the FElupe call of a tool and its arguments in the script: the values of
-    its parameters as written, expressions as their code (#242). An operation is a
-    method of its input, or a function of its inputs (``known`` are the dimensions of
-    the meshes made before, see :func:`dimensions`).
+    """Return the FElupe call of a tool, its arguments and the end of its line in the
+    script: the values of its parameters as written, expressions as their code (#242).
+    An operation is a method of its input, or a function of its inputs (``known`` are
+    the dimensions of the meshes made before, see :func:`dimensions`). A stack is the
+    method ``stack()`` of a mesh container of the list of its inputs, whose points are
+    merged (#394).
 
     Examples
     --------
     >>> call({"tool": "Cube", "parameters": {"a": [0, 0, 0], "b": [1, 2, 3],
     ...                                      "n": [2, 3, 4]}})
-    ('fem.Cube', ['a=[0, 0, 0]', 'b=[1, 2, 3]', 'n=[2, 3, 4]'])
+    ('fem.Cube', ['a=[0, 0, 0]', 'b=[1, 2, 3]', 'n=[2, 3, 4]'], '')
     >>> call({"tool": "revolve", "inputs": ["face"],
     ...       "parameters": {"n": 19, "phi": 360, "axis": "x"}})
-    ('face.revolve', ['n=19', 'phi=360', 'axis=0'])
+    ('face.revolve', ['n=19', 'phi=360', 'axis=0'], '')
+    >>> function, args, end = call({"tool": "stack", "inputs": ["left", "right"],
+    ...                             "parameters": {"decimals": 10}})
+    >>> f"{function}({', '.join(map(str, args))}){end}"
+    'fem.MeshContainer([left, right], merge=True, decimals=10).stack()'
     """
     definition = tools()[command["tool"]]
     parameters = _values(command, known or {})
@@ -300,10 +306,13 @@ def call(command, known=None):
     inputs = command.get("inputs", [])
     args = [] if felupe.startswith(".") else list(inputs)
     function = f"{inputs[0]}{felupe}" if felupe.startswith(".") else felupe
+    end = ""
+    if definition["x-dimension"].get("inputs") == "list":
+        args, end = [List(inputs), "merge=True"], ".stack()"
     for key, value in parameters.items():
         text = vector(value) if isinstance(value, list) else repr(value)
         args.append(f"{key}={text}")
-    return function, args
+    return function, args, end
 
 
 def uses_embed(commands):
@@ -339,7 +348,7 @@ def generate(commands, values=None):
     for command in commands:
         if command["command"] != "mesh.generate":
             continue
-        function, args = call(command, known)
-        exec(call_line(command["name"], function, args), namespace)
+        function, args, end = call(command, known)
+        exec(call_line(command["name"], function, args, end), namespace)
         names.append(command["name"])
     return {name: namespace[name] for name in names}

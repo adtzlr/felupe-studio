@@ -87,6 +87,12 @@ def made(name, tool, inputs=None, **parameters):
 
 RECTANGLE = made("face", "Rectangle", a=[0, 0], b=[3, 1], n=[4, 2])
 CUBE = made("block", "Cube", a=[0, 0, 0], b=[3, 1, 1], n=[4, 2, 2])
+# a profile of two rectangles with a common edge, stacked into one mesh (#394)
+PROFILE = [
+    RECTANGLE,
+    made("face_2", "Rectangle", a=[3, 0], b=[6, 1], n=[4, 2]),
+    made("profile", "stack", ["face", "face_2"], decimals=10),
+]
 LINES = [
     made("bottom", "Line", a=0, b=3, n=4),
     made("bottom_2d", "embed", ["bottom"], value=0),
@@ -1230,6 +1236,17 @@ CHANGES = {
     "runouts with values of the wrong number": lambda d: (
         operation(d, "add_runouts", ["face"], [RECTANGLE], values=[0.1, 0.1], axis="y"),
         planar(d),
+    ),
+    # several meshes stacked into one (#394)
+    "a profile of rectangles stacked in a 2D model": lambda d: (
+        operation(d, "stack", ["face", "face_2"], PROFILE[:2], decimals=10),
+        planar(d),
+    ),
+    "a profile of rectangles stacked and revolved": lambda d: operation(
+        d, "revolve", ["profile"], PROFILE, n=3, phi=90, axis="x"
+    ),
+    "a stack of a rectangle and a cube": lambda d: operation(
+        d, "stack", ["face", "block"], [RECTANGLE, CUBE], decimals=10
     ),
     "an operation of a later mesh": lambda d: (
         operation(d, "translate", ["block"], move=1, axis="x"),

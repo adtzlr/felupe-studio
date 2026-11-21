@@ -255,6 +255,16 @@ Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool
 | `exponent` (exponent) | number > 0 |  | The shape of the runouts: the higher, the steeper the transition (default 5). |
 | `normalize` (normalize) | number |  | Keep the shape of the ends, the runouts become indents. |
 
+#### Stack (`tool: "stack"`)
+
+Stack several meshes of the same cells and points into one (fem.MeshContainer(meshes, merge=True, decimals).stack()): the points of all meshes, with the points at the same place merged, and the cells of all meshes, e.g. a profile of several rectangles that is revolved at once.
+
+Inputs (`inputs`): 2 or more meshes, each once. The meshes that the tool stacks: two or more meshes made by tools before, of the same cell type and dimension of the points.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `decimals` (decimals) | integer ≥ 0, ≤ 15 | yes | Points whose coordinates agree to this number of decimals are merged (default 10), so meshes of different tools merge despite round-off errors. Default `10`. |
+
 ### `mesh.merge`
 
 Merge points of the sections whose coordinates agree to the given number of decimals (fem.field.merge(..., decimals)). Without this command, only identical points are merged. Merged points take the rounded coordinates.

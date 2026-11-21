@@ -686,3 +686,78 @@ def test_the_compact_layout_of_a_phone(url, page):
         assert not page.evaluate(LAYOUT)["scrolls"]
         card.get_by_role("button", name="Close the curve").click()
     assert page.errors == []
+
+
+def test_a_stacked_profile_revolved_and_solved(url, page):
+    """A profile of three rectangles stacked into one mesh with the ribbon, revolved
+    and solved (#394): the next operation takes the stacked mesh, not all meshes."""
+    page.goto(url)
+    page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
+
+    def command(text, done):
+        line = page.get_by_label("Command", exact=True)
+        line.fill(text)
+        line.press("Enter")
+        page.get_by_text(done).first.wait_for(timeout=60_000)
+
+    for name, x in [("left", 0), ("middle", 1), ("right", 2)]:
+        parameters = f'{{"a": [{x}, 1], "b": [{x + 1}, 2], "n": [3, 3]}}'
+        command(
+            f'mesh.generate {{"name": "{name}", "tool": "Rectangle", '
+            f'"parameters": {parameters}}}',
+            f"Created {name}.",
+        )
+
+    def operation(tool, name):
+        page.get_by_role("button", name="Operations").click()
+        page.get_by_role("menuitem", name=tool, exact=True).click()
+        dialog = page.get_by_role("dialog")
+        dialog.get_by_label("Name", exact=True).fill(name)
+        return dialog
+
+    # the meshes that no other tool takes, each a checkbox
+    dialog = operation("Stack", "profile")
+    for name in ["left", "middle", "right"]:
+        assert dialog.get_by_role("checkbox", name=name, exact=True).is_checked()
+    # two or more
+    for name in ["middle", "right"]:
+        dialog.get_by_role("checkbox", name=name, exact=True).uncheck()
+    dialog.get_by_text("Select at least two.").wait_for()
+    for name in ["middle", "right"]:
+        dialog.get_by_role("checkbox", name=name, exact=True).check()
+    dialog.get_by_role("button", name="Create").click()
+    tree = page.get_by_role("navigation", name="Model browser")
+    tree.get_by_text("stack left, middle, right · construction").wait_for()
+
+    dialog = operation("Revolve", "body")
+    assert dialog.locator("select[id$='-inputs']").input_value() == "profile"
+    dialog.get_by_label("n", exact=True).fill("5")
+    dialog.get_by_label("φ [°]").fill("90")
+    dialog.get_by_role("button", name="Create").click()
+    tree.get_by_text("revolve profile · n = 5").wait_for()
+    for text in [
+        'cellset.from_file {"name": "cells", "mesh": "body"}',
+        'material.add {"name": "rubber", "model": "NeoHooke", "parameters": {"mu": 1}}',
+        'section.add {"name": "solid", "cellset": "cells", "material": "rubber", '
+        '"formulation": "u-p-J", "bulk": 5000}',
+        'pointset.add {"name": "start", "select": {"axis": "x", "value": 0}}',
+        'pointset.add {"name": "end", "select": {"axis": "x", "value": 3}}',
+        'boundary.add {"name": "fixed", "pointset": "start", '
+        '"constrained": ["x", "y", "z"]}',
+        'boundary.add {"name": "pull", "pointset": "end", "constrained": ["x"]}',
+        'step.add {"name": "tension", "ramp": {"num": 3, '
+        '"items": [{"target": "pull", "end": 0.3}]}}',
+        'job.add {"name": "job", "steps": ["tension"], "curve": "pull"}',
+    ]:
+        name = text.split('"name": "')[1].split('"')[0]
+        command(text, f"Created {name}.")
+    page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)
+
+    page.get_by_role("button", name="Solve").click()
+    results = page.get_by_role("button", name="Show results")
+    results.wait_for(timeout=120_000)
+    summary = page.get_by_text("substeps in").first.inner_text()
+    assert "4 substeps" in summary and "Last substep: ux = 0.3" in summary
+    results.click()
+    page.wait_for_selector("text=/Displacement magnitude/", timeout=60_000)
+    assert page.errors == []

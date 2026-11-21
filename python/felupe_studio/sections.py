@@ -55,8 +55,8 @@ def mesh_import(context, mesh):
 
 def mesh_generate(context, mesh):
     """A mesh made by a tool of FElupe (ADR 0019), one line per step."""
-    function, args = meshtools.call(mesh, context.dimensions)
-    return [call(mesh["name"], function, args)]
+    function, args, end = meshtools.call(mesh, context.dimensions)
+    return [call(mesh["name"], function, args, end)]
 
 
 def cellset(context, command):
