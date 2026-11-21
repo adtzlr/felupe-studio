@@ -382,6 +382,49 @@ LAYOUT = """() => {
 }"""
 
 
+def test_the_menus_of_the_header_stay_in_the_window(url, page):
+    """Every menu of the header is inside the window with a margin of 8 px, also the
+    theme menu on a phone in portrait (#402); on a desktop, a menu opens at its
+    button as before."""
+    page.goto(url)
+    page.get_by_role("button", name="Theme", exact=True).wait_for()
+
+    def opened(name):
+        button = page.get_by_role("button", name=name, exact=True)
+        button.click()
+        menu = page.get_by_role("menu", name=name, exact=True)
+        menu.wait_for()
+        return button.bounding_box(), menu
+
+    for width, height in [(390, 844), (360, 740), (844, 390)]:
+        page.set_viewport_size({"width": width, "height": height})
+        page.wait_for_timeout(300)
+        for name in ["File", "Help", "Theme"]:
+            _, menu = opened(name)
+            # every item too, i.e. its label and its hint are not cut off
+            for box in [menu.bounding_box()] + [
+                item.bounding_box()
+                for item in menu.get_by_role("menuitem").all()
+                + menu.get_by_role("menuitemradio").all()
+            ]:
+                assert box["x"] >= 8 - 0.5, (width, name, box)
+                assert box["x"] + box["width"] <= width - 8 + 0.5, (width, name, box)
+            page.keyboard.press("Escape")
+            menu.wait_for(state="detached")
+
+    page.set_viewport_size({"width": 1280, "height": 800})
+    page.wait_for_timeout(300)
+    for name, end in [("File", False), ("Help", False), ("Theme", True)]:
+        button, menu = opened(name)
+        box = menu.bounding_box()
+        if end:
+            assert abs(box["x"] + box["width"] - button["x"] - button["width"]) < 1
+        else:
+            assert abs(box["x"] - button["x"]) < 1
+        page.keyboard.press("Escape")
+        menu.wait_for(state="detached")
+
+
 def test_the_compact_layout_of_a_phone(url, page):
     """The compact layout of phones and short windows (#378): the page does not
     scroll, the footer is below the viewport, which has at least 70 % of the height
