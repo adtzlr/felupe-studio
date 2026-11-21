@@ -395,4 +395,58 @@ def test_the_compact_layout_of_a_phone(url, page):
             assert page.evaluate("document.activeElement.id") == "command"
             assert not page.evaluate(LAYOUT)["scrolls"]
             page.get_by_role("button", name="Command line").click()
+
+    # the results: the contour and the substep in one row, the other controls behind
+    # a button, the toolbar of the view in one row, the curve below or beside the view
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.get_by_role("button", name="Solve").click()
+    page.get_by_role("button", name="Show results").click(timeout=120_000)
+    page.get_by_role("toolbar", name="View").wait_for(timeout=60_000)
+    for width, height, compact in [
+        (390, 844, True),
+        (844, 390, True),
+        (768, 1024, False),
+    ]:
+        page.set_viewport_size({"width": width, "height": height})
+        page.wait_for_timeout(300)
+        layout = page.evaluate(LAYOUT)
+        assert not layout["scrolls"], (width, height)
+        assert layout["viewport"]["bottom"] <= layout["footer"]["top"]
+        share = (layout["viewport"]["bottom"] - layout["viewport"]["top"]) / height
+        if height > width:
+            assert share >= 0.7, (width, height, share)
+        for name in ["Model", "Results", "Play", "Contour settings"]:
+            inside(name, width, height)
+        inside("Contour", width, height, role="combobox")
+        inside("Substep 9 of 9", width, height, role="slider")
+        if not compact:
+            continue
+        toolbar = page.get_by_role("toolbar", name="View")
+        assert toolbar.bounding_box()["height"] < 50, (width, height)
+        toolbar.get_by_role("button", name="Points").scroll_into_view_if_needed()
+        inside("Points", width, height)
+        more = page.get_by_role("button", name="More controls")
+        more.click()
+        for name in ["Scale", "Undeformed", "Curve", "Live results"]:
+            box = page.get_by_label(name, exact=True).bounding_box()
+            assert box and box["x"] + box["width"] <= width, name
+            assert box["y"] + box["height"] <= height, name
+        assert not page.evaluate(LAYOUT)["scrolls"]
+        # the curve is off on a phone; it takes a part of the view, not covers it
+        curve = page.get_by_label("Curve", exact=True)
+        assert not curve.is_checked()
+        curve.check()
+        more.click()
+        card = page.get_by_role("region", name="Force-displacement curve")
+        sheet, viewer = page.evaluate(
+            """() => [".overlay-side", 'main[aria-label="Results"] .viewer'].map(
+                (s) => document.querySelector(s).getBoundingClientRect().toJSON())"""
+        )
+        if height > width:
+            assert viewer["bottom"] <= sheet["top"] + 1
+        else:
+            assert viewer["right"] <= sheet["left"] + 1
+        assert card.bounding_box()["x"] + card.bounding_box()["width"] <= width
+        assert not page.evaluate(LAYOUT)["scrolls"]
+        card.get_by_role("button", name="Close the curve").click()
     assert page.errors == []

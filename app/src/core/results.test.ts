@@ -67,6 +67,15 @@ describe("results view", () => {
     };
     expect(viewOf(run, previous)).toEqual({ ...previous, substep: 2 });
     expect(viewOf(run, { ...previous, job: "gone" }).job).toBe("job_1");
+    // the choices of a first view, e.g. without the curve on a phone (#378)
+    expect(viewOf(run, { curve: false })).toEqual({
+      job: "job_1",
+      substep: 5,
+      quantity: "displacement",
+      scale: 1,
+      undeformed: true,
+      curve: false,
+    });
     // the sections of the range of the contour (#377): a removed or renamed
     // section leaves them, none left is all sections
     const sections = [

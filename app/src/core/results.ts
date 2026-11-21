@@ -158,15 +158,18 @@ export function substepsAhead(
 
 /**
  * The view of a finished run: the choices of a previous view are kept, the substep
- * is the last one of the job (the final state).
+ * is the last one of the job (the final state). Without a previous view, the given
+ * choices are those of the first one (e.g. without the curve on a phone, #378).
  */
 export function viewOf(
   run: Finished,
-  previous: ResultView | undefined,
+  previous: Partial<ResultView> | undefined,
 ): ResultView {
   const jobs = Object.keys(run.results);
   const job =
-    previous && jobs.includes(previous.job) ? previous.job : (jobs[0] ?? "");
+    previous?.job && jobs.includes(previous.job)
+      ? previous.job
+      : (jobs[0] ?? "");
   const view: ResultView = {
     quantity: "displacement",
     scale: 1,

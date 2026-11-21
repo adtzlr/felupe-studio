@@ -73,6 +73,11 @@ interface Props {
   live?: { scene?: ResultScene; view: ResultView; status: string };
   /** The theme of the app (#375), for the colors of the view; dark by default. */
   theme?: Theme;
+  /**
+   * The compact layout of a phone (#378): the card of the control points is off by
+   * default, like the curve, so that it does not take the view.
+   */
+  compact?: boolean;
 }
 
 /** The wanted scene of a substep of the view; none while it is not shown. */
@@ -289,12 +294,13 @@ export function ResultsView({
   onShown,
   live,
   theme,
+  compact,
 }: Props) {
   // the live results replace the view of the loaded results (#207)
   const view = live ? live.view : loadedView;
   const [nodesShown, toggleNodes] = useShowNodes(showNodes, onShowNodes);
   // the table of the control points of the substep (#101)
-  const [pointsShown, setPointsShown] = useState(true);
+  const [pointsShown, setPointsShown] = useState(!compact);
   // the edges of the cells on the deformed shape (#233), kept for the next run
   const [edgesShown, setEdgesShown] = useState(true);
   // the minimum and the maximum of the contour, one of them selected (#140)

@@ -48,9 +48,11 @@ interface Options {
   store: ModelStore;
   jobs?: JobRunner;
   workspace: Workspace;
+  /** The compact layout of a phone (#378): the curve is off by default. */
+  compact?: boolean;
 }
 
-export function useResults({ store, jobs, workspace }: Options) {
+export function useResults({ store, jobs, workspace, compact }: Options) {
   const run = useJobs(jobs);
   const finished = jobs?.results;
   const [view, setView] = useState<ResultView>();
@@ -58,12 +60,15 @@ export function useResults({ store, jobs, workspace }: Options) {
   // (e.g. the quantity) are kept for the next run
   const lastView = useRef<ResultView | undefined>(undefined);
   if (view) lastView.current = view;
+  // the choices of the first view: a phone shows the curve on request (#378), as
+  // it would take much of the view
+  const first = compact ? { curve: false } : undefined;
   // a finished run shows its last substep, with the choices of the previous view
   useEffect(
     () =>
       setView(
         (previous) =>
-          finished && viewOf(finished, previous ?? lastView.current),
+          finished && viewOf(finished, previous ?? lastView.current ?? first),
       ),
     [finished],
   );
@@ -74,7 +79,7 @@ export function useResults({ store, jobs, workspace }: Options) {
   const [, setLiveBase] = useState<ResultView>();
   const live = finished
     ? undefined
-    : liveResults(run, liveChoice, lastView.current);
+    : liveResults(run, liveChoice, lastView.current ?? first);
   const changeLive = (view: ResultView) => {
     setLiveChoice(view.job);
     lastView.current = view;

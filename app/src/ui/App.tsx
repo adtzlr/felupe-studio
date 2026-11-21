@@ -107,7 +107,9 @@ export function App({
   useCapabilities(store, runtime);
   const [jobs] = useState(() => client && new JobRunner(client));
   const [workspace, setWorkspace] = useState<Workspace>("model");
-  const results = useResults({ store, jobs, workspace });
+  // the compact layout of phones and short windows (#378)
+  const compact = useMedia(COMPACT);
+  const results = useResults({ store, jobs, workspace, compact });
   const { run } = results;
   const dialogs = useDialogs();
   const project = useProject({
@@ -154,7 +156,6 @@ export function App({
   const [tab, setTab] = useState("mesh");
   // narrow windows show the browser and the properties as drawers (#131)
   const narrow = useMedia(NARROW);
-  const compact = useMedia(COMPACT);
   const [browserOpen, setBrowserOpen] = useState(false);
   // dark or light (#375), a setting of the browser
   const theme = useTheme();
@@ -337,7 +338,9 @@ export function App({
             line to select its object.
           </p>
         }
-        results={<ResultsRibbon store={store} results={results} />}
+        results={
+          <ResultsRibbon store={store} results={results} compact={compact} />
+        }
       />
       <div
         class={[
@@ -419,6 +422,7 @@ export function App({
             onShowNodes={setShowNodes}
             download={download}
             theme={theme.theme}
+            compact={compact}
           />
           <JobPanel
             run={run}

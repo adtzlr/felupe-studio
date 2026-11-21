@@ -15,9 +15,12 @@ import type { Results } from "./useResults";
 export function ResultsRibbon({
   store,
   results,
+  compact,
 }: {
   store: ModelStore;
   results: Results;
+  /** The compact layout of a phone (#378). */
+  compact?: boolean;
 }) {
   const { run, live } = results;
   return (
@@ -34,6 +37,7 @@ export function ResultsRibbon({
       currentRange={results.shownRange}
       shift={results.shift}
       player={results.player}
+      compact={compact}
     />
   );
 }
@@ -49,6 +53,8 @@ interface Props {
   download: (name: string, data: string | Blob) => void;
   /** The theme of the app (#375), for the colors of the view. */
   theme?: Theme;
+  /** The compact layout of a phone (#378): the cards are off by default. */
+  compact?: boolean;
 }
 
 /** The view of the results, with the curve of the shown job. */
@@ -62,6 +68,7 @@ export function ResultsPane({
   onShowNodes,
   download,
   theme,
+  compact,
 }: Props) {
   const { run, finished, view, live } = results;
   return (
@@ -82,6 +89,7 @@ export function ResultsPane({
       onShown={results.onShown}
       live={live}
       theme={theme}
+      compact={compact}
     >
       {finished && view?.curve && (
         <CurveCard

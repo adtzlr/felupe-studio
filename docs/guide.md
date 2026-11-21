@@ -27,6 +27,9 @@ On a phone, and in short windows (up to 600 px wide or up to 500 px high, e.g. a
 - **Model** and **Results** are two icons in the row of the tabs; their names are their tooltips. The tabs are one row that scrolls.
 - The commands of a tab open when you tap the tab, and close after a command or when you tap the tab again, so the view gets their height back.
 - The command line is behind its button beside Undo and Redo, and the status is one line with the issues.
+- **Results:** the contour, *Play* and the substep are one row, with the number of the substep beside its slider. **More controls** (the button at the end of the row) opens the others below it: the job, *Back and forth*, the speed, the values of the substep, the scale, *Undeformed*, *Curve* and *Live results*. In landscape, the row is beside *Model* and *Results*.
+- The toolbar of the view is one row that scrolls.
+- The curve and the card *Control points* are off at first, so that the view has the space: turn them on with *Curve* and with *Points* in the toolbar. They take the bottom of the view in portrait and its right side in landscape; the view gets smaller rather than covered.
 - The app keeps out of the notch and the home indicator of a phone.
 
 The project is kept in the browser with its mesh files: a reload restores it. To keep it elsewhere, save it.
