@@ -20,8 +20,10 @@ bushing made with the mesh tools, its revolved mesh with the tools in the browse
 and its section in the xy-plane, one of version 0.8: the bushing with the
 Mullins effect after its first load cycle, and three of version 0.9: the range of
 the contour of the rubber of the bushing with steel sleeves, and the same in the
-light theme, for a report, with the own colors of its sections, and one of version
-0.10: the bushing with steel sleeves cut through its axis.
+light theme, for a report, with the own colors of its sections, and two of version
+0.10: the profile of a buffer stacked from three rectangles with the mesh tools and
+revolved, and the bushing with steel sleeves cut through its axis, with the sleeves
+in one color.
 
 A second browser context of a phone in portrait (390 × 844) makes the picture of the
 compact layout of version 0.9: the model and the results with the curve, side by
@@ -46,6 +48,7 @@ path of another Chrome, like for the browser tests.
 import argparse
 import functools
 import http.server
+import json
 import os
 import re
 import threading
@@ -333,22 +336,83 @@ def capture(context, url, out, theme="dark"):
     page.mouse.move(500, 20)
     shot("section-colors")
 
+    # v0.10: a profile stacked into one mesh with the mesh tools (#394), in the theme
+    # of the pictures again; the last one, as the message of its command line stays
+    page.get_by_role("button", name="Theme", exact=True).click()
+    page.get_by_role("menuitemradio", name=re.compile(f"^{theme.title()}")).click()
+    shot_stack(page, shot)
+
     if errors:
         raise RuntimeError(f"Errors of the page: {errors}")
 
 
+def shot_stack(page, shot):
+    """A profile stacked into one mesh with the mesh tools (#394): the L of a rubber
+    buffer with a flange, of three rectangles stacked with the form of *Stack* and
+    revolved at once, by 270 degrees, so that the profile shows. The stack is
+    selected, with its form and the meshes it is made of below it in the browser."""
+    page.keyboard.press("Escape")
+    page.get_by_role("button", name="File", exact=True).click()
+    page.get_by_role("menuitem", name="New project").click()
+    confirm = page.get_by_role("dialog", name="New project")
+    confirm.or_(page.get_by_text("untitled.felupe.json")).first.wait_for()
+    if confirm.is_visible():
+        confirm.get_by_role("button", name="New project").click()
+
+    def command(kind, **fields):
+        """A command of the command line, and wait until its object is made."""
+        line = page.get_by_label("Command", exact=True)
+        line.fill(f"{kind} {json.dumps(fields)}")
+        line.press("Enter")
+        page.get_by_text(f"Created {fields['name']}.").first.wait_for()
+
+    command("model.settings", name="settings", units={"length": "mm", "force": "N"})
+    # the stem along the axis x, the flange at its end and the rim above it
+    for name, a, b, n in [
+        ("stem", [0, 10], [30, 20], [7, 3]),
+        ("flange", [30, 10], [40, 20], [3, 3]),
+        ("rim", [30, 20], [40, 35], [3, 4]),
+    ]:
+        parameters = {"a": a, "b": b, "n": n}
+        command("mesh.generate", name=name, tool="Rectangle", parameters=parameters)
+    page.get_by_role("button", name="Operations").click()
+    page.get_by_role("menuitem", name="Stack", exact=True).click()
+    dialog = page.get_by_role("dialog")
+    dialog.get_by_label("Name", exact=True).fill("profile")
+    dialog.get_by_role("button", name="Create").click()
+    # by meshes, the color by of a view before may be by sections
+    page.get_by_label("Color by").select_option("mesh")
+    browser = page.get_by_role("navigation", name="Model browser")
+    profile = browser.get_by_text("profile", exact=True)
+    profile.wait_for()
+    revolve = {"n": 19, "phi": 270, "axis": "x"}
+    command(
+        "mesh.generate",
+        name="buffer",
+        tool="revolve",
+        inputs=["profile"],
+        parameters=revolve,
+    )
+    profile.click()
+    page.wait_for_timeout(2000)  # the meshes of the tools are made in the worker
+    page.mouse.move(500, 20)
+    shot("stack")
+
+
 def shot_cut(page, shot):
     """The shown results cut at z = 0, e.g. the bushing through its axis: the von
-    Mises stress of the rubber between the sleeves, without the constraint, the
-    control points and the extremes, which are in the hidden half (#395). Then the
-    results as before."""
+    Mises stress of the rubber between the sleeves, which are in one color (#396),
+    without the constraint, the control points and the extremes, which are in the
+    hidden half (#395). Then the results as before."""
     view = page.get_by_role("main", name="Results")
     toggles = [
         page.get_by_role("button", name=name, exact=True)
         for name in ["Min/Max", "Constraints", "Points"]
     ]
+    pressed = [toggle.get_attribute("aria-pressed") == "true" for toggle in toggles]
     for toggle in toggles:
         set_pressed(toggle, False)
+    others(page, "One color")
     cut = view.get_by_role("combobox", name="Cut")
     cut.select_option("z")
     # the default view, without the focus ring of a toggle
@@ -357,8 +421,19 @@ def shot_cut(page, shot):
     page.mouse.move(500, 20)
     shot("cut")
     cut.select_option("")
-    for toggle in toggles:
-        set_pressed(toggle, True)
+    others(page, "Contour")
+    for toggle, was in zip(toggles, pressed, strict=True):
+        set_pressed(toggle, was)
+
+
+def others(page, mode):
+    """Draw the other sections of a range of chosen sections with their contour, in
+    one color or not at all (*Other sections* of the contour settings, #396)."""
+    page.get_by_role("button", name="Contour settings").click()
+    settings = page.get_by_role("dialog", name="Contour settings")
+    group = settings.get_by_role("group", name="Other sections")
+    group.get_by_role("radio", name=mode).check()
+    page.keyboard.press("Escape")
 
 
 def set_pressed(button, pressed):
