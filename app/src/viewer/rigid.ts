@@ -8,7 +8,7 @@ import { analysisOf, is2d } from "../core/analysis";
 import type { Command, ContactAdd, RigidAdd } from "../core/resolved";
 import { bounds } from "./boundaries";
 import { type SectionFaces, selectedFaces } from "./facesets";
-import type { ViewColors } from "./palette";
+import { FADED, type ViewColors } from "./palette";
 import { selectedPoints } from "./pointsets";
 import { arrowSegments, type Highlight, type Lines } from "./scene";
 
@@ -190,10 +190,41 @@ function circle(
   return { positions, triangles, outline };
 }
 
+/** The shape of a rigid surface. */
+interface Shape {
+  normal?: number[];
+  radius?: number;
+  axis?: number[];
+  inside?: boolean;
+}
+
+/**
+ * The mesh of a rigid surface at a point: a plane (in 2D a strip) or a cylinder (in
+ * 2D a circle), around the center of the model.
+ */
+function meshOf(
+  shape: Shape,
+  point: Vec3,
+  center: Vec3,
+  half: number,
+  planar: boolean,
+): Mesh {
+  if (shape.normal) {
+    return planar
+      ? strip(point, shape.normal as Vec3, center, half)
+      : plane(point, shape.normal as Vec3, center, half);
+  }
+  const radius = shape.radius ?? 1;
+  return planar
+    ? circle(point, radius, !!shape.inside, half)
+    : tube(point, (shape.axis ?? [0, 0, 1]) as Vec3, radius, center, half);
+}
+
 /**
  * The faces and the lines of the rigid surfaces: translucent shapes (the selected
- * one highlighted), their outlines and the normals of the planes. `offsets` move
- * the surfaces, e.g. by the displacements of their reference points in the results.
+ * one highlighted), their outlines and the normals of the planes; those whose
+ * contacts are off in a selected step are faded (#393). `offsets` move the surfaces,
+ * e.g. by the displacements of their reference points in the results.
  */
 export function rigidShapes(
   commands: readonly Command[],
@@ -203,12 +234,15 @@ export function rigidShapes(
     selected,
     colors,
     offsets = new Map<string, readonly number[]>(),
+    faded = new Set<string>(),
   }: {
     hidden?: ReadonlySet<string>;
     selected?: string;
     /** The colors of the view in its theme (#375). */
     colors: ViewColors;
     offsets?: ReadonlyMap<string, readonly number[]>;
+    /** What is off in a selected step, drawn faded (#393). */
+    faded?: ReadonlySet<string>;
   },
 ): { faces: Highlight[]; lines: Lines[] } {
   const rigids = commands.filter(isRigid).filter((c) => !hidden.has(c.name));
@@ -222,35 +256,22 @@ export function rigidShapes(
     const offset = offsets.get(rigid.name) ?? [0, 0, 0];
     const point = rigid.coordinates.map((x, k) => x + offset[k]) as Vec3;
     const center = model ? (model.map((x, k) => x + offset[k]) as Vec3) : point;
-    const shape = rigid.shape as {
-      normal?: number[];
-      radius?: number;
-      axis?: number[];
-      inside?: boolean;
-    };
-    let mesh: Mesh;
-    if (shape.normal) {
-      mesh = planar
-        ? strip(point, shape.normal as Vec3, center, half)
-        : plane(point, shape.normal as Vec3, center, half);
-    } else {
-      const radius = shape.radius ?? 1;
-      mesh = planar
-        ? circle(point, radius, !!shape.inside, half)
-        : tube(point, (shape.axis ?? [0, 0, 1]) as Vec3, radius, center, half);
-    }
+    const shape = rigid.shape as Shape;
+    const mesh = meshOf(shape, point, center, half, planar);
     const chosen = rigid.name === selected;
     const color = chosen ? colors.highlight : colors.rigid;
+    const fade = faded.has(rigid.name) ? { opacity: FADED } : {};
     faces.push({
       positions: Float32Array.from(mesh.positions),
       triangles: Uint32Array.from(mesh.triangles),
       color,
-      opacity: chosen ? 0.4 : 0.22,
+      opacity: (chosen ? 0.4 : 0.22) * (fade.opacity ?? 1),
     });
     lines.push({
       positions: Float32Array.from(mesh.outline),
       color,
       width: chosen ? 2 : 1,
+      ...fade,
     });
     if (shape.normal) {
       const n = unit(
@@ -263,6 +284,7 @@ export function rigidShapes(
         }),
         color,
         width: chosen ? 3 : 2,
+        ...fade,
       });
     }
   }

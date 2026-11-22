@@ -7,7 +7,7 @@ import { KINDS } from "./validate";
 import { describeLoadcase } from "./loadcases";
 import { describeSolver } from "./solvers";
 import { describeSymmetry } from "./symmetry";
-import { isOn } from "./steps";
+import { offIn } from "./steps";
 import {
   boundaryQuantity,
   rampedQuantity,
@@ -148,14 +148,13 @@ const boundaryDetail: Detail<"boundary.add"> = (cmd, { commands, units }) => {
   return `${cmd.pointset} · ${components(cmd.constrained)}${text}`;
 };
 
-/** The boundaries, load cases and symmetry planes that are off in a step (#393). */
-const BOUNDARIES = ["boundary.add", "loadcase.add", "symmetry.add"];
-
+/**
+ * The detail of a step: its ramp, and the boundaries, constraints and loads that
+ * are off in it (#393).
+ */
 const stepDetail: Detail<"step.add"> = (step, { commands, units }) => {
   const { ramp } = step;
-  const off = commands
-    .filter((c) => BOUNDARIES.includes(c.command) && !isOn(step, c.name))
-    .map((c) => c.name);
+  const off = offIn(step, commands);
   const items = (ramp?.items ?? []).map((i) => {
     const unit = unitOf(rampedQuantity(commands, i.target), units);
     const from = valueText(i.start ?? 0);

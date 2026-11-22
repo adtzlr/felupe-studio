@@ -7,7 +7,7 @@ import { analysisOf, is2d } from "../core/analysis";
 import type { Command } from "../core/resolved";
 import { LOADCASE_DEFAULTS } from "../core/loadcases";
 import { type Symmetry, symmetryPlanes } from "../core/symmetry";
-import { AXIS_COLORS, type ViewColors } from "./palette";
+import { AXIS_COLORS, FADED, type ViewColors } from "./palette";
 import { AXES, selectedPoints } from "./pointsets";
 import { arrowSegments, type Lines } from "./scene";
 
@@ -394,7 +394,8 @@ export function direction(symbol: BoundarySymbol): [number, number, number] {
 /**
  * The lines of the symbols of the boundaries: strokes along the fixed components
  * (in the colors of the axes) and arrows of the moved boundaries. Hidden owners are
- * left out, a selected owner is drawn in the highlight color.
+ * left out, a selected owner is drawn in the highlight color, and the owners that
+ * are off in a selected step are faded (#393).
  */
 export function boundaryLines(
   symbols: readonly BoundarySymbol[],
@@ -403,27 +404,36 @@ export function boundaryLines(
     hidden = new Set<string>(),
     selected,
     colors,
+    faded = new Set<string>(),
   }: {
     size: number;
     hidden?: ReadonlySet<string>;
     selected?: string;
     /** The colors of the view in its theme (#375). */
     colors: ViewColors;
+    /** What is off in a selected step, drawn faded (#393). */
+    faded?: ReadonlySet<string>;
   },
 ): Lines[] {
   const groups = new Map<
     string,
-    { color: string; width: number; parts: Float32Array[] }
+    { color: string; width: number; opacity?: number; parts: Float32Array[] }
   >();
-  const add = (color: string, width: number, part: Float32Array) => {
-    const key = `${color} ${width}`;
-    const group = groups.get(key) ?? { color, width, parts: [] };
+  const add = (
+    color: string,
+    width: number,
+    part: Float32Array,
+    opacity?: number,
+  ) => {
+    const key = `${color} ${width} ${opacity}`;
+    const group = groups.get(key) ?? { color, width, opacity, parts: [] };
     group.parts.push(part);
     groups.set(key, group);
   };
   for (const symbol of symbols) {
     if (hidden.has(symbol.owner)) continue;
     const chosen = symbol.owner === selected;
+    const opacity = faded.has(symbol.owner) ? FADED : undefined;
     if (symbol.values.some((value) => value !== 0)) {
       const origins = thinned(symbol.points);
       const d = direction(symbol).map((x) => x * 0.1 * size);
@@ -433,6 +443,7 @@ export function boundaryLines(
         chosen ? colors.highlight : colors.marker,
         chosen ? 3 : 2,
         arrowSegments({ origins, directions }),
+        opacity,
       );
     } else {
       for (const k of symbol.components) {
@@ -440,17 +451,23 @@ export function boundaryLines(
           chosen ? colors.highlight : AXIS_COLORS[k],
           chosen ? 3 : 2,
           strokes(symbol, k, 0.04 * size),
+          opacity,
         );
       }
     }
   }
-  return [...groups.values()].map(({ color, width, parts }) => {
+  return [...groups.values()].map(({ color, width, opacity, parts }) => {
     const positions = new Float32Array(parts.reduce((n, p) => n + p.length, 0));
     let offset = 0;
     for (const part of parts) {
       positions.set(part, offset);
       offset += part.length;
     }
-    return { positions, color, width };
+    return {
+      positions,
+      color,
+      width,
+      ...(opacity === undefined ? {} : { opacity }),
+    };
   });
 }

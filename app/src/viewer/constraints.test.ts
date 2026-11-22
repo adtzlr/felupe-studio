@@ -8,7 +8,7 @@ import {
   overConstrained,
   resultPlacement,
 } from "./constraints";
-import { VIEW_COLORS } from "./palette";
+import { FADED, VIEW_COLORS } from "./palette";
 
 // the nodes of a unit square in the plane z = 0 and of its face at x = 1
 const nodes = [Float64Array.from([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0])];
@@ -75,6 +75,13 @@ describe("multi-point constraints in the viewport (#99)", () => {
     });
     expect(moved.positions[0]).toBe(2.5);
     expect(moved.positions[3]).toBe(2);
+    // faded if it is off in the selected step (#393)
+    expect(constraintLines(shapes, { colors })[0].opacity).toBeUndefined();
+    const [faded] = constraintLines(shapes, {
+      colors,
+      faded: new Set(["glue"]),
+    });
+    expect(faded).toMatchObject({ color: colors.control, opacity: FADED });
   });
 
   it("report points that a boundary prescribes as well", () => {

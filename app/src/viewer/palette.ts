@@ -46,6 +46,13 @@ export const POINT_COLOR = "#f2f4f8";
  */
 export const OUTLINE_COLOR = "#11151c";
 
+/**
+ * The opacity of what is off in a selected step (#393): its lines, and the faces of
+ * its rigid surfaces as a part of theirs. Faint, but still seen on the background
+ * and on the model of both themes.
+ */
+export const FADED = 0.25;
+
 /** The colors of the axes, like the axis triad of the viewer, in both themes. */
 export const AXIS_COLORS = ["#d62728", "#2ca02c", "#1f77b4"] as const;
 

@@ -2,7 +2,7 @@
 // direction of its force.
 import type { Command, LoadAdd } from "../core/resolved";
 import { thinned } from "./boundaries";
-import type { ViewColors } from "./palette";
+import { FADED, type ViewColors } from "./palette";
 import { selectedPoints } from "./pointsets";
 import { arrowSegments, type Lines } from "./scene";
 
@@ -25,7 +25,8 @@ function pointsOf(
 /**
  * The arrows of the point loads: at every point (thinned out for many points), in
  * the direction of the force, with a length relative to the size of the model; the
- * selected load is highlighted.
+ * selected load is highlighted, those that are off in a selected step are faded
+ * (#393).
  */
 export function loadLines(
   commands: readonly Command[],
@@ -35,12 +36,15 @@ export function loadLines(
     hidden = new Set<string>(),
     selected,
     colors,
+    faded = new Set<string>(),
   }: {
     size: number;
     hidden?: ReadonlySet<string>;
     selected?: string;
     /** The colors of the view in its theme (#375). */
     colors: ViewColors;
+    /** What is off in a selected step, drawn faded (#393). */
+    faded?: ReadonlySet<string>;
   },
 ): Lines[] {
   const lines: Lines[] = [];
@@ -59,6 +63,7 @@ export function loadLines(
       positions: arrowSegments({ origins, directions }),
       color: chosen ? colors.highlight : colors.force,
       width: chosen ? 3 : 2,
+      ...(faded.has(load.name) ? { opacity: FADED } : {}),
     });
   }
   return lines;

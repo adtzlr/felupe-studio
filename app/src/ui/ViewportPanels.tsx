@@ -1,7 +1,7 @@
 // The toolbar and the panels of the viewport (#312): the selected point set, the
-// tip about picking, a picked face, picked surfaces and picked nodes, and the
-// warnings about the selected object, stacked between the axes and the job panel
-// (#128).
+// tip about picking, a picked face, picked surfaces and picked nodes, the warnings
+// about the selected object and what is off in the selected step (#393), stacked
+// between the axes and the job panel (#128).
 import { toName } from "../core/importmesh";
 import type { Command, FaceSetAdd, PointSetAdd } from "../core/resolved";
 import { withHint } from "../core/shortcuts";
@@ -529,6 +529,20 @@ const listed = (points: readonly (readonly number[])[]) =>
     .slice(0, 3)
     .map((p) => `(${p.map(formatNumber).join(", ")})`)
     .join(", ") + (points.length > 3 ? ` and ${points.length - 3} more` : "");
+
+/** What is off in the selected step, and faded in the viewport (#393). */
+export function OffInStep({
+  off,
+}: {
+  off?: { step: string; names: readonly string[] };
+}) {
+  if (!off) return null;
+  return (
+    <p class="viewport-status muted" role="status">
+      Off in {off.step} (faded): {off.names.join(", ")}
+    </p>
+  );
+}
 
 /** What the viewport warns about the selected object. */
 export function WarningsOf({
