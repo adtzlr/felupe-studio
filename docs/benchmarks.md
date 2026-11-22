@@ -328,3 +328,18 @@ Peak memory of a process (the resident set; Python with FElupe takes about 63 MB
 | the model in `float32`                  |    44 s |     9 s |                620 MB / 589 MB |
 
 The forces of PARDISO are those of SuperLU in every precision (four digits; the golden case `bar_pardiso` agrees within 1e-10). PARDISO factorizes with less fill-in and on both cores: the larger the model, the larger its lead, 7 to 8 times at 27,783 DOF in double precision, with less memory than SuperLU. Single precision adds less with PARDISO than with SuperLU (1.5 times at n = 21 instead of 1.8 for the linear system, 2.0 instead of 2.9 for the model), as the factorization is no longer most of the time: the assembly and the material take the rest. PARDISO factorizes on all cores of the computer, SuperLU of SciPy on one.
+
+## A cut through the model (#395)
+
+`felupe_studio.cuts.cut()` (ADR 0022) of a cube, by a plane through points of the mesh (x = 0.5) and through its cells (z = 0.33). *Surface* is the outer surface of FElupe (`triangulate_surface`), which the cut clips; *Interpolation* is the displacement of all points of the cut of a substep, the only work for a new substep, a quantity or a scale while the cut is cached.
+
+Container with 4 cores (x86_64), CPython 3.13.18, FElupe 12.1.1, NumPy 2.5.3, SciPy 1.18.1. Best of seven runs, times in milliseconds:
+
+| Mesh                                           |  Cells | Surface | Cut x = 0.5 | Cut z = 0.33 | Interpolation | Triangles: surface / x = 0.5 / z = 0.33 |
+| ---------------------------------------------- | -----: | ------: | ----------: | -----------: | ------------: | --------------------------------------: |
+| hexahedrons, n = 21 (the largest benchmark)    |   8000 |     8.0 |        21.8 |         14.8 |          0.04 |                    4800 / 3200 / 10,240 |
+| hexahedrons, n = 41                            | 64,000 |    43.0 |        69.4 |         61.9 |          0.20 |                19,200 / 12,800 / 40,640 |
+| tetrahedrons, n = 21 (`triangulate()`)         | 48,000 |    17.0 |        26.9 |         26.9 |          0.04 |                    4800 / 3200 / 12,720 |
+| quadratic hexahedrons (`hexahedron20`), n = 11 |   1000 |     3.1 |        15.5 |         16.8 |          0.06 |                      4800 / 3200 / 8480 |
+
+A cut takes 1.5 to 5 times as long as the outer surface, once per cut: about 20 ms for the largest benchmark. The cut face of a plane through cells (z = 0.33) has about 18 triangles per hexahedron (the sections of its tetrahedrons), 4 per tetrahedron and 54 per quadratic hexahedron, which is subdivided like its outer surface; a plane through points of the mesh (x = 0.5) takes the faces of the cells as the cut face.

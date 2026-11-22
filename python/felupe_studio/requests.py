@@ -124,6 +124,7 @@ def _result(request, send):
         request["substep"],
         request["quantity"],
         request.get("method") or "cells",
+        request.get("cut"),
     )
     scene = _scene(meta, surfaces)
     send({"type": "result-scene", "id": request["id"], "scene": scene})
