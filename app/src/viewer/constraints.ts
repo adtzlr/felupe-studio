@@ -55,7 +55,10 @@ export function constraintShapes(
 /**
  * The lines of the constraints: from the center point to every connected point
  * (thinned out for many points, like the symbols of the boundaries); the selected
- * one is highlighted, and those that are off in a selected step are faded (#393). `place` moves a point, e.g. by the displacement of a result.
+ * one is highlighted, and those that are off in a selected step are faded (#393).
+ * `place` moves a point, e.g. by the displacement of a result, and `clip` gives the
+ * visible part of a line of the undeformed model (#395), from 0 at the center
+ * point to 1 at the connected point, none if it is hidden.
  */
 export function constraintLines(
   shapes: readonly ConstraintShape[],
@@ -64,6 +67,7 @@ export function constraintLines(
     selected,
     colors,
     place = (p: Point3) => p,
+    clip,
     faded = new Set<string>(),
   }: {
     hidden?: ReadonlySet<string>;
@@ -73,6 +77,7 @@ export function constraintLines(
     /** What is off in a selected step, drawn faded (#393). */
     faded?: ReadonlySet<string>;
     place?: (point: Point3) => Point3;
+    clip?: (a: Point3, b: Point3) => readonly [number, number] | undefined;
   },
 ): Lines[] {
   const lines: Lines[] = [];
@@ -80,11 +85,23 @@ export function constraintLines(
     if (hidden.has(shape.name)) continue;
     const points = thinned(shape.points);
     const center = place(shape.center);
-    const positions = new Float32Array(2 * points.length);
-    for (let p = 0, s = 0; p < points.length; p += 3, s += 6) {
-      positions.set(center, s);
-      positions.set(place([points[p], points[p + 1], points[p + 2]]), s + 3);
+    const segments: number[] = [];
+    for (let p = 0; p < points.length; p += 3) {
+      const point: Point3 = [points[p], points[p + 1], points[p + 2]];
+      const part = clip ? clip(shape.center, point) : [0, 1];
+      if (!part) continue;
+      const end = place(point);
+      const at = (t: number) =>
+        t === 0
+          ? center
+          : t === 1
+            ? end
+            : center.map((x, k) => x + t * (end[k] - x));
+      segments.push(...at(part[0]), ...at(part[1]));
     }
+    // all of it hidden
+    if (clip && !segments.length) continue;
+    const positions = Float32Array.from(segments);
     const chosen = shape.name === selected;
     lines.push({
       positions,
@@ -130,7 +147,8 @@ export function overConstrained(
 /**
  * The nodes of the surfaces of a result (exact enough to select point sets) and a
  * function that moves a point by the scaled displacement of the nearest node; the
- * control points move with their own displacement.
+ * control points move with their own displacement. Of a cut scene, the nodes of the
+ * whole outer surfaces (#395).
  */
 export function resultPlacement(
   scene: ResultScene,
@@ -139,6 +157,11 @@ export function resultPlacement(
   const nodes: Float64Array[] = [];
   const moves: Float64Array[] = [];
   for (const s of scene.surfaces) {
+    if (s.uncut) {
+      nodes.push(Float64Array.from(s.uncut.positions));
+      moves.push(Float64Array.from(s.uncut.displacement));
+      continue;
+    }
     const kept: number[] = [];
     for (let p = 0; p < s.nodes.length; p++) if (s.nodes[p] >= 0) kept.push(p);
     const at = new Float64Array(3 * kept.length);

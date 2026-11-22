@@ -900,3 +900,97 @@ def test_a_cut_of_the_model(url, page):
     cut.select_option("")
     assert page.evaluate(DIFFERENT, [whole, picture()]) == 0
     assert page.errors == []
+
+
+def test_a_cut_of_the_results(url, page):
+    """A cut of the view in the Results workspace (#395): the bushing with steel
+    sleeves cut at z = 0 through its axis, the von Mises stress inside its rubber,
+    the cut face moving with the material from substep to substep."""
+    page.context.add_init_script(RECORD_SAVES)
+    page.goto(url)
+    page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
+    page.get_by_role("button", name="File", exact=True).click()
+    page.get_by_role("menuitem", name="Samples…").click()
+    title = page.get_by_role(
+        "heading", name="Bushing with steel sleeves (FElupe ex05)", exact=True
+    )
+    page.get_by_role("dialog").locator("li").filter(has=title).get_by_role(
+        "button", name="Open"
+    ).click()
+    page.get_by_role("dialog", name=re.compile("^Parameters")).get_by_role(
+        "button", name="Open", exact=True
+    ).click()
+    page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)
+    # the cut of the Model workspace, by z at the middle: through the axis x
+    page.get_by_role("combobox", name="Cut").select_option("z")
+    assert (
+        page.get_by_role("spinbutton", name="Coordinate of the cut, z").input_value()
+        == "0"
+    )
+
+    page.get_by_role("button", name="Solve").click()
+    shown = page.get_by_role("button", name="Show results")
+    shown.wait_for(timeout=120_000)
+    shown.click()
+    page.locator(".results-controls select").filter(
+        has=page.locator("option[value=stress_mises]")
+    ).select_option("stress_mises")
+    page.locator(".app-scalar-bar .fv-bar-title", has_text="Von Mises").wait_for(
+        timeout=60_000
+    )
+    view = page.get_by_role("main", name="Results")
+    # the same cut in the results, a setting of the view
+    cut = view.get_by_role("combobox", name="Cut")
+    assert cut.input_value() == "z"
+    page.get_by_label("Curve", exact=True).set_checked(False)
+    page.get_by_label("Undeformed", exact=True).set_checked(False)
+    # onto the cut face: the xy-plane, seen from the hidden half
+    view.get_by_role("button", name="View onto the xy-plane").click()
+    page.locator(".viewport-status").wait_for(state="detached", timeout=60_000)
+
+    def picture():
+        _, data = saved(page, lambda: export(page, "Picture of the view"))
+        assert data.startswith(b"\x89PNG")
+        return base64.b64encode(data).decode()
+
+    def values():
+        # the values under the pointer along a line down the middle of the view,
+        # across the sleeves and the rubber between them
+        box = view.locator("canvas.fv-gl").first.bounding_box()
+        tip = page.locator(".probe-tooltip")
+        found = {}
+        for i in range(2, 19):
+            y = box["y"] + box["height"] * i / 20
+            page.mouse.move(box["x"] + box["width"] * 0.5, y)
+            page.wait_for_timeout(100)
+            # the values of the cells, not the control point at the axis
+            lines = tip.inner_text().splitlines() if tip.count() else []
+            if len(lines) == 2 and lines[1].startswith("Cell "):
+                found[i] = tuple(lines)
+        page.mouse.move(box["x"] + 5, box["y"] + box["height"] - 5)
+        return found
+
+    last = picture()
+    inside = values()
+    # the rubber and the steel of the cut face, with their stresses
+    assert any(w.endswith("of soft_body") for _, w in inside.values()), inside
+    assert any(w.endswith("of sleeves") for _, w in inside.values()), inside
+    assert all(v.startswith("Von Mises") for v, _ in inside.values())
+
+    # an earlier substep: the cut face moved with the material
+    substep = page.get_by_role("slider", name=re.compile("^Substep"))
+    substep.fill("3")
+    page.get_by_text("Substep 3 of 7").wait_for()
+    page.locator(".viewport-status").wait_for(state="detached", timeout=60_000)
+    earlier = picture()
+    assert page.evaluate(DIFFERENT, [last, earlier]) > 1000
+    assert values() != inside
+
+    # without the cut: the whole bushing; with it again, the same picture as before
+    cut.select_option("")
+    page.locator(".viewport-status").wait_for(state="detached", timeout=60_000)
+    assert page.evaluate(DIFFERENT, [earlier, picture()]) > 1000
+    cut.select_option("z")
+    page.locator(".viewport-status").wait_for(state="detached", timeout=60_000)
+    assert page.evaluate(DIFFERENT, [earlier, picture()]) == 0
+    assert page.errors == []

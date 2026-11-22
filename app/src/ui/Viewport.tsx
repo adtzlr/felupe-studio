@@ -12,7 +12,6 @@ import {
   cutLines,
   cutMarkers,
   meshCuts,
-  planeOf,
   uncutPick,
   visiblePoints,
 } from "../viewer/cut";
@@ -27,7 +26,7 @@ import { viewColors } from "../viewer/palette";
 import { centerOf, controlName, outerPoints } from "../viewer/pointsets";
 import { type Capture, type CreateViewer, Viewer } from "../viewer/viewer";
 import type { Cut } from "../worker/protocol";
-import { boundsOf, shownCut } from "./CutControls";
+import { boundsOf, cutPlane, shownCut } from "./CutControls";
 import { useMedia, useMeshFiles, useViewKeys } from "./hooks";
 import { useShowNodes } from "./NodesButton";
 import { useOverlays } from "./useOverlays";
@@ -356,11 +355,7 @@ function useCutView(
 ) {
   const cut = shownCut(view.cut, view.planar);
   const bounds = useMemo(() => boundsOf(nodes), [nodes]);
-  const plane = useMemo(() => {
-    if (!cut || !bounds) return undefined;
-    const size = Math.hypot(...bounds.max.map((x, k) => x - bounds.min[k]));
-    return planeOf(cut, size);
-  }, [cut, bounds]);
+  const plane = useMemo(() => cutPlane(cut, bounds), [cut, bounds]);
   const cuts = useMemo(() => meshCuts(content, cut), [content, cut]);
   useEffect(() => files.cutMeshes(cuts), [files, cuts]);
   // drawn again when a cut arrives

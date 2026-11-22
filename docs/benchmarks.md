@@ -343,3 +343,15 @@ Container with 4 cores (x86_64), CPython 3.13.18, FElupe 12.1.1, NumPy 2.5.3, Sc
 | quadratic hexahedrons (`hexahedron20`), n = 11 |   1000 |     3.1 |        15.5 |         16.8 |          0.06 |                      4800 / 3200 / 8480 |
 
 A cut takes 1.5 to 5 times as long as the outer surface, once per cut: about 20 ms for the largest benchmark. The cut face of a plane through cells (z = 0.33) has about 18 triangles per hexahedron (the sections of its tetrahedrons), 4 per tetrahedron and 54 per quadratic hexahedron, which is subdivided like its outer surface; a plane through points of the mesh (x = 0.5) takes the faces of the cells as the cut face.
+
+### Browser
+
+The same in Pyodide 314.0.7 (Python 3.14.2, FElupe 12.1.1, NumPy 2.4.6) in Chromium 153 (headless) on the same container. Best of seven runs, times in milliseconds; the timer of the browser is coarse, the interpolation of a substep takes less than 0.5 ms:
+
+| Mesh                                           |  Cells | Surface | Cut x = 0.5 | Cut z = 0.33 |
+| ---------------------------------------------- | -----: | ------: | ----------: | -----------: |
+| hexahedrons, n = 21 (the largest benchmark)    |   8000 |    12.7 |        33.1 |         33.3 |
+| tetrahedrons, n = 21 (`triangulate()`)         | 48,000 |    31.9 |        52.3 |         50.7 |
+| quadratic hexahedrons (`hexahedron20`), n = 11 |   1000 |     5.8 |        29.7 |         27.1 |
+
+A cut takes about 1.5 to 2.5 times as long as in CPython: about 35 ms for the largest benchmark, once per cut and section. A new substep, quantity or scale of the same cut is the interpolation of the kept cut, as in CPython. The Results workspace asks for a cut when the slider stops (ADR 0022), so the cut follows the slider within a frame or two of these times plus the transfer of the scene.

@@ -168,6 +168,9 @@ class Live(fem.Plugin):
     method : str, optional
         The method of the values of the strains and the stresses of the scenes
         (#231), see :func:`felupe_studio.results.scene`.
+    cut : dict or None, optional
+        The cut of the view of the scenes (#395), see
+        :func:`felupe_studio.results.scene`.
     interval : float, optional
         The least time between two scenes in seconds (default 1).
     budget : float, optional
@@ -187,6 +190,7 @@ class Live(fem.Plugin):
         curve=None,
         quantity=None,
         method="cells",
+        cut=None,
         interval=1.0,
         budget=0.1,
         clock=time.perf_counter,
@@ -199,6 +203,7 @@ class Live(fem.Plugin):
         self.rotation = rotation
         self.quantity = quantity
         self.method = method
+        self.cut = cut
         self.interval = interval
         self.budget = budget
         self.clock = clock
@@ -228,7 +233,7 @@ class Live(fem.Plugin):
         now = self.clock()
         if self.due(now, state):
             event["scene"] = results_.current_scene(
-                self.job, event["substep"], self.quantity, self.method
+                self.job, event["substep"], self.quantity, self.method, self.cut
             )
             self.last = self.clock()
             self.spent += self.last - now
@@ -298,9 +303,9 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
         ``live`` (see :class:`Live`) and ``finished``.
     live : dict or None, optional
         The settings of the live scenes of the running jobs (#207): the
-        ``quantity`` and optionally the ``method`` (#231), the ``interval`` and the
-        ``budget`` of :class:`Live`. Without them, the live events have only the
-        points of the curves of characteristic curves.
+        ``quantity`` and optionally the ``method`` (#231), the ``cut`` (#395), the
+        ``interval`` and the ``budget`` of :class:`Live`. Without them, the live
+        events have only the points of the curves of characteristic curves.
     clock : callable, optional
         The time in seconds, e.g. a fake clock for tests of the live scenes.
 

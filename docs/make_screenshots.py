@@ -20,7 +20,8 @@ bushing made with the mesh tools, its revolved mesh with the tools in the browse
 and its section in the xy-plane, one of version 0.8: the bushing with the
 Mullins effect after its first load cycle, and three of version 0.9: the range of
 the contour of the rubber of the bushing with steel sleeves, and the same in the
-light theme, for a report, with the own colors of its sections.
+light theme, for a report, with the own colors of its sections, and one of version
+0.10: the bushing with steel sleeves cut through its axis.
 
 A second browser context of a phone in portrait (390 × 844) makes the picture of the
 compact layout of version 0.9: the model and the results with the curve, side by
@@ -307,6 +308,10 @@ def capture(context, url, out, theme="dark"):
     settings.get_by_label("soft_body", exact=True).check()
     shot("range-of-sections")
 
+    # v0.10: a cut through the model (#395)
+    page.keyboard.press("Escape")
+    shot_cut(page, shot)
+
     # the light theme for a report (#375): the same view on white
     page.keyboard.press("Escape")
     page.get_by_role("button", name="Theme", exact=True).click()
@@ -330,6 +335,30 @@ def capture(context, url, out, theme="dark"):
 
     if errors:
         raise RuntimeError(f"Errors of the page: {errors}")
+
+
+def shot_cut(page, shot):
+    """The shown results cut at z = 0, e.g. the bushing through its axis: the von
+    Mises stress of the rubber between the sleeves, without the constraint, the
+    control points and the extremes, which are in the hidden half (#395). Then the
+    results as before."""
+    view = page.get_by_role("main", name="Results")
+    toggles = [
+        page.get_by_role("button", name=name, exact=True)
+        for name in ["Min/Max", "Constraints", "Points"]
+    ]
+    for toggle in toggles:
+        set_pressed(toggle, False)
+    cut = view.get_by_role("combobox", name="Cut")
+    cut.select_option("z")
+    # the default view, without the focus ring of a toggle
+    page.evaluate("document.activeElement.blur()")
+    page.keyboard.press("1")
+    page.mouse.move(500, 20)
+    shot("cut")
+    cut.select_option("")
+    for toggle in toggles:
+        set_pressed(toggle, True)
 
 
 def set_pressed(button, pressed):

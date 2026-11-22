@@ -106,6 +106,8 @@ export interface RawResultSurface {
   values: Uint8Array;
   owners: Uint8Array;
   nodes: Uint8Array;
+  outer?: number | null;
+  uncut?: { positions: Uint8Array; displacement: Uint8Array } | null;
 }
 
 export function toResultScene(
@@ -124,6 +126,14 @@ export function toResultScene(
       nodes: view(Int32Array, s.nodes),
     };
     if (s.faces) surface.faces = view(Uint32Array, s.faces);
+    // of a cut (#395)
+    if (s.outer != null) surface.outer = s.outer;
+    if (s.uncut) {
+      surface.uncut = {
+        positions: view(Float32Array, s.uncut.positions),
+        displacement: view(Float32Array, s.uncut.displacement),
+      };
+    }
     return surface;
   });
   return { ...meta, surfaces };
@@ -142,6 +152,8 @@ export function resultTransferables(scene: ResultScene): ArrayBuffer[] {
       s.values,
       s.owners,
       s.nodes,
+      s.uncut?.positions,
+      s.uncut?.displacement,
     ]) {
       if (array) buffers.add(array.buffer as ArrayBuffer);
     }

@@ -103,6 +103,25 @@ describe("result scene of Python", () => {
     expect(surface.positions.buffer).toBe(raw.positions.buffer);
     expect([...surface.owners]).toEqual([4]);
     expect([...surface.nodes]).toEqual([7, -1, 9]);
+    expect(surface.outer).toBeUndefined();
+    expect(surface.uncut).toBeUndefined();
     expect(resultTransferables(scene)).toHaveLength(7);
+
+    // of a cut (#395): the triangles of the outer surface, the nodes of all of it
+    const cut = toResultScene(meta, [
+      {
+        ...raw,
+        outer: 0,
+        uncut: {
+          positions: bytes(new Float32Array([0, 0, 0, 2, 0, 0])),
+          displacement: bytes(new Float32Array([0, 0, 0, 0.5, 0, 0])),
+        },
+      },
+    ]);
+    const [cutSurface] = cut.surfaces;
+    expect(cutSurface.outer).toBe(0);
+    expect([...cutSurface.uncut!.positions]).toEqual([0, 0, 0, 2, 0, 0]);
+    expect([...cutSurface.uncut!.displacement]).toEqual([0, 0, 0, 0.5, 0, 0]);
+    expect(resultTransferables(cut)).toHaveLength(9);
   });
 });

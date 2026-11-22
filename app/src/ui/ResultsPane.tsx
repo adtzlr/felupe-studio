@@ -6,6 +6,7 @@ import type { ModelStore } from "../core/store";
 import type { Theme } from "../core/theme";
 import type { Capture } from "../viewer/viewer";
 import type { RuntimeClient } from "../worker/client";
+import type { Cut } from "../worker/protocol";
 import { CurveCard } from "./CurveCard";
 import { ResultsControls } from "./ResultsControls";
 import { ResultsView } from "./ResultsView";
@@ -60,6 +61,9 @@ interface Props {
   theme?: Theme;
   /** The compact layout of a phone (#378): the cards are off by default. */
   compact?: boolean;
+  /** The cut of the view (#395), shared with the Model workspace. */
+  cut?: Cut;
+  onCut?: (cut: Cut | undefined) => void;
 }
 
 /** The view of the results, with the curve of the shown job. */
@@ -74,6 +78,8 @@ export function ResultsPane({
   saveFile,
   theme,
   compact,
+  cut,
+  onCut,
 }: Props) {
   const { run, finished, view, live } = results;
   return (
@@ -95,6 +101,8 @@ export function ResultsPane({
       live={live}
       theme={theme}
       compact={compact}
+      cut={cut}
+      onCut={onCut}
     >
       {finished && view?.curve && (
         <CurveCard

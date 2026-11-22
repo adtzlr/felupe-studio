@@ -1,8 +1,11 @@
 // The minimum and the maximum of a contour in the view (#140): a node gets a dot; a
 // cell at the surface gets the outlines of its outer faces (a dot at its center
 // would be inside the section), and its label takes the center of the outer face
-// nearest to the camera; a cell inside keeps a dot at its center.
+// nearest to the camera; a cell inside keeps a dot at its center. With a cut of the
+// view (#395), a cell on the cut face gets the outline of its cut, too, and an
+// extreme in the hidden half is not drawn.
 import type { ResultExtreme, ResultScene } from "../worker/protocol";
+import { isVisible, type Plane } from "./cut";
 import type { Vec3 } from "./picking";
 
 export interface ExtremeShape {
@@ -24,27 +27,42 @@ const deformed = (
     (k) => positions[3 * point + k] + scale * displacement[3 * point + k],
   ) as Vec3;
 
-/** The drawn shape of an extreme of a scene, displaced by the scale. */
+/**
+ * The drawn shape of an extreme of a scene, displaced by the scale; none in the
+ * hidden half of a cut of the scene (#395): of a node there, or of a cell with no
+ * drawn faces and its center there.
+ */
 export function extremeShape(
   scene: ResultScene,
   extreme: ResultExtreme,
   scale: number,
-): ExtremeShape {
+  plane?: Plane,
+): ExtremeShape | undefined {
   const center = extreme.position.map(
     (x, k) => x + scale * extreme.displacement[k],
   ) as Vec3;
+  const dot = () =>
+    plane && !isVisible(plane, extreme.position)
+      ? undefined
+      : { anchors: [center], dot: center };
   const surface = scene.surfaces.find((s) => s.name === extreme.section);
-  if (extreme.at === "point" || !extreme.surface || !surface) {
-    return { anchors: [center], dot: center };
+  // a cell inside may be on the cut face
+  if (extreme.at === "point" || !surface || (!extreme.surface && !plane)) {
+    return dot();
   }
-  // the triangles of the cell, grouped by their faces (of linear cells)
-  const groups = new Map<number, number[]>();
+  // the triangles of the cell, grouped by their faces (of linear cells), those of
+  // the cut face of a curved cell together
+  const groups = new Map<number | "cut", number[]>();
   surface.owners.forEach((owner, t) => {
     if (owner !== extreme.index) return;
-    const face = surface.faces ? surface.faces[t] : t;
+    const face = surface.faces
+      ? surface.faces[t]
+      : surface.outer !== undefined && t >= surface.outer
+        ? "cut"
+        : t;
     groups.set(face, [...(groups.get(face) ?? []), t]);
   });
-  if (!groups.size) return { anchors: [center], dot: center };
+  if (!groups.size) return dot();
 
   const anchors: Vec3[] = [];
   const segments: number[] = [];

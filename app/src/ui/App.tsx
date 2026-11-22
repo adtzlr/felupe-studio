@@ -117,7 +117,9 @@ export function App({
   const [workspace, setWorkspace] = useState<Workspace>("model");
   // the compact layout of phones and short windows (#378)
   const compact = useMedia(COMPACT);
-  const results = useResults({ store, jobs, workspace, compact });
+  // the cut of the view in both workspaces (#395), not of the project
+  const [cut, setCut] = useState<Cut>();
+  const results = useResults({ store, jobs, workspace, compact, cut });
   const { run } = results;
   const dialogs = useDialogs();
   // every file is saved with the save dialog of the system where there is one,
@@ -181,8 +183,6 @@ export function App({
   const [dragging, setDragging] = useState(false);
   // the nodes of the meshes in both workspaces (#91)
   const [showNodes, setShowNodes] = useState(false);
-  // the cut of the view in both workspaces (#395), not of the project
-  const [cut, setCut] = useState<Cut>();
   const [update, setUpdate] = useState<"available" | "dismissed">();
   const fileInput = useRef<HTMLInputElement>(null);
   const openFile = () => fileInput.current?.click();
@@ -449,6 +449,8 @@ export function App({
             saveFile={exports.saveFile}
             theme={theme.theme}
             compact={compact}
+            cut={cut}
+            onCut={setCut}
           />
           <JobPanel
             run={run}

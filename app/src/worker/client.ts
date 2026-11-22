@@ -289,15 +289,26 @@ export class RuntimeClient {
     );
   }
 
-  /** The result of a substep of a job of the last run (substeps count from 1). */
+  /**
+   * The result of a substep of a job of the last run (substeps count from 1), cut
+   * by a cut of the view (#395).
+   */
   async resultScene(
     job: string,
     substep: number,
     quantity: Quantity,
     method?: ValuesMethod,
+    cut?: Cut,
   ): Promise<ResultScene> {
     const message = await this.request(
-      { type: "result", job, substep, quantity, method },
+      {
+        type: "result",
+        job,
+        substep,
+        quantity,
+        method,
+        ...(cut ? { cut } : {}),
+      },
       "result-scene",
     );
     return (message as Extract<FromWorker, { type: "result-scene" }>).scene;

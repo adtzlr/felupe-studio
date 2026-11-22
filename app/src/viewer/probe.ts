@@ -129,13 +129,15 @@ export function probeInfo(scene: ResultScene, probe: Probe): ProbeInfo {
     };
   }
   const node = surface.nodes[probe.point];
+  // a point of the cut face of a cut scene (#395), on an edge of a cell
+  const cut = surface.outer !== undefined && probe.triangle >= surface.outer;
   return {
     label: scene.label,
     value: finite(surface.values[probe.point]),
     where:
       node >= 0
         ? `Node ${node} of ${surface.name}`
-        : `A point of a face of ${surface.name}`,
+        : `A point of ${cut ? "the cut face" : "a face"} of ${surface.name}`,
     displacement: vertex(surface.displacement, probe.point),
     atPoint: true,
   };
