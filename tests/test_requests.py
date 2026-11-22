@@ -64,6 +64,11 @@ def test_the_requests_of_the_app(answers, tmp_path, monkeypatch):
     assert isinstance(surface["positions"], bytes) and surface["cells"] > 0
     # the message travels as a binary frame
     assert decode(encode(info))["surfaces"] == info["surfaces"]
+    # cut (#395): the kept cells of the mesh, with the triangles of the outer surface
+    cut = {"axis": "x", "value": 0.5, "half": "+"}
+    [half] = answers({"type": "inspect-mesh", "id": 2, "name": "cube.vtu", "cut": cut})
+    assert half["info"] == info["info"] and surface["sources"] is None
+    assert len(half["surfaces"]["hexahedron"]["sources"]) > 0
 
     [checked] = answers({"type": "check", "id": 12, "document": DOCUMENT})
     report = json.loads(checked["text"])
@@ -150,6 +155,8 @@ def test_scripts_make_meshes(answers, tmp_path, monkeypatch):
     request = {"type": "make-mesh", "id": 2, "file": "cube.py", "parameters": {"n": 3}}
     [info] = answers(request)
     assert info["info"]["points"] == 27
+    [half] = answers({**request, "cut": {"axis": "y", "value": 0.5, "half": "-"}})
+    assert half["surfaces"]["hexahedron"]["sources"] is not None
     [broken] = answers({**request, "parameters": {}})
     assert "traceback" in broken["info"]
 
@@ -175,6 +182,10 @@ def test_tools_make_meshes(answers):
     )
     [solid] = info["info"]["solids"]
     assert solid["cell_type"] == "hexahedron" and solid["cells"] == 2
+    cut = {"axis": "z", "value": 0.5, "half": "+"}
+    commands = [{**cube, "parameters": parameters}]
+    [half] = answers({**request, "commands": commands, "name": "block", "cut": cut})
+    assert half["surfaces"]["hexahedron"]["sources"] is not None
     assert solid["bounds"] == [[0, 0, 0], [2, 1, 1]]
     # exported like a mesh file, with the commands of its tools
     export = {"type": "export-mesh", "id": 2, "file": "block", "format": "vtk"}

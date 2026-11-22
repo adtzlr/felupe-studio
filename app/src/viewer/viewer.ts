@@ -173,6 +173,18 @@ function drawnTriangles(layer: MeshLayer): Uint32Array {
   return Uint32Array.from(kept);
 }
 
+/** The drawn triangles of the outer surface, not of the cut face of a cut (#395). */
+function outerTriangles(layer: MeshLayer): Uint32Array {
+  const { sources, triangles, owners } = layer.surface;
+  if (!sources) return drawnTriangles(layer);
+  const kept: number[] = [];
+  for (let t = 0; t < owners.length; t++) {
+    if (sources[t] < 0 || layer.hidden?.[owners[t]]) continue;
+    kept.push(...triangles.subarray(3 * t, 3 * t + 3));
+  }
+  return Uint32Array.from(kept);
+}
+
 /** A slot for a function that returns a PNG of a view (none without a view). */
 export interface Capture {
   current?: () => Promise<Blob | undefined>;
@@ -663,7 +675,7 @@ export class Viewer {
         positions: layer.surface.positions,
         triangles: trianglesInPlane(
           layer.surface.positions,
-          drawnTriangles(layer),
+          outerTriangles(layer),
           plane.point,
           plane.normal,
           tol,

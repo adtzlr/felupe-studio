@@ -7,6 +7,7 @@ import {
   screen,
   within,
 } from "@testing-library/preact";
+import { useState } from "preact/hooks";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Command } from "../core/resolved";
 import { type Inspection, MeshFiles } from "../core/meshfiles";
@@ -23,7 +24,7 @@ import {
 } from "../viewer/palette";
 import { buildScene } from "../viewer/scene";
 import type { CreateViewer } from "../viewer/viewer";
-import type { MeshSurface } from "../worker/protocol";
+import type { Cut, MeshSource, MeshSurface } from "../worker/protocol";
 import { Viewport } from "./Viewport";
 
 afterEach(cleanup);
@@ -1370,5 +1371,140 @@ describe("Viewport", () => {
     // the background keeps the picked faces
     await click(99, 99);
     expect(panel()).not.toBeNull();
+  });
+
+  it("cuts the meshes and what is drawn with them (#395)", async () => {
+    const asked: [MeshSource, Cut][] = [];
+    const solid = {
+      cell_type: "tetra",
+      cells: 1,
+      bounds: [
+        [0, 0, 0],
+        [1, 1, 0],
+      ] as [number[], number[]],
+      tags: [],
+    };
+    // the cut of the triangle: the part before the plane with a cut face above it,
+    // which a click from +z hits first, and the whole triangle for the other half
+    const cutSurface = (cut: Cut): MeshSurface =>
+      cut.half === "+"
+        ? {
+            ...surface,
+            positions: new Float32Array([
+              0, 0, 0, 0.5, 0, 0, 0.5, 0.5, 0, 0, 1, 0, 0, 0, 0.5, 1, 0, 0.5, 0,
+              1, 0.5,
+            ]),
+            triangles: new Uint32Array([0, 1, 2, 0, 2, 3, 4, 5, 6]),
+            owners: new Uint32Array([0, 0, 0]),
+            sources: new Int32Array([0, 0, -1]),
+          }
+        : { ...surface, sources: new Int32Array([0]) };
+    const files = new MeshFiles(
+      async (name) => ({
+        info: { file: name, solids: [solid] },
+        surfaces: { tetra: surface },
+      }),
+      {
+        cut: async (source, cut) => {
+          asked.push([source, cut]);
+          return { tetra: cutSurface(cut) };
+        },
+      },
+    );
+    await files.add("a.vtu", new Uint8Array());
+    const store = new ModelStore();
+    store.apply([
+      // the points of the file are multiplied by 2 (#135)
+      { type: "add", command: { ...mesh("a", "a.vtu"), scale: 2 } as Command },
+      ...(["left", "right"] as const).map((name, i) => ({
+        type: "add" as const,
+        command: {
+          command: "pointset.add" as const,
+          name,
+          select: { axis: "x" as const, value: 2 * i },
+        },
+      })),
+    ]);
+    const viewer = fakeViewer();
+    function Cutting() {
+      const [cut, setCut] = useState<Cut>();
+      return (
+        <Viewport
+          store={store}
+          files={files}
+          hidden={new Set()}
+          createViewer={viewer.create}
+          cut={cut}
+          onCut={setCut}
+        />
+      );
+    }
+    render(<Cutting />);
+    await act(async () => {});
+    const objects = () => viewer.handle.update.mock.lastCall![0].objects;
+    const drawn = () => objects().find((o) => o.type === "surface")!;
+    const points = () =>
+      objects()
+        .filter((o) => o.type === "points" && o.color === POINT_COLOR)
+        .map((o) => o.positions.size / 3);
+    expect(points()).toEqual([3]);
+    const click = async () => {
+      const canvas = viewer.handle.root.querySelector("canvas")!;
+      await act(async () => {
+        canvas.dispatchEvent(
+          new MouseEvent("click", { bubbles: true, clientX: 50, clientY: 50 }),
+        );
+      });
+    };
+    const picked = () => screen.queryByRole("status", { name: "Picked face" });
+
+    // cut by x at the middle of the model, in the coordinates of its file
+    const select = screen.getByRole("combobox", { name: "Cut" });
+    await act(async () => {
+      fireEvent.change(select, { target: { value: "x" } });
+    });
+    await act(async () => {});
+    const source = { type: "inspect-mesh", name: "a.vtu" };
+    expect(asked).toEqual([[source, { axis: "x", value: 0.5, half: "+" }]]);
+    // the cut surface, scaled like the mesh; the points of the other half hidden
+    expect(drawn().positions.size).toBe(21);
+    const data = drawn().positions.data as Float32Array;
+    expect([...data.slice(12, 15)]).toEqual([0, 0, 1]);
+    expect(points()).toEqual([2]);
+    // a click onto the cut face picks nothing: it is no face of the model
+    await click();
+    expect(picked()).toBeNull();
+
+    // the other half: a click onto the outer surface picks its face
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Hide x >" }));
+    });
+    await act(async () => {});
+    expect(asked.at(-1)).toEqual([
+      source,
+      { axis: "x", value: 0.5, half: "-" },
+    ]);
+    expect(points()).toEqual([1]);
+    await click();
+    expect(picked()!.textContent).toContain("Plane z = 0");
+
+    // a typed coordinate, then no cut
+    const field = screen.getByRole("spinbutton", {
+      name: "Coordinate of the cut, x",
+    });
+    await act(async () => {
+      fireEvent.change(field, { target: { value: "0.5" } });
+    });
+    expect(asked.at(-1)).toEqual([
+      source,
+      { axis: "x", value: 0.25, half: "-" },
+    ]);
+    await act(async () => {
+      fireEvent.change(select, { target: { value: "" } });
+    });
+    await act(async () => {});
+    expect(drawn().positions.data).toEqual(surface.positions.map((x) => 2 * x));
+    expect(points()).toEqual([3]);
+    expect(files.cutSurfaces(source as MeshSource)).toBeUndefined();
   });
 });

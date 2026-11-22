@@ -14,6 +14,7 @@ import type { ModelStore } from "../core/store";
 import type { SessionStorage } from "../core/session";
 import type { UpdateWatcher } from "../updates";
 import type { RuntimeClient } from "../worker/client";
+import type { Cut } from "../worker/protocol";
 import { hasAgent } from "../agent/connection";
 import { ErrorBanner, UpdateBanner } from "./Banners";
 import { Dialogs, useDialogs } from "./Dialogs";
@@ -132,7 +133,11 @@ export function App({
     save,
     fetchSample,
     // after the render, when `selection` below is there
-    onReset: () => selection.reset(),
+    onReset: () => {
+      selection.reset();
+      // the cut of the view is of the model before (#395)
+      setCut(undefined);
+    },
     onImport: dialogs.importMesh,
     onCreate: dialogs.setCreating,
     onParameters: (name) =>
@@ -176,6 +181,8 @@ export function App({
   const [dragging, setDragging] = useState(false);
   // the nodes of the meshes in both workspaces (#91)
   const [showNodes, setShowNodes] = useState(false);
+  // the cut of the view in both workspaces (#395), not of the project
+  const [cut, setCut] = useState<Cut>();
   const [update, setUpdate] = useState<"available" | "dismissed">();
   const fileInput = useRef<HTMLInputElement>(null);
   const openFile = () => fileInput.current?.click();
@@ -408,6 +415,8 @@ export function App({
             capture={exports.captureModel}
             showNodes={showNodes}
             onShowNodes={setShowNodes}
+            cut={cut}
+            onCut={setCut}
             onSelect={select}
             theme={theme.theme}
             empty={

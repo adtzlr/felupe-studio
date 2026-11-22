@@ -5,6 +5,17 @@ import type { MeshFiles } from "../core/meshfiles";
 import type { FaceSetAdd, PointSetAdd } from "../core/resolved";
 import type { ModelStore } from "../core/store";
 import type { Theme } from "../core/theme";
+import {
+  clipSurface,
+  cutHighlights,
+  cutLayers,
+  cutLines,
+  cutMarkers,
+  meshCuts,
+  planeOf,
+  uncutPick,
+  visiblePoints,
+} from "../viewer/cut";
 import { sectionFaces } from "../viewer/facesets";
 import {
   type ColorBy,
@@ -15,7 +26,9 @@ import {
 import { viewColors } from "../viewer/palette";
 import { centerOf, controlName, outerPoints } from "../viewer/pointsets";
 import { type Capture, type CreateViewer, Viewer } from "../viewer/viewer";
-import { useMedia, useViewKeys } from "./hooks";
+import type { Cut } from "../worker/protocol";
+import { boundsOf, shownCut } from "./CutControls";
+import { useMedia, useMeshFiles, useViewKeys } from "./hooks";
 import { useShowNodes } from "./NodesButton";
 import { useOverlays } from "./useOverlays";
 import { usePicking } from "./usePicking";
@@ -69,6 +82,10 @@ interface Props {
   empty?: ComponentChildren;
   /** The theme of the app (#375), for the colors of the view; dark by default. */
   theme?: Theme;
+  /** The cut of the view (#395), shared by the workspaces. */
+  cut?: Cut;
+  /** Set the cut of the view; without, the toolbar has no *Cut*. */
+  onCut?: (cut: Cut | undefined) => void;
 }
 
 /**
@@ -92,6 +109,8 @@ export function Viewport({
   onCreateControlPoint,
   empty,
   theme,
+  cut: wanted,
+  onCut,
 }: Props) {
   const colors = viewColors(theme);
   const [nodesShown, toggleNodes] = useShowNodes(showNodes, onShowNodes);
@@ -127,6 +146,11 @@ export function Viewport({
   // the points on the outer surface of the drawn meshes, of 2D models on the
   // outline, for point sets on the surface (#222)
   const planar = is2d(analysisOf(commands));
+  const cutView = useCutView(content, files, nodes, {
+    cut: wanted,
+    onCut,
+    planar,
+  });
   const outer = useMemo(
     () =>
       outerPoints(
@@ -163,29 +187,49 @@ export function Viewport({
       colors,
     });
 
+  // a pick of a cut mesh is a pick of its outer surface (#395)
+  const { meshes, construction, plane } = cutView;
+  const latest = useRef({ onPick: picking.onPick, meshes });
+  latest.current = { onPick: picking.onPick, meshes };
+
   // the viewer (and its WebGL context) is created when there is a mesh to show
   useEffect(() => {
-    // the meshes of the model, and the construction meshes of tools (ADR 0019)
-    const drawn = [...content.meshes, ...content.construction];
+    // the meshes of the model, and the construction meshes of tools (ADR 0019),
+    // both cut by the cut of the view (#395) like everything else that is drawn
+    const drawn = [...meshes, ...construction];
     if (!viewer.current) {
       if (drawn.length + content.vertices.length === 0 || !host.current) return;
       viewer.current = new Viewer(host.current, createViewer);
-      viewer.current.onPick(picking.onPick);
+      viewer.current.onPick((pick, click) =>
+        latest.current.onPick(uncutPick(pick, latest.current.meshes), click),
+      );
       setAvailable(viewer.current.available);
     }
+    const shownMarkers = [...content.vertices, ...markers];
+    const shownFaces = [...rigid.faces, ...faces];
+    const targets = controls.filter(
+      (c) => !plane || visiblePoints(plane, c.coordinates).length,
+    );
     viewer.current.setColors(colors);
     viewer.current.setMeshes(drawn);
     viewer.current.setLegend(content.legend);
-    viewer.current.setMarkers([...content.vertices, ...markers]);
-    viewer.current.setLines(lines);
+    viewer.current.setMarkers(
+      plane ? cutMarkers(plane, shownMarkers) : shownMarkers,
+    );
+    viewer.current.setLines(plane ? cutLines(plane, lines) : lines);
     viewer.current.setPlane(picking.picked);
-    viewer.current.setFaces([...rigid.faces, ...faces]);
+    viewer.current.setFaces(
+      plane ? cutHighlights(plane, shownFaces) : shownFaces,
+    );
     viewer.current.setNodes(nodesShown);
     viewer.current.setTargets(
-      controls.map((c) => ({ name: c.name, position: c.coordinates })),
+      targets.map((c) => ({ name: c.name, position: c.coordinates })),
     );
   }, [
     content,
+    meshes,
+    construction,
+    plane,
     markers,
     lines,
     picking.picked,
@@ -233,6 +277,7 @@ export function Viewport({
           onToggleNodes={toggleNodes}
           colorBy={colorBy}
           onColorBy={setChosen}
+          cut={cutView.toolbar}
         />
       )}
       {empty ??
@@ -295,4 +340,49 @@ export function Viewport({
       </div>
     </main>
   );
+}
+
+/**
+ * The cut of the view (#395): the bounds of the drawn meshes for its slider, its
+ * plane, and the meshes and the construction meshes to draw. The meshes are cut in
+ * Python (`MeshFiles.cutMeshes`) and drawn whole until their first cut arrives; the
+ * construction meshes are clipped here.
+ */
+function useCutView(
+  content: ReturnType<typeof viewportContent>,
+  files: MeshFiles,
+  nodes: readonly Float64Array[],
+  view: Pick<Props, "cut" | "onCut"> & { planar: boolean },
+) {
+  const cut = shownCut(view.cut, view.planar);
+  const bounds = useMemo(() => boundsOf(nodes), [nodes]);
+  const plane = useMemo(() => {
+    if (!cut || !bounds) return undefined;
+    const size = Math.hypot(...bounds.max.map((x, k) => x - bounds.min[k]));
+    return planeOf(cut, size);
+  }, [cut, bounds]);
+  const cuts = useMemo(() => meshCuts(content, cut), [content, cut]);
+  useEffect(() => files.cutMeshes(cuts), [files, cuts]);
+  // drawn again when a cut arrives
+  useMeshFiles(files);
+  const revision = files.cutRevision;
+  const meshes = useMemo(
+    () => cutLayers(content, cuts, files),
+    // the cut surfaces arrive in place, their revision tells when
+    [content, cuts, files, revision],
+  );
+  const construction = useMemo(
+    () =>
+      plane
+        ? content.construction.map((layer) => ({
+            ...layer,
+            surface: clipSurface(plane, layer.surface),
+          }))
+        : content.construction,
+    [content, plane],
+  );
+  const { onCut, planar } = view;
+  // *Cut* of the toolbar, if the app offers it
+  const toolbar = onCut && { cut: view.cut, onCut, bounds, planar };
+  return { plane, meshes, construction, toolbar };
 }

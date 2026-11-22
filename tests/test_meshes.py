@@ -331,3 +331,58 @@ def test_export_meshes_of_scripts(tmp_path, monkeypatch):
     (tmp_path / "lines.py").write_text(f"import meshio\n{lines}\n", encoding="utf-8")
     with pytest.raises(ValueError, match="no solid cells to export"):
         export("lines.py", "vtu", {})
+
+
+def test_cuts_of_kept_meshes(tmp_path, monkeypatch):
+    """A cut of the view (#395) cuts the kept cells of the latest read of a file, run
+    of a script or mesh of tools, without a new read or run; a new file forgets
+    them."""
+    from felupe_studio import meshes
+    from felupe_studio.meshes import generate, make
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(meshes, "_kept", type(meshes._kept)())
+    cut = {"axis": "x", "value": 0.5, "half": "+"}
+    triangles = lambda surface: len(surface["triangles"]) // 12  # noqa: E731
+
+    fem.Cube(n=3).write("cube.vtu")
+    plain = load("cube.vtu")[1]["hexahedron"]
+    assert plain["sources"] is None
+    # the file is not read again: a cut of the kept cells, with the summary
+    (tmp_path / "cube.vtu").unlink()
+    text, surfaces = load("cube.vtu", cut)
+    assert json.loads(text)["solids"][0]["cells"] == 8
+    sources = np.frombuffer(surfaces["hexahedron"]["sources"], "<i4")
+    assert (sources < 0).any() and (sources >= 0).any()
+    assert 0 < triangles(surfaces["hexahedron"]) != triangles(plain)
+
+    # a script is not run again (it counts its runs), with the same parameters
+    script = (
+        "import felupe as fem\nopen('runs', 'a').write('.')\nmesh = fem.Cube(n=n)\n"
+    )
+    (tmp_path / "cube.py").write_text(script, encoding="utf-8")
+    make("cube.py", {"n": 3})
+    _, surfaces = make("cube.py", {"n": 3}, cut=cut)
+    assert (tmp_path / "runs").read_text() == "."
+    assert surfaces["hexahedron"]["sources"] is not None
+    # other parameters are another mesh, made for the cut
+    make("cube.py", {"n": 2}, cut=cut)
+    assert (tmp_path / "runs").read_text() == ".."
+
+    # a mesh of tools, and a construction mesh whose lines are not cut
+    block = {"command": "mesh.generate", "name": "block", "tool": "Cube"}
+    commands = [{**block, "parameters": {"a": [0, 0, 0], "b": [1, 1, 1], "n": 3}}]
+    _, surfaces = generate(commands, "block", cut)
+    assert surfaces["hexahedron"]["sources"] is not None
+    line = {"command": "mesh.generate", "name": "edge", "tool": "Line"}
+    commands = [{**line, "parameters": {"a": 0, "b": 2, "n": 5}}]
+    _, surfaces = generate(commands, "edge", cut)
+    assert list(surfaces) == ["line"] and "sources" not in surfaces["line"]
+
+    # the latest meshes are kept, a new file forgets them
+    assert len(meshes._kept) == 5
+    monkeypatch.setattr(meshes, "KEPT", 2)
+    make("cube.py", {"n": 4})
+    assert len(meshes._kept) == 2
+    meshes.forget()
+    assert not meshes._kept

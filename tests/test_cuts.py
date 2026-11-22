@@ -253,16 +253,18 @@ def solid_of(mesh):
 
 def test_scene_surface():
     """The surface of a mesh for the viewer, cut: the triangles of the cut face are
-    marked, every region is closed by its own cut face."""
+    marked, every region is closed by its own cut face, and every other triangle has
+    its triangle of the outer surface, to pick it."""
     mesh = fem.Cube(n=5)
     tags = {"layer": (mesh.points[mesh.cells].mean(axis=1)[:, 1] > 0.5).astype(int)}
     result = surface(solid_of(mesh), tags, {"axis": "x", "value": 0.4})
     positions = np.frombuffer(result["positions"], "<f4").reshape(-1, 3)
     triangles = np.frombuffer(result["triangles"], "<u4").reshape(-1, 3)
     owners = np.frombuffer(result["owners"], "<u4")
-    cutface = np.frombuffer(result["cutface"], "u1").astype(bool)
+    sources = np.frombuffer(result["sources"], "<i4")
+    cutface = sources < 0
     isnode = np.frombuffer(result["isnode"], "u1")
-    assert len(cutface) == len(triangles) == len(owners)
+    assert len(sources) == len(triangles) == len(owners)
     assert np.isclose(area(positions.astype(float), triangles[cutface]), 1.0)
     assert np.allclose(positions[np.unique(triangles[cutface]), 0], 0.4, atol=1e-6)
     # the points of the cut face inside cells are no nodes
@@ -271,7 +273,21 @@ def test_scene_surface():
     for value in (0, 1):
         own = tags["layer"][owners] == value
         assert np.isclose(area(positions.astype(float), triangles[own & cutface]), 0.5)
-    assert surface(solid_of(mesh), tags)["cutface"] is None
+    # the triangles of the outer surface: of the same cell, in the same plane
+    plain = surface(solid_of(mesh), tags)
+    assert plain["sources"] is None
+    of_plain = np.frombuffer(plain["triangles"], "<u4").reshape(-1, 3)
+    at_plain = np.frombuffer(plain["positions"], "<f4").reshape(-1, 3)
+    outer = np.flatnonzero(~cutface)
+    assert sources.max() < len(of_plain) and len(np.unique(sources[outer])) > 1
+    assert np.array_equal(
+        owners[outer], np.frombuffer(plain["owners"], "<u4")[sources[outer]]
+    )
+    a, b, c = (at_plain[of_plain[sources[outer], k]] for k in range(3))
+    normal = np.cross(b - a, c - a)
+    for k in range(3):
+        offset = positions[triangles[outer, k]] - a
+        assert np.allclose(np.einsum("ij,ij->i", offset, normal), 0, atol=1e-6)
 
 
 @pytest.fixture
