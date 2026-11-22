@@ -30,6 +30,7 @@ import type {
   JobResult,
   LiveSettings,
   Quantity,
+  ResultFile,
   ResultRanges,
   ResultScene,
   ValuesMethod,
@@ -1656,6 +1657,159 @@ describe("solve", () => {
     expect(
       document.querySelector(".app-scalar-bar .fv-bar-title")!.textContent,
     ).toBe("Displacement [mm]");
+  });
+
+  it("shows the results of a file, whatever model is loaded (#414)", async () => {
+    const jobs = runner();
+    const resultScene = vi.fn(async (): Promise<ResultScene> => ({
+      label: "Displacement",
+      at: "point",
+      range: [0, 1],
+      surfaces: [],
+    }));
+    const file: ResultFile = {
+      file: "bushing-radial.xdmf",
+      job: "bushing-radial",
+      substeps: 4,
+      sections: ["rubber", "sleeve"],
+      planar: false,
+      units: { length: "mm", force: "N" },
+      quantities: ["displacement", "displacement_x", "stress_mises"],
+    };
+    const importResults = vi
+      .fn<RuntimeClient["importResults"]>()
+      .mockRejectedValueOnce(
+        new Error(
+          "Traceback ...\nValueError: other.xdmf is not an XDMF time series.",
+        ),
+      )
+      .mockResolvedValue(file);
+    // a model of other sections, without units
+    render(
+      <App
+        store={new ModelStore(fixture as CommandList)}
+        files={await files()}
+        client={client(Promise.resolve(readyValue), {
+          ...jobs,
+          resultScene,
+          importResults,
+        })}
+      />,
+    );
+    // File ▸ Import results… and the empty Results ribbon open the file dialog
+    const input = screen.getByTestId("import-results") as HTMLInputElement;
+    const dialog = vi.spyOn(input, "click").mockImplementation(() => {});
+    fileMenu("Import results…");
+    expect(dialog).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Results" }));
+    const panel = screen.getByRole("tabpanel");
+    expect(panel.textContent).toContain("Results will appear here");
+    fireEvent.click(
+      within(panel).getByRole("button", { name: "Import results…" }),
+    );
+    expect(dialog).toHaveBeenCalledTimes(2);
+    const choose = (name: string) =>
+      fireEvent.change(input, {
+        target: { files: [new File(["<Xdmf/>"], name)] },
+      });
+
+    // a file of other content: the error of Python
+    choose("other.xdmf");
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("The results could not be imported.");
+    expect(alert.textContent).toContain(
+      "ValueError: other.xdmf is not an XDMF time series.",
+    );
+
+    choose("bushing-radial.xdmf");
+    await waitFor(() =>
+      expect(panel.textContent).toContain("Results of bushing-radial.xdmf"),
+    );
+    expect(importResults).toHaveBeenLastCalledWith(
+      "bushing-radial.xdmf",
+      expect.any(ArrayBuffer),
+    );
+    expect(panel.textContent).toContain("Substep 4 of 4");
+    expect(panel.textContent).not.toContain("changed after solving");
+    // with results, the import is in the File menu only: the ribbon keeps its rows
+    expect(within(panel).queryByRole("button", { name: /Import/ })).toBeNull();
+    // the quantities of the file, and its units in the scalar bar
+    const contour = within(panel).getByLabelText(
+      "Contour",
+    ) as HTMLSelectElement;
+    expect([...contour.options].map((o) => o.value)).toEqual(file.quantities);
+    await waitFor(() =>
+      expect(resultScene).toHaveBeenCalledWith(
+        "bushing-radial",
+        4,
+        "displacement",
+        "cells",
+      ),
+    );
+    await waitFor(() =>
+      expect(
+        document.querySelector(".app-scalar-bar .fv-bar-title")?.textContent,
+      ).toBe("Displacement [mm]"),
+    );
+    // the job panel of a run does not open
+    expect(screen.queryByRole("region", { name: "Job" })).toBeNull();
+    // the file is the export of its results
+    fireEvent.click(screen.getByRole("button", { name: "Export" }));
+    const item = within(screen.getByRole("menu", { name: "Export" })).getByRole(
+      "menuitem",
+      { name: /Results of the job/ },
+    );
+    expect(item.getAttribute("aria-disabled")).toBe("true");
+    expect(item.textContent).toContain("The results shown are of a file");
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    // a run replaces them; no import while it runs
+    fireEvent.click(solveButton());
+    await waitFor(() => expect(jobs.run).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "File" }));
+    const importItem = within(
+      screen.getByRole("menu", { name: "File" }),
+    ).getByRole("menuitem", { name: /Import results/ });
+    expect(importItem.getAttribute("aria-disabled")).toBe("true");
+    expect(importItem.title).toBe("Wait until the jobs have run.");
+    fireEvent.keyDown(document, { key: "Escape" });
+    await act(async () =>
+      jobs.settle().resolve({ job_1: { substeps: 2, time: 0.1 } }),
+    );
+    await waitFor(() => expect(panel.textContent).toContain("Substep 2 of 2"));
+    expect(panel.textContent).not.toContain("bushing-radial.xdmf");
+  });
+
+  it("opens the Results workspace for the results of a file (#414)", async () => {
+    const importResults = vi.fn(async (): Promise<ResultFile> => ({
+      file: "plate-job.xdmf",
+      job: "plate-job",
+      substeps: 2,
+      sections: ["plate"],
+      planar: true,
+      units: null,
+      quantities: ["displacement"],
+    }));
+    render(
+      <App
+        store={new ModelStore()}
+        client={client(Promise.resolve(readyValue), {
+          ...runner(),
+          resultScene: () => new Promise<ResultScene>(() => {}),
+          importResults,
+        })}
+      />,
+    );
+    const results = () =>
+      document.querySelector<HTMLElement>('main[aria-label="Results"]')!;
+    expect(results().hidden).toBe(true);
+    fireEvent.change(screen.getByTestId("import-results"), {
+      target: { files: [new File(["<Xdmf/>"], "plate-job.xdmf")] },
+    });
+    await waitFor(() => expect(results().hidden).toBe(false));
+    expect(screen.getByRole("tabpanel").textContent).toContain(
+      "Results of plate-job.xdmf",
+    );
   });
 
   it("shows a running job live in the results (#207)", async () => {

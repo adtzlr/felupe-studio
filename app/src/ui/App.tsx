@@ -37,6 +37,7 @@ import { useAppAgent } from "./useAgent";
 import { useExports } from "./useExports";
 import { useProject } from "./useProject";
 import { useResults } from "./useResults";
+import { useResultsFile } from "./useResultsFile";
 import { useSamples } from "./useSamples";
 import { objectMenu, useSelection } from "./useSelection";
 import { useShortcuts } from "./useShortcuts";
@@ -146,6 +147,12 @@ export function App({
       dialogs.setParameters({ project: name, opening: true }),
   });
   const { fileName, modified } = project;
+  // the results of a file (#414), shown in the Results workspace
+  const resultsFile = useResultsFile({
+    results,
+    onShown: () => setWorkspace("results"),
+    onError: project.failed("The results could not be imported."),
+  });
   const selection = useSelection(store, workspace, project.setError);
   const { selected, select } = selection;
   const exports = useExports({
@@ -288,6 +295,7 @@ export function App({
         }
         onSave={() => void project.save()}
         onSaveAs={() => dialogs.setSavingAs(true)}
+        onImportResults={resultsFile.choose}
         // a new name without saving: the next save and the exports take it (#205)
         onRename={project.rename}
         onShortcuts={() => dialogs.setHelp("shortcuts")}
@@ -324,6 +332,13 @@ export function App({
           input.value = "";
           void project.openFiles(list);
         }}
+      />
+      <input
+        type="file"
+        accept=".xdmf"
+        hidden
+        data-testid="import-results"
+        {...resultsFile.input}
       />
       {update === "available" && (
         <UpdateBanner
@@ -363,6 +378,7 @@ export function App({
             results={results}
             theme={theme.theme}
             compact={compact}
+            onImport={resultsFile.choose}
           />
         }
       />

@@ -158,6 +158,14 @@ def _export_results(request, send):
     send({"type": "bytes", "id": request["id"], "data": data})
 
 
+def _import_results(request, send):
+    from . import resultfile
+
+    # the results of a file replace those of the last run (#414)
+    text = resultfile.load(request["name"], request["data"])
+    send({"type": "text", "id": request["id"], "text": text})
+
+
 def _export_mesh(request, send):
     from . import meshes
 
@@ -202,6 +210,7 @@ HANDLERS = {
     "result": _result,
     "result-ranges": _result_ranges,
     "export-results": _export_results,
+    "import-results": _import_results,
     "export-mesh": _export_mesh,
     "benchmark": _benchmark,
 }

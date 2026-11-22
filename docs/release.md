@@ -42,7 +42,7 @@ With real Pyodide, after the deployment of `main` has finished. Use the cases in
 - [ ] Live results: *Show live results* during a run shows the growing curve and the scenes; *Live results* off shows the curve only.
 - [ ] Cancel a running job: Python loads again and Solve works again without opening the files again.
 - [ ] A failing job (a large ramp with few substeps) shows the traceback; with cutback it runs.
-- [ ] Exports: the Python script runs next to the mesh files with FElupe; the XDMF and the VTU open in ParaView; the PNG shows the view with its scalar bar.
+- [ ] Exports: the Python script runs next to the mesh files with FElupe; the XDMF and the VTU open in ParaView, and *File ▸ Import results…* shows the XDMF again in a new project (#414); the PNG shows the view with its scalar bar.
 - [ ] Reload: Pyodide and the wheels come from the cache (faster start).
 - [ ] Bytecode cache: `spike.html` twice on a phone; the second load says *Bytecode cache: hit*, and its FElupe step is about half of the first (`docs/benchmarks.md`).
 - [ ] Single precision: *Precision: Single* of the solver of a job (e.g. *Bar of two materials*) gives the curve of double precision. *Precision: Single* of the *Model settings*: the material test solves with a note *round-off … % of the reaction forces*; the sandwich spring warns (*may be 43 %*). `spike.html` runs the three precisions with the same force.

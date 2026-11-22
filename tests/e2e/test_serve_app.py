@@ -994,3 +994,54 @@ def test_a_cut_of_the_results(url, page):
     page.locator(".viewport-status").wait_for(state="detached", timeout=60_000)
     assert page.evaluate(DIFFERENT, [earlier, picture()]) == 0
     assert page.errors == []
+
+
+def test_the_results_of_a_file_without_their_model(url, page):
+    """The results of a job exported as XDMF and imported again (#414) in a new
+    project: the plate with a hole in plane strain, with the units and the section
+    of the file."""
+    page.context.add_init_script(RECORD_SAVES)
+    page.goto(url)
+    page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
+    card = page.locator(".sample-card").filter(has_text="Plate with a hole in plane")
+    card.get_by_role("button", name="Open").click()
+    page.get_by_role("dialog").get_by_role("button", name="Open", exact=True).click()
+    page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)
+    page.get_by_role("button", name="Solve").click()
+    page.get_by_role("button", name="Show results").wait_for(timeout=120_000)
+    name, data = saved(page, lambda: export(page, re.compile("Results of the job")))
+    assert name.endswith("-job.xdmf") and b'Name="felupe-studio"' in data
+
+    # a new project without a model, its results imported from the file
+    page.get_by_role("button", name="File", exact=True).click()
+    page.get_by_role("menuitem", name="New project").click()
+    page.locator(".welcome").wait_for(timeout=60_000)
+    page.get_by_role("button", name="Results", exact=True).click()
+    page.get_by_test_id("import-results").set_input_files(
+        files=[{"name": name, "mimeType": "application/xml", "buffer": data}]
+    )
+    page.get_by_text(f"Results of {name}").wait_for(timeout=60_000)
+    page.get_by_text("Substep 9 of 9").wait_for()
+    controls = page.locator(".results-controls")
+    # a 2D model: no displacement in z
+    assert controls.locator("option[value=displacement_z]").count() == 0
+    controls.locator("select").filter(
+        has=page.locator("option[value=stress_mises]")
+    ).select_option("stress_mises")
+    # the units of the file
+    page.locator(".app-scalar-bar .fv-bar-title", has_text="[MPa]").wait_for(
+        timeout=60_000
+    )
+    page.locator(".viewport-status").wait_for(state="detached", timeout=60_000)
+
+    # the values of the cells of the section of the file under the pointer
+    view = page.get_by_role("main", name="Results")
+    box = view.locator("canvas.fv-gl").first.bounding_box()
+    tip = page.locator(".probe-tooltip")
+    found = []
+    for i in range(2, 19):
+        page.mouse.move(box["x"] + box["width"] * i / 20, box["y"] + box["height"] / 2)
+        page.wait_for_timeout(100)
+        found += tip.inner_text().splitlines() if tip.count() else []
+    assert any(line.endswith("of plate") for line in found), found
+    assert page.errors == []

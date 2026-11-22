@@ -12,9 +12,8 @@ import {
   type Finished,
   formatValue,
   QUANTITY_GROUPS,
-  quantityGroups,
+  resultModel,
   type ResultView,
-  sectionsOf,
   stepOf,
   substepsOf,
 } from "../core/results";
@@ -63,6 +62,11 @@ interface Props {
    * the other controls behind a button.
    */
   compact?: boolean;
+  /**
+   * Import the results of a file (#414): its file dialog, offered without results;
+   * none without Python. With results, File ▸ Import results… has it.
+   */
+  onImport?: () => void;
 }
 
 /** The shown results of the controls, and the change of their view. */
@@ -97,6 +101,25 @@ function LiveSwitch({
       />
       Live results
     </label>
+  );
+}
+
+/**
+ * Where the results come from, if not from the model as it is: a file (#414), or a
+ * run of the model before it was changed.
+ */
+function ResultsNote({ store, run, live }: { store: ModelStore } & Shown) {
+  if (run.imported)
+    return (
+      <span class="muted" role="note">
+        Results of {run.imported.file}
+      </span>
+    );
+  if (live || store.resolved === run.commands) return null;
+  return (
+    <span class="warning" role="note">
+      The model was changed after solving.
+    </span>
   );
 }
 
@@ -138,6 +161,7 @@ function LiveNote({ view, live }: Pick<Shown, "view" | "live">) {
 function ContourField({ shown, props }: { shown: Shown; props: Props }) {
   const { run, view, set } = shown;
   const { contour, onContour, currentRange, shift, theme, compact } = props;
+  const { groups, sections } = resultModel(run);
   return (
     <div class="field-with-button">
       <label class="field">
@@ -149,7 +173,7 @@ function ContourField({ shown, props }: { shown: Shown; props: Props }) {
             set({ quantity: event.currentTarget.value as Quantity })
           }
         >
-          {quantityGroups(run.commands).map((group) => (
+          {groups.map((group) => (
             <optgroup key={group.label} label={group.label}>
               {group.options.map((option) => (
                 <option key={option.id} value={option.id}>
@@ -168,7 +192,7 @@ function ContourField({ shown, props }: { shown: Shown; props: Props }) {
           current={currentRange}
           shift={shift}
           gray={viewColors(theme).other}
-          sections={sectionsOf(run.commands)}
+          sections={sections}
           chosen={view.rangeSections}
           onChoose={(sections) =>
             set({ rangeSections: sections.length ? sections : undefined })
@@ -317,6 +341,8 @@ function SpeedField({
 
 /** The step of the substep, and the values of the curve at it (#98, #132, #197). */
 function ResultsInfo({ run, view }: Shown) {
+  // a file has neither steps nor a curve (#414)
+  if (run.imported) return null;
   const step = stepOf(run, view.job, view.substep);
   const result = run.results[view.job];
   const q = curveQuantities(run.commands, view.job);
@@ -460,6 +486,16 @@ export function ResultsControls(props: Props) {
           Results will appear here after the jobs have run (Solve).
         </span>
         {liveSwitch}
+        {props.onImport && (
+          <button
+            type="button"
+            class="button"
+            title="The results of a job of an XDMF file exported before (File ▸ Export ▸ Results of the job), whatever model is loaded"
+            onClick={props.onImport}
+          >
+            Import results…
+          </button>
+        )}
       </div>
     );
   const { run, view } = results;
@@ -470,13 +506,9 @@ export function ResultsControls(props: Props) {
     live,
     set: (change) => onChange({ ...view, ...change }),
   };
-  const changed = !live && store.resolved !== run.commands && (
-    <span class="warning" role="note">
-      The model was changed after solving.
-    </span>
-  );
+  const note = <ResultsNote store={store} {...shown} />;
   if (props.compact)
-    return <CompactControls shown={shown} props={props} notes={changed} />;
+    return <CompactControls shown={shown} props={props} notes={note} />;
   return (
     <div class="results-controls">
       <JobField {...shown} />
@@ -494,7 +526,7 @@ export function ResultsControls(props: Props) {
       <ResultsInfo {...shown} />
       <ShapeFields {...shown} />
       {liveSwitch}
-      {changed}
+      {note}
     </div>
   );
 }

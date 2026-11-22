@@ -8,8 +8,9 @@ import {
 } from "@testing-library/preact";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_CONTOUR } from "../core/contour";
+import { startProgress } from "../core/jobs";
 import type { Command } from "../core/resolved";
-import type { ResultView } from "../core/results";
+import type { Finished, ResultView } from "../core/results";
 import type { Scene, ViewerHandle } from "../vendor/felupe-viewer/viewer.js";
 import { VIEW_COLORS } from "../viewer/palette";
 import type { CreateViewer } from "../viewer/viewer";
@@ -17,6 +18,14 @@ import type { Cut, ResultScene } from "../worker/protocol";
 import { ResultsView } from "./ResultsView";
 
 afterEach(cleanup);
+
+/** The finished run of a command list. */
+const runOf = (commands: Command[]): Finished => ({
+  state: "finished",
+  progress: startProgress(),
+  results: {},
+  commands,
+});
 
 /** A viewer with WebGL2 that records its scenes. */
 function fakeViewer() {
@@ -126,7 +135,7 @@ describe("ResultsView", () => {
         active
         running={false}
         createViewer={viewer.create}
-        commands={commands}
+        run={runOf(commands)}
       />,
     );
     // the lines and the markers of the last scene of the viewer
@@ -190,7 +199,7 @@ describe("ResultsView", () => {
         active
         running={false}
         createViewer={viewer.create}
-        commands={commands}
+        run={runOf(commands)}
         theme={theme}
       />
     );
@@ -444,7 +453,7 @@ describe("ResultsView", () => {
         active
         running={false}
         createViewer={viewer.create}
-        commands={commands}
+        run={runOf(commands)}
         cut={value}
         onCut={onCut}
       />

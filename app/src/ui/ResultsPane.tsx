@@ -12,12 +12,16 @@ import { ResultsControls } from "./ResultsControls";
 import { ResultsView } from "./ResultsView";
 import type { Results } from "./useResults";
 
-/** The controls of the Results ribbon: the quantity, the substep and the player. */
+/**
+ * The controls of the Results ribbon: the quantity, the substep, the player and the
+ * import of the results of a file (#414).
+ */
 export function ResultsRibbon({
   store,
   results,
   theme,
   compact,
+  onImport,
 }: {
   store: ModelStore;
   results: Results;
@@ -25,6 +29,8 @@ export function ResultsRibbon({
   theme?: Theme;
   /** The compact layout of a phone (#378). */
   compact?: boolean;
+  /** Choose a file of results to import (#414). */
+  onImport?: () => void;
 }) {
   const { run, live } = results;
   return (
@@ -43,6 +49,7 @@ export function ResultsRibbon({
       theme={theme}
       player={results.player}
       compact={compact}
+      onImport={onImport}
     />
   );
 }
@@ -92,7 +99,7 @@ export function ResultsPane({
       capture={capture}
       showNodes={showNodes}
       onShowNodes={onShowNodes}
-      commands={finished?.commands ?? live?.run.commands}
+      run={finished ?? live?.run}
       contour={results.contour}
       onRange={results.setShownRange}
       onShift={results.setShift}

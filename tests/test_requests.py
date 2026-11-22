@@ -193,6 +193,34 @@ def test_tools_make_meshes(answers):
     assert data["type"] == "bytes" and b"CELLS" in bytes(data["data"])
 
 
+def test_results_of_a_file(answers, tmp_path, monkeypatch):
+    # the results of a job exported as XDMF, imported again (#414)
+    monkeypatch.chdir(tmp_path)
+    answers({"type": "write-file", "id": 1, "name": "cube.vtu", "data": MESH})
+    answers({"type": "run", "id": 2, "document": DOCUMENT})
+    export = {"type": "export-results", "id": 3, "job": "job_1", "format": "xdmf"}
+    [exported] = answers(export)
+    request = {"type": "import-results", "id": 4, "name": "cube-job_1.xdmf"}
+    [text] = answers({**request, "data": exported["data"]})
+    assert text["type"] == "text" and text["id"] == 4
+    description = json.loads(text["text"])
+    assert description["job"] == "cube-job_1" and description["substeps"] == 6
+    [scene] = answers(
+        {
+            "type": "result",
+            "id": 5,
+            "job": "cube-job_1",
+            "substep": 6,
+            "quantity": "stress_mises",
+        }
+    )
+    assert scene["scene"]["surfaces"][0]["name"] == "body"
+    # a file of other content: an error, with the traceback
+    [error] = answers({**request, "data": b"no results"})
+    assert error["type"] == "error"
+    assert "cube-job_1.xdmf is not an XDMF time series." in error["message"]
+
+
 def test_both_paths_give_the_same_messages(tmp_path, monkeypatch):
     """The worker and the local runtime get the same messages, bytes included."""
     monkeypatch.chdir(tmp_path)

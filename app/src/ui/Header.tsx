@@ -18,6 +18,11 @@ interface Props {
   onOpen: () => void;
   /** Open the dialog of the samples; without it, the app has no samples (#279). */
   onSamples?: () => void;
+  /**
+   * Import the results of a job of an XDMF file exported before (#414); none
+   * without Python.
+   */
+  onImportResults?: () => void;
   onSave: () => void;
   onSaveAs: () => void;
   /** Rename the project: the new file name with the suffix of its format (#205). */
@@ -211,6 +216,46 @@ function ThemeMenu({
   );
 }
 
+/**
+ * The items of the File menu that open something: a new project, a project file,
+ * the samples (#279) and the results of a file (#414).
+ */
+function openItems({
+  onNew,
+  onOpen,
+  onSamples,
+  onImportResults,
+  running,
+}: Pick<Props, "onNew" | "onOpen" | "onSamples" | "onImportResults"> & {
+  running: boolean;
+}): MenuItem[] {
+  return [
+    { id: "new", label: "New project", onSelect: onNew },
+    {
+      id: "open",
+      label: "Open project…",
+      hint: "A project file with its mesh files, a project archive, or mesh files to import",
+      shortcut: { text: hint("open"), aria: ariaKeys("open") },
+      onSelect: onOpen,
+    },
+    // not in an app without samples (#279, #350)
+    ...(onSamples
+      ? [{ id: "samples", label: "Samples…", onSelect: onSamples }]
+      : []),
+    ...(onImportResults
+      ? [
+          {
+            id: "import-results",
+            label: "Import results…",
+            hint: "The results of a job of an XDMF file exported before, whatever model is loaded",
+            blocker: running ? "Wait until the jobs have run." : undefined,
+            onSelect: onImportResults,
+          },
+        ]
+      : []),
+  ];
+}
+
 export function Header({
   store,
   fileName,
@@ -218,6 +263,7 @@ export function Header({
   onNew,
   onOpen,
   onSamples,
+  onImportResults,
   onSave,
   onSaveAs,
   onRename,
@@ -253,26 +299,13 @@ export function Header({
             button="File"
             sections={[
               {
-                items: [
-                  { id: "new", label: "New project", onSelect: onNew },
-                  {
-                    id: "open",
-                    label: "Open project…",
-                    hint: "A project file with its mesh files, a project archive, or mesh files to import",
-                    shortcut: { text: hint("open"), aria: ariaKeys("open") },
-                    onSelect: onOpen,
-                  },
-                  // not in an app without samples (#279, #350)
-                  ...(onSamples
-                    ? [
-                        {
-                          id: "samples",
-                          label: "Samples…",
-                          onSelect: onSamples,
-                        },
-                      ]
-                    : []),
-                ],
+                items: openItems({
+                  onNew,
+                  onOpen,
+                  onSamples,
+                  onImportResults,
+                  running: solve.running,
+                }),
               },
               {
                 items: [
