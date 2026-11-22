@@ -9,7 +9,12 @@ import { analysisOf, CELLS_2D, is2d } from "./analysis";
 import type { Command, MeshGenerate, MeshImport, MeshScript } from "./commands";
 import { parameterValues, resolveCommands } from "./resolve";
 import { solidOf } from "./meshinfo";
-import type { MeshInfo, MeshSurface } from "../worker/protocol";
+import type {
+  Cut,
+  MeshInfo,
+  MeshSource,
+  MeshSurface,
+} from "../worker/protocol";
 import { safeName } from "../worker/files";
 
 export type FileState =
@@ -61,6 +66,28 @@ export type Generator = (
   name: string,
 ) => Promise<Inspection>;
 
+/**
+ * Cuts a mesh (#395): the outer surfaces of the kept cells of the mesh of a request,
+ * cut by the plane of a cut of the view.
+ */
+export type Cutter = (
+  source: MeshSource,
+  cut: Cut,
+) => Promise<Record<string, MeshSurface>>;
+
+/** The cut surfaces of a mesh (#395): the wanted cut, the one asked for, the latest. */
+interface CutEntry {
+  wanted: { key: string; source: MeshSource; cut: Cut };
+  /** The key of the cut that is being made. */
+  pending?: string;
+  /** The latest cut that arrived, or its error. */
+  done?: {
+    key: string;
+    surfaces?: Record<string, MeshSurface>;
+    error?: string;
+  };
+}
+
 /** A mesh object of a file: imported from a file or made by a script. */
 export type MeshCommand = MeshImport | MeshScript;
 
@@ -83,8 +110,11 @@ export class MeshFiles {
   private files = new Map<string, { data: Uint8Array; file: MeshFile }>();
   // the meshes made by scripts (scriptKey) and by tools (generateKey), by their key
   private made = new Map<string, { file?: string; status: FileState }>();
+  // the cut surfaces of the drawn meshes (#395), by their source (sourceKey)
+  private cuts = new Map<string, CutEntry>();
   private listeners = new Set<() => void>();
   private version = 0;
+  private cutVersion = 0;
 
   constructor(
     private inspector?: Inspector,
@@ -92,6 +122,8 @@ export class MeshFiles {
       write?: Writer;
       make?: Maker;
       generate?: Generator;
+      /** Cuts the kept cells of a mesh (#395). */
+      cut?: Cutter;
     } = {},
   ) {}
 
@@ -115,10 +147,72 @@ export class MeshFiles {
 
   /** Forget all files, e.g. for a new project. */
   clear(): void {
+    this.cuts.clear();
     if (!this.files.size && !this.made.size) return;
     this.files.clear();
     this.made.clear();
     this.notify();
+  }
+
+  /** Changes with every cut surface that arrives (#395), for re-rendering. */
+  get cutRevision(): number {
+    return this.cutVersion;
+  }
+
+  /**
+   * Cut the meshes of their sources (#395), each with its cut (in the coordinates
+   * of its file): the latest cut of a mesh is asked for once the one being made has
+   * arrived, and the cuts of other meshes are forgotten (all of them without one).
+   */
+  cutMeshes(wanted: readonly { source: MeshSource; cut: Cut }[]): void {
+    const keys = new Set(wanted.map(({ source }) => sourceKey(source)));
+    for (const key of [...this.cuts.keys()]) {
+      if (!keys.has(key)) this.cuts.delete(key);
+    }
+    for (const { source, cut } of wanted) {
+      const key = sourceKey(source);
+      const entry = this.cuts.get(key);
+      const next = { key: cutKey(cut), source, cut };
+      if (entry?.wanted.key === next.key) continue;
+      if (entry) entry.wanted = next;
+      else this.cuts.set(key, { wanted: next });
+      this.sendCut(key);
+    }
+  }
+
+  /**
+   * The latest cut surfaces of the mesh of a source by cell type (#395), also of an
+   * older cut while the wanted one is being made; undefined before the first.
+   */
+  cutSurfaces(source: MeshSource): Record<string, MeshSurface> | undefined {
+    return this.cuts.get(sourceKey(source))?.done?.surfaces;
+  }
+
+  /** Ask for the wanted cut of a mesh, unless a cut of it is being made. */
+  private sendCut(key: string): void {
+    const entry = this.cuts.get(key);
+    if (!entry || entry.pending || entry.done?.key === entry.wanted.key) return;
+    const { key: asked, source, cut } = entry.wanted;
+    const cutter = this.scripts.cut;
+    if (!cutter) {
+      entry.done = { key: asked, error: "Python is not available." };
+      return;
+    }
+    entry.pending = asked;
+    const settle = (done: NonNullable<CutEntry["done"]>) => {
+      // forgotten meanwhile, e.g. without a cut or for a new project
+      if (this.cuts.get(key) !== entry) return;
+      entry.pending = undefined;
+      // an error keeps the latest surfaces
+      entry.done = done.error ? { ...entry.done, ...done } : done;
+      this.cutVersion++;
+      this.notify(false);
+      this.sendCut(key);
+    };
+    cutter(source, cut).then(
+      (surfaces) => settle({ key: asked, surfaces }),
+      (error) => settle({ key: asked, error: (error as Error).message }),
+    );
   }
 
   /** The state of a mesh made by a script, by its key (`scriptKey`). */
@@ -225,6 +319,8 @@ export class MeshFiles {
       return file;
     };
     set({ state: "reading" });
+    // the kept cells of Python are forgotten, and with them the cuts (#395)
+    this.cuts.clear();
     // the meshes of a replaced script are made again
     for (const [k, entry] of [...this.made]) {
       if (entry.file === key) this.made.delete(k);
@@ -280,8 +376,9 @@ export class MeshFiles {
     return () => this.listeners.delete(listener);
   }
 
-  private notify() {
-    this.version++;
+  /** Tell the listeners, of a change of the files unless only a cut arrived. */
+  private notify(files = true) {
+    if (files) this.version++;
     for (const listener of this.listeners) listener();
   }
 }
@@ -458,6 +555,40 @@ export function meshStatus(
   if (mesh.command === "mesh.import" || status?.state !== "script")
     return status;
   return files.madeStatus(scriptKey(mesh, commands));
+}
+
+/** The key of the request that made a mesh (#395). */
+export const sourceKey = (source: MeshSource) => JSON.stringify(source);
+
+/** The key of a cut (#395). */
+export const cutKey = (cut: Cut) =>
+  JSON.stringify([cut.axis, cut.value, cut.half]);
+
+/**
+ * The request that made the mesh of a mesh object (#395): the read of its file, the
+ * run of its script with the parameters of the model, or its tools; undefined if
+ * its file is not loaded.
+ */
+export function meshSource(
+  mesh: MeshObject,
+  commands: readonly Command[],
+  files: MeshFiles,
+): MeshSource | undefined {
+  if (mesh.command === "mesh.generate") {
+    const chain = generateChain(mesh, commands);
+    return chain.length
+      ? { type: "generate-mesh", commands: chain, name: mesh.name }
+      : undefined;
+  }
+  const state = files.get(mesh.file)?.status.state;
+  if (mesh.command === "mesh.import" || state !== "script")
+    return state ? { type: "inspect-mesh", name: mesh.file } : undefined;
+  return {
+    type: "make-mesh",
+    file: mesh.file,
+    parameters: scriptParameters(mesh, commands),
+    ...(mesh.item ? { item: mesh.item } : {}),
+  };
 }
 
 /**

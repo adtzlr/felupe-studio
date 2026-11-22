@@ -33,7 +33,11 @@ def _scene(meta, surfaces):
 
 
 def _write_file(request, send):
+    from . import meshes
+
     Path(safe_name(request["name"])).write_bytes(request["data"])
+    # the kept meshes may be of the old file, or of a script that reads it (#395)
+    meshes.forget()
     send({"type": "done", "id": request["id"]})
 
 
@@ -52,7 +56,9 @@ def _mesh_info(request, send, result):
 def _inspect_mesh(request, send):
     from . import meshes
 
-    _mesh_info(request, send, meshes.load(safe_name(request["name"])))
+    # with a cut of the view (#395), the kept cells of the mesh are cut
+    cut = request.get("cut")
+    _mesh_info(request, send, meshes.load(safe_name(request["name"]), cut))
 
 
 def _make_mesh(request, send):
@@ -60,7 +66,7 @@ def _make_mesh(request, send):
 
     parameters = json.dumps(request.get("parameters") or {})
     result = meshes.make_json(
-        safe_name(request["file"]), parameters, request.get("item")
+        safe_name(request["file"]), parameters, request.get("item"), request.get("cut")
     )
     _mesh_info(request, send, result)
 
@@ -72,7 +78,8 @@ def _generate_mesh(request, send):
     commands = request["commands"]
     if not isinstance(commands, str):
         commands = json.dumps(commands)
-    _mesh_info(request, send, meshes.generate_json(commands, request["name"]))
+    result = meshes.generate_json(commands, request["name"], request.get("cut"))
+    _mesh_info(request, send, result)
 
 
 def _run(request, send):

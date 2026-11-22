@@ -16,6 +16,7 @@ import {
 } from "./local";
 import type {
   BenchmarkResult,
+  Cut,
   FromWorker,
   JobEvent,
   JobResult,
@@ -23,6 +24,7 @@ import type {
   LoadTimings,
   MeshFormat,
   MeshInfo,
+  MeshSource,
   MeshSurface,
   Precision,
   Quantity,
@@ -382,6 +384,18 @@ export class RuntimeClient {
       { type: "mesh-info" }
     >;
     return { info, surfaces };
+  }
+
+  /**
+   * The outer surfaces of the solid cells of a mesh, cut (#395): of the kept cells of
+   * the mesh of a request, without a new read of its file or run of its script.
+   */
+  async cutMesh(
+    source: MeshSource,
+    cut: Cut,
+  ): Promise<Record<string, MeshSurface>> {
+    const message = await this.request({ ...source, cut }, "mesh-info");
+    return (message as Extract<FromWorker, { type: "mesh-info" }>).surfaces;
   }
 
   terminate(): void {

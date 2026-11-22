@@ -128,9 +128,39 @@ export interface MeshSurface {
    * its sides, the edges of the face sets of 2D models (#175).
    */
   isCorner?: Uint8Array;
+  /**
+   * The triangle of the outer surface of every triangle of a cut (#395), -1 for a
+   * triangle of the cut face, to pick the faces of the cells.
+   */
+  sources?: Int32Array;
   /** Number of solid cells. */
   cells: number;
 }
+
+/**
+ * A cut of the view through the undeformed model (#395, ADR 0022): the plane normal
+ * to an axis at a coordinate, and the hidden half, `+` beyond the plane (e.g.
+ * x > value) or `-` before it. A setting of the view, not of the project.
+ */
+export interface Cut {
+  axis: "x" | "y" | "z";
+  value: number;
+  half: "+" | "-";
+}
+
+/**
+ * The request that made a mesh, without its id: of a file, of a script (#182) or of
+ * the tools of FElupe (ADR 0019). With a cut (#395), it cuts the kept cells.
+ */
+export type MeshSource =
+  | { type: "inspect-mesh"; name: string }
+  | {
+      type: "make-mesh";
+      file: string;
+      parameters: Record<string, number>;
+      item?: string;
+    }
+  | { type: "generate-mesh"; commands: readonly unknown[]; name: string };
 
 /** An event of a running job (`felupe_studio.runner`). */
 export type JobEvent =
@@ -341,7 +371,11 @@ export type ToWorker =
     }
   | { type: "benchmark"; id: number; sizes: number[]; precision?: Precision }
   | { type: "write-file"; id: number; name: string; data: ArrayBuffer }
-  | { type: "inspect-mesh"; id: number; name: string }
+  /**
+   * Inspect a mesh file. The mesh requests take a cut of the view (#395): the
+   * surfaces of the kept cells of their mesh are cut.
+   */
+  | { type: "inspect-mesh"; id: number; name: string; cut?: Cut }
   /** Run a script with parameters and inspect its mesh, or an item (#182). */
   | {
       type: "make-mesh";
@@ -349,6 +383,7 @@ export type ToWorker =
       file: string;
       parameters: Record<string, number>;
       item?: string;
+      cut?: Cut;
     }
   /**
    * Make a mesh with the tools of FElupe (ADR 0019): the commands of the tools that
@@ -359,6 +394,7 @@ export type ToWorker =
       id: number;
       commands: readonly unknown[];
       name: string;
+      cut?: Cut;
     }
   | { type: "run"; id: number; document: string; live?: LiveSettings }
   | { type: "script"; id: number; document: string }

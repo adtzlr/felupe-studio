@@ -7,10 +7,16 @@ and the cell data arrays that can be used as tags for cell sets, and the ignored
 blocks. Like ``fem.mesh.read()`` gives one mesh per cell block, a file with more than
 one type of solid cells becomes one mesh per cell type in the app. :func:`load` adds
 the outer surfaces for the viewer (:mod:`felupe_studio.scene`), from the same read.
+
+The solid cells of the latest meshes are kept, so a cut of the view (#395) needs no
+new read of a file or run of a script: :func:`load`, :func:`make` and
+:func:`generate` with a ``cut`` cut the kept cells of their mesh. A new file of the
+project forgets them (:func:`forget`).
 """
 
 import json
 import traceback
+from collections import OrderedDict
 from pathlib import Path
 
 import meshio
@@ -21,6 +27,13 @@ from .scene import surface
 
 # a cell data array with more distinct values is not offered as a tag
 MAX_TAG_VALUES = 64
+
+# the number of meshes whose solid cells are kept for cuts (#395)
+KEPT = 16
+
+# the summary and the solid cells of the latest meshes, by their function and its
+# arguments, oldest first
+_kept = OrderedDict()
 
 # the formats of an exported mesh (#230): the extension, the name and the writer of
 # meshio. XDMF needs h5py in meshio's writer of single meshes, which Pyodide lacks.
@@ -174,81 +187,112 @@ def _summary(mesh, result):
     return result, {t: (solid, tags[t]) for t, solid in solids.items()}
 
 
-def load(filename):
+def forget():
+    """Forget the kept solid cells of the meshes, e.g. for a new file of the
+    project."""
+    _kept.clear()
+
+
+def _mesh(key, read, cut):
+    """The summary as a JSON string and the outer surfaces of the solid cells by
+    cell type of a mesh: read with ``read()`` and kept by its key, or the kept solid
+    cells cut (#395). ``read()`` returns the summary, the solid cells with their tags
+    by cell type, and the surfaces of other meshes, e.g. of a construction mesh."""
+    if cut is None or key not in _kept:
+        _kept[key] = read()
+        while len(_kept) > KEPT:
+            _kept.popitem(last=False)
+    _kept.move_to_end(key)
+    info, solids, others = _kept[key]
+    surfaces = {t: surface(solid, tags, cut) for t, (solid, tags) in solids.items()}
+    return json.dumps(info), {**others, **surfaces}
+
+
+def load(filename, cut=None):
     """:func:`inspect` as a JSON string and the outer surfaces of the solid cells by
     cell type (:func:`felupe_studio.scene.surface`, empty if the file cannot be
-    used), from one read of the file (for the Pyodide worker)."""
-    info, solids = _read(filename)
-    surfaces = {t: surface(solid, tags) for t, (solid, tags) in solids.items()}
-    return json.dumps(info), surfaces
+    used), from one read of the file (for the Pyodide worker). With a ``cut`` of the
+    view (#395), the surfaces are cut (:func:`felupe_studio.cuts.plane`), of the kept
+    cells of the latest read."""
+
+    def read():
+        return *_read(filename), {}
+
+    return _mesh(("load", Path(filename).name), read, cut)
 
 
-def make(filename, parameters, item=None):
+def make(filename, parameters, item=None, cut=None):
     """:func:`load` of the mesh made by a script (#182): the script runs with the
     parameters as variables (like ``run_mesh_script()`` of the generated script), and
     its mesh (or the item of a dict of meshes) is summarized like a mesh file. An
-    error of the script is the ``error`` of the summary, with its ``traceback``."""
+    error of the script is the ``error`` of the summary, with its ``traceback``. With
+    a ``cut``, the kept cells of the latest run with these parameters are cut."""
     path = Path(filename)
-    result = {"file": path.name}
-    try:
-        mesh = script_mesh(path, parameters, item)
-    except (Exception, SystemExit) as error:
-        result["error"] = f"{type(error).__name__}: {error}"
-        # the frames of the script, not those of FElupe Studio
-        trace = traceback.TracebackException.from_exception(error)
-        frames = [f for f in trace.stack if Path(f.filename).name == path.name]
-        trace.stack = traceback.StackSummary.from_list(frames)
-        result["traceback"] = "".join(trace.format())
-        return json.dumps(result), {}
-    info, solids = _summary(mesh, result)
-    surfaces = {t: surface(solid, tags) for t, (solid, tags) in solids.items()}
-    return json.dumps(info), surfaces
+
+    def read():
+        result = {"file": path.name}
+        try:
+            mesh = script_mesh(path, parameters, item)
+        except (Exception, SystemExit) as error:
+            result["error"] = f"{type(error).__name__}: {error}"
+            # the frames of the script, not those of FElupe Studio
+            trace = traceback.TracebackException.from_exception(error)
+            frames = [f for f in trace.stack if Path(f.filename).name == path.name]
+            trace.stack = traceback.StackSummary.from_list(frames)
+            result["traceback"] = "".join(trace.format())
+            return result, {}, {}
+        return *_summary(mesh, result), {}
+
+    key = ("make", path.name, json.dumps(parameters, sort_keys=True), item)
+    return _mesh(key, read, cut)
 
 
-def generate(commands, name):
+def generate(commands, name, cut=None):
     """:func:`load` of a mesh made by the tools of FElupe (ADR 0019): the mesh
     ``name`` of the resolved commands of the tools that make it (with the values of
     their expressions), made with the lines of the script. A mesh of 2D or 3D cells
     is summarized like a mesh file, a mesh of lines or vertices (a construction mesh)
     by its points and cells, with the lines for the viewer. The summary has the
-    ``dimension`` of the mesh; an error of FElupe is its ``error``."""
+    ``dimension`` of the mesh; an error of FElupe is its ``error``. With a ``cut``,
+    the kept cells of the latest mesh of these commands are cut, not the lines."""
     from . import meshtools
     from .scene import wire
 
-    result = {"file": name}
-    try:
-        mesh = meshtools.generate(commands)[name]
-    except Exception as error:
-        result["error"] = f"{type(error).__name__}: {error}"
-        return json.dumps(result), {}
-    dimension = meshtools.dimensions(commands)[name]
-    if dimension["cells"] < 2:
-        result.update(
-            points=int(mesh.npoints),
-            blocks=[{"type": mesh.cell_type, "cells": int(mesh.ncells)}],
-            solids=[],
-            dimension=dimension,
-        )
-        return json.dumps(result), {mesh.cell_type: wire(mesh)}
-    made = meshio.Mesh(mesh.points, [(mesh.cell_type, mesh.cells)])
-    info, solids = _summary(made, result)
-    info["dimension"] = dimension
-    surfaces = {t: surface(solid, tags) for t, (solid, tags) in solids.items()}
-    return json.dumps(info), surfaces
+    def read():
+        result = {"file": name}
+        try:
+            mesh = meshtools.generate(commands)[name]
+        except Exception as error:
+            result["error"] = f"{type(error).__name__}: {error}"
+            return result, {}, {}
+        dimension = meshtools.dimensions(commands)[name]
+        if dimension["cells"] < 2:
+            result.update(
+                points=int(mesh.npoints),
+                blocks=[{"type": mesh.cell_type, "cells": int(mesh.ncells)}],
+                solids=[],
+                dimension=dimension,
+            )
+            return result, {}, {mesh.cell_type: wire(mesh)}
+        made = meshio.Mesh(mesh.points, [(mesh.cell_type, mesh.cells)])
+        info, solids = _summary(made, result)
+        info["dimension"] = dimension
+        return info, solids, {}
+
+    return _mesh(("generate", json.dumps(commands, sort_keys=True), name), read, cut)
 
 
-def generate_json(commands, name):
+def generate_json(commands, name, cut=None):
     """:func:`generate` with the commands as JSON text, for the worker."""
-    return generate(json.loads(commands), name)
+    return generate(json.loads(commands), name, cut)
 
 
-def make_json(filename, parameters, item=None):
+def make_json(filename, parameters, item=None, cut=None):
     """:func:`make` with the parameters as JSON text, for the worker. An item that is
     not a name is no item: JavaScript's null arrives as ``pyodide.ffi.jsnull``, not as
     None."""
-    return make(
-        filename, json.loads(parameters), item if isinstance(item, str) else None
-    )
+    item = item if isinstance(item, str) else None
+    return make(filename, json.loads(parameters), item, cut)
 
 
 def export(

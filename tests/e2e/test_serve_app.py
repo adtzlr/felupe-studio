@@ -843,3 +843,60 @@ def test_a_step_that_releases_a_boundary_solved(url, page):
     results.click()
     page.wait_for_selector("text=/Displacement magnitude/", timeout=60_000)
     assert page.errors == []
+
+
+def test_a_cut_of_the_model(url, page):
+    """A cut of the view in the Model workspace (#395): the meshes are cut by the
+    local Python, and without the cut the view is the same as before."""
+    page.context.add_init_script(RECORD_SAVES)
+    page.goto(url)
+    page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
+    page.get_by_role("button", name="File", exact=True).click()
+    page.get_by_role("menuitem", name="Samples…").click()
+    title = page.get_by_role(
+        "heading", name="Bushing with steel sleeves (FElupe ex05)", exact=True
+    )
+    page.get_by_role("dialog").locator("li").filter(has=title).get_by_role(
+        "button", name="Open"
+    ).click()
+    page.get_by_role("dialog", name=re.compile("^Parameters")).get_by_role(
+        "button", name="Open", exact=True
+    ).click()
+    page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)
+    # the meshes of the script are drawn
+    cut = page.get_by_role("combobox", name="Cut")
+    cut.wait_for(timeout=60_000)
+    page.locator(".viewport-status").wait_for(state="detached", timeout=60_000)
+
+    def picture():
+        _, data = saved(page, lambda: export(page, "Picture of the view"))
+        return base64.b64encode(data).decode()
+
+    def changed(before):
+        # the cut arrives from Python after the request
+        for _ in range(50):
+            after = picture()
+            if page.evaluate(DIFFERENT, [before, after]) > 1000:
+                return after
+            page.wait_for_timeout(100)
+        raise AssertionError("The view did not change.")
+
+    whole = picture()
+    assert cut.locator("option").all_inner_texts() == [
+        "No cut",
+        "Cut x",
+        "Cut y",
+        "Cut z",
+    ]
+    # by x at the middle of the bushing, through its rubber and its sleeves
+    cut.select_option("x")
+    field = page.get_by_role("spinbutton", name="Coordinate of the cut, x")
+    assert field.input_value() == "0"
+    half = changed(whole)
+    page.get_by_role("button", name="Hide x >").click()
+    page.get_by_role("button", name="Hide x <").wait_for()
+    changed(half)
+    # without the cut, the view of the whole model again
+    cut.select_option("")
+    assert page.evaluate(DIFFERENT, [whole, picture()]) == 0
+    assert page.errors == []

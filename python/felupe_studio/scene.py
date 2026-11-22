@@ -103,8 +103,9 @@ def surface(solid, tags=None, cut=None):
         a point of the surface that is a point of the mesh, 0 for a point inside a
         subdivided face), ``corners`` (``uint8``, 1 for a corner of a cell, for the
         sides of quadratic 2D cells of 2D models; ``None`` for other cells),
-        ``cutface`` (``uint8``, 1 for a triangle of the cut face; ``None`` without a
-        cut) and the number of ``cells``.
+        ``sources`` (``int32``, the triangle of the outer surface of every triangle
+        of a cut, -1 on the cut face, to pick the faces of the cells; ``None``
+        without a cut) and the number of ``cells``.
     """
     points = np.asarray(solid.points, dtype=float)
     points = np.pad(points, ((0, 0), (0, 3 - points.shape[1])))
@@ -122,15 +123,19 @@ def surface(solid, tags=None, cut=None):
     corner_nodes = np.unique(cells[:, :corners]) if corners else None
 
     keys = ["positions", "triangles", "faces", "edges", "owners", "isnode", "corner"]
-    parts = {key: [] for key in [*keys, "cutface"]}
-    npoints = nfaces = 0
+    parts = {key: [] for key in [*keys, "sources"]}
+    npoints = nfaces = ntriangles = 0
     for r in np.unique(region):
         ids = np.flatnonzero(region == r)
         mesh = fem.Mesh(points, cells[ids], solid.cell_type)
         result = triangulate_surface(mesh, subdivisions=order)
         if plane is not None:
+            uncut = len(result.triangles)
             result = cuts.cut(result, points, cells[ids], solid.cell_type, plane, order)
-            parts["cutface"].append(np.arange(len(result.triangles)) >= result.outer)
+            sources = np.full(len(result.triangles), -1)
+            sources[: result.outer] = result.sources + ntriangles
+            parts["sources"].append(sources)
+            ntriangles += uncut
         positions = result.interpolate(points)
         parts["positions"].append(positions)
         parts["triangles"].append(result.triangles + npoints)
@@ -156,7 +161,7 @@ def surface(solid, tags=None, cut=None):
         "owners": _bytes(stack("owners", 0), "<u4"),
         "isnode": _bytes(stack("isnode", 0), "u1"),
         "corners": _bytes(stack("corner", 0), "u1") if corners else None,
-        "cutface": _bytes(stack("cutface", 0), "u1") if plane else None,
+        "sources": _bytes(stack("sources", 0), "<i4") if plane else None,
         "tags": {name: _bytes(values, "<i4") for name, values in tags.items()},
         "nodes": _bytes(points[np.unique(cells)], "<f8"),
         "cells": len(cells),

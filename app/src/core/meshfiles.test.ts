@@ -1,12 +1,19 @@
 import { describe, expect, it } from "vitest";
 import fixture from "../../../tests/data/two_sections.json";
-import type { Command, CommandList, MeshScript } from "./commands";
+import type {
+  Command,
+  CommandList,
+  MeshGenerate,
+  MeshScript,
+} from "./commands";
 import {
   faceSetNotes,
   fileNotes,
+  generateChain,
   makeMeshes,
   MeshFiles,
   meshFileNames,
+  meshSource,
   meshStatus,
   scriptParameters,
   sectionCellType,
@@ -244,5 +251,165 @@ describe("meshes made by scripts (#182)", () => {
       state: "error",
       message: "Python is not available.",
     });
+  });
+});
+
+describe("cuts of the meshes (#395)", () => {
+  const hexahedron = (positions: number[]) => ({
+    hexahedron: {
+      positions: Float32Array.from(positions),
+      triangles: new Uint32Array(),
+      edges: new Uint32Array(),
+      owners: new Uint32Array(),
+      cells: 1,
+    },
+  });
+
+  /** Mesh files whose cuts arrive on `arrive()`, recording the asked cuts. */
+  function cutting() {
+    const asked: unknown[] = [];
+    const waiting: (() => void)[] = [];
+    const files = new MeshFiles(
+      async (name) => ({ info: { file: name, solids: [] } }),
+      {
+        write: async () => {},
+        cut: (source, cut) => {
+          asked.push([source, cut]);
+          return new Promise((resolve, reject) =>
+            waiting.push(() =>
+              cut.value < 0
+                ? reject(new Error("no cut"))
+                : resolve(hexahedron([cut.value])),
+            ),
+          );
+        },
+      },
+    );
+    const arrive = async () => {
+      waiting.shift()!();
+      await Promise.resolve();
+      await Promise.resolve();
+    };
+    return { files, asked, arrive, waiting };
+  }
+
+  const cut = (value: number) => ({
+    axis: "x" as const,
+    value,
+    half: "+" as const,
+  });
+
+  it("know the request that made a mesh", async () => {
+    const { files } = cutting();
+    const model: Command[] = [
+      { command: "parameter.add", name: "n", value: 3 },
+      { command: "mesh.import", name: "a", file: "a.vtu" },
+      { command: "mesh.script", name: "b", file: "b.py", item: "left" },
+      {
+        command: "mesh.generate",
+        name: "c",
+        tool: "Cube",
+        parameters: { a: [0, 0, 0], b: [1, 1, 1], n: ["n", 2, 2] },
+      },
+    ];
+    const [, a, b, c] = model as [never, MeshScript, MeshScript, MeshGenerate];
+    expect(meshSource(a, model, files)).toBeUndefined();
+    await files.add("a.vtu", new Uint8Array([1]));
+    await files.add("b.py", new Uint8Array([1]));
+    expect(meshSource(a, model, files)).toEqual({
+      type: "inspect-mesh",
+      name: "a.vtu",
+    });
+    expect(meshSource(b, model, files)).toEqual({
+      type: "make-mesh",
+      file: "b.py",
+      parameters: { n: 3 },
+      item: "left",
+    });
+    // the chain of the tools, like the request that made it
+    expect(meshSource(c, model, files)).toEqual({
+      type: "generate-mesh",
+      name: "c",
+      commands: generateChain(c, model),
+    });
+    expect(generateChain(c, model)).toHaveLength(1);
+  });
+
+  it("ask for the latest cut once the one being made arrived", async () => {
+    const { files, asked, arrive } = cutting();
+    const source = { type: "inspect-mesh" as const, name: "a.vtu" };
+    const revision = files.revision;
+    files.cutMeshes([{ source, cut: cut(1) }]);
+    files.cutMeshes([{ source, cut: cut(1) }]);
+    files.cutMeshes([{ source, cut: cut(2) }]);
+    files.cutMeshes([{ source, cut: cut(3) }]);
+    expect(asked).toEqual([[source, cut(1)]]);
+    expect(files.cutSurfaces(source)).toBeUndefined();
+    await arrive();
+    // the arrived cut is drawn until the latest one arrives, the one between is
+    // never asked for
+    expect(files.cutSurfaces(source)!.hexahedron.positions).toEqual(
+      Float32Array.from([1]),
+    );
+    expect(asked).toEqual([
+      [source, cut(1)],
+      [source, cut(3)],
+    ]);
+    await arrive();
+    expect(files.cutSurfaces(source)!.hexahedron.positions[0]).toBe(3);
+    expect(files.cutRevision).toBe(2);
+    // a cut is no change of the files
+    expect(files.revision).toBe(revision);
+    files.cutMeshes([{ source, cut: cut(3) }]);
+    expect(asked).toHaveLength(2);
+
+    // an error keeps the latest surfaces, and is not asked for again
+    files.cutMeshes([{ source, cut: cut(-1) }]);
+    await arrive();
+    expect(files.cutSurfaces(source)!.hexahedron.positions[0]).toBe(3);
+    files.cutMeshes([{ source, cut: cut(-1) }]);
+    expect(asked).toHaveLength(3);
+  });
+
+  it("forget the cuts without a cut, of other meshes and of new files", async () => {
+    const { files, asked, arrive, waiting } = cutting();
+    const a = { type: "inspect-mesh" as const, name: "a.vtu" };
+    const b = { type: "inspect-mesh" as const, name: "b.vtu" };
+    files.cutMeshes([
+      { source: a, cut: cut(1) },
+      { source: b, cut: cut(1) },
+    ]);
+    await arrive();
+    await arrive();
+    files.cutMeshes([{ source: a, cut: cut(1) }]);
+    expect(files.cutSurfaces(a)).toBeDefined();
+    expect(files.cutSurfaces(b)).toBeUndefined();
+    files.cutMeshes([]);
+    expect(files.cutSurfaces(a)).toBeUndefined();
+
+    // a cut of a forgotten mesh that arrives late is dropped
+    files.cutMeshes([{ source: a, cut: cut(2) }]);
+    files.cutMeshes([]);
+    await arrive();
+    expect(files.cutSurfaces(a)).toBeUndefined();
+
+    // a new file of the project, and a new project
+    files.cutMeshes([{ source: a, cut: cut(1) }]);
+    await arrive();
+    await files.add("c.vtu", new Uint8Array([1]));
+    expect(files.cutSurfaces(a)).toBeUndefined();
+    files.cutMeshes([{ source: a, cut: cut(1) }]);
+    await arrive();
+    files.clear();
+    expect(files.cutSurfaces(a)).toBeUndefined();
+    expect(asked).toHaveLength(5);
+    expect(waiting).toHaveLength(0);
+  });
+
+  it("are not made without Python", () => {
+    const files = new MeshFiles();
+    const source = { type: "inspect-mesh" as const, name: "a.vtu" };
+    files.cutMeshes([{ source, cut: cut(1) }]);
+    expect(files.cutSurfaces(source)).toBeUndefined();
   });
 });

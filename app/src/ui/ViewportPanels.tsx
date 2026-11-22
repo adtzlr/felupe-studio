@@ -2,6 +2,7 @@
 // tip about picking, a picked face, picked surfaces and picked nodes, the warnings
 // about the selected object and what is off in the selected step (#393), stacked
 // between the axes and the job panel (#128).
+import type { ComponentProps } from "preact";
 import { toName } from "../core/importmesh";
 import type { Command, FaceSetAdd, PointSetAdd } from "../core/resolved";
 import { withHint } from "../core/shortcuts";
@@ -11,6 +12,7 @@ import { type Patch, patchCounts } from "../viewer/patches";
 import { boundOf, centerOf, nodesName, planeName } from "../viewer/pointsets";
 import { FEATURE_ANGLES, nodesSelect, type Surface } from "../viewer/surfaces";
 import { VIEWS, type Viewer } from "../viewer/viewer";
+import { CutControls } from "./CutControls";
 import { NodesButton } from "./NodesButton";
 import type { Node3, Picking } from "./usePicking";
 import type { Warnings } from "./useOverlays";
@@ -55,15 +57,18 @@ interface ToolbarProps {
   onToggleNodes: () => void;
   colorBy: ColorBy;
   onColorBy: (colorBy: ColorBy) => void;
+  /** The cut of the view (#395), if the app offers it. */
+  cut?: ComponentProps<typeof CutControls>;
 }
 
-/** Fit, the standard views, the nodes and the colors of the cells. */
+/** Fit, the standard views, the nodes, the colors of the cells and the cut. */
 export function ViewToolbar({
   viewer,
   nodesShown,
   onToggleNodes,
   colorBy,
   onColorBy,
+  cut,
 }: ToolbarProps) {
   return (
     <div class="view-toolbar" role="toolbar" aria-label="View">
@@ -100,6 +105,12 @@ export function ViewToolbar({
           </option>
         ))}
       </select>
+      {cut && (
+        <>
+          <span class="toolbar-separator" aria-hidden="true" />
+          <CutControls {...cut} />
+        </>
+      )}
     </div>
   );
 }

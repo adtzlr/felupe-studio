@@ -1388,6 +1388,26 @@ button {
   background: var(--color-border-strong);
 }
 
+/* the cut of the view (#395): the axis, the hidden half, the coordinate and its
+   slider, kept together when the toolbar wraps */
+.view-toolbar .cut-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.view-toolbar .cut-value {
+  width: 84px;
+  min-height: 0;
+  height: var(--control-height-sm);
+  font-size: var(--text-sm);
+}
+
+.view-toolbar .cut-slider {
+  width: 120px;
+  accent-color: var(--color-accent);
+}
+
 /* footer: command line, status and history */
 .footer {
   background: var(--color-bar);

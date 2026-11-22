@@ -14,11 +14,12 @@ import {
   cellTypeOf,
   isMeshObject,
   type MeshFiles,
+  meshSource,
   meshStatus,
 } from "../core/meshfiles";
 import { solidOf } from "../core/meshinfo";
 import { modelMesh } from "../core/meshtools";
-import type { MeshSurface } from "../worker/protocol";
+import type { MeshSource, MeshSurface } from "../worker/protocol";
 import {
   categorical,
   UNASSIGNED,
@@ -70,8 +71,20 @@ export const COLOR_BY: readonly { id: ColorBy; label: string }[] = [
   { id: "section", label: "Sections" },
 ];
 
+/**
+ * The mesh of a layer, to cut it (#395): the request that made it, the type of its
+ * drawn cells and the scale of its file (#135).
+ */
+export interface MeshOrigin {
+  source: MeshSource;
+  cellType: string;
+  scale?: number;
+}
+
 export interface ViewportContent {
   meshes: MeshLayer[];
+  /** The mesh of every layer of `meshes`, by its name (#395). */
+  origins: Map<string, MeshOrigin>;
   /**
    * The construction meshes of the mesh tools (ADR 0019), e.g. a line in a 3D
    * model: drawn as lines and light faces, not part of the model.
@@ -283,6 +296,7 @@ export function viewportContent(
   // imported meshes, meshes made by scripts (#182) and by tools (ADR 0019)
   const imports = commands.filter(isMeshObject);
   const meshes: MeshLayer[] = [];
+  const origins = new Map<string, MeshOrigin>();
   const construction: MeshLayer[] = [];
   const vertices: Markers[] = [];
   const dim = is2d(analysisOf(commands)) ? 2 : 3;
@@ -320,10 +334,13 @@ export function viewportContent(
     const raw =
       "solid" in choice ? status.surfaces[choice.solid.cell_type] : undefined;
     if (!raw) return;
-    const surface = scaledSurface(
-      raw,
-      mesh.command === "mesh.import" ? mesh.scale : undefined,
-    );
+    const scale = mesh.command === "mesh.import" ? mesh.scale : undefined;
+    const surface = scaledSurface(raw, scale);
+    const source = meshSource(mesh, commands, files);
+    if (source && "solid" in choice) {
+      const cellType = choice.solid.cell_type;
+      origins.set(mesh.name, { source, cellType, ...(scale ? { scale } : {}) });
+    }
     const masks = masksOf(mesh, commands, surface);
     const { hiddenCells, anyHidden } = hiddenCellsOf(
       commands,
@@ -347,6 +364,7 @@ export function viewportContent(
 
   const content: ViewportContent = {
     meshes,
+    origins,
     construction,
     vertices,
     reading: [...reading],

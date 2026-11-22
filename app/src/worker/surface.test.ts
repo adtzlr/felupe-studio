@@ -40,6 +40,11 @@ describe("surface of Python", () => {
     const corners = toSurface({ ...raw, corners: new Uint8Array([1, 0, 1]) });
     expect([...corners.isCorner!]).toEqual([1, 0, 1]);
     expect(transferables(corners)).toHaveLength(9);
+    // the triangles of the outer surface of a cut, -1 on the cut face (#395)
+    expect(surface.sources).toBeUndefined();
+    const cut = toSurface({ ...raw, sources: bytes(new Int32Array([-1])) });
+    expect([...cut.sources!]).toEqual([-1]);
+    expect(transferables(cut)).toHaveLength(9);
   });
 
   it("copies unaligned bytes and leaves out missing faces", () => {

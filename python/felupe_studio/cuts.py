@@ -88,6 +88,9 @@ class Cut:
         where the faces of the cells cross the plane.
     outer : int
         The number of triangles of the clipped outer surface.
+    sources : ndarray
+        The triangle of the outer surface of every triangle of the clipped outer
+        surface (``outer`` of them), e.g. to pick the faces of the cells.
     """
 
     interpolation: csr_matrix
@@ -96,6 +99,7 @@ class Cut:
     faces: np.ndarray
     edges: np.ndarray
     outer: int
+    sources: np.ndarray
 
     def interpolate(self, values):
         """Return the values at the points of the cut, interpolated from the values at
@@ -472,4 +476,5 @@ def cut(surface, points, cells, cell_type, plane, order=1):
         faces=face_numbers[keep],
         edges=segments,
         outer=int(keep[:nouter].sum()),
+        sources=parents[keep[:nouter]],
     )
