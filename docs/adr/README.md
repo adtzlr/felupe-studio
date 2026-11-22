@@ -25,5 +25,6 @@ Short records of decisions that shape felupe-studio. A record is changed by a ne
 | [0019](0019-mesh-tools.md)                  | Mesh tools                     | Accepted |
 | [0020](0020-brands.md)                      | Brands: own deployments        | Accepted |
 | [0021](0021-derived-parameters.md)          | Derived parameters             | Accepted |
+| [0022](0022-cut-through-the-model.md)       | A cut through the model        | Accepted |
 
 Template: Context, Decision, Consequences, Alternatives.

@@ -28,6 +28,7 @@ import numpy as np
 from felupe.math import eigvalsh, equivalent_von_mises
 from felupe.view._surface import polynomial_order, triangulate_surface
 
+from . import cuts
 from .scene import surface_nodes
 
 # the quantities by key: the kind of data, the component (None for the magnitude of
@@ -111,6 +112,7 @@ def reset(namespace, sections, points=(), units=None, mullins=()):
         controls={},
         ranges={},
         regions={},
+        cuts={},
     )
     _state["surfaces"] = {}
 
@@ -273,6 +275,22 @@ def _surface(section):
         surface = triangulate_surface(drawn, subdivisions=order)
         _state["surfaces"][section] = (surface, cells, order)
     return _state["surfaces"][section]
+
+
+def _drawn(section, plane=None):
+    """Return the surface of a section to draw: its outer surface, or clipped at the
+    plane of a cut with its cut face (#395). The geometry of a cut is kept per section
+    until the next cut or run, so a new substep needs only the interpolation."""
+    surface, cells, order = _surface(section)
+    if plane is None:
+        return surface
+    cached = _state.setdefault("cuts", {}).get(section)
+    if cached is None or cached[0] != plane:
+        mesh = _state["namespace"][f"field_{section}"][0].region.mesh
+        cell_type, cells = _cells(section)
+        result = cuts.cut(surface, mesh.points, cells, cell_type, plane, order)
+        _state["cuts"][section] = cached = (plane, result)
+    return cached[1]
 
 
 def _3d(array):
@@ -479,27 +497,31 @@ def _data(kind, section, method="cells"):
     return _reduce(_quadrature_data(kind, section), section, method)
 
 
-def _values(section, kind, component, method="cells"):
+def _values(section, kind, component, method="cells", surfaces=None):
     """Return the data of a quantity of a section of the current values of the
-    fields (at the points of the cells or at the cells), its values at the points of
-    the surface and the displacements of the points of the surface."""
+    fields (at the points of the cells or at the cells), and its values and the
+    displacements at the points of surfaces: by default of the outer surface, e.g.
+    also of a cut (#395)."""
     surface, cells, _ = _surface(section)
+    surfaces = surfaces or [surface]
     u = _3d(_state["namespace"][f"field_{section}"][0].values)
-    displacement = surface.interpolate(u)
+    displacements = [s.interpolate(u) for s in surfaces]
     if kind == "displacement":
         # the values at the points of the cells (not of bubbles) and the surface
         used = u[np.unique(cells)]
         if component is None:
-            return (
-                np.linalg.norm(used, axis=1),
-                np.linalg.norm(displacement, axis=1),
-                displacement,
-            )
-        return used[:, component], displacement[:, component], displacement
+            return np.linalg.norm(used, axis=1), [
+                (np.linalg.norm(d, axis=1), d) for d in displacements
+            ]
+        return used[:, component], [(d[:, component], d) for d in displacements]
     data = _data(kind, section, method)[:, component]
     if method == "cells":
-        return data, data[surface.owners], displacement
-    return data[np.unique(cells)], surface.interpolate(data), displacement
+        return data, [
+            (data[s.owners], d) for s, d in zip(surfaces, displacements, strict=True)
+        ]
+    return data[np.unique(cells)], [
+        (s.interpolate(data), d) for s, d in zip(surfaces, displacements, strict=True)
+    ]
 
 
 def _extend(bounds, *arrays):
@@ -550,7 +572,7 @@ def ranges(job, quantity, method="cells"):
         for substep in range(1, count + 1):
             _restore(job, substep)
             for section, result in sections.items():
-                data, values, _ = _values(section, kind, component, method)
+                data, [(values, _)] = _values(section, kind, component, method)
                 result.append(_range(_extend((np.inf, -np.inf), data, values)))
         # all sections: the union of the sections of every substep
         cache[key] = {
@@ -564,7 +586,7 @@ def _bytes(array, dtype):
     return np.ascontiguousarray(array, dtype=dtype).tobytes()
 
 
-def scene(job, substep, quantity, method="cells"):
+def scene(job, substep, quantity, method="cells", cut=None):
     """Return the result of a substep of a job for the viewer.
 
     Parameters
@@ -584,6 +606,12 @@ def scene(job, substep, quantity, method="cells"):
         ``fem.topoints``; projected instead if the quadrature points of the cells of
         a section are not at their points, see :func:`method_of`). The values at the
         points are per section, discontinuous between sections.
+    cut : dict or None, optional
+        The ``axis``, the coordinate ``value`` and the hidden ``half`` of a cut of
+        the view (default is None, see :func:`felupe_studio.cuts.plane`, #395): the
+        surfaces are clipped at the plane through the undeformed model and closed by
+        their cut faces, with the values inside. The ranges and the extremes stay
+        those of the sections.
 
     Returns
     -------
@@ -608,10 +636,10 @@ def scene(job, substep, quantity, method="cells"):
         subdivided face) as bytes.
     """
     _restore(job, substep)
-    return current_scene(job, substep, quantity, method)
+    return current_scene(job, substep, quantity, method, cut)
 
 
-def current_scene(job, substep, quantity, method="cells"):
+def current_scene(job, substep, quantity, method="cells", cut=None):
     """Return the result of the current fields for the viewer, like :func:`scene`
     without restoring a substep: e.g. the live results of a running job after a
     converged substep (#207), whose fields are current."""
@@ -621,25 +649,30 @@ def current_scene(job, substep, quantity, method="cells"):
     surfaces = []
     # the ranges and the extremes of every section (#377)
     sections = {}
+    plane = cuts.plane(cut)
     for section in _state["sections"]:
         surface, cells, order = _surface(section)
         mesh = _state["namespace"][f"field_{section}"][0].region.mesh
-        data, values, displacement = _values(section, kind, component, method)
+        # the range of the outer surface, also of a cut (#395)
+        drawn = _drawn(section, plane)
+        shown = [surface] if drawn is surface else [surface, drawn]
+        data, on = _values(section, kind, component, method, shown)
         sections[section] = {
-            "range": _range(_extend((np.inf, -np.inf), data, values)),
+            "range": _range(_extend((np.inf, -np.inf), data, on[0][0])),
             "extremes": _extremes(section, at, data) or None,
         }
+        values, displacement = on[-1]
         surfaces.append(
             {
                 "name": section,
-                "positions": _bytes(_3d(surface.interpolate(mesh.points)), "<f4"),
+                "positions": _bytes(_3d(drawn.interpolate(mesh.points)), "<f4"),
                 "displacement": _bytes(displacement, "<f4"),
-                "triangles": _bytes(surface.triangles, "<u4"),
-                "faces": _bytes(surface.faces, "<u4") if order == 1 else None,
-                "edges": _bytes(surface.edges, "<u4"),
+                "triangles": _bytes(drawn.triangles, "<u4"),
+                "faces": _bytes(drawn.faces, "<u4") if order == 1 else None,
+                "edges": _bytes(drawn.edges, "<u4"),
                 "values": _bytes(values, "<f4"),
-                "owners": _bytes(surface.owners, "<u4"),
-                "nodes": _bytes(surface_nodes(surface), "<i4"),
+                "owners": _bytes(drawn.owners, "<u4"),
+                "nodes": _bytes(surface_nodes(drawn), "<i4"),
             }
         )
 

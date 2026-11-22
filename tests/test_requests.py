@@ -93,6 +93,21 @@ def test_the_requests_of_the_app(answers, tmp_path, monkeypatch):
         }
     )
     assert scene["type"] == "result-scene" and scene["scene"]["surfaces"]
+    # cut through the undeformed model (#395): fewer triangles than outside
+    cut = {"axis": "x", "value": 0.5, "half": "+"}
+    [cut_scene] = answers(
+        {
+            "type": "result",
+            "id": 6,
+            "job": "job_1",
+            "substep": 5,
+            "quantity": "displacement",
+            "cut": cut,
+        }
+    )
+    [plain], [half] = scene["scene"]["surfaces"], cut_scene["scene"]["surfaces"]
+    assert 0 < len(half["triangles"]) != len(plain["triangles"])
+    assert cut_scene["scene"]["range"] == scene["scene"]["range"]
     [ranges] = answers(
         {"type": "result-ranges", "id": 7, "job": "job_1", "quantity": "displacement"}
     )
