@@ -21,7 +21,7 @@ on:
 env:
   # the release of felupe-studio that the brand is built with (0.8.0 or newer;
   # 0.9.0 or newer with accent_light or defaults.theme in brand.json)
-  FELUPE_STUDIO_VERSION: "0.9.0"
+  FELUPE_STUDIO_VERSION: "0.10.0"
   # the brand folder: the folder of brand.json, relative to the root of this
   # repository, e.g. "my-brand" for my-brand/brand.json or "." for ./brand.json
   BRAND_FOLDER: brand

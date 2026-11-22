@@ -2,7 +2,17 @@
 
 All notable changes of FElupe Studio (the web app and the Python package `felupe_studio`, released together with the same version).
 
-## [Unreleased]
+## [0.10.0] - 2026-11-22
+
+Steps that switch boundaries, a cut through the model and more mesh tools:
+- **Steps that switch boundaries** (#393): *Boundaries* of a step chooses its boundaries, load cases and symmetry planes, like its sections, constraints and loads (all of them by default, as before). A boundary that a step does not have is off: its points are free, and its reaction force is released at once, e.g. a clamp opened after a preload. A boundary switched on again takes the displacements of its points at the start of the step, which hold them where they are, or at the start of the job, which move them back (*Switched on*). What is off in a selected step is faded in the viewport and named below the view.
+- **A cut through the model** (#395): *Cut* in the toolbar of the view cuts the meshes by a plane normal to x, y or z, with the half beyond or before it hidden, e.g. a bushing through its axis, so the rubber between its sleeves is seen. The cut goes through the undeformed model, so in the results the cut face moves with the material and shows the values inside; the range and *Min/Max* stay those of the sections. The cut is a setting of the view, in both workspaces and in the picture of the view.
+- **More mesh tools** (#394): *Primitives ▸ Circle* and *Primitives ▸ Triangle*, and *Operations ▸ Stack*, which makes one mesh of several meshes of the same cells, e.g. a profile of three rectangles revolved at once. A new operation takes the meshes that no other tool takes yet.
+- **The other sections in one color or hidden** (#396): *Other sections* in the contour settings draws the sections outside the range of chosen sections in one color (a gray of the theme by default, semi-transparent with *Grayscale*) or not at all, e.g. the steel sleeves of a bushing, which drew the eye away from the rubber.
+- **The save dialog of the system** (#400): in Chrome and Edge on the desktop, *Save project* and every export open the save dialog of the system instead of a download, and *Save project* then writes into the chosen file again; Firefox and Safari download as before.
+- **Smaller changes:** every menu stays inside the window, also the theme menu on a phone (#402); the form of a mesh tool no longer offers the meshes made from it (#397); the user guide and the README with the pictures of the cut and of a stacked profile (#397).
+
+**The schema version stays 3:** projects of v0.9 open unchanged. The properties `boundaries` and `switched_on` of `step.add` and the tools `Circle`, `Triangle` and `stack` of `mesh.generate` are additive, but a project that uses them does not open in v0.9 or v0.8, which name them (*This project uses the property `boundaries` of `step.add`, which FElupe Studio 0.9.0 does not know*), nor in v0.7 and earlier, which list the errors of the schema. **Brands:** `brand.json` is unchanged, so a brand of v0.9 builds with `FELUPE_STUDIO_VERSION: "0.10.0"`. **Python:** `felupe_studio.cuts.cut()` and a `cut` of `felupe_studio.scene.surface()`, `felupe_studio.results.scene()` and the live settings of `felupe_studio.runner.run()`, all optional; the names `BoundarySwitch`, `boundary_switch` and `pick` are reserved in the script. FElupe 12.1.1 (adtzlr/felupe#1301 is merged, but not released yet, #345), Pyodide 314.0.7.
 
 ### Added
 
@@ -354,6 +364,7 @@ The first release: a model of hyperelastic solids, from mesh files to results, i
 - `felupe_studio.codegen()`: the command list as a readable FElupe script, checked by golden tests against reference curves.
 - JSON schema of the command list (schema version 1) as the single source of the app and of the package.
 
+[0.10.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.10.0
 [0.9.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.9.0
 [0.8.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.8.0
 [0.7.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.7.0
