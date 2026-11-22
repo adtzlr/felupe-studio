@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { deriveTree } from "./tree";
-import { draftErrors, fieldSpecs, initialDraft, setValue } from "./form";
+import {
+  type Draft,
+  draftErrors,
+  fieldSpecs,
+  initialDraft,
+  offered,
+  setValue,
+} from "./form";
 import {
   MESH_TOOLS,
   dimensions,
@@ -379,6 +386,44 @@ describe("a stack of meshes (#394)", () => {
         context,
       ).inputs,
     ).toBe("Select at most one.");
+  });
+
+  it("offers the meshes that do not use it, which would make a cycle", () => {
+    const profile = stack(["left", "middle", "right"]) as unknown as Draft;
+    const moved = {
+      ...made("translate", { move: 1, axis: "x" }, "moved"),
+      inputs: ["body"],
+    } as MeshGenerate;
+    const extra = rectangle("extra", 3);
+    const commands = [
+      ...pieces,
+      stack(["left", "middle", "right"]),
+      revolved,
+      moved,
+      extra,
+    ] as Command[];
+    const context = { commands, editing: "profile" };
+    const inputs = fieldSpecs("mesh.generate", profile).find(
+      (s) => s.key === "inputs",
+    )!;
+    // not the revolved stack, nor the mesh moved from it; a mesh after it is
+    // offered, and the stack then moves behind it (#80)
+    expect(offered(inputs, profile, context)).toEqual([
+      "left",
+      "middle",
+      "right",
+      "extra",
+    ]);
+    // a new stack offers every mesh
+    expect(offered(inputs, profile, { commands })).toEqual([
+      "left",
+      "middle",
+      "right",
+      "profile",
+      "body",
+      "moved",
+      "extra",
+    ]);
   });
 
   it("shows its meshes below it in the browser", () => {

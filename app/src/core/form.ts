@@ -21,6 +21,7 @@ import {
   RAMPED,
   REFERENCES,
   type RefKind,
+  references,
 } from "./validate";
 
 /** A command that is being edited; it may be incomplete or hold invalid values. */
@@ -818,8 +819,10 @@ export function cells(spec: FieldSpec, draft: Draft): FieldSpec[][] {
 }
 
 /**
- * Names a reference field offers: the objects of its kind, without the edited one;
- * in a column of rows with unique objects, without the ones of the other rows.
+ * Names a reference field offers: the objects of its kind, without the edited one
+ * and the objects that use it, which would make a cycle (e.g. the mesh revolved
+ * from a stack, as an input of the stack); in a column of rows with unique
+ * objects, without the ones of the other rows.
  */
 export function offered(
   spec: FieldSpec,
@@ -827,7 +830,10 @@ export function offered(
   context: Context,
 ): string[] {
   if (spec.input.type !== "reference") return [];
-  const names = available(context, spec.input.kind);
+  const users = usersOfEdited(context);
+  const names = available(context, spec.input.kind).filter(
+    (name) => !users.has(name),
+  );
   if (spec.row === undefined || !spec.unique) return names;
   const rowsPath = spec.path.slice(0, -2);
   const name = spec.path.at(-1)!;
@@ -836,6 +842,25 @@ export function offered(
     .filter((_, i) => i !== spec.row)
     .map((r) => r[name]);
   return names.filter((n) => !used.includes(n));
+}
+
+/** The objects that use the edited one, directly or through others. */
+function usersOfEdited({ commands, editing }: Context): Set<string> {
+  const users = new Set<string>();
+  if (editing === undefined) return users;
+  const used = new Set([editing]);
+  let grown: boolean;
+  do {
+    grown = false;
+    for (const command of commands) {
+      if (used.has(command.name)) continue;
+      if (!references(command).some((r) => used.has(r.name))) continue;
+      used.add(command.name);
+      users.add(command.name);
+      grown = true;
+    }
+  } while (grown);
+  return users;
 }
 
 /**
