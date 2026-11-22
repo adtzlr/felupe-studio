@@ -58,12 +58,20 @@ def test_curve_points_of_every_substep(bar):
     assert [e["y"] for e in live] == result["y"]
 
 
-@pytest.mark.parametrize("method", ["cells", "project"])
-def test_scenes_are_throttled_and_equal_the_recorded_ones(bar, method):
+@pytest.mark.parametrize(
+    ("method", "cut"),
+    [
+        ("cells", None),
+        ("project", None),
+        # a cut of the view (#395)
+        ("cells", {"axis": "x", "value": 1.3, "half": "-"}),
+    ],
+)
+def test_scenes_are_throttled_and_equal_the_recorded_ones(bar, method, cut):
     events = []
     # one tick for the substep, one for the scene: a scene at most every second
     # (with the stresses at the cells or projected to the points, #231)
-    live = {"quantity": "stress_mises", "budget": 1, "method": method}
+    live = {"quantity": "stress_mises", "budget": 1, "method": method, "cut": cut}
     run(bar, events.append, live, Clock())
     scenes = [e for e in lives(events) if "scene" in e]
     shown = [e["substep"] for e in scenes]
@@ -72,12 +80,13 @@ def test_scenes_are_throttled_and_equal_the_recorded_ones(bar, method):
     assert 2 < len(shown) < 10
     for event in scenes:
         meta, surfaces = event["scene"]
-        expected = results.scene("job_1", event["substep"], "stress_mises", method)
+        expected = results.scene("job_1", event["substep"], "stress_mises", method, cut)
         assert json.loads(meta) == json.loads(expected[0])
         for live, recorded in zip(surfaces, expected[1], strict=True):
             assert live.keys() == recorded.keys()
             for key in live:
                 assert live[key] == recorded[key], key
+            assert ("uncut" in live) == (cut is not None)
 
 
 def test_scenes_take_a_share_of_the_time_at_most(bar, monkeypatch):

@@ -42,6 +42,30 @@ function distance(plane: Plane, x: number): number {
   return Math.abs(s) <= plane.tol ? 0 : s;
 }
 
+/** Whether a point is in the visible half or on the plane. */
+export function isVisible(plane: Plane, point: ArrayLike<number>): boolean {
+  return distance(plane, point[plane.axis]) <= 0;
+}
+
+/**
+ * The visible part of the segment from a to b: the parameters of its ends from 0
+ * (at a) to 1 (at b); none if it is hidden or only a point on the plane. Clipped in
+ * the undeformed model, the displaced segment is clipped at the same parameters,
+ * as its displacement is linear (#395).
+ */
+export function visiblePart(
+  plane: Plane,
+  a: ArrayLike<number>,
+  b: ArrayLike<number>,
+): readonly [number, number] | undefined {
+  const sa = distance(plane, a[plane.axis]);
+  const sb = distance(plane, b[plane.axis]);
+  if (Math.max(sa, sb) > 0 && Math.min(sa, sb) >= 0) return undefined;
+  if (sa <= 0 && sb <= 0) return [0, 1];
+  const t = sa / (sa - sb);
+  return sa <= 0 ? [0, t] : [t, 1];
+}
+
 /** The points in the visible half or on the plane (three coordinates each). */
 export function visiblePoints(
   plane: Plane,

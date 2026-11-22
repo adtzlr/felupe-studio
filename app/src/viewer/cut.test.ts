@@ -8,9 +8,11 @@ import {
   cutLayers,
   cutLines,
   cutMarkers,
+  isVisible,
   meshCuts,
   planeOf,
   uncutPick,
+  visiblePart,
   visiblePoints,
 } from "./cut";
 import type { ViewportContent } from "./layers";
@@ -197,5 +199,23 @@ describe("the cut meshes (#395)", () => {
     expect(uncutPick({ ...pick, triangle: 1 }, layers)).toBeUndefined();
     expect(uncutPick(pick, [layer])).toBe(pick);
     expect(uncutPick(undefined, layers)).toBeUndefined();
+  });
+});
+
+describe("the visible part of a line of the undeformed model (#395)", () => {
+  const plane = planeOf({ axis: "y", value: 1, half: "-" }, 2);
+
+  it("is the part beyond the plane of a hidden half y < 1", () => {
+    expect(isVisible(plane, [0, 2, 0])).toBe(true);
+    expect(isVisible(plane, [0, 1, 0])).toBe(true);
+    expect(isVisible(plane, [0, 0.5, 0])).toBe(false);
+    expect(visiblePart(plane, [0, 2, 0], [5, 3, 0])).toEqual([0, 1]);
+    expect(visiblePart(plane, [0, 0, 0], [0, 4, 0])).toEqual([0.25, 1]);
+    expect(visiblePart(plane, [0, 3, 0], [0, -1, 0])).toEqual([0, 0.5]);
+    // hidden, or a point on the plane only
+    expect(visiblePart(plane, [0, 0, 0], [0, 0.5, 0])).toBeUndefined();
+    expect(visiblePart(plane, [0, 0, 0], [0, 1, 0])).toBeUndefined();
+    // on the plane
+    expect(visiblePart(plane, [0, 1, 0], [3, 1, 0])).toEqual([0, 1]);
   });
 });

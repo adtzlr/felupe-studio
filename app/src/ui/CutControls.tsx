@@ -3,7 +3,7 @@
 // of the model and asks for a new cut when it stops; the coordinate is typed in its
 // field. A setting of the view, shared by the workspaces, not of the project.
 import { useEffect, useState } from "preact/hooks";
-import { CUT_AXES } from "../viewer/cut";
+import { CUT_AXES, type Plane, planeOf } from "../viewer/cut";
 import type { Cut } from "../worker/protocol";
 
 /** A coordinate as text, without the noise of floating point numbers. */
@@ -30,6 +30,18 @@ export function boundsOf(
     }
   }
   return min[0] <= max[0] ? { min, max } : undefined;
+}
+
+/** The plane of a cut, with a tolerance of the size of the bounds of the model. */
+export function cutPlane(
+  cut: Cut | undefined,
+  bounds: Bounds | undefined,
+): Plane | undefined {
+  if (!cut || !bounds) return undefined;
+  return planeOf(
+    cut,
+    Math.hypot(...bounds.max.map((x, k) => x - bounds.min[k])),
+  );
 }
 
 /**

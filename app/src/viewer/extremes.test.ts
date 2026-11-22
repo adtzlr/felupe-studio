@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { planeOf } from "./cut";
 import { extremeShape } from "./extremes";
 import type { ResultExtreme, ResultScene } from "../worker/protocol";
 
@@ -38,7 +39,7 @@ const extreme = (e: Partial<ResultExtreme>): ResultExtreme => ({
 
 describe("the shape of an extreme (#140)", () => {
   it("outlines the outer faces of a cell, with the label at their centers", () => {
-    const shape = extremeShape(scene, extreme({}), 2);
+    const shape = extremeShape(scene, extreme({}), 2)!;
     expect(shape.dot).toBeUndefined();
     // the top face moved up by 2 × 1: its four edges, not the diagonal
     expect(shape.anchors).toEqual([[0.5, 0.5, 3]]);
@@ -57,7 +58,7 @@ describe("the shape of an extreme (#140)", () => {
 
   it("takes every triangle of curved faces, and a dot elsewhere", () => {
     const curved = { ...scene, surfaces: [{ ...surface, faces: undefined }] };
-    expect(extremeShape(curved, extreme({}), 1).anchors).toHaveLength(2);
+    expect(extremeShape(curved, extreme({}), 1)!.anchors).toHaveLength(2);
     // a node, a cell inside and a cell not drawn get a dot at the point
     for (const e of [
       extreme({ at: "point", index: 2 }),
@@ -65,10 +66,47 @@ describe("the shape of an extreme (#140)", () => {
       extreme({ index: 9 }),
       extreme({ section: "other" }),
     ]) {
-      const shape = extremeShape(scene, e, 2);
+      const shape = extremeShape(scene, e, 2)!;
       expect(shape.dot).toEqual([0.5, 0.5, 1.5]);
       expect(shape.anchors).toEqual([[0.5, 0.5, 1.5]]);
       expect(shape.outline).toBeUndefined();
     }
+  });
+});
+
+describe("an extreme of a cut scene (#395)", () => {
+  // the triangles of the cell 1 are those of its cut face
+  const cut = {
+    ...scene,
+    surfaces: [{ ...surface, faces: undefined, outer: 2 }],
+  };
+  const plane = planeOf({ axis: "x", value: 0.25, half: "+" }, 1);
+
+  it("outlines the cut of a cell inside, one face of a curved cell", () => {
+    const shape = extremeShape(
+      cut,
+      extreme({ index: 1, surface: false }),
+      1,
+      plane,
+    )!;
+    expect(shape.dot).toBeUndefined();
+    expect(shape.anchors).toEqual([[0.5, 0.5, 0]]);
+    expect(shape.outline).toHaveLength(4 * 6);
+    // the outer faces of a curved cell, one per triangle
+    expect(extremeShape(cut, extreme({}), 1, plane)!.anchors).toHaveLength(2);
+  });
+
+  it("is not drawn in the hidden half, but on the plane", () => {
+    // a node beyond x = 0.25, a cell with no drawn triangles and its center there
+    expect(
+      extremeShape(cut, extreme({ at: "point" }), 1, plane),
+    ).toBeUndefined();
+    expect(extremeShape(cut, extreme({ index: 9 }), 1, plane)).toBeUndefined();
+    const before = { ...plane, sign: -1 as const };
+    expect(extremeShape(cut, extreme({ index: 9 }), 1, before)!.dot).toEqual([
+      0.5, 0.5, 1,
+    ]);
+    const on = extreme({ at: "point", position: [0.25, 0, 0] });
+    expect(extremeShape(cut, on, 1, plane)!.dot).toEqual([0.25, 0, 0.5]);
   });
 });

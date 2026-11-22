@@ -1261,6 +1261,15 @@ button {
   box-shadow: var(--shadow-sm);
 }
 
+/* with cards beside it, e.g. the curve of the results, the toolbar wraps before
+   them, e.g. with the cut of the view (#395) */
+.shell:not(.compact) .viewport:has(> .overlay-side > *) > .view-toolbar {
+  max-width: max(
+    40%,
+    calc(100% - var(--side-width) - 3 * var(--overlay-inset))
+  );
+}
+
 .view-toolbar button {
   min-width: 34px;
   height: var(--control-height-sm);

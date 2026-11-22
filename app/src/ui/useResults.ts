@@ -7,6 +7,7 @@ import {
   loadContour,
   saveContour,
 } from "../core/contour";
+import { analysisOf, is2d } from "../core/analysis";
 import type { JobRun, JobRunner } from "../core/jobs";
 import { liveResults, loadLiveOn, saveLiveOn } from "../core/live";
 
@@ -15,6 +16,8 @@ type Live = NonNullable<ReturnType<typeof liveResults>>;
 import { type ResultView, substepsOf, viewOf } from "../core/results";
 import type { ModelStore } from "../core/store";
 import { useJobs } from "./hooks";
+import type { Cut } from "../worker/protocol";
+import { shownCut } from "./CutControls";
 import type { Workspace } from "./Ribbon";
 import { usePlayer } from "./usePlayer";
 
@@ -50,9 +53,11 @@ interface Options {
   workspace: Workspace;
   /** The compact layout of a phone (#378): the curve is off by default. */
   compact?: boolean;
+  /** The cut of the view (#395), of the live scenes of a run. */
+  cut?: Cut;
 }
 
-export function useResults({ store, jobs, workspace, compact }: Options) {
+export function useResults({ store, jobs, workspace, compact, cut }: Options) {
   const run = useJobs(jobs);
   const finished = jobs?.results;
   const [view, setView] = useState<ResultView>();
@@ -149,9 +154,11 @@ export function useResults({ store, jobs, workspace, compact }: Options) {
     if (!jobs) return;
     const { serialize } = await import("../core/project");
     setLiveChoice(undefined);
-    // the scenes of the running jobs show the quantity of the view (#207)
+    // the scenes of the running jobs show the quantity of the view (#207), cut
+    // like the view (#395, not by z of a 2D model)
     // the commands with the values of their expressions (#242), the document as
     // written: the script shows the expressions
+    const liveCut = shownCut(cut, is2d(analysisOf(store.resolved)));
     await jobs.solve(
       store.resolved,
       serialize(store.document),
@@ -159,6 +166,7 @@ export function useResults({ store, jobs, workspace, compact }: Options) {
         ? {
             quantity: (view ?? lastView.current)?.quantity ?? "displacement",
             method: contour.values,
+            ...(liveCut ? { cut: liveCut } : {}),
           }
         : undefined,
     );

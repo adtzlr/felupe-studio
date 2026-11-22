@@ -625,15 +625,18 @@ def scene(job, substep, quantity, method="cells", cut=None):
         ``index`` of the node or the cell, whether it is at the ``surface``, its
         ``position`` and ``displacement``; ``None`` without finite values), of the
         ``range`` and the ``extremes`` of every section (``sections``, by name, for
-        the range of chosen sections, #377) and of the control ``points``
-        (``name``, ``position`` and ``displacement``), and the surface of every
-        section: its
-        ``name``, ``positions`` (three coordinates per point of the surface),
-        ``displacement`` (three components per point), ``triangles``, ``faces`` (to
-        shade the faces of linear cells flat; ``None`` for curved faces), ``edges``,
-        ``values``, ``owners`` (the cell of the section of every triangle) and
-        ``nodes`` (the point of the mesh of every point of the surface, -1 inside a
-        subdivided face) as bytes.
+        the range of chosen sections, #377), of the control ``points``
+        (``name``, ``position`` and ``displacement``) and of the ``cut`` (if any),
+        and the surface of every section: its ``name``, ``positions`` (three
+        coordinates per point of the surface), ``displacement`` (three components
+        per point), ``triangles``, ``faces`` (to shade the faces of linear cells
+        flat; ``None`` for curved faces), ``edges``, ``values``, ``owners`` (the
+        cell of the section of every triangle) and ``nodes`` (the point of the mesh
+        of every point of the surface, -1 inside a subdivided face and on the cut
+        face) as bytes. With a cut, a surface has the number of the
+        triangles of the clipped outer surface (``outer``, those of the cut face
+        follow) and the ``positions`` and the ``displacement`` of the nodes of the
+        whole outer surface (``uncut``, as bytes).
     """
     _restore(job, substep)
     return current_scene(job, substep, quantity, method, cut)
@@ -662,19 +665,30 @@ def current_scene(job, substep, quantity, method="cells", cut=None):
             "extremes": _extremes(section, at, data) or None,
         }
         values, displacement = on[-1]
-        surfaces.append(
-            {
-                "name": section,
-                "positions": _bytes(_3d(drawn.interpolate(mesh.points)), "<f4"),
-                "displacement": _bytes(displacement, "<f4"),
-                "triangles": _bytes(drawn.triangles, "<u4"),
-                "faces": _bytes(drawn.faces, "<u4") if order == 1 else None,
-                "edges": _bytes(drawn.edges, "<u4"),
-                "values": _bytes(values, "<f4"),
-                "owners": _bytes(drawn.owners, "<u4"),
-                "nodes": _bytes(surface_nodes(drawn), "<i4"),
+        result = {
+            "name": section,
+            "positions": _bytes(_3d(drawn.interpolate(mesh.points)), "<f4"),
+            "displacement": _bytes(displacement, "<f4"),
+            "triangles": _bytes(drawn.triangles, "<u4"),
+            "faces": _bytes(drawn.faces, "<u4") if order == 1 else None,
+            "edges": _bytes(drawn.edges, "<u4"),
+            "values": _bytes(values, "<f4"),
+            "owners": _bytes(drawn.owners, "<u4"),
+            "nodes": _bytes(surface_nodes(drawn), "<i4"),
+        }
+        if drawn is not surface:
+            # the triangles of the clipped outer surface, then the cut face, and the
+            # nodes of the whole outer surface, e.g. for the point sets of the
+            # constraints and the rigid surfaces of the view (#395)
+            nodes = surface_nodes(surface) >= 0
+            result["outer"] = drawn.outer
+            result["uncut"] = {
+                "positions": _bytes(
+                    _3d(surface.interpolate(mesh.points))[nodes], "<f4"
+                ),
+                "displacement": _bytes(on[0][1][nodes], "<f4"),
             }
-        )
+        surfaces.append(result)
 
     meta = {
         "label": label,
@@ -685,6 +699,8 @@ def current_scene(job, substep, quantity, method="cells", cut=None):
         "extremes": _combined_extremes(sections.values()),
         "sections": sections,
         "points": _control_points(job, substep),
+        # the cut of the scene (#395), e.g. for the markers of the view
+        **({"cut": cut} if plane is not None else {}),
     }
     return json.dumps(meta), surfaces
 

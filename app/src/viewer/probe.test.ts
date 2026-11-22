@@ -146,5 +146,16 @@ describe("probe", () => {
     expect(probeInfo(points, { ...probe, point: 3 } as never).where).toBe(
       "A point of a face of block",
     );
+    // the second triangle on the cut face of a cut scene (#395)
+    const cut: ResultScene = {
+      ...points,
+      surfaces: [{ ...points.surfaces[0], outer: 1 }],
+    };
+    expect(
+      probeInfo(cut, { ...probe, triangle: 1, point: 3 } as never).where,
+    ).toBe("A point of the cut face of block");
+    expect(probeInfo(cut, { ...probe, point: 3 } as never).where).toBe(
+      "A point of a face of block",
+    );
   });
 });

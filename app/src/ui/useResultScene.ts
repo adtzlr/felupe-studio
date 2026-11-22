@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { SceneCache } from "../core/scenecache";
 import type {
+  Cut,
   Quantity,
   ResultRanges,
   ResultScene,
@@ -17,6 +18,8 @@ export interface ResultSource {
     substep: number,
     quantity: Quantity,
     method?: ValuesMethod,
+    /** A cut of the view (#395). */
+    cut?: Cut,
   ): Promise<ResultScene>;
   /**
    * The ranges of a quantity of every substep of a job (#139), of all sections and
@@ -70,6 +73,8 @@ export interface Wanted {
   substep: number;
   quantity: Quantity;
   method: ValuesMethod;
+  /** The cut of the view (#395), in the key. */
+  cut?: Cut;
 }
 
 /**
@@ -120,6 +125,7 @@ export function useResultScene(
         next.substep,
         next.quantity,
         next.method,
+        ...(next.cut ? [next.cut] : []),
       );
       if (next.key.startsWith(`${run.current}/`)) {
         cache.current.set(next.key, scene);

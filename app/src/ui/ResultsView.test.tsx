@@ -13,7 +13,7 @@ import type { ResultView } from "../core/results";
 import type { Scene, ViewerHandle } from "../vendor/felupe-viewer/viewer.js";
 import { VIEW_COLORS } from "../viewer/palette";
 import type { CreateViewer } from "../viewer/viewer";
-import type { ResultScene } from "../worker/protocol";
+import type { Cut, ResultScene } from "../worker/protocol";
 import { ResultsView } from "./ResultsView";
 
 afterEach(cleanup);
@@ -391,5 +391,122 @@ describe("ResultsView", () => {
     // the key does nothing either
     fireEvent.keyDown(window, { key: "c" });
     expect(screen.queryByRole("button", { name: "Constraints" })).toBeNull();
+  });
+
+  it("cuts the scenes and draws what is in the visible half (#395)", async () => {
+    const viewer = fakeViewer();
+    const cut: Cut = { axis: "x", value: 1, half: "+" };
+    const extreme = (value: number, x: number) => ({
+      value,
+      section: "solid",
+      at: "point" as const,
+      index: x,
+      surface: true,
+      position: [x, 0, 0] as [number, number, number],
+      displacement: [0, 0, 0] as [number, number, number],
+    });
+    // the square from x = 0 to 2 cut at x = 1: the outer triangle and the cut face
+    const whole = Float32Array.from([0, 0, 0, 2, 0, 0, 2, 1, 0, 0, 1, 0]);
+    const points = [
+      { name: "left", position: [0, 0, 0], displacement: [0, 0, 0] },
+      { name: "right", position: [2, 0, 0], displacement: [0, 0, 0] },
+    ] as ResultScene["points"];
+    const extremes = { min: extreme(0, 0), max: extreme(0.5, 2) };
+    const cutScene: ResultScene = {
+      ...scene,
+      cut,
+      points,
+      extremes,
+      surfaces: [
+        {
+          ...scene.surfaces[0],
+          outer: 1,
+          uncut: { positions: whole, displacement: new Float32Array(12) },
+        },
+      ],
+    };
+    const uncut: ResultScene = {
+      ...scene,
+      points,
+      extremes,
+      surfaces: [{ ...scene.surfaces[0], positions: whole }],
+    };
+    const resultScene = vi.fn(
+      async (...args: [string, number, string, string?, Cut?]) =>
+        args[4] ? cutScene : uncut,
+    );
+    const onCut = vi.fn();
+    const results = (value?: Cut, commands: Command[] = []) => (
+      <ResultsView
+        source={{ resultScene }}
+        view={view}
+        generation={1}
+        active
+        running={false}
+        createViewer={viewer.create}
+        commands={commands}
+        cut={value}
+        onCut={onCut}
+      />
+    );
+    const { rerender } = render(results(cut));
+    await waitFor(() =>
+      expect(resultScene).toHaveBeenLastCalledWith(
+        "job_1",
+        1,
+        "displacement",
+        "cells",
+        cut,
+      ),
+    );
+    // where the control points and the extremes are marked in the last scene: the
+    // x of the markers (each with an outline)
+    const markers = () => [
+      ...new Set(
+        (viewer.handle.update.mock.calls.at(-1)?.[0].objects ?? [])
+          .filter((o) => o.type === "points")
+          .flatMap((o) => [...(o.positions.data as Float32Array)])
+          .filter((_, i) => i % 3 === 0),
+      ),
+    ];
+    await waitFor(() => expect(markers()).toEqual([0]));
+    // the slider spans the whole model, Min/Max only the visible one
+    const slider = screen.getByRole("slider", {
+      name: "Position of the cut along x",
+    }) as HTMLInputElement;
+    expect([slider.min, slider.max]).toEqual(["0", "2"]);
+    fireEvent.click(screen.getByRole("button", { name: "Min/Max" }));
+    const labels = () =>
+      [...viewer.handle.root.querySelectorAll(".fv-label")].map(
+        (l) => l.textContent,
+      );
+    await waitFor(() => expect(labels()).toEqual(["Min. 0"]));
+    expect(markers()).toEqual([0]);
+
+    // no cut: a scene of its own, with everything drawn
+    fireEvent.change(screen.getByRole("combobox", { name: "Cut" }), {
+      target: { value: "" },
+    });
+    expect(onCut).toHaveBeenLastCalledWith(undefined);
+    rerender(results(undefined));
+    await waitFor(() =>
+      expect(resultScene).toHaveBeenLastCalledWith(
+        "job_1",
+        1,
+        "displacement",
+        "cells",
+      ),
+    );
+    await waitFor(() => expect(labels()).toEqual(["Min. 0", "Max. 0.5"]));
+    expect(markers()).toEqual([0, 2]);
+
+    // a 2D model is not cut by z
+    const calls = resultScene.mock.calls.length;
+    const planar = [
+      { command: "model.settings", name: "settings", analysis: "plane-strain" },
+    ] as unknown as Command[];
+    rerender(results({ ...cut, axis: "z" }, planar));
+    await screen.findByRole("combobox", { name: "Cut" });
+    expect(resultScene).toHaveBeenCalledTimes(calls);
   });
 });

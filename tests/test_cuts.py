@@ -315,6 +315,20 @@ def test_results_scene(two_materials):
     meta, meta_cut = json.loads(meta), json.loads(meta_cut)
     for key in ("range", "extremes", "sections"):
         assert meta_cut[key] == meta[key]
+    assert all("uncut" not in s and "outer" not in s for s in plain)
+    assert meta_cut["cut"] == cut and "cut" not in meta
+
+    for s, whole in zip(surfaces, plain, strict=True):
+        # the nodes of the whole outer surface, with their displacements
+        nodes = np.frombuffer(whole["nodes"], "<i4") >= 0
+        for key in ("positions", "displacement"):
+            expected = np.frombuffer(whole[key], "<f4").reshape(-1, 3)[nodes]
+            uncut = np.frombuffer(s["uncut"][key], "<f4").reshape(-1, 3)
+            assert np.array_equal(uncut, expected), key
+        # the triangles of the clipped outer surface, then the cut face
+        assert s["outer"] == results._drawn(s["name"], cuts.plane(cut)).outer
+        assert s["outer"] <= len(np.frombuffer(s["owners"], "<u4"))
+    assert sum(s["outer"] for s in surfaces) > 0
 
     for s in surfaces:
         positions = np.frombuffer(s["positions"], "<f4").reshape(-1, 3)

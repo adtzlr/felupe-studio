@@ -218,6 +218,8 @@ export interface LiveSettings {
   quantity: Quantity;
   /** The method of the values of the strains and the stresses (#231). */
   method?: ValuesMethod;
+  /** The cut of the view (#395). */
+  cut?: Cut;
   interval?: number;
   budget?: number;
 }
@@ -281,8 +283,21 @@ export interface ResultSurface {
   values: Float32Array;
   /** The cell of the section of every triangle. */
   owners: Uint32Array;
-  /** The node (point of the mesh) of every point, -1 inside a subdivided face. */
+  /**
+   * The node (point of the mesh) of every point, -1 inside a subdivided face and on
+   * the cut face.
+   */
   nodes: Int32Array;
+  /**
+   * Of a cut (#395): the number of the triangles of the clipped outer surface; those
+   * of the cut face follow.
+   */
+  outer?: number;
+  /**
+   * Of a cut (#395): the nodes of the whole outer surface with their displacements,
+   * e.g. for the point sets of the constraints and the rigid surfaces of the view.
+   */
+  uncut?: { positions: Float32Array; displacement: Float32Array };
 }
 
 /** The result of a substep of a job (`felupe_studio.results.scene()`). */
@@ -307,6 +322,8 @@ export interface ResultScene {
   sections?: Record<string, ResultSection>;
   /** The control points with their positions and displacements (#95). */
   points?: ResultPoint[];
+  /** The cut of the scene (#395): its surfaces are cut, with their cut faces. */
+  cut?: Cut;
   surfaces: ResultSurface[];
 }
 
@@ -449,6 +466,8 @@ export type ToWorker =
       substep: number;
       quantity: Quantity;
       method?: ValuesMethod;
+      /** The cut of the view (#395): the surfaces are cut, with the values inside. */
+      cut?: Cut;
     };
 
 export type FromWorker =

@@ -1,10 +1,12 @@
-import type { ComponentChildren } from "preact";
+import type { ComponentChildren, ComponentProps } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import {
   type ContourSettings,
   DEFAULT_CONTOUR,
   methodOf,
 } from "../core/contour";
+import { analysisOf, is2d } from "../core/analysis";
+import { cutKey } from "../core/meshfiles";
 import type { Command } from "../core/resolved";
 import type { ResultView } from "../core/results";
 import { resultUnit, unitsOf, withUnit } from "../core/units";
@@ -17,7 +19,8 @@ import {
   Viewer,
   VIEWS,
 } from "../viewer/viewer";
-import type { ResultScene } from "../worker/protocol";
+import type { Cut, ResultScene } from "../worker/protocol";
+import { boundsOf, CutControls, cutPlane, shownCut } from "./CutControls";
 import { useViewKeys } from "./hooks";
 import { NodesButton, useShowNodes } from "./NodesButton";
 import { type Extreme, PointsCard, ProbeTooltip } from "./ResultsCards";
@@ -78,6 +81,12 @@ interface Props {
    * default, like the curve, so that it does not take the view.
    */
   compact?: boolean;
+  /**
+   * The cut of the view (#395), shared with the Model workspace; the live scenes
+   * keep the cut of the start of their run.
+   */
+  cut?: Cut;
+  onCut?: (cut: Cut | undefined) => void;
 }
 
 /** The wanted scene of a substep of the view; none while it is not shown. */
@@ -88,7 +97,13 @@ function wantedOf(
     shown,
     generation,
     method,
-  }: { shown: boolean; generation: number; method: Wanted["method"] },
+    cut,
+  }: {
+    shown: boolean;
+    generation: number;
+    method: Wanted["method"];
+    cut?: Cut;
+  },
 ): Wanted {
   if (!view || !shown)
     return {
@@ -100,11 +115,12 @@ function wantedOf(
     };
   return {
     // (the quantity last, for its unit)
-    key: `${generation}/${view.job}/${substep}/${method}/${view.quantity}`,
+    key: `${generation}/${view.job}/${substep}/${cut ? cutKey(cut) : ""}/${method}/${view.quantity}`,
     job: view.job,
     substep,
     quantity: view.quantity,
     method,
+    ...(cut ? { cut } : {}),
   };
 }
 
@@ -153,6 +169,7 @@ function ResultsToolbar({
   constraints,
   extremes,
   points,
+  cut,
 }: {
   viewer: { current: Viewer | null };
   nodes: Toggle;
@@ -163,6 +180,8 @@ function ResultsToolbar({
   extremes?: Toggle;
   /** The card of the control points, if the scene has them (#101). */
   points?: Toggle;
+  /** The cut of the view (#395), if the app offers it. */
+  cut?: ComponentProps<typeof CutControls>;
 }) {
   return (
     <div class="view-toolbar" role="toolbar" aria-label="View">
@@ -227,6 +246,12 @@ function ResultsToolbar({
           Points
         </button>
       )}
+      {cut && (
+        <>
+          <span class="toolbar-separator" aria-hidden="true" />
+          <CutControls {...cut} />
+        </>
+      )}
     </div>
   );
 }
@@ -242,6 +267,52 @@ function useConstraints(commands: readonly Command[]) {
   );
   const toggle: Toggle = [shown, () => setShown((value) => !value)];
   return { shown, toggle: offered ? toggle : undefined };
+}
+
+/**
+ * The cut of the results (#395): the plane of the cut of the shown scene, for what
+ * is drawn with it, and *Cut* of the toolbar over the bounds of the undeformed
+ * model. A scene arrives with its cut, so a loaded scene of the cut before and a
+ * live scene of the cut of the start of the run are drawn with their own.
+ */
+function useResultCut(
+  scene: ResultScene | undefined,
+  { cut, onCut, planar }: Pick<Props, "cut" | "onCut"> & { planar: boolean },
+) {
+  const bounds = useMemo(
+    () =>
+      scene &&
+      boundsOf(scene.surfaces.map((s) => s.uncut?.positions ?? s.positions)),
+    [scene],
+  );
+  const plane = useMemo(
+    () => cutPlane(scene?.cut, bounds),
+    [scene?.cut, bounds],
+  );
+  // *Cut* of the toolbar, if the app offers it
+  const toolbar = onCut && { cut, onCut, bounds, planar };
+  return { plane, toolbar };
+}
+
+/**
+ * The status of the live results (#207), and whether a changed cut of the view
+ * applies after the run: the live scenes keep the cut of its start (#395).
+ */
+function LiveStatus({
+  live,
+  cut,
+}: {
+  live: NonNullable<Props["live"]>;
+  cut: Cut | undefined;
+}) {
+  const key = (c: Cut | undefined) => (c ? cutKey(c) : "");
+  const other = live.scene && key(live.scene.cut) !== key(cut);
+  return (
+    <p class="viewport-status live-status" role="status">
+      {live.status}
+      {other && " · the cut applies after the run"}
+    </p>
+  );
 }
 
 /** The message of the view instead of a scene, if any. */
@@ -295,6 +366,8 @@ export function ResultsView({
   live,
   theme,
   compact,
+  cut,
+  onCut,
 }: Props) {
   // the live results replace the view of the loaded results (#207)
   const view = live ? live.view : loadedView;
@@ -315,8 +388,16 @@ export function ResultsView({
   const [available, setAvailable] = useState(true);
   // the values of the strains and the stresses at the cells or the points (#231)
   const method = view ? methodOf(view.quantity, contour) : "cells";
+  // a cut of the view (#395), not by z of a 2D model
+  const planar = is2d(analysisOf(commands));
+  const shownCutOf = shownCut(cut, planar);
   // scenes are loaded only while the view is shown, not during a run
-  const loads = { shown: active && !running && !live, generation, method };
+  const loads = {
+    shown: active && !running && !live,
+    generation,
+    method,
+    cut: shownCutOf,
+  };
   const wanted = wantedOf(view, view?.substep ?? 0, loads);
   const { loaded, loading } = useResultScene(
     source,
@@ -334,6 +415,7 @@ export function ResultsView({
     generation,
   });
   const error = live ? undefined : errorOf(view, loaded, wanted);
+  const cutView = useResultCut(scene, { cut, onCut, planar });
   // the units of the model (#132): the title of the scalar bar and the tooltips
   const units = unitsOf(commands);
   const unit = unitOf(live, scene, loaded, units);
@@ -370,6 +452,7 @@ export function ResultsView({
       units,
       unit,
       colors: viewColors(theme),
+      plane: cutView.plane,
     });
   }, [
     scene,
@@ -385,6 +468,7 @@ export function ResultsView({
     commands,
     createViewer,
     theme,
+    cutView.plane,
   ]);
 
   usePinnedPick(viewer, extremesShown, scene, pin);
@@ -428,6 +512,7 @@ export function ResultsView({
               : undefined
           }
           points={points && [pointsShown, () => setPointsShown(!pointsShown)]}
+          cut={cutView.toolbar}
         />
       )}
       {message && <p class="viewport-message muted">{message}</p>}
@@ -446,11 +531,7 @@ export function ResultsView({
         <ProbeTooltip hover={hover} units={units} unit={unit} />
       )}
       <div class="overlay-bottom above-bars">
-        {live && (
-          <p class="viewport-status live-status" role="status">
-            {live.status}
-          </p>
-        )}
+        {live && <LiveStatus live={live} cut={shownCutOf} />}
         {!live && shown && loading && (
           <p class="viewport-status muted" role="status">
             Loading …
