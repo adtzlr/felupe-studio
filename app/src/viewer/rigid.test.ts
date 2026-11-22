@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Command } from "../core/resolved";
-import { VIEW_COLORS } from "./palette";
+import { FADED, VIEW_COLORS } from "./palette";
 import { contactPoints, extent, rigidShapes } from "./rigid";
 
 const colors = VIEW_COLORS.dark;
@@ -59,6 +59,14 @@ describe("rigid surfaces (#219)", () => {
     expect(outline.positions).toHaveLength(4 * 6);
     expect(Array.from(arrow.positions.slice(0, 3))).toEqual([5, 5, 2]);
     expect(arrow.positions[5]).toBeLessThan(2);
+    // faded if its contacts are off in the selected step (#393)
+    const faded = rigidShapes([plate], cube, {
+      colors,
+      faded: new Set(["plate"]),
+    });
+    expect(faded.faces[0].opacity).toBeCloseTo(0.22 * FADED);
+    expect(faded.lines.map((l) => l.opacity)).toEqual([FADED, FADED]);
+    expect(lines.map((l) => l.opacity)).toEqual([undefined, undefined]);
   });
 
   it("draw a cylinder as a tube along the model", () => {

@@ -21,6 +21,7 @@ import { useOverlays } from "./useOverlays";
 import { usePicking } from "./usePicking";
 import {
   type Create,
+  OffInStep,
   PickedFacePanel,
   PickedFacesPanel,
   PickedNodesPanel,
@@ -149,7 +150,7 @@ export function Viewport({
     tap,
     onSelect,
   });
-  const { faces, markers, lines, rigid, controls, selectedSet, warnings } =
+  const { faces, markers, lines, rigid, controls, selectedSet, warnings, off } =
     useOverlays({
       commands,
       content,
@@ -280,7 +281,12 @@ export function Viewport({
             more={more}
           />
         )}
-        {settled && <WarningsOf selected={selected} warnings={warnings} />}
+        {settled && (
+          <>
+            <WarningsOf selected={selected} warnings={warnings} />
+            <OffInStep off={off} />
+          </>
+        )}
         {shown && content.reading.length > 0 && (
           <p class="viewport-status muted" role="status">
             Reading {content.reading.join(", ")} …

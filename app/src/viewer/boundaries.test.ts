@@ -12,7 +12,7 @@ import {
   strokes,
   thinned,
 } from "./boundaries";
-import { AXIS_COLORS, VIEW_COLORS } from "./palette";
+import { AXIS_COLORS, FADED, VIEW_COLORS } from "./palette";
 import fixture from "./boundaries.fixture.json";
 
 type Case = {
@@ -358,4 +358,23 @@ describe("boundary symbols", () => {
       expect(chosen[0].positions.length).toBe(3 * 6 * 6);
     },
   );
+
+  it("fades the owners that are off in the selected step (#393)", () => {
+    const view = VIEW_COLORS.dark;
+    const symbols = boundarySymbols(commands, nodes);
+    const all = boundaryLines(symbols, { size: 10, colors: view });
+    expect(all.every((l) => l.opacity === undefined)).toBe(true);
+    const lines = boundaryLines(symbols, {
+      size: 10,
+      colors: view,
+      faded: new Set(["fixed"]),
+    });
+    // the strokes of the fixed components apart from those of the others
+    const faded = lines.filter((l) => l.opacity === FADED);
+    expect(faded.map((l) => l.color)).toEqual([...AXIS_COLORS]);
+    expect(faded.reduce((n, l) => n + l.positions.length, 0)).toBe(3 * 6 * 6);
+    const count = (list: typeof lines) =>
+      list.reduce((n, l) => n + l.positions.length, 0);
+    expect(count(lines)).toBe(count(all));
+  });
 });

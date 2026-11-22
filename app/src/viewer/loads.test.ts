@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Command } from "../core/resolved";
 import { loadLines } from "./loads";
-import { VIEW_COLORS } from "./palette";
+import { FADED, VIEW_COLORS } from "./palette";
 
 const nodes = [Float64Array.from([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0])];
 
@@ -50,5 +50,18 @@ describe("point loads in the viewport (#100)", () => {
       VIEW_COLORS.light.force,
       VIEW_COLORS.light.force,
     ]);
+  });
+
+  it("are faded if they are off in the selected step (#393)", () => {
+    const [pull, push] = loadLines(commands, nodes, {
+      size: 10,
+      colors: VIEW_COLORS.dark,
+      faded: new Set(["push"]),
+    });
+    expect(pull.opacity).toBeUndefined();
+    expect(push).toMatchObject({
+      color: VIEW_COLORS.dark.force,
+      opacity: FADED,
+    });
   });
 });

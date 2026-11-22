@@ -133,6 +133,22 @@ describe("scene of the viewer", () => {
     expect((scene.objects[0] as SurfaceObject).positions.size).toBe(6);
   });
 
+  it("adds lines, faded with an opacity (#393)", () => {
+    const positions = Float32Array.from([0, 0, 0, 1, 0, 0]);
+    const scene = buildScene({
+      meshes: [],
+      lines: [
+        { positions, color: "#ff0000" },
+        { positions, color: "#00ff00", width: 3, opacity: 0.25 },
+        { positions: new Float32Array(), color: "#0000ff" },
+      ],
+    });
+    expect(scene.objects).toHaveLength(2);
+    expect(scene.objects[0]).toMatchObject({ color: "#ff0000", width: 2 });
+    expect(scene.objects[0]).not.toHaveProperty("opacity");
+    expect(scene.objects[1]).toMatchObject({ width: 3, opacity: 0.25 });
+  });
+
   it("does not generate colors beyond the palette", () => {
     expect(categorical(7)).toBe(CATEGORICAL[7]);
     expect(categorical(8)).toBe(OTHER);

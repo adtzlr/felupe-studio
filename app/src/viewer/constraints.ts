@@ -4,7 +4,7 @@
 import type { Command, MpcAdd } from "../core/resolved";
 import type { ResultScene } from "../worker/protocol";
 import { type BoundarySymbol, thinned } from "./boundaries";
-import type { ViewColors } from "./palette";
+import { FADED, type ViewColors } from "./palette";
 import { AXES, selectedPoints } from "./pointsets";
 import type { Lines } from "./scene";
 
@@ -55,7 +55,7 @@ export function constraintShapes(
 /**
  * The lines of the constraints: from the center point to every connected point
  * (thinned out for many points, like the symbols of the boundaries); the selected
- * one is highlighted. `place` moves a point, e.g. by the displacement of a result.
+ * one is highlighted, and those that are off in a selected step are faded (#393). `place` moves a point, e.g. by the displacement of a result.
  */
 export function constraintLines(
   shapes: readonly ConstraintShape[],
@@ -64,11 +64,14 @@ export function constraintLines(
     selected,
     colors,
     place = (p: Point3) => p,
+    faded = new Set<string>(),
   }: {
     hidden?: ReadonlySet<string>;
     selected?: string;
     /** The colors of the view in its theme (#375). */
     colors: ViewColors;
+    /** What is off in a selected step, drawn faded (#393). */
+    faded?: ReadonlySet<string>;
     place?: (point: Point3) => Point3;
   },
 ): Lines[] {
@@ -87,6 +90,7 @@ export function constraintLines(
       positions,
       color: chosen ? colors.highlight : colors.control,
       width: chosen ? 2 : 1,
+      ...(faded.has(shape.name) ? { opacity: FADED } : {}),
     });
   }
   return lines;

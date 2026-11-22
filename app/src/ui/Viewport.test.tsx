@@ -16,6 +16,7 @@ import { automaticColor, viewportContent } from "../viewer/layers";
 import {
   CATEGORICAL,
   FACE_COLOR,
+  FADED,
   OUTLINE_COLOR,
   POINT_COLOR,
   VIEW_COLORS,
@@ -766,6 +767,104 @@ describe("Viewport", () => {
     rerender(view(["move"], "fixed"));
     await act(async () => {});
     expect(lines()).toEqual([[HIGHLIGHT, 4]]);
+  });
+
+  it("fades what is off in the selected step (#393)", async () => {
+    const { files } = meshFiles();
+    await files.add("a.vtu", new Uint8Array());
+    const store = new ModelStore();
+    store.apply(
+      [
+        mesh("a", "a.vtu"),
+        {
+          command: "pointset.add",
+          name: "left",
+          select: { axis: "x", value: 0 },
+        },
+        {
+          command: "pointset.add",
+          name: "right",
+          select: { axis: "x", value: 1 },
+        },
+        {
+          command: "boundary.add",
+          name: "fixed",
+          pointset: "left",
+          constrained: ["x", "y"],
+        },
+        {
+          command: "boundary.add",
+          name: "move",
+          pointset: "right",
+          constrained: ["x"],
+          value: 0.5,
+        },
+        {
+          command: "load.add",
+          name: "pull",
+          points: "right",
+          force: [1, 0, 0],
+        },
+        { command: "load.add", name: "push", points: "left", force: [0, 1, 0] },
+        { command: "step.add", name: "step_1" },
+        {
+          command: "step.add",
+          name: "release",
+          boundaries: ["fixed"],
+          loads: ["push"],
+        },
+      ].map((command) => ({
+        type: "add" as const,
+        command: command as Command,
+      })),
+    );
+    const viewer = fakeViewer();
+    const view = (selected?: string, hidden: string[] = []) => (
+      <Viewport
+        store={store}
+        files={files}
+        hidden={new Set(hidden)}
+        selected={selected}
+        createViewer={viewer.create}
+      />
+    );
+    const { rerender } = render(view());
+    await act(async () => {});
+    const lines = () =>
+      viewer.handle.update.mock
+        .lastCall![0].objects.filter((o) => o.type === "lines")
+        .map((o) => [o.color, o.opacity]);
+    const { marker, force } = VIEW_COLORS.dark;
+    const drawn = [
+      ["#d62728", undefined],
+      ["#2ca02c", undefined],
+      [marker, undefined],
+      [force, undefined],
+      [force, undefined],
+    ];
+    expect(lines()).toEqual(drawn);
+    // a step with all of them fades nothing
+    rerender(view("step_1"));
+    await act(async () => {});
+    expect(lines()).toEqual(drawn);
+    expect(screen.queryByText(/faded/)).toBeNull();
+    // the boundary move and the load pull are off in the step release
+    rerender(view("release"));
+    await act(async () => {});
+    expect(lines()).toEqual([
+      ["#d62728", undefined],
+      ["#2ca02c", undefined],
+      [marker, FADED],
+      [force, FADED],
+      [force, undefined],
+    ]);
+    expect(screen.getByRole("status").textContent).toBe(
+      "Off in release (faded): move, pull",
+    );
+    // a hidden one is not drawn at all
+    rerender(view("release", ["move"]));
+    await act(async () => {});
+    expect(lines()).toHaveLength(4);
   });
 
   it("draws symmetry planes and warns about planes without nodes (#186)", async () => {

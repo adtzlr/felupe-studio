@@ -12,7 +12,7 @@ import {
   sideRibbons,
 } from "./facesets";
 import { scaledSurface } from "./layers";
-import { VIEW_COLORS } from "./palette";
+import { FADED, VIEW_COLORS } from "./palette";
 import { pressureLines } from "./pressures";
 import { connectedFaces } from "./surfaces";
 
@@ -237,6 +237,13 @@ describe("the faces of the sections (#142)", () => {
       }),
     ).toEqual([]);
     expect(pressureLines(model2(0), sections, options)).toEqual([]);
+    // faded if it is off in the selected step (#393)
+    expect(onto.opacity).toBeUndefined();
+    const [faded] = pressureLines(model2(0.1), sections, {
+      ...options,
+      faded: new Set(["push"]),
+    });
+    expect(faded).toMatchObject({ color: colors.force, opacity: FADED });
   });
 });
 

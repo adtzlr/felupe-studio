@@ -70,6 +70,8 @@ export interface Lines {
   positions: Float32Array;
   color: string;
   width?: number;
+  /** Below 1 for faded lines, e.g. of what is off in a selected step (#393). */
+  opacity?: number;
 }
 
 export interface LegendEntry {
@@ -482,6 +484,7 @@ export function buildScene(content: SceneContent): Scene {
         positions: f4(l.positions),
         color: l.color,
         width: l.width ?? 2,
+        ...(l.opacity === undefined ? {} : { opacity: l.opacity }),
       })),
   ];
   const legend =

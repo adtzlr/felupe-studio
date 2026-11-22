@@ -78,6 +78,21 @@ describe("deriveTree", () => {
     expect(find(deriveTree(free), "step_1")!.detail).toBe(
       "no ramp · off: fixed",
     );
+    // and the constraints, contacts and loads that are off in it
+    const chosen = [
+      ...commands,
+      { command: "load.add", name: "pull", points: "right", force: [1, 0, 0] },
+      { command: "load.add", name: "push", points: "left", force: [0, 1, 0] },
+      {
+        command: "step.add",
+        name: "step_2",
+        boundaries: ["fixed"],
+        loads: ["push"],
+      },
+    ] as Command[];
+    expect(find(deriveTree(chosen), "step_2")!.detail).toBe(
+      "no ramp · off: move, pull",
+    );
     // one value per constrained component (#225)
     const values = commands.map((c) =>
       c.name === "move"

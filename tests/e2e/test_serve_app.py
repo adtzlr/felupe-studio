@@ -770,8 +770,9 @@ def test_a_stacked_profile_revolved_and_solved(url, page):
 
 
 def test_a_step_that_releases_a_boundary_solved(url, page):
-    """A step without a boundary, made with its form, and solved (#393): the free
-    end springs back, and the curve of the boundary gets a note."""
+    """A step without a boundary, made with its form, and solved (#393): the
+    viewport fades the boundary with the step selected, the free end springs back,
+    and the curve of the boundary gets a note."""
     page.goto(url)
     page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
 
@@ -816,6 +817,11 @@ def test_a_step_that_releases_a_boundary_solved(url, page):
     dialog.get_by_role("button", name="Create").click()
     tree = page.get_by_role("navigation", name="Model browser")
     tree.get_by_text("no ramp · off: pull").wait_for()
+    # selected, the viewport fades what is off in the step
+    tree.get_by_text("release", exact=True).click()
+    page.get_by_role("main", name="Viewport").get_by_text(
+        "Off in release (faded): pull", exact=True
+    ).wait_for()
 
     command('job.add {"name": "job", "steps": ["tension", "release"], "curve": "pull"}')
     page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)

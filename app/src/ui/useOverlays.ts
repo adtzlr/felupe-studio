@@ -1,7 +1,8 @@
 // The overlays of the objects in the viewport (#312): the faces of face sets and of
 // picked surfaces, the markers of point sets, control points and picked points, the
-// lines of boundaries, constraints, loads, pressures and rigid surfaces, and what
-// the viewport warns about the selected object.
+// lines of boundaries, constraints, loads, pressures and rigid surfaces, faded if
+// they are off in the selected step (#393), and what the viewport warns about the
+// selected object.
 import { useMemo } from "preact/hooks";
 import type {
   Command,
@@ -12,6 +13,7 @@ import type {
   PointSetAdd,
   RigidAdd,
 } from "../core/resolved";
+import { fadedIn, offIn } from "../core/steps";
 import {
   boundaryLines,
   boundarySymbols,
@@ -121,6 +123,17 @@ export function useOverlays({
   // the nodes of a section, for point sets of a section (#241)
   const ofSection = (name: string) => sections.get(name)?.nodes;
   const choice = commands.find((c) => c.name === selected);
+  // what is off in the selected step, and the rigid surfaces of its contacts that are
+  // off: drawn faded (#393)
+  const step = choice?.command === "step.add" ? choice : undefined;
+  const off = useMemo(
+    () => (step ? offIn(step, commands) : []),
+    [step, commands],
+  );
+  const faded = useMemo(
+    () => (step ? fadedIn(step, commands) : new Set<string>()),
+    [step, commands],
+  );
 
   const faces = useMemo((): Highlight[] => {
     const sets = commands.filter(isFaceSet).filter((c) => !hidden.has(c.name));
@@ -230,15 +243,16 @@ export function useOverlays({
         hidden,
         selected: contactSurface ?? selected,
         colors,
+        faded,
       }),
-    [commands, nodes, hidden, selected, contactSurface, colors],
+    [commands, nodes, hidden, selected, contactSurface, colors, faded],
   );
   const lines = useMemo(() => {
-    const options = { size, hidden, selected, colors };
+    const options = { size, hidden, selected, colors, faded };
     return [
       ...rigid.lines,
       ...boundaryLines(symbols, options),
-      ...constraintLines(shapes, { hidden, selected, colors }),
+      ...constraintLines(shapes, { hidden, selected, colors, faded }),
       // the point loads: arrows in the direction of the force (#100)
       ...loadLines(commands, nodes, options),
       // the pressures: arrows normal to the faces of their face sets (#105)
@@ -255,6 +269,7 @@ export function useOverlays({
     sections,
     rigid,
     colors,
+    faded,
   ]);
 
   // the selected point set and its points, for a control point at its center (#96)
@@ -275,7 +290,16 @@ export function useOverlays({
     symbols,
   });
 
-  return { faces, markers, lines, rigid, controls, selectedSet, warnings };
+  return {
+    faces,
+    markers,
+    lines,
+    rigid,
+    controls,
+    selectedSet,
+    warnings,
+    off: step && off.length ? { step: step.name, names: off } : undefined,
+  };
 }
 
 interface WarningOptions {
