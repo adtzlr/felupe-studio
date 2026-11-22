@@ -76,7 +76,8 @@ def _blocks(markers):
 
 # the helpers of the u-p-J formulation (the MINI element, #226), of face sets (#142),
 # of point sets on the surface (#222), of meshes made by scripts (#182) and of the
-# linear solvers of jobs other than SuperLU (#203) and in single precision (ADR 0016)
+# linear solvers of jobs other than SuperLU (#203) and in single precision (ADR 0016),
+# and of steps that switch boundaries on and off (#393)
 BLOCKS = _blocks(
     {
         "mixed": "\n\n# --- embedded in generated scripts with u-p-J sections ---\n",
@@ -89,6 +90,10 @@ BLOCKS = _blocks(
         ),
         "solvers": "\n\n# --- embedded in generated scripts with linear solvers ---\n",
         "embed": "\n\n# --- embedded in generated scripts with embedded meshes ---\n",
+        "switch": (
+            "\n\n# --- embedded in generated scripts with steps that switch "
+            "boundaries ---\n"
+        ),
     }
 )
 
@@ -101,6 +106,7 @@ HELPERS = (
     ("scripts", lambda context: bool(context.get("mesh.script"))),
     ("solvers", lambda context: jobs.uses_solver_helpers(context.get("job.add"))),
     ("embed", lambda context: meshtools.uses_embed(context.commands)),
+    ("switch", lambda context: jobs.switches(context.get("step.add"))),
 )
 
 AXES = ("x", "y", "z")

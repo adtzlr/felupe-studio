@@ -1,5 +1,5 @@
 """Write validation_cases.json: command lists and their expected error messages, and
-the notes that are no errors (#186).
+the notes that are no errors (#186, #393).
 
 The cases are shared by the Python validation (felupe_studio.commands) and the
 TypeScript validation (app/src/core/validate.ts), so both report the same messages.
@@ -1291,6 +1291,49 @@ CHANGES |= {
     "a repeated step": lambda d: unload(d, ["step_1", "unload", "step_1"]),
     "a repeated unknown step": lambda d: unload(d, ["step_1", "reload", "reload"]),
     "a repeated cell set as a step": lambda d: unload(d, ["step_1", "hard", "hard"]),
+}
+
+
+def release(document, steps, name="release", **fields):
+    """A step with only the boundary fixed, before the job, and the steps of the job
+    (#393): the boundary move is off in it."""
+    index = document["commands"].index(find(document, "job_1"))
+    step = {"command": "step.add", "name": name, "boundaries": ["fixed"], **fields}
+    document["commands"].insert(index, step)
+    find(document, "job_1")["steps"] = steps
+
+
+CHANGES |= {
+    # steps that switch boundaries on and off (#393): a curve that is off in a step
+    # is a note, a ramp of a boundary that is off a problem
+    "a step that releases a boundary": lambda d: release(d, ["step_1", "release"]),
+    "a step that switches a boundary on again": lambda d: (
+        release(d, ["step_1", "release", "step_1"]),
+        find(d, "step_1").update(switched_on="job"),
+    ),
+    "a curve that is off in two steps": lambda d: (
+        release(d, ["step_1", "release"]),
+        release(d, ["step_1", "release", "hold", "release"], name="hold"),
+    ),
+    "a step that ramps a boundary that is off": lambda d: find(d, "step_1").update(
+        boundaries=["fixed"]
+    ),
+    "a step with an unknown boundary": lambda d: find(d, "step_1").update(
+        boundaries=["fixed", "move", "clamp"]
+    ),
+    "a step with a point set as a boundary": lambda d: find(d, "step_1").update(
+        boundaries=["fixed", "move", "left"]
+    ),
+    "a step with a load case and a symmetry plane": lambda d: (
+        d["commands"].insert(
+            11, {"command": "symmetry.add", "name": "half", "axes": ["z"], "z": 0.5}
+        ),
+        d["commands"].insert(
+            -2, {"command": "loadcase.add", "name": "tension", "type": "uniaxial"}
+        ),
+        find(d, "step_1").update(boundaries=["tension", "half"]),
+        find(d, "step_1")["ramp"]["items"][0].update(target="tension"),
+    ),
 }
 
 

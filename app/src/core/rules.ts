@@ -294,6 +294,22 @@ const rampValues: Rule<CommandOf<"step.add">> = (model, cmd) => {
   return problems;
 };
 
+/** A step ramps no boundary or load case that is off in it (#393). */
+const rampOff: Rule<CommandOf<"step.add">> = (model, cmd) => {
+  const boundaries = cmd.boundaries;
+  if (!boundaries) return [];
+  return (cmd.ramp?.items ?? [])
+    .filter(
+      (item) =>
+        model.kindOf(item.target) === "boundary" &&
+        !boundaries.includes(item.target),
+    )
+    .map((item) => ({
+      message: `step '${cmd.name}' ramps '${item.target}', which is off in it.`,
+      field: "ramp.items",
+    }));
+};
+
 /** A boundary with a value per constrained component (#225). */
 const boundaryValues: Rule<CommandOf<"boundary.add">> = (_, cmd) => {
   const constrained = cmd.constrained.length;
@@ -579,7 +595,7 @@ export const LAST: readonly Rule[] = [single, reservedName, duplicateName];
 
 /** The rules of a command type, in this order. */
 export const RULES: Rules = {
-  "step.add": [rampTargets, rampTwice, rampValues],
+  "step.add": [rampTargets, rampTwice, rampValues, rampOff],
   "boundary.add": [boundaryValues],
   "mesh.generate": [meshTool, meshInputs],
   "cellset.from_tag": [cellsetTag, cellsetModelMesh],

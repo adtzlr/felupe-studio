@@ -8,7 +8,7 @@ import {
   makeMeshes,
   MeshFiles,
 } from "../core/meshfiles";
-import { symmetryNotes } from "../core/symmetry";
+import { notes as modelNotes } from "../core/validate";
 import type { Sample } from "../core/samples";
 import type { ModelStore } from "../core/store";
 import type { SessionStorage } from "../core/session";
@@ -157,11 +157,12 @@ export function App({
     if (!dialogs.parameters?.opening) makeMeshes(store.commands, files);
   }, [store.commands, files, files.revision, dialogs.parameters]);
   // notes about the mesh files, and about face sets on cells without faces (#142),
-  // and about repeated symmetry planes, which do not block Solve (#186)
+  // about repeated symmetry planes (#186) and about curves that are off in a step
+  // (#393), which do not block Solve
   const meshNotes = fileNotes(store.commands, files);
   const faceNotes = faceSetNotes(store.commands, files);
   const notes = new Map([...meshNotes, ...faceNotes]);
-  for (const note of symmetryNotes(store.resolved)) {
+  for (const note of modelNotes(store.resolved)) {
     notes.set(note.name, [...(notes.get(note.name) ?? []), note.message]);
   }
   const [tab, setTab] = useState("mesh");

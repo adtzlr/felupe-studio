@@ -6,6 +6,8 @@ import type { Command as ResolvedCommand } from "./resolved";
 import { REFERENCES, valueAt } from "./kinds";
 import { type Resolved, renameParameter, resolveCommands } from "./resolve";
 import { type Issue, problems } from "./rules";
+import { curveNotes } from "./steps";
+import { symmetryNotes } from "./symmetry";
 
 export {
   type CommandType,
@@ -18,6 +20,15 @@ export {
   SINGLE,
 } from "./kinds";
 export { type Issue, nameProblem } from "./rules";
+
+/**
+ * Notes about a command list that are not errors, like `notes()` of
+ * felupe_studio.commands: repeated symmetry planes (#186), and curves of jobs that
+ * are off in some of their steps (#393).
+ */
+export function notes(commands: readonly ResolvedCommand[]): Issue[] {
+  return [...symmetryNotes(commands), ...curveNotes(commands)];
+}
 
 /** Names referenced by a command, with the field they appear in. */
 export function references(

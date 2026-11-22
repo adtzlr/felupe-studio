@@ -11,7 +11,7 @@ A project file is a JSON document `{"schema_version": 3, "commands": [...]}`. Ev
 
 Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
 
-A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `DIMENSIONS`, `EDGES`, `REGIONS`, `SimpleNamespace`, `boundaries`, `boundary_faces`, `control_points`, `embed`, `fem`, `field`, `iterative_solver`, `meshio`, `mixed_field`, `mixed_region`, `nearly_incompressible`, `np`, `points`, `points_at`, `pypardiso`, `run_mesh_script`, `script_mesh`, `single_point`, `single_precision`, `solid_points`, `solid_types`, `spsolve`, `surface_points`, `vertex_region`, `volume_cells`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
+A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `BoundarySwitch`, `DIMENSIONS`, `EDGES`, `REGIONS`, `SimpleNamespace`, `boundaries`, `boundary_faces`, `boundary_switch`, `control_points`, `embed`, `fem`, `field`, `iterative_solver`, `meshio`, `mixed_field`, `mixed_region`, `nearly_incompressible`, `np`, `pick`, `points`, `points_at`, `pypardiso`, `run_mesh_script`, `script_mesh`, `single_point`, `single_precision`, `solid_points`, `solid_types`, `spsolve`, `surface_points`, `vertex_region`, `volume_cells`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
 
 ## Expressions
 
@@ -40,7 +40,7 @@ A number of a command (*or an expression* below) may be an expression of the par
 - [`contact.add`](#contactadd): A contact of points with a rigid surface (#220): fem.ContactRigidPlane or fem.ContactRigidCylinder, an item of the steps like the constraints.
 - [`load.add`](#loadadd): A point load (fem.PointLoad): a force at every point of a point set or at a control point, an item of the steps.
 - [`pressure.add`](#pressureadd): A pressure on the faces of a face set (fem.SolidBodyPressure), an item of the steps: a force per deformed area, normal to the faces.
-- [`step.add`](#stepadd): A step with all boundaries, optionally ramping items, each with its own values (fem.Step).
+- [`step.add`](#stepadd): A step with its items and boundaries (all by default), optionally ramping items, each with its own values (fem.Step).
 - [`job.add`](#jobadd): A job evaluating steps one after another (fem.Job).
 
 ### `model.settings`
@@ -764,7 +764,7 @@ A pressure on the faces of a face set (fem.SolidBodyPressure), an item of the st
 
 ### `step.add`
 
-A step with all boundaries, optionally ramping items, each with its own values (fem.Step).
+A step with its items and boundaries (all by default), optionally ramping items, each with its own values (fem.Step).
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -772,6 +772,8 @@ A step with all boundaries, optionally ramping items, each with its own values (
 | `sections` | names of sections (at least 1, unique) |  | Sections whose solid bodies are items of the step (default: all). |
 | `constraints` | names of multi-point constraints or contacts (at least 1, unique) |  | Multi-point constraints that are items of the step (default: all). |
 | `loads` | names of point loads or pressures (at least 1, unique) |  | Point loads and pressures that are items of the step (default: all). |
+| `boundaries` | names of boundaries, load cases or symmetry planes (at least 1, unique) |  | Boundaries, load cases and symmetry planes of the step (default: all). A boundary that the step does not have is off in it: its points are free, and its reaction force is released at once. |
+| `switched_on` | `step` or `job` |  | The values of the boundaries that the step switches on, those that the step evaluated before it does not have: the displacements of their points at the start of the step (default), or at the start of the job (of a boundary that was on then, its values then). A ramp of such a boundary is relative to these values. |
 | `ramp` | object |  | Ramp the values of items with fem.math.linsteps([start, end], num), with the same number of increments for all items. |
 | `ramp.num` | integer ≥ 1 (or an expression) | yes | Increments of the step. |
 | `ramp.items` | list of objects (at least 1) | yes | The ramped items, each with its own values. |

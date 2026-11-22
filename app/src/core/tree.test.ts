@@ -63,6 +63,21 @@ describe("deriveTree", () => {
     expect(find(tree, "move")!.detail).toBe("right · x");
     expect(find(tree, "step_1")!.detail).toBe("move: 0 → 0.5 (5)");
     expect(find(tree, "job_1")!.detail).toBe("step_1 · curve move");
+    // the boundaries that are off in a step (#393)
+    const released = commands.map((c) =>
+      c.command === "step.add" ? { ...c, boundaries: ["fixed"] } : c,
+    ) as Command[];
+    expect(find(deriveTree(released), "step_1")!.detail).toBe(
+      "move: 0 → 0.5 (5) · off: move",
+    );
+    const free = commands.map((c) =>
+      c.command === "step.add"
+        ? { command: c.command, name: c.name, boundaries: ["move"] }
+        : c,
+    ) as Command[];
+    expect(find(deriveTree(free), "step_1")!.detail).toBe(
+      "no ramp · off: fixed",
+    );
     // one value per constrained component (#225)
     const values = commands.map((c) =>
       c.name === "move"

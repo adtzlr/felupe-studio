@@ -362,10 +362,79 @@ def single_precision(solver):
 
 
 # --- embedded in generated scripts with embedded meshes ---
-
-
 def embed(mesh, value=0.0):
     """Return a mesh with one dimension more of its points, with the coordinate value
     on the new axis, e.g. a line in the plane y = value (ADR 0019)."""
     points = np.pad(mesh.points, ((0, 0), (0, 1)), constant_values=value)
     return fem.Mesh(points, mesh.cells, mesh.cell_type)
+
+
+# --- embedded in generated scripts with steps that switch boundaries ---
+def pick(boundaries, names):
+    """Return the boundaries of a step (#393): those of the names, and all boundaries
+    of a load case or a symmetry plane of the names (named ``<name>/<key>``)."""
+    return {k: v for k, v in boundaries.items() if k.split("/")[0] in names}
+
+
+class BoundarySwitch(fem.Plugin):
+    """The values of the boundaries that a step switches on (#393), those that the
+    step evaluated before it does not have: the displacements of their points at the
+    start of the step, or at the start of the job for the steps of ``job_start`` (of
+    a boundary that was on then, its values then). A ramp of such a boundary in the
+    step is relative to these values. A boundary that a step does not have is off:
+    FElupe frees its degrees of freedom. One plugin for all jobs, which continue one
+    after another."""
+
+    def __init__(self, job_start=()):
+        self.job_start = list(job_start)
+        # the names of the boundaries of the step evaluated last (None before)
+        self.last = None
+        # the values of the boundaries of the job at its start
+        self.start = {}
+        # the boundaries that the step switches on, with their values
+        self.switched = {}
+
+    @staticmethod
+    def prescribed(boundary, value):
+        """The values of the prescribed degrees of freedom of a boundary for its
+        value: one value for all, or one per prescribed component of its points."""
+        value = np.asarray(value, dtype=float)
+        if value.ndim == 0:
+            return np.full(boundary.dof.size, float(value))
+        if value.size == boundary.dof.size:
+            return value.ravel()
+        return np.tile(value.ravel(), boundary.points.size)
+
+    @staticmethod
+    def displacements(boundary):
+        """The displacements of the prescribed degrees of freedom of a boundary."""
+        return boundary.field.values.ravel()[boundary.dof].copy()
+
+    def before_job(self, context, state):
+        self.start = {}
+        for step in context.job.steps:
+            for name, boundary in step.boundaries.items():
+                if self.last is None or name in self.last:
+                    self.start[name] = self.prescribed(boundary, boundary.value)
+                else:
+                    self.start[name] = self.displacements(boundary)
+
+    def before_step(self, context, state):
+        step, self.switched = context.step, {}
+        for name, boundary in step.boundaries.items():
+            if self.last is None or name in self.last:
+                continue
+            if any(step is s for s in self.job_start):
+                values = self.start[name]
+            else:
+                values = self.displacements(boundary)
+            boundary.update(values)
+            self.switched[boundary] = values
+        self.last = set(step.boundaries)
+
+    def before_substep(self, context, state):
+        # the ramp of a boundary switched on by the step, from its values
+        for boundary, values in self.switched.items():
+            if boundary in state.values:
+                ramped = self.prescribed(boundary, state.values[boundary])
+                state.values[boundary] = values + ramped

@@ -1149,6 +1149,226 @@
     },
     {
       "command": {
+        "command": "load.add",
+        "name": "push",
+        "points": "right",
+        "force": [
+          "0.02",
+          "0",
+          "0"
+        ]
+      },
+      "fields": [
+        {
+          "path": [
+            "force",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "force",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "force",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "push_free",
+        "boundaries": [
+          "fixed"
+        ],
+        "ramp": {
+          "num": "4",
+          "items": [
+            {
+              "target": "push",
+              "start": "0",
+              "end": "1"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "start"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "clamp",
+        "ramp": {
+          "num": "4",
+          "items": [
+            {
+              "target": "push",
+              "start": "1",
+              "end": "0"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "start"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "release",
+        "boundaries": [
+          "fixed"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "back",
+        "switched_on": "job",
+        "ramp": {
+          "num": "4",
+          "items": [
+            {
+              "target": "move",
+              "start": "0",
+              "end": "0.1"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "start"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "push_free",
+          "clamp"
+        ],
+        "curve": "move"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_2",
+        "steps": [
+          "release",
+          "back"
+        ],
+        "curve": "move"
+      },
+      "fields": []
+    },
+    {
+      "command": {
         "command": "mesh.import",
         "name": "left_file",
         "file": "left.vtu"

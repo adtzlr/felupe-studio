@@ -91,6 +91,8 @@ REFERENCES = {
         "sections": ("section", True),
         "constraints": ("constraint", True),
         "loads": (("load", "pressure"), True),
+        # the boundaries, load cases and symmetry planes of a step (#393)
+        "boundaries": (("boundary", "symmetry"), True),
     },
     # the curve of a job: a boundary (force-displacement) or a point load
     "job.add": {"steps": ("step", True), "curve": (("boundary", "load"), False)},
@@ -235,9 +237,49 @@ def _number(value):
     return str(int(value)) if value.is_integer() else repr(value)
 
 
+def _names(kind, names):
+    """Names in a sentence, e.g. ``step 'a'`` or ``steps 'a', 'b' and 'c'``.
+
+    Examples
+    --------
+    >>> _names("step", ["a"]), _names("step", ["a", "b", "c"])
+    ("step 'a'", "steps 'a', 'b' and 'c'")
+    """
+    quoted = [f"'{name}'" for name in names]
+    if len(quoted) == 1:
+        return f"{kind} {quoted[0]}"
+    return f"{kind}s {', '.join(quoted[:-1])} and {quoted[-1]}"
+
+
+def off_curves(commands):
+    """Return notes about jobs whose curve is a boundary or a load case that is off in
+    some of their steps (#393): its force is zero there."""
+    steps = {c["name"]: c for c in commands if c["command"] == "step.add"}
+    boundaries = {
+        c["name"] for c in commands if c["command"] in ("boundary.add", "loadcase.add")
+    }
+    messages = []
+    for i, cmd in enumerate(commands):
+        curve = cmd.get("curve")
+        if cmd["command"] != "job.add" or curve not in boundaries:
+            continue
+        off = [
+            name
+            for name in dict.fromkeys(cmd["steps"])
+            if name in steps and curve not in steps[name].get("boundaries", [curve])
+        ]
+        if off:
+            messages.append(
+                f"commands/{i}: job '{cmd['name']}' records the curve of '{curve}', "
+                f"which is off in {_names('step', off)}: its force is zero there."
+            )
+    return messages
+
+
 def notes(commands):
     """Return notes about a command list that are not errors: the planes of symmetry
-    objects that a load case or another symmetry object already has (#186). The same
+    objects that a load case or another symmetry object already has (#186), and the
+    curves of jobs that are off in some of their steps (:func:`off_curves`). The same
     plane twice prescribes the same degrees of freedom twice, which does no harm.
 
     Examples
@@ -278,7 +320,7 @@ def notes(commands):
                 )
             else:
                 owners[plane] = f"symmetry '{cmd['name']}'"
-    return messages
+    return messages + off_curves(commands)
 
 
 def errors(document, check_schema=True):
