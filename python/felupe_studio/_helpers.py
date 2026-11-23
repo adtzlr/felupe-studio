@@ -350,8 +350,8 @@ def script_mesh(file, parameters, item=None):
         raise ValueError(
             f"{name} of '{file}' has no cells. Make an empty part one degenerate "
             f"cell of its cell type, e.g. fem.Mesh(points=np.zeros((1, {dim})), "
-            f'cells=np.zeros((1, {npoints}), dtype=int), cell_type="{cell_type}"), '
-            "and leave its section out of the steps."
+            f'cells=np.zeros((1, {npoints}), dtype=int), cell_type="{cell_type}"): '
+            "its section has no volume and is off in every step."
         )
     return mesh
 
@@ -360,6 +360,46 @@ def run_mesh_script(file, parameters, item=None, tag=None, cell_type=None, dim=3
     """Return the solid cells of the mesh of a script, like ``volume_cells()``."""
     mesh = script_mesh(file, parameters, item)
     return volume_cells(mesh, tag=tag, cell_type=cell_type, dim=dim)
+
+
+# the cell types of the corners of the cells of the MINI element
+CORNERS = {"tetra5": ("tetra", 4), "triangle4": ("triangle", 3)}
+
+
+def cell_volumes(mesh):
+    """Return the volumes of the cells of a mesh, the areas of 2D cells (#429): the
+    sums of the differential volumes ``dV`` of their region, of every cell measured
+    from its first point. So a degenerate cell, whose points are all one point, has a
+    volume of exactly zero, also a quadratic cell. A cell of the MINI element is
+    measured by its corners."""
+    cell_type, corners = CORNERS.get(mesh.cell_type, (mesh.cell_type, None))
+    cells = np.asarray(mesh.cells)[:, :corners]
+    region = REGIONS[cell_type](fem.Mesh(mesh.points, cells, cell_type), grad=False)
+    points = np.asarray(region.mesh.points, dtype=float)[region.mesh.cells]
+    points = points - points[:, :1]
+    volumes = np.zeros(len(cells))
+    # one quadrature point at a time, for the memory of large meshes
+    for q, weight in enumerate(region.quadrature.weights):
+        dXdr = np.einsum("caI,aJ->IJc", points, region.element_dhdr[..., q])
+        volumes += fem.math.det(dXdr) * weight
+    return volumes
+
+
+def has_volume(solid):
+    """Whether the cells of a solid body have a volume (#429): not a section of one
+    degenerate cell for an empty part (#418), whose forces and stiffness are NaN."""
+    return cell_volumes(solid.field[0].region.mesh).sum() != 0
+
+
+def with_volume(*solids):
+    """Return the solid bodies with a volume, the items of a step (#429)."""
+    return [solid for solid in solids if has_volume(solid)]
+
+
+def fields_without_volume(*solids):
+    """Return the field containers of the solid bodies without volume, whose dual
+    fields a step holds like those of a section that it leaves out (#428, #429)."""
+    return [solid.field for solid in solids if not has_volume(solid)]
 
 
 # --- embedded in generated scripts with linear solvers ---

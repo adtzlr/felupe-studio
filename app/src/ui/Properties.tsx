@@ -1,5 +1,9 @@
 import type { Draft } from "../core/form";
-import type { MeshFiles } from "../core/meshfiles";
+import {
+  type MeshFiles,
+  sectionsWithoutVolume,
+  sectionVolume,
+} from "../core/meshfiles";
 import { KIND_LABELS } from "../core/registry";
 import type { ModelStore } from "../core/store";
 import { KINDS } from "../core/validate";
@@ -38,6 +42,12 @@ export function Properties({ store, files, notes, selected, onSelect }: Props) {
     .filter((message) => !message.includes("is not loaded"))
     .map(withoutIndex);
   const dependents = store.dependents(command.name);
+  // the sections without volume, off in every step (#429)
+  const withoutVolume = sectionsWithoutVolume(store.commands, files);
+  const volume =
+    command.command === "section.add"
+      ? sectionVolume(store.commands, command.name, files)
+      : undefined;
   // a control point is a point set of one point, with a label of its own (#95), and
   // so are a rigid surface (#219) and a contact (#220)
   const head: { icon: IconName; label: string } | undefined =
@@ -80,7 +90,11 @@ export function Properties({ store, files, notes, selected, onSelect }: Props) {
         key={JSON.stringify(command)}
         type={command.command}
         initial={command as unknown as Draft}
-        context={{ commands: store.commands, editing: command.name }}
+        context={{
+          commands: store.commands,
+          editing: command.name,
+          withoutVolume,
+        }}
         submitLabel="Apply"
         requireChange
         issues={fieldIssues}
@@ -109,6 +123,13 @@ export function Properties({ store, files, notes, selected, onSelect }: Props) {
           {command.command === "boundary.add"
             ? `${command.pointset} is the rotation point of ${rotation.name}: the values are rotations about its center point in rad, a curve shows the moment over the rotation.`
             : `The rotation point of ${rotation.name}: its values are rotations about the center point in rad; its coordinates are not used.`}
+        </p>
+      )}
+      {volume === 0 && (
+        <p class="muted note">
+          {withoutVolume.has(command.name)
+            ? "Volume 0 (V = 0): off in every step."
+            : "Volume 0 (V = 0): its forces are not numbers, leave it out of the steps."}
         </p>
       )}
       {messages.length > 0 && (

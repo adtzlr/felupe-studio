@@ -394,12 +394,15 @@ export const FACE_CELL_TYPES = [
   "quad9",
 ];
 
-/** The type of the solid cells of a section, if its mesh file is read. */
-export function sectionCellType(
+/**
+ * The solid cells of the mesh of a section, with its cell set and its mesh object,
+ * if its mesh file is read or its mesh is made.
+ */
+function sectionSolid(
   commands: readonly Command[],
   section: string,
   files: MeshFiles,
-): string | undefined {
+) {
   const sec = commands.find((c) => c.name === section);
   if (sec?.command !== "section.add") return undefined;
   const set = commands.find((c) => c.name === sec.cellset);
@@ -413,7 +416,65 @@ export function sectionCellType(
   const status = meshStatus(mesh, commands, files);
   if (status?.state !== "ready") return undefined;
   const choice = solidOf(status.info, cellTypeOf(mesh));
-  return "solid" in choice ? choice.solid.cell_type : undefined;
+  return "solid" in choice ? { solid: choice.solid, set, mesh } : undefined;
+}
+
+/** The type of the solid cells of a section, if its mesh file is read. */
+export function sectionCellType(
+  commands: readonly Command[],
+  section: string,
+  files: MeshFiles,
+): string | undefined {
+  return sectionSolid(commands, section, files)?.solid.cell_type;
+}
+
+/**
+ * The volume of the cells of a section (#429), the area of 2D cells, if its mesh is
+ * read or made: of all solid cells of its mesh, or of those of its tag value, with
+ * the scale of an imported mesh. A section of one degenerate cell, e.g. an empty
+ * part of a mesh script (#418), has the volume 0.
+ */
+export function sectionVolume(
+  commands: readonly Command[],
+  section: string,
+  files: MeshFiles,
+): number | undefined {
+  const found = sectionSolid(commands, section, files);
+  if (!found) return undefined;
+  const { solid, set, mesh } = found;
+  const tag = mesh.command === "mesh.generate" ? undefined : mesh.tag;
+  const volume =
+    set.command === "cellset.from_file"
+      ? solid.volume
+      : solid.tags
+          .find((t) => t.name === tag)
+          ?.values.find((v) => v.value === set.value)?.volume;
+  if (volume === undefined) return undefined;
+  // the value of the scale, also of an expression (#242)
+  const resolved = resolvedOf(commands).find((c) => c.name === mesh.name);
+  const scale =
+    resolved?.command === "mesh.import" && typeof resolved.scale === "number"
+      ? resolved.scale
+      : 1;
+  return volume * scale ** (CELLS_2D.includes(solid.cell_type) ? 2 : 3);
+}
+
+/**
+ * The sections without volume that are off in every step (#429): of a model with
+ * meshes of scripts, whose script leaves out their solid bodies when it runs. The
+ * steps keep them as they are.
+ */
+export function sectionsWithoutVolume(
+  commands: readonly Command[],
+  files: MeshFiles,
+): Set<string> {
+  if (!commands.some((c) => c.command === "mesh.script")) return new Set();
+  return new Set(
+    commands
+      .filter((c) => c.command === "section.add")
+      .map((c) => c.name)
+      .filter((name) => sectionVolume(commands, name, files) === 0),
+  );
 }
 
 /** The cell type that a mesh object takes, if it names one (not of a tool). */

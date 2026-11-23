@@ -22,7 +22,7 @@ from pathlib import Path
 import meshio
 import numpy as np
 
-from ._helpers import REGIONS, script_mesh, solid_types, volume_cells
+from ._helpers import REGIONS, cell_volumes, script_mesh, solid_types, volume_cells
 from .scene import surface
 
 # a cell data array with more distinct values is not offered as a tag
@@ -81,16 +81,18 @@ def _tag_arrays(mesh, blocks):
     return dict(sorted(arrays.items(), key=lambda item: order.get(item[0], 1)))
 
 
-def _tags(mesh, arrays):
-    """The values of the tags with their number of cells. The values of
-    gmsh:physical carry the names of their physical groups as labels."""
+def _tags(mesh, arrays, volumes):
+    """The values of the tags with their number of cells and the volume of these
+    cells (#429). The values of gmsh:physical carry the names of their physical
+    groups as labels."""
     labels = _labels(mesh)
     tags = []
     for name, values in arrays.items():
         unique, counts = np.unique(values, return_counts=True)
         entries = []
         for v, c in zip(unique, counts, strict=True):
-            entry = {"value": int(v), "cells": int(c)}
+            volume = float(volumes[values == v].sum())
+            entry = {"value": int(v), "cells": int(c), "volume": volume}
             if name == "gmsh:physical" and int(v) in labels:
                 entry["label"] = labels[int(v)]
             entries.append(entry)
@@ -112,8 +114,10 @@ def inspect(filename):
         ``file``, ``points``, ``blocks`` (type and number of cells of every cell
         block) and, if the file has solid cells that FElupe supports, ``solids``: one
         entry per type of solid cells in the order of the file with ``cell_type``,
-        ``cells``, ``bounds`` and ``tags`` (name and values with their number of
-        cells, and the names of Gmsh physical groups as ``label``). ``unsupported``
+        ``cells``, ``volume`` (the area of 2D cells, zero of a degenerate cell for an
+        empty part, #429), ``bounds`` and ``tags`` (name and values with their number
+        and volume of cells, and the names of Gmsh physical groups as ``label``).
+        ``unsupported``
         lists solid cells without a region in FElupe (e.g. wedges) and ``ignored``
         the lower-dimensional cell types. Otherwise ``error`` explains what is wrong.
     """
@@ -177,12 +181,14 @@ def _summary(mesh, result):
         # the bounds of 2D cells in the plane z = 0 (#175)
         points = np.pad(points, ((0, 0), (0, 3 - points.shape[1])))
         tags[cell_type] = _tag_arrays(mesh, blocks)
+        volumes = cell_volumes(solid)
         result["solids"].append(
             {
                 "cell_type": cell_type,
                 "cells": len(solid.cells),
+                "volume": float(volumes.sum()),
                 "bounds": [points.min(axis=0).tolist(), points.max(axis=0).tolist()],
-                "tags": _tags(mesh, tags[cell_type]),
+                "tags": _tags(mesh, tags[cell_type], volumes),
             }
         )
     return result, {t: (solid, tags[t]) for t, solid in solids.items()}

@@ -76,7 +76,8 @@ def _blocks(markers):
 
 # the helpers of the u-p-J formulation (the MINI element, #226), of the steps that
 # leave out its sections (#428), of face sets (#142), of point sets on the surface
-# (#222), of meshes made by scripts (#182) and of the linear solvers of jobs other
+# (#222), of meshes made by scripts (#182) with the steps that leave out sections
+# without volume (#429), and of the linear solvers of jobs other
 # than SuperLU (#203) and in single precision (ADR 0016), and of steps that switch
 # boundaries on and off (#393)
 BLOCKS = _blocks(
@@ -288,6 +289,13 @@ class Context:
     def solids(self):
         """The names of the solid bodies of the sections."""
         return [f"solid_{sec['name']}" for sec in self.sections]
+
+    @cached_property
+    def volumes(self):
+        """Whether the steps leave out the solid bodies of sections without volume
+        when the script runs (#429): of a model with meshes of scripts, which may make
+        an empty part as one degenerate cell (#418)."""
+        return bool(self.get("mesh.script"))
 
     @cached_property
     def mixed(self):

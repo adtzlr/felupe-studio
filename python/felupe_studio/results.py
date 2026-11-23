@@ -424,7 +424,7 @@ def _quadrature_data(kind, section):
     namespace = _state["namespace"]
     field = namespace[f"field_{section}"]
     if kind == "strain":
-        return field.evaluate.strain(tensor=False)
+        return _strain(field, tensor=False)
     if kind in STATE_VARIABLES:
         # the first state variable of the material: the equivalent plastic strain
         # (#191) or the maximum strain energy density of the Mullins effect (#346),
@@ -442,16 +442,39 @@ def _quadrature_tensor(kind, section):
     namespace = _state["namespace"]
     field = namespace[f"field_{section}"]
     if kind == "strain":
-        return field.evaluate.strain(tensor=True)
+        return _strain(field, tensor=True)
     return _cauchy_stress(namespace[f"solid_{section}"], field)
+
+
+def _strain(field, tensor):
+    """Return the logarithmic strain tensors or their principal values of a field
+    container, like ``field.evaluate.strain()``, NaN where the deformation gradient
+    is not finite, e.g. of a section without volume (#429): the eigenvalues of FElupe
+    do not converge for NaN."""
+    F = fem.math.deformation_gradient(field)
+    C = fem.math.dot(fem.math.transpose(F), F)
+    finite = np.isfinite(C).all(axis=(0, 1))
+    if finite.all():
+        return fem.math.strain(field, C=C, tensor=tensor)
+    shape = C.shape if tensor else C.shape[1:]
+    values = np.full(shape, np.nan)
+    values[..., finite] = fem.math.strain(field, C=C[:, :, finite], tensor=tensor)
+    return values
 
 
 def _invariants(kind, tensor):
     """Return the von Mises equivalent or the principal values of tensors (with the
-    two axes of a tensor first)."""
+    two axes of a tensor first). The principal values of a tensor that is not finite
+    are NaN, e.g. of a section without volume (#429), whose strains and stresses are
+    NaN."""
     if kind == "mises":
         return equivalent_von_mises(tensor)[None]
-    return eigvalsh(tensor)
+    finite = np.isfinite(tensor).all(axis=(0, 1))
+    if finite.all():
+        return eigvalsh(tensor)
+    values = np.full((len(tensor), *tensor.shape[2:]), np.nan)
+    values[:, finite] = eigvalsh(tensor[:, :, finite])
+    return values
 
 
 # the upper triangle of a symmetric tensor, its six independent components

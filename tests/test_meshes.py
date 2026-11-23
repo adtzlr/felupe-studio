@@ -22,13 +22,14 @@ def test_vtu_with_tag():
             {
                 "cell_type": "hexahedron",
                 "cells": 192,
+                "volume": 3.0,
                 "bounds": [[0.0, 0.0, 0.0], [3.0, 1.0, 1.0]],
                 "tags": [
                     {
                         "name": "material",
                         "values": [
-                            {"value": 1, "cells": 96},
-                            {"value": 2, "cells": 96},
+                            {"value": 1, "cells": 96, "volume": 1.5},
+                            {"value": 2, "cells": 96, "volume": 1.5},
                         ],
                     }
                 ],
@@ -77,7 +78,9 @@ def test_ignores_faces_and_float_tags(tmp_path):
     names = [t["name"] for t in solid["tags"]]
     assert "density" not in names
     zone = next(t for t in solid["tags"] if t["name"] == "zone")
-    assert zone["values"] == [{"value": 3, "cells": len(mesh.cells)}]
+    assert zone["values"] == [
+        {"value": 3, "cells": len(mesh.cells), "volume": pytest.approx(1.0)}
+    ]
     assert ("many" in names) == (len(mesh.cells) <= MAX_TAG_VALUES)
 
 
@@ -116,8 +119,8 @@ def test_gmsh_physical_names(tmp_path):
     assert physical == {
         "name": "gmsh:physical",
         "values": [
-            {"value": 1, "cells": 4, "label": "rubber"},
-            {"value": 2, "cells": 4, "label": "steel"},
+            {"value": 1, "cells": 4, "volume": 0.5, "label": "rubber"},
+            {"value": 2, "cells": 4, "volume": 0.5, "label": "steel"},
         ],
     }
 
@@ -148,8 +151,8 @@ def test_tags_per_cell_type(tmp_path):
     ).write(tmp_path / "parts.vtu")
     solids = inspect(tmp_path / "parts.vtu")["solids"]
     assert [s["tags"][0]["values"] for s in solids] == [
-        [{"value": 1, "cells": 8}],
-        [{"value": 2, "cells": len(tetra.cells)}],
+        [{"value": 1, "cells": 8, "volume": 1.0}],
+        [{"value": 2, "cells": len(tetra.cells), "volume": pytest.approx(1.0)}],
     ]
 
 
@@ -242,6 +245,7 @@ def test_2d_meshes(tmp_path):
         {
             "cell_type": "quad",
             "cells": 4,
+            "volume": 2.0,
             "bounds": [[0.0, 0.0, 0.0], [2.0, 1.0, 0.0]],
             "tags": [],
         }
