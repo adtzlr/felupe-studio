@@ -17,11 +17,16 @@ of every substep of a job. Both give the ranges also per section, so the app tak
 the range of a contour from chosen sections (#377). :func:`export` writes the
 results of a job as a VTU file of a substep or as an XDMF time series of all
 substeps.
+
+The scenes and the ranges take the meshes and the data of a source: the last run,
+or a file of results exported before (#414, :mod:`felupe_studio.resultfile`), which
+:func:`show` shows instead of the results of the last run.
 """
 
 import json
 import os
 import tempfile
+import xml.etree.ElementTree as ET
 
 import felupe as fem
 import numpy as np
@@ -102,6 +107,7 @@ def reset(namespace, sections, points=(), units=None, mullins=()):
     ``units`` of its settings, #132) for the headers of the exports and the names of
     the sections whose material has the Mullins effect (#346)."""
     _state.update(
+        source=_RUN,
         namespace=namespace,
         sections=list(sections),
         points=list(points),
@@ -115,6 +121,20 @@ def reset(namespace, sections, points=(), units=None, mullins=()):
         cuts={},
     )
     _state["surfaces"] = {}
+
+
+def show(source):
+    """Show the results of another source instead of those of the last run, e.g. of
+    a file (#414, :class:`felupe_studio.resultfile.ResultFile`): its sections, without
+    control points. It has the methods of the results of a run that the scenes and
+    the ranges take, see :class:`_Run`."""
+    reset(None, source.sections)
+    _state["source"] = source
+
+
+def _source():
+    """Return the source of the results: the last run, or a file (#414)."""
+    return _state.get("source", _RUN)
 
 
 class Recorder(fem.Plugin):
@@ -266,14 +286,13 @@ def _cells(section):
 
 def _surface(section):
     """Return the triangulated surface of the cells of a section (cached), with the
-    cells and the points of its mesh."""
+    mesh of the cells to draw (all points, the cells without the bubble points of
+    the MINI element) and its polynomial order."""
     if section not in _state["surfaces"]:
-        mesh = _state["namespace"][f"field_{section}"][0].region.mesh
-        cell_type, cells = _cells(section)
-        drawn = fem.Mesh(mesh.points, cells, cell_type)
-        order = polynomial_order(drawn)
-        surface = triangulate_surface(drawn, subdivisions=order)
-        _state["surfaces"][section] = (surface, cells, order)
+        mesh = fem.Mesh(*_source().mesh(section))
+        order = polynomial_order(mesh)
+        surface = triangulate_surface(mesh, subdivisions=order)
+        _state["surfaces"][section] = (surface, mesh, order)
     return _state["surfaces"][section]
 
 
@@ -281,14 +300,14 @@ def _drawn(section, plane=None):
     """Return the surface of a section to draw: its outer surface, or clipped at the
     plane of a cut with its cut face (#395). The geometry of a cut is kept per section
     until the next cut or run, so a new substep needs only the interpolation."""
-    surface, cells, order = _surface(section)
+    surface, mesh, order = _surface(section)
     if plane is None:
         return surface
     cached = _state.setdefault("cuts", {}).get(section)
     if cached is None or cached[0] != plane:
-        mesh = _state["namespace"][f"field_{section}"][0].region.mesh
-        cell_type, cells = _cells(section)
-        result = cuts.cut(surface, mesh.points, cells, cell_type, plane, order)
+        result = cuts.cut(
+            surface, mesh.points, mesh.cells, mesh.cell_type, plane, order
+        )
         _state["cuts"][section] = cached = (plane, result)
     return cached[1]
 
@@ -502,24 +521,24 @@ def _values(section, kind, component, method="cells", surfaces=None):
     fields (at the points of the cells or at the cells), and its values and the
     displacements at the points of surfaces: by default of the outer surface, e.g.
     also of a cut (#395)."""
-    surface, cells, _ = _surface(section)
+    surface, mesh, _ = _surface(section)
     surfaces = surfaces or [surface]
-    u = _3d(_state["namespace"][f"field_{section}"][0].values)
+    u = _3d(_source().displacement(section))
     displacements = [s.interpolate(u) for s in surfaces]
     if kind == "displacement":
         # the values at the points of the cells (not of bubbles) and the surface
-        used = u[np.unique(cells)]
+        used = u[np.unique(mesh.cells)]
         if component is None:
             return np.linalg.norm(used, axis=1), [
                 (np.linalg.norm(d, axis=1), d) for d in displacements
             ]
         return used[:, component], [(d[:, component], d) for d in displacements]
-    data = _data(kind, section, method)[:, component]
+    data = _source().data(kind, section, method)[:, component]
     if method == "cells":
         return data, [
             (data[s.owners], d) for s, d in zip(surfaces, displacements, strict=True)
         ]
-    return data[np.unique(cells)], [
+    return data[np.unique(mesh.cells)], [
         (s.interpolate(data), d) for s, d in zip(surfaces, displacements, strict=True)
     ]
 
@@ -563,14 +582,15 @@ def ranges(job, quantity, method="cells"):
         lists like it, for the range of chosen sections (#377).
     """
     kind, component, _ = QUANTITIES[quantity]
-    method = method_of(method) if kind != "displacement" else "cells"
+    source = _source()
+    method = source.method(method) if kind != "displacement" else "cells"
     key = (job, quantity, method)
     cache = _state.setdefault("ranges", {})
     if key not in cache:
-        count = len(_state["records"].get(job, []))
+        count = source.substeps(job)
         sections = {section: [] for section in _state["sections"]}
         for substep in range(1, count + 1):
-            _restore(job, substep)
+            source.restore(job, substep)
             for section, result in sections.items():
                 data, [(values, _)] = _values(section, kind, component, method)
                 result.append(_range(_extend((np.inf, -np.inf), data, values)))
@@ -638,7 +658,7 @@ def scene(job, substep, quantity, method="cells", cut=None):
         follow) and the ``positions`` and the ``displacement`` of the nodes of the
         whole outer surface (``uncut``, as bytes).
     """
-    _restore(job, substep)
+    _source().restore(job, substep)
     return current_scene(job, substep, quantity, method, cut)
 
 
@@ -646,16 +666,16 @@ def current_scene(job, substep, quantity, method="cells", cut=None):
     """Return the result of the current fields for the viewer, like :func:`scene`
     without restoring a substep: e.g. the live results of a running job after a
     converged substep (#207), whose fields are current."""
+    source = _source()
     kind, component, label = QUANTITIES[quantity]
-    method = method_of(method)
+    method = source.method(method)
     at = "point" if kind == "displacement" or method != "cells" else "cell"
     surfaces = []
     # the ranges and the extremes of every section (#377)
     sections = {}
     plane = cuts.plane(cut)
     for section in _state["sections"]:
-        surface, cells, order = _surface(section)
-        mesh = _state["namespace"][f"field_{section}"][0].region.mesh
+        surface, mesh, order = _surface(section)
         # the range of the outer surface, also of a cut (#395)
         drawn = _drawn(section, plane)
         shown = [surface] if drawn is surface else [surface, drawn]
@@ -694,11 +714,11 @@ def current_scene(job, substep, quantity, method="cells", cut=None):
         "label": label,
         "at": at,
         **({"method": method} if kind != "displacement" else {}),
-        "shift": shift(),
+        "shift": source.shift(),
         "range": _union(s["range"] for s in sections.values()),
         "extremes": _combined_extremes(sections.values()),
         "sections": sections,
-        "points": _control_points(job, substep),
+        "points": source.control_points(job, substep),
         # the cut of the scene (#395), e.g. for the markers of the view
         **({"cut": cut} if plane is not None else {}),
     }
@@ -727,17 +747,16 @@ def _extremes(section, at, data):
     finite = np.flatnonzero(np.isfinite(data))
     if not finite.size:
         return {}
-    surface, cells, _ = _surface(section)
-    mesh = _state["namespace"][f"field_{section}"][0].region.mesh
-    u = _3d(_state["namespace"][f"field_{section}"][0].values)
-    nodes = np.unique(cells)
+    surface, mesh, _ = _surface(section)
+    u = _3d(_source().displacement(section))
+    nodes = np.unique(mesh.cells)
     # the nodes and the cells at the surface (the view marks an extreme inside)
     outer = surface_nodes(surface) if at == "point" else surface.owners
     result = {}
     for name, pick in (("min", np.argmin), ("max", np.argmax)):
         i = finite[pick(data[finite])]
         index = int(nodes[i] if at == "point" else i)
-        points = [nodes[i]] if at == "point" else cells[i]
+        points = [nodes[i]] if at == "point" else mesh.cells[i]
         position = _3d(mesh.points[points]).mean(axis=0)
         displacement = u[points].mean(axis=0)
         result[name] = {
@@ -809,48 +828,63 @@ EXPORTED = {
     "Equivalent of Cauchy Stress": "mises",
 }
 
+# the state variables of the exports by kind, of a model with a material that has
+# them: the equivalent plastic strain (#191) and the maximum strain energy density of
+# the Mullins effect (#346)
+EXPORTED_STATE = {
+    "Equivalent Plastic Strain": "plastic",
+    "Maximum Strain Energy Density": "mullins",
+}
 
-def _export_mesh():
-    """Return the points used by the cells of all sections, the cell blocks (one per
-    section, with the indices of the used points) and the used points."""
+# the name of the information of an XDMF export (#414): the names of the sections, the
+# units of the model and the node of the model of every point, for an import of the
+# file
+INFORMATION = "felupe-studio"
+
+
+def _export_mesh(apart=False):
+    """Return the points that the cells of the sections use, the cell blocks (one
+    per section), the node of the model of every point and the nodes of every
+    section. The sections share their common points, or, ``apart``, every section
+    has its own points (in the order of the nodes), so that a point of two sections
+    is there twice, with the values of each section at the points (#414)."""
     blocks = [_cells(section) for section in _state["sections"]]
+    parts = [np.unique(cells) for _, cells in blocks]
+    if apart:
+        offsets = np.cumsum([0, *map(len, parts)])[:-1]
+        nodes = np.concatenate(parts)
+    else:
+        nodes = np.unique(np.concatenate(parts))
+        offsets = np.zeros(len(blocks), dtype=int)
+    cells = [
+        (cell_type, offset + np.searchsorted(part if apart else nodes, cells))
+        for (cell_type, cells), part, offset in zip(blocks, parts, offsets, strict=True)
+    ]
     points = _state["namespace"]["field"].region.mesh.points
-    used = np.unique(np.concatenate([cells.ravel() for _, cells in blocks]))
-    index = np.full(len(points), -1)
-    index[used] = np.arange(len(used))
     # the points of 2D models in the plane z = 0, like the viewer (#175)
-    return _3d(points[used]), [(t, index[cells]) for t, cells in blocks], used
+    return _3d(points[nodes]), cells, nodes, parts
 
 
-def _export_data(used, method="cells"):
+def _export_data(nodes, parts, method="cells"):
     """Return the point data and the cell data of the current values of the fields.
-    A point method of the strains and the stresses (#231) adds them as point data,
-    the means of the sections at their common points."""
+    A point method of the strains and the stresses (#231) adds them as point data of
+    the points of every section (``parts``, the sections apart)."""
     field = _state["namespace"]["field"]
-    point_data = {"Displacement": _3d(field[0].values[used])}
+    point_data = {"Displacement": _3d(field[0].values[nodes])}
     exported = dict(EXPORTED)
-    if any(_plastic(section) for section in _state["sections"]):
-        # the equivalent plastic strain (#191)
-        exported["Equivalent Plastic Strain"] = "plastic"
-    if any(_mullins(section) for section in _state["sections"]):
-        # the maximum strain energy density of the Mullins effect (#346)
-        exported["Maximum Strain Energy Density"] = "mullins"
+    for name, kind in EXPORTED_STATE.items():
+        if any(_has(kind, section) for section in _state["sections"]):
+            exported[name] = kind
     cell_data = {name: [] for name in exported}
-    sums = {name: 0.0 for name in exported}
-    count = np.zeros(len(field[0].values))
-    for section in _state["sections"]:
-        nodes = np.unique(_cells(section)[1])
-        count[nodes] += 1
+    at_points = {name: [] for name in exported}
+    for section, part in zip(_state["sections"], parts, strict=True):
         for name, kind in exported.items():
             values = _quadrature_data(kind, section)
             cell_data[name].append(_reduce(values, section, "cells"))
             if method != "cells":
-                data = np.zeros((len(count), len(values)))
-                data[nodes] = _point_data(kind, section, method)[nodes]
-                sums[name] = sums[name] + data
+                at_points[name].append(_point_data(kind, section, method)[part])
     if method != "cells":
-        for name in exported:
-            point_data[name] = (sums[name] / count[:, None])[used]
+        point_data.update({name: np.concatenate(at_points[name]) for name in exported})
     cell_data["Section"] = [
         np.full(len(_cells(section)[1]), i)
         for i, section in enumerate(_state["sections"])
@@ -874,8 +908,8 @@ def export(job, file_format, substep=None, method="cells"):
         The substep of a VTU file, counted from 1 over all steps of the job.
     method : str, optional
         The method of the values of the strains and the stresses (#231), see
-        :func:`scene`: with a method at the points, they are point data too, the
-        means of the sections at their common points.
+        :func:`scene`: with a method at the points, they are point data too, those
+        of every section at its own points.
 
     Notes
     -----
@@ -887,7 +921,12 @@ def export(job, file_format, substep=None, method="cells"):
     :class:`felupe.ViewSolid`), the equivalent plastic strain of a model with
     plasticity (#191), the maximum strain energy density of a model with the Mullins
     effect (#346) and the index of the section. With a method at the points,
-    the strains and the stresses are point data too.
+    the strains and the stresses are point data too, per section as in the view:
+    every section has its own points then, and a point of two sections is in the
+    file twice, with the values of each section (#414). An XDMF file has the names
+    of the sections, the units of the model and the node of the model of every
+    point as its ``Information`` :data:`INFORMATION` (JSON), so that the app imports
+    it (#414).
     """
     import meshio
 
@@ -896,12 +935,12 @@ def export(job, file_format, substep=None, method="cells"):
     if not _state["records"].get(job):
         raise KeyError(f"No results of the job '{job}'.")
     method = method_of(method)
-    points, cells, used = _export_mesh()
+    points, cells, nodes, parts = _export_mesh(apart=method != "cells")
     with tempfile.TemporaryDirectory() as folder:
         filename = os.path.join(folder, f"result.{file_format}")
         if file_format == "vtu":
             _restore(job, substep or substeps(job))
-            point_data, cell_data = _export_data(used, method)
+            point_data, cell_data = _export_data(nodes, parts, method)
             meshio.Mesh(
                 points, cells, point_data=point_data, cell_data=cell_data
             ).write(filename)
@@ -910,9 +949,51 @@ def export(job, file_format, substep=None, method="cells"):
                 writer.write_points_cells(points, cells)
                 for substep in range(1, substeps(job) + 1):
                     _restore(job, substep)
-                    point_data, cell_data = _export_data(used, method)
+                    point_data, cell_data = _export_data(nodes, parts, method)
                     writer.write_data(float(substep), point_data, cell_data)
+                # the names of the sections, the units and the nodes, for an import
+                information = {
+                    "sections": _state["sections"],
+                    "units": _state["units"],
+                    # the node of the model of every point of the file
+                    "nodes": nodes.tolist(),
+                }
+                ET.SubElement(
+                    writer.domain,
+                    "Information",
+                    Name=INFORMATION,
+                    Value=json.dumps(information),
+                )
         else:
             raise ValueError(f"Unknown file format '{file_format}'.")
         with open(filename, "rb") as file:
             return file.read()
+
+
+class _Run:
+    """The results of the last run as a source of the scenes and the ranges: the
+    fields of the namespace of its script, restored per substep. The results of a
+    file (#414, :class:`felupe_studio.resultfile.ResultFile`) have these methods
+    too."""
+
+    @staticmethod
+    def mesh(section):
+        """Return the points, the cells to draw and their cell type of a section."""
+        points = _state["namespace"][f"field_{section}"][0].region.mesh.points
+        cell_type, cells = _cells(section)
+        return points, cells, cell_type
+
+    @staticmethod
+    def displacement(section):
+        """Return the displacements of the points of a section."""
+        return _state["namespace"][f"field_{section}"][0].values
+
+    data = staticmethod(_data)
+    restore = staticmethod(_restore)
+    substeps = staticmethod(substeps)
+    method = staticmethod(method_of)
+    shift = staticmethod(shift)
+    control_points = staticmethod(_control_points)
+
+
+_RUN = _Run()

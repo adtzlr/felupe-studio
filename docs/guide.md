@@ -258,6 +258,7 @@ The **Results** workspace shows the deformed shape of a substep:
 
 - *Constraints* (or C) shows or hides the lines of the multi-point constraints and the control points, moved with the displacements; they are shown by default. Without them, the contour of a body with many constraints is easier to read, e.g. of a face glued to a rigid plate. The rigid surfaces stay. The toggle is there only in a model with constraints or control points, also during a run with live results.
 - A click on a **job** in the browser shows its results; a click on another object switches to the Model workspace with its properties. *Results* shows the results again as you left them; the eye of the browser hides a section in the results too.
+- **Import results…** in the File menu, or in the Results ribbon before any run, shows the results of a job of an XDMF file exported before (*Export ▸ Results of the job*), whatever model is open, also without one, e.g. the results of an earlier version of the model or of a colleague. The job is the name of the file, its substeps those of the file; the contour offers what the file has: the values at the cells, and at the points as they were exported, if they were (per section, as after the run). The ribbon says where the results come from, e.g. *Results of bushing-radial.xdmf*. A file has no curve, no control points, no constraints and no steps, and its results are not exported again. They replace the results of the last run, and the next *Solve* replaces them again. A file of version 0.10 names its sections *Section 0*, *Section 1*, … and has no units.
 
 ## The script
 
@@ -268,7 +269,7 @@ The ribbon tab **Script** shows the FElupe script of the model instead of the vi
 The **Export** menu has
 
 - the **Python script** of the model: it runs with FElupe and meshio outside the app, next to the mesh files,
-- the **results of the job** (XDMF) and of the **substep** (VTU), e.g. for ParaView,
+- the **results of the job** (XDMF), which *Import results…* shows again, and of the **substep** (VTU), e.g. for ParaView. With *Values at* the points, the strains and the stresses are at the points too, per section as in the view: every section has its own points in the file, so ParaView shows the sections as pieces that touch, with the jumps of the values at their interfaces,
 - the **control points** (CSV): displacements and forces per substep,
 - a **picture of the view** (PNG).
 
@@ -384,6 +385,8 @@ There is no server on the internet. Python runs in the browser, or on your compu
 A step switches a boundary off at once: its reaction force is not ramped to zero. Boundaries and loads keep their points and directions from step to step, and the time of a step plays no role. A job may repeat a step, e.g. for a load cycle. A parameter is a number or an expression of other parameters (a derived parameter); the numbers of the objects may be expressions of the parameters, but not of other objects. 2D models are plane strain or axisymmetric, not plane stress.
 
 The plasticity is von Mises plasticity with linear isotropic hardening, the Mullins effect of Ogden and Roxburgh is the only inelastic model of rubber (no viscoelasticity yet, which needs the time of a step), and there are no user-defined materials yet. The accuracy of a model in single precision depends on the model: the job panel estimates it, and an elastic-plastic material keeps the linear system in double precision.
+
+Results are imported from the XDMF files of the export only, not from VTU files, and not by the MCP server or the agent bridge.
 
 The cut is one plane normal to x, y or z, through the undeformed model: there are no cuts by other planes and no several cuts at once. It is a setting of the view, in the picture of the view, but not in the exports of the results (XDMF and VTU), which have the whole model, nor in the results of the MCP server and of the agent bridge.
 

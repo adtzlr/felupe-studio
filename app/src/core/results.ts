@@ -1,11 +1,13 @@
-// The view of the results of the last finished run (#28): the job, its substep, the
-// quantity of the contour, the scale of the deformation and the undeformed ghost.
+// The view of the results of the last finished run (#28), or of a file (#414): the
+// job, its substep, the quantity of the contour, the scale of the deformation and the
+// undeformed ghost.
 import type { JobResult, Quantity } from "../worker/protocol";
 import { analysisOf, is2d } from "./analysis";
 import type { Command } from "./resolved";
 import type { JobRun } from "./jobs";
 import { hasMullins, hasStatevars } from "./materials";
 import type { Series } from "./curve";
+import { type Units, unitsOf } from "./units";
 
 /** The quantities of the contour, in groups. */
 export const QUANTITY_GROUPS: {
@@ -69,6 +71,42 @@ export function quantityGroups(
       ),
     }),
   );
+}
+
+/**
+ * What the results have of their model: its sections, whether it is 2D, its units
+ * and the quantities of the contour.
+ */
+export interface ResultModel {
+  sections: string[];
+  planar: boolean;
+  units?: Units;
+  groups: typeof QUANTITY_GROUPS;
+}
+
+/**
+ * What the results of a run have of their model, from its commands, or the results
+ * of a file (#414) from the file.
+ */
+export function resultModel(run: Finished): ResultModel {
+  const file = run.imported;
+  if (file)
+    return {
+      sections: file.sections,
+      planar: file.planar,
+      units: file.units ?? undefined,
+      groups: QUANTITY_GROUPS.map((group) => ({
+        ...group,
+        options: group.options.filter((o) => file.quantities.includes(o.id)),
+      })).filter((group) => group.options.length),
+    };
+  const { commands } = run;
+  return {
+    sections: sectionsOf(commands),
+    planar: is2d(analysisOf(commands)),
+    units: unitsOf(commands),
+    groups: quantityGroups(commands),
+  };
 }
 
 export interface ResultView {
@@ -159,7 +197,8 @@ export function substepsAhead(
 /**
  * The view of a finished run: the choices of a previous view are kept, the substep
  * is the last one of the job (the final state). Without a previous view, the given
- * choices are those of the first one (e.g. without the curve on a phone, #378).
+ * choices are those of the first one (e.g. without the curve on a phone, #378). A
+ * quantity that the results do not have, e.g. of a file (#414), is the displacement.
  */
 export function viewOf(
   run: Finished,
@@ -179,9 +218,13 @@ export function viewOf(
     job,
     substep: substepsOf(run, job),
   };
+  const { groups, sections } = resultModel(run);
+  const offered = groups.some((group) =>
+    group.options.some((o) => o.id === view.quantity),
+  );
+  if (!offered) view.quantity = "displacement";
   // a removed or renamed section leaves the sections of the range (#377)
   if (view.rangeSections) {
-    const sections = sectionsOf(run.commands);
     const kept = view.rangeSections.filter((s) => sections.includes(s));
     if (kept.length) view.rangeSections = kept;
     else delete view.rangeSections;

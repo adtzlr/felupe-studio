@@ -9,6 +9,7 @@ import {
   formatValue,
   nextSubstep,
   quantityGroups,
+  resultModel,
   stepOf,
   substepsAhead,
   substepsOf,
@@ -43,6 +44,25 @@ const run: Finished = {
       ],
     },
     job_2: { substeps: 2, time: 1 },
+  },
+};
+
+const units = { length: "mm", force: "N" } as const;
+
+/** The results of a file (#414). */
+const imported: Finished = {
+  state: "finished",
+  commands: [],
+  progress: { ...startProgress(), jobs: ["bushing-radial"] },
+  results: { "bushing-radial": { substeps: 4, time: 0 } },
+  imported: {
+    file: "bushing-radial.xdmf",
+    job: "bushing-radial",
+    substeps: 4,
+    sections: ["rubber", "sleeve"],
+    planar: false,
+    units,
+    quantities: ["displacement", "plastic_strain"],
   },
 };
 
@@ -91,6 +111,26 @@ describe("results view", () => {
     ).not.toHaveProperty("rangeSections");
     expect(substepsOf(run, "job_2")).toBe(2);
     expect(substepsOf(run, "gone")).toBe(0);
+  });
+
+  it("shows a quantity of the results only (#414)", () => {
+    // e.g. the equivalent plastic strain of a model without plasticity
+    const previous = { quantity: "plastic_strain" as const, scale: 5 };
+    expect(viewOf(run, previous)).toMatchObject({
+      quantity: "displacement",
+      scale: 5,
+    });
+    expect(viewOf(imported, previous).quantity).toBe("plastic_strain");
+    expect(
+      viewOf(imported, { quantity: "stress_max", rangeSections: ["steel"] }),
+    ).toMatchObject({
+      job: "bushing-radial",
+      substep: 4,
+      quantity: "displacement",
+    });
+    expect(
+      viewOf(imported, { rangeSections: ["steel", "sleeve"] }).rangeSections,
+    ).toEqual(["sleeve"]);
   });
 
   it("finds the step of a substep", () => {
@@ -184,6 +224,40 @@ describe("the substeps ahead (#141)", () => {
     expect(substepsAhead(3, 5, 4, "bounce", 1)).toEqual([4, 5]);
     expect(substepsAhead(4, 5, 4, "bounce", -1)).toEqual([3, 2, 1]);
     expect(substepsAhead(2, 2, 4, "bounce", 1)).toEqual([1]);
+  });
+});
+
+describe("what the results have of their model", () => {
+  it("of a run: of its commands", () => {
+    const commands = [
+      { command: "model.settings", analysis: "plane-strain", units },
+      { command: "section.add", name: "rubber" },
+    ] as unknown as Command[];
+    const model = resultModel({ ...run, commands });
+    expect(model).toMatchObject({ sections: ["rubber"], planar: true, units });
+    expect(model.groups).toEqual(quantityGroups(commands));
+  });
+
+  it("of a file: of the file (#414)", () => {
+    expect(resultModel(imported)).toEqual({
+      sections: ["rubber", "sleeve"],
+      planar: false,
+      units,
+      groups: [
+        {
+          label: "Displacement",
+          options: [{ id: "displacement", label: "Displacement (magnitude)" }],
+        },
+        {
+          label: "Plasticity",
+          options: [
+            { id: "plastic_strain", label: "Equivalent plastic strain" },
+          ],
+        },
+      ],
+    });
+    const file = { ...imported.imported!, units: null };
+    expect(resultModel({ ...imported, imported: file }).units).toBeUndefined();
   });
 });
 

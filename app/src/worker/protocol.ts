@@ -4,6 +4,7 @@
 // The arrays of a surface are transferred, not copied.
 
 import type { Capabilities } from "../core/capabilities";
+import type { Units } from "../core/units";
 import type { CacheState } from "./pycache";
 
 export type { Capabilities };
@@ -348,6 +349,26 @@ export interface ResultRanges {
   sections: Record<string, ([number, number] | null)[]>;
 }
 
+/**
+ * The results of a job of a file (#414, `felupe_studio.resultfile.load()`): an XDMF
+ * file exported before, shown instead of the results of the last run.
+ */
+export interface ResultFile {
+  /** The name of the file. */
+  file: string;
+  /** The name of the job: the name of the file without its extension. */
+  job: string;
+  substeps: number;
+  /** The names of the sections, `Section 0`, … of a file without them. */
+  sections: string[];
+  /** The model is 2D (#175): its cells are triangles or quads. */
+  planar: boolean;
+  /** The units of the model (#132), if the file has them. */
+  units: Units | null;
+  /** The quantities of the contour that the file has. */
+  quantities: Quantity[];
+}
+
 /** The minimum or the maximum of a contour: its value, node or cell (#140). */
 export interface ResultExtreme {
   value: number;
@@ -429,6 +450,11 @@ export type ToWorker =
       /** The strains and stresses at the points, too (#231). */
       method?: ValuesMethod;
     }
+  /**
+   * The results of a job of an XDMF file exported before, instead of those of the
+   * last run (#414): its description (`ResultFile`) as JSON text.
+   */
+  | { type: "import-results"; id: number; name: string; data: ArrayBuffer }
   /** The ranges of a quantity of every substep of a job, as JSON text (#139). */
   | {
       type: "result-ranges";

@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import type { JobEvent, JobResult, ResultScene } from "../worker/protocol";
+import type {
+  JobEvent,
+  JobResult,
+  ResultFile,
+  ResultScene,
+} from "../worker/protocol";
 import type { Command } from "./resolved";
 import {
   advance,
@@ -100,6 +105,16 @@ describe("solve", () => {
     );
   });
 
+  const file: ResultFile = {
+    file: "bar-job_1.xdmf",
+    job: "bar-job_1",
+    substeps: 6,
+    sections: ["left", "right"],
+    planar: false,
+    units: { length: "mm", force: "N" },
+    quantities: ["displacement", "stress_mises"],
+  };
+
   function fakeClient() {
     let onEvent: (event: JobEvent) => void = () => {};
     let settle!: {
@@ -113,6 +128,7 @@ describe("solve", () => {
           settle = { resolve, reject };
         });
       }),
+      importResults: vi.fn(async () => file),
       restart: vi.fn(() => {
         const error = new Error("Cancelled.");
         error.name = "CancelledError";
@@ -151,6 +167,70 @@ describe("solve", () => {
     runner.dismiss();
     expect(runner.run.state).toBe("idle");
     expect(runner.results?.results).toBe(results);
+  });
+
+  it("shows the results of a file instead of those of the last run (#414)", async () => {
+    const { client, settle } = fakeClient();
+    const runner = new JobRunner(client);
+    const solved = runner.solve(commands, "{}");
+    settle().resolve({ job_1: { substeps: 5, time: 0.1 } });
+    await solved;
+    const listener = vi.fn();
+    runner.subscribe(listener);
+    const data = new ArrayBuffer(8);
+
+    await runner.importResults("bar-job_1.xdmf", data);
+    expect(client.importResults).toHaveBeenCalledWith("bar-job_1.xdmf", data);
+    // a new generation of results, without the state of a run
+    expect(runner.generation).toBe(2);
+    expect(runner.run).toEqual({ state: "idle" });
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(runner.results).toEqual({
+      state: "finished",
+      progress: { ...startProgress(), jobs: ["bar-job_1"] },
+      results: { "bar-job_1": { substeps: 6, time: 0 } },
+      commands: [],
+      imported: file,
+    });
+
+    // the exception of Python; the results stay
+    vi.mocked(client.importResults).mockRejectedValueOnce(
+      new Error(
+        "Traceback ...\nValueError: other.xdmf is not an XDMF time series.",
+      ),
+    );
+    await expect(runner.importResults("other.xdmf", data)).rejects.toThrow(
+      /^ValueError: other.xdmf is not an XDMF time series.$/,
+    );
+    expect(runner.results?.imported).toBe(file);
+    expect(runner.generation).toBe(2);
+  });
+
+  it("imports no results while the jobs run (#414)", async () => {
+    const { client, settle } = fakeClient();
+    const runner = new JobRunner(client);
+    let solved = runner.solve(commands, "{}");
+    await expect(
+      runner.importResults("bar-job_1.xdmf", new ArrayBuffer(8)),
+    ).rejects.toThrow("Wait until the jobs have run.");
+    expect(client.importResults).not.toHaveBeenCalled();
+    settle().resolve({ job_1: { substeps: 5, time: 0.1 } });
+    await solved;
+
+    // a run that starts while Python reads the file replaces its results
+    let read!: (file: ResultFile) => void;
+    vi.mocked(client.importResults).mockReturnValueOnce(
+      new Promise((resolve) => (read = resolve)),
+    );
+    const imported = runner.importResults("bar-job_1.xdmf", new ArrayBuffer(8));
+    solved = runner.solve(commands, "{}");
+    read(file);
+    await imported;
+    expect(runner.running).toBe(true);
+    expect(runner.results).toBeUndefined();
+    settle().resolve({ job_1: { substeps: 5, time: 0.1 } });
+    await solved;
+    expect(runner.results?.imported).toBeUndefined();
   });
 
   it("reports a failed and a cancelled run", async () => {

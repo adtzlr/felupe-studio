@@ -5,11 +5,10 @@ import {
   DEFAULT_CONTOUR,
   methodOf,
 } from "../core/contour";
-import { analysisOf, is2d } from "../core/analysis";
 import { cutKey } from "../core/meshfiles";
 import type { Command } from "../core/resolved";
-import type { ResultView } from "../core/results";
-import { resultUnit, unitsOf, withUnit } from "../core/units";
+import { type Finished, resultModel, type ResultView } from "../core/results";
+import { resultUnit, type Units, withUnit } from "../core/units";
 import { withHint } from "../core/shortcuts";
 import type { Theme } from "../core/theme";
 import { viewColors } from "../viewer/palette";
@@ -39,6 +38,20 @@ export type { ResultSource } from "./useResultScene";
 const NO_COMMANDS: readonly Command[] = [];
 const NO_SUBSTEPS: readonly number[] = [];
 
+/**
+ * What the view takes of the run of its results: the commands for the constraints
+ * (#99), the units (#132) and whether the model is 2D, also of a file (#414).
+ */
+function modelOf(run: Finished | undefined): {
+  commands: readonly Command[];
+  units?: Units;
+  planar: boolean;
+} {
+  if (!run) return { commands: NO_COMMANDS, planar: false };
+  const { units, planar } = resultModel(run);
+  return { commands: run.commands, units, planar };
+}
+
 interface Props {
   source?: ResultSource;
   /** The view of the results of the last finished run (none without results). */
@@ -54,8 +67,11 @@ interface Props {
   children?: ComponentChildren;
   /** Set to a function that returns a PNG of the view (none without a view). */
   capture?: Capture;
-  /** The command list of the results, for the constraints (#99). */
-  commands?: readonly Command[];
+  /**
+   * The run of the results: its command list, for the constraints (#99), the units
+   * and 2D models; or the results of a file (#414).
+   */
+  run?: Finished;
   /** Show the nodes of the result (#91); without, the view keeps its own. */
   showNodes?: boolean;
   onShowNodes?: (show: boolean) => void;
@@ -151,7 +167,7 @@ function unitOf(
   live: Props["live"],
   scene: ResultScene | undefined,
   loaded: Loaded,
-  units: ReturnType<typeof unitsOf>,
+  units: Units | undefined,
 ): string | undefined {
   if (live?.scene) return resultUnit(live.view.quantity, units);
   if (!scene || !loaded) return undefined;
@@ -357,7 +373,7 @@ export function ResultsView({
   capture,
   showNodes,
   onShowNodes,
-  commands = NO_COMMANDS,
+  run,
   contour = DEFAULT_CONTOUR,
   onRange,
   onShift,
@@ -378,6 +394,8 @@ export function ResultsView({
   const [edgesShown, setEdgesShown] = useState(true);
   // the minimum and the maximum of the contour, one of them selected (#140)
   const [extremesShown, setExtremesShown] = useState(false);
+  // the units of the model, and a 2D model is not cut by z (#395)
+  const { commands, units, planar } = modelOf(run);
   const constraints = useConstraints(commands);
   const host = useRef<HTMLDivElement>(null);
   const viewer = useRef<Viewer | null>(null);
@@ -389,7 +407,6 @@ export function ResultsView({
   // the values of the strains and the stresses at the cells or the points (#231)
   const method = view ? methodOf(view.quantity, contour) : "cells";
   // a cut of the view (#395), not by z of a 2D model
-  const planar = is2d(analysisOf(commands));
   const shownCutOf = shownCut(cut, planar);
   // scenes are loaded only while the view is shown, not during a run
   const loads = {
@@ -416,8 +433,7 @@ export function ResultsView({
   });
   const error = live ? undefined : errorOf(view, loaded, wanted);
   const cutView = useResultCut(scene, { cut, onCut, planar });
-  // the units of the model (#132): the title of the scalar bar and the tooltips
-  const units = unitsOf(commands);
+  // the title of the scalar bar and the tooltips with the units
   const unit = unitOf(live, scene, loaded, units);
   const titled = useMemo(
     () => scene && unit && { ...scene, label: withUnit(scene.label, unit) },

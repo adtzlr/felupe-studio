@@ -2,6 +2,12 @@
 
 All notable changes of FElupe Studio (the web app and the Python package `felupe_studio`, released together with the same version).
 
+## [Unreleased]
+
+### Added
+
+- The results of a file (#414, [ADR 0023](docs/adr/0023-results-of-a-file.md)): *File ▸ Import results…*, or *Import results…* in the Results ribbon before any run, shows the results of a job of an XDMF file exported before (*Export ▸ Results of the job*) in the Results workspace, whatever model is open, also without one: the contours of its substeps, the player, the cut, *Min/Max*, *Range of* its sections and the hover. The job is the name of the file without `.xdmf`, its substeps are the times of the file, and the contour offers the quantities of the file, e.g. the equivalent plastic strain only if it has it and no displacement in z of 2D cells. The values are at the cells, and at the points as they were exported if the file has them there: per section, also at an interface, as after the run. The results of a file replace those of the last run, also in Python, and a new run replaces them again. The ribbon says *Results of bushing-radial.xdmf* instead of *The model was changed after solving*; the curve, the control points, the constraints and the steps are not in the file, and the exports of the results need a run. A file that is not an XDMF time series of results, e.g. without the point data `Displacement` or the cell data `Section`, shows an error, and the shown results stay. The XDMF and VTU exports at the points have every section with its own points, so a point of two sections is there twice with the values of each section, as in the view (before: the means of the sections at their common points); ParaView shows the sections as pieces that touch. The XDMF export writes the names of the sections, the units of the model and the node of the model of every point into the file, as an `Information` of its domain (`felupe-studio`, JSON), which ParaView ignores; a file of v0.10 has the sections *Section 0*, *Section 1*, … (the values of `Section`, as in ParaView) and no units. `felupe_studio.resultfile.load()` reads a file and shows it with `felupe_studio.results.show()`: the scenes and the ranges of `felupe_studio.results` take the meshes and the data of a source, the last run or a file, which the request `import-results` of the app loads.
+
 ## [0.10.0] - 2026-11-22
 
 Steps that switch boundaries, a cut through the model and more mesh tools:

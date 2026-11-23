@@ -28,6 +28,7 @@ import type {
   MeshSurface,
   Precision,
   Quantity,
+  ResultFile,
   ResultRanges,
   ResultScene,
   ToWorker,
@@ -262,6 +263,22 @@ export class RuntimeClient {
     return new Uint8Array(
       (message as Extract<FromWorker, { type: "bytes" }>).data,
     );
+  }
+
+  /**
+   * Read the results of a job of an XDMF file exported before (#414): they replace
+   * the results of the last run in Python. The data is transferred, not copied.
+   */
+  async importResults(name: string, data: ArrayBuffer): Promise<ResultFile> {
+    const message = await this.request(
+      { type: "import-results", name, data },
+      "text",
+      undefined,
+      [data],
+    );
+    return JSON.parse(
+      (message as Extract<FromWorker, { type: "text" }>).text,
+    ) as ResultFile;
   }
 
   /**

@@ -231,6 +231,36 @@ describe("jobs", () => {
     expect([...(await exported)]).toEqual([60, 63]);
   });
 
+  it("imports the results of a file (#414)", async () => {
+    const { worker, client } = start();
+    worker.reply(ready);
+    const data = new Uint8Array([60, 63]).buffer;
+    const imported = client.importResults("bar-job_1.xdmf", data);
+    await vi.waitFor(() => expect(worker.sent).toHaveLength(2));
+    expect(worker.sent[1]).toEqual({
+      type: "import-results",
+      id: 1,
+      name: "bar-job_1.xdmf",
+      data,
+    });
+    const file = {
+      file: "bar-job_1.xdmf",
+      job: "bar-job_1",
+      substeps: 6,
+      sections: ["body"],
+      planar: false,
+      units: null,
+      quantities: ["displacement", "stress_mises"],
+    };
+    worker.reply({ type: "text", id: 1, text: JSON.stringify(file) });
+    await expect(imported).resolves.toEqual(file);
+    // the file is not written again after a restart, like the mesh files
+    client.restart();
+    expect(worker.sent.filter((m) => m.type === "import-results")).toHaveLength(
+      1,
+    );
+  });
+
   it("loads the result scene of a substep", async () => {
     const { worker, client } = start();
     worker.reply(ready);

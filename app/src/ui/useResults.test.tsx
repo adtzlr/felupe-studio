@@ -13,7 +13,7 @@ async function liveSettings(commands: readonly Command[], cut?: Cut) {
   localStorage.clear();
   // a run that goes on
   const run = vi.fn(() => new Promise<never>(() => {}));
-  const jobs = new JobRunner({ run, restart: vi.fn() });
+  const jobs = new JobRunner({ run, importResults: vi.fn(), restart: vi.fn() });
   const store = new ModelStore({
     ...(fixture as CommandList),
     commands: [...commands, ...(fixture as CommandList).commands],

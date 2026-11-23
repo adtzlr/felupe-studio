@@ -1,6 +1,7 @@
 // The run of the jobs and their results (#312): the shown view of the results,
 // the live results while the jobs run (#207), the player of the substeps (#141),
-// the settings of the contour (#139) and solving the model.
+// the settings of the contour (#139), solving the model and the results of a file
+// (#414).
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
   type ContourSettings,
@@ -44,6 +45,8 @@ function blockerOf(
   view: ResultView | undefined,
 ) {
   if (run.state === "running") return "Wait until the jobs have run.";
+  if (finished?.imported)
+    return "The results shown are of a file; solve the model to export its results.";
   return !finished || !view ? "Solve the model first." : undefined;
 }
 
@@ -172,6 +175,15 @@ export function useResults({ store, jobs, workspace, compact, cut }: Options) {
     );
   };
 
+  /**
+   * Show the results of a job of an XDMF file exported before (#414), whatever
+   * model is loaded: they replace the results of the last run.
+   */
+  const importResults =
+    jobs &&
+    (async (file: File) =>
+      jobs.importResults(file.name, await file.arrayBuffer()));
+
   return {
     run,
     finished,
@@ -199,6 +211,7 @@ export function useResults({ store, jobs, workspace, compact, cut }: Options) {
     showJob,
     showView,
     solve,
+    importResults,
     controlled: controlledOf(finished, view, live, lastView.current),
     /** Why the results cannot be exported now, if so. */
     blocker: blockerOf(run, finished, view),

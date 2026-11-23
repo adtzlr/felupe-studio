@@ -355,3 +355,16 @@ The same in Pyodide 314.0.7 (Python 3.14.2, FElupe 12.1.1, NumPy 2.4.6) in Chrom
 | quadratic hexahedrons (`hexahedron20`), n = 11 |   1000 |     5.8 |        29.7 |         27.1 |
 
 A cut takes about 1.5 to 2.5 times as long as in CPython: about 35 ms for the largest benchmark, once per cut and section. A new substep, quantity or scale of the same cut is the interpolation of the kept cut, as in CPython. The Results workspace asks for a cut when the slider stops (ADR 0022), so the cut follows the slider within a frame or two of these times plus the transfer of the scene.
+
+## The results of a file (#414)
+
+*Import results…* reads an XDMF file of the export (`felupe_studio.resultfile.load()`): meshio parses the XML of all substeps, and the file keeps the displacements and the data of every substep in memory. The largest benchmark, a cube of hexahedrons with n = 21 (8000 cells, 9261 points), `fem.NeoHookeCompressible`, 11 substeps; the file at the cells, or with the strains and the stresses at the points too (`mean`). *Peak* is the largest memory that Python allocates while it reads the file (`tracemalloc`), *Scene* the von Mises stress of a substep, the first one with the triangulation of the outer surface.
+
+Container with 4 cores (x86_64), CPython 3.13.18, FElupe 12.1.1, NumPy 2.5.3, meshio 5.3.5. One run:
+
+| Values at  |  File | Export | Import |   Peak | Scene: first / next |
+| ---------- | ----: | -----: | -----: | -----: | ------------------: |
+| the cells  | 23 MB |  2.3 s |  1.0 s |  83 MB |        13 ms / 4 ms |
+| the points | 40 MB |  4.4 s |  1.7 s | 141 MB |        18 ms / 8 ms |
+
+The file grows with the substeps, about 2 MB per substep at the cells and 3.6 MB with the points for this mesh, and reading it takes about 3.5 times its size in memory. A file of a large model with many substeps, e.g. 100 substeps of this mesh (about 230 MB), needs some 800 MB while it is read, which is much for Pyodide on a phone. Once read, a scene takes the time of the scene of a run. Not measured in the browser yet.

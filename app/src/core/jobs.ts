@@ -1,11 +1,13 @@
 // Running the jobs of the model in the Python worker (#27): the progress of a run
 // from the events of `felupe_studio.runner`, cancelling by restarting the worker, and
-// the results of the last finished run (for the Results workspace).
+// the results of the last finished run (for the Results workspace), or of a file
+// imported instead (#414).
 import type {
   JobEvent,
   JobResult,
   LiveSettings,
   Quantity,
+  ResultFile,
   ResultScene,
 } from "../worker/protocol";
 import type { Command } from "./resolved";
@@ -167,6 +169,11 @@ export type JobRun =
       results: Record<string, JobResult>;
       /** The command list of the run: the results belong to this model. */
       commands: readonly Command[];
+      /**
+       * The file of imported results (#414), instead of a run: without commands,
+       * the file says what the results have of their model.
+       */
+      imported?: ResultFile;
     }
   | {
       state: "failed";
@@ -225,14 +232,30 @@ export interface JobClient {
     onEvent: (event: JobEvent) => void,
     live?: LiveSettings,
   ): Promise<Record<string, JobResult>>;
+  /** Read the results of a file, which replace those of the last run (#414). */
+  importResults(name: string, data: ArrayBuffer): Promise<ResultFile>;
   restart(): void;
 }
+
+/** The results of a file (#414) as a finished run of its job, without commands. */
+const importedRun = (
+  file: ResultFile,
+): Extract<JobRun, { state: "finished" }> => ({
+  state: "finished",
+  progress: { ...startProgress(), jobs: [file.job] },
+  results: { [file.job]: { substeps: file.substeps, time: 0 } },
+  commands: [],
+  imported: file,
+});
 
 /** Runs the jobs of the model, one run at a time. */
 export class JobRunner {
   private current: JobRun = { state: "idle" };
   private listeners = new Set<() => void>();
-  /** The last finished run; a new run replaces its results in Python. */
+  /**
+   * The last finished run, or the results of a file (#414); a new run replaces its
+   * results in Python.
+   */
   private last?: Extract<JobRun, { state: "finished" }>;
   private count = 0;
 
@@ -299,6 +322,26 @@ export class JobRunner {
             },
       );
     }
+  }
+
+  /**
+   * Show the results of a job of an XDMF file exported before (#414) instead of
+   * those of the last run, which they replace in Python: as a new generation of
+   * results, without the state of a run. Rejects with the exception of Python, e.g.
+   * of a file of other content; the results stay then. Not while the jobs run.
+   */
+  async importResults(name: string, data: ArrayBuffer): Promise<void> {
+    if (this.running) throw new Error("Wait until the jobs have run.");
+    const file = await this.client
+      .importResults(name, data)
+      .catch((error: Error) => {
+        throw new Error(exceptionOf(error.message));
+      });
+    // a run that started meanwhile replaced them in Python
+    if (this.running) return;
+    this.count++;
+    this.last = importedRun(file);
+    this.set({ state: "idle" });
   }
 
   /** Stop a running job; Python is loaded again. */
