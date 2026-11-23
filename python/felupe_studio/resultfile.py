@@ -1,4 +1,4 @@
-"""The results of a job read back from a file (#414): the XDMF time series of
+"""The results of a job read back from a file (#414, ADR 0023): the XDMF time series of
 :func:`felupe_studio.results.export`, which the app shows like the results of a run.
 
 The file has the points that the cells use, the cells of the sections and, per
