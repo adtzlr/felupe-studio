@@ -654,7 +654,8 @@ def test_projected_peak_at_a_hole(monkeypatch):
 
 
 def test_export_values_at_the_points(two_materials, tmp_path):
-    # the stresses at the points, the means of the sections at common points (#231)
+    # the stresses at the points of every section (#231), as in the view: every
+    # section has its own points, with its values at the common points (#414)
     data = results.export("job_1", "vtu", method="project")
     mesh = meshio.read(read(data, ".vtu", tmp_path))
     stress = mesh.point_data["Principal Values of Cauchy Stress"]
@@ -666,15 +667,32 @@ def test_export_values_at_the_points(two_materials, tmp_path):
     nodes = [np.unique(results._cells(s)[1]) for s in sections]
     common = np.intersect1d(*nodes)
     assert len(common)
+    # the points of the first section, then those of the second one
+    assert len(mesh.points) == len(nodes[0]) + len(nodes[1])
+    field = two_materials["field"]
+    offset = 0
+    for section, own in zip(sections, nodes, strict=True):
+        at = slice(offset, offset + len(own))
+        np.testing.assert_allclose(mesh.points[at], field.region.mesh.points[own])
+        np.testing.assert_allclose(
+            mesh.point_data["Displacement"][at], field[0].values[own]
+        )
+        np.testing.assert_allclose(
+            stress[at], results._data("stress", section, "project")[own], rtol=1e-5
+        )
+        offset += len(own)
     both = [results._data("stress", s, "project")[common] for s in sections]
-    np.testing.assert_allclose(stress[common], (both[0] + both[1]) / 2, rtol=1e-5)
-    only = np.setdiff1d(nodes[0], nodes[1])
-    np.testing.assert_allclose(
-        stress[only], results._data("stress", "hard_body", "project")[only], rtol=1e-5
-    )
-    # without a point method, the strains and the stresses are cell data only
+    assert not np.allclose(*both, rtol=1e-3)
+    # the cells of a section take its points
+    section = np.concatenate(mesh.cell_data["Section"])
+    cells = np.concatenate([block.data for block in mesh.cells])
+    assert cells[section == 0].max() < len(nodes[0]) <= cells[section == 1].min()
+
+    # without a point method, the strains and the stresses are cell data only, and
+    # the sections share their common points
     mesh = meshio.read(read(results.export("job_1", "vtu"), ".vtu", tmp_path))
     assert set(mesh.point_data) == {"Displacement"}
+    assert len(mesh.points) == len(np.union1d(*nodes))
 
 
 @pytest.fixture

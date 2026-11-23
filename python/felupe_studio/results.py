@@ -836,49 +836,55 @@ EXPORTED_STATE = {
     "Maximum Strain Energy Density": "mullins",
 }
 
-# the name of the information of an XDMF export (#414): the names of the sections and
-# the units of the model, for an import of the file
+# the name of the information of an XDMF export (#414): the names of the sections, the
+# units of the model and the node of the model of every point, for an import of the
+# file
 INFORMATION = "felupe-studio"
 
 
-def _export_mesh():
-    """Return the points used by the cells of all sections, the cell blocks (one per
-    section, with the indices of the used points) and the used points."""
+def _export_mesh(apart=False):
+    """Return the points that the cells of the sections use, the cell blocks (one
+    per section), the node of the model of every point and the nodes of every
+    section. The sections share their common points, or, ``apart``, every section
+    has its own points (in the order of the nodes), so that a point of two sections
+    is there twice, with the values of each section at the points (#414)."""
     blocks = [_cells(section) for section in _state["sections"]]
+    parts = [np.unique(cells) for _, cells in blocks]
+    if apart:
+        offsets = np.cumsum([0, *map(len, parts)])[:-1]
+        nodes = np.concatenate(parts)
+    else:
+        nodes = np.unique(np.concatenate(parts))
+        offsets = np.zeros(len(blocks), dtype=int)
+    cells = [
+        (cell_type, offset + np.searchsorted(part if apart else nodes, cells))
+        for (cell_type, cells), part, offset in zip(blocks, parts, offsets, strict=True)
+    ]
     points = _state["namespace"]["field"].region.mesh.points
-    used = np.unique(np.concatenate([cells.ravel() for _, cells in blocks]))
-    index = np.full(len(points), -1)
-    index[used] = np.arange(len(used))
     # the points of 2D models in the plane z = 0, like the viewer (#175)
-    return _3d(points[used]), [(t, index[cells]) for t, cells in blocks], used
+    return _3d(points[nodes]), cells, nodes, parts
 
 
-def _export_data(used, method="cells"):
+def _export_data(nodes, parts, method="cells"):
     """Return the point data and the cell data of the current values of the fields.
-    A point method of the strains and the stresses (#231) adds them as point data,
-    the means of the sections at their common points."""
+    A point method of the strains and the stresses (#231) adds them as point data of
+    the points of every section (``parts``, the sections apart)."""
     field = _state["namespace"]["field"]
-    point_data = {"Displacement": _3d(field[0].values[used])}
+    point_data = {"Displacement": _3d(field[0].values[nodes])}
     exported = dict(EXPORTED)
     for name, kind in EXPORTED_STATE.items():
         if any(_has(kind, section) for section in _state["sections"]):
             exported[name] = kind
     cell_data = {name: [] for name in exported}
-    sums = {name: 0.0 for name in exported}
-    count = np.zeros(len(field[0].values))
-    for section in _state["sections"]:
-        nodes = np.unique(_cells(section)[1])
-        count[nodes] += 1
+    at_points = {name: [] for name in exported}
+    for section, part in zip(_state["sections"], parts, strict=True):
         for name, kind in exported.items():
             values = _quadrature_data(kind, section)
             cell_data[name].append(_reduce(values, section, "cells"))
             if method != "cells":
-                data = np.zeros((len(count), len(values)))
-                data[nodes] = _point_data(kind, section, method)[nodes]
-                sums[name] = sums[name] + data
+                at_points[name].append(_point_data(kind, section, method)[part])
     if method != "cells":
-        for name in exported:
-            point_data[name] = (sums[name] / count[:, None])[used]
+        point_data.update({name: np.concatenate(at_points[name]) for name in exported})
     cell_data["Section"] = [
         np.full(len(_cells(section)[1]), i)
         for i, section in enumerate(_state["sections"])
@@ -902,8 +908,8 @@ def export(job, file_format, substep=None, method="cells"):
         The substep of a VTU file, counted from 1 over all steps of the job.
     method : str, optional
         The method of the values of the strains and the stresses (#231), see
-        :func:`scene`: with a method at the points, they are point data too, the
-        means of the sections at their common points.
+        :func:`scene`: with a method at the points, they are point data too, those
+        of every section at its own points.
 
     Notes
     -----
@@ -915,9 +921,12 @@ def export(job, file_format, substep=None, method="cells"):
     :class:`felupe.ViewSolid`), the equivalent plastic strain of a model with
     plasticity (#191), the maximum strain energy density of a model with the Mullins
     effect (#346) and the index of the section. With a method at the points,
-    the strains and the stresses are point data too. An XDMF file has the names of
-    the sections and the units of the model as its ``Information``
-    :data:`INFORMATION` (JSON), so that the app imports it (#414).
+    the strains and the stresses are point data too, per section as in the view:
+    every section has its own points then, and a point of two sections is in the
+    file twice, with the values of each section (#414). An XDMF file has the names
+    of the sections, the units of the model and the node of the model of every
+    point as its ``Information`` :data:`INFORMATION` (JSON), so that the app imports
+    it (#414).
     """
     import meshio
 
@@ -926,12 +935,12 @@ def export(job, file_format, substep=None, method="cells"):
     if not _state["records"].get(job):
         raise KeyError(f"No results of the job '{job}'.")
     method = method_of(method)
-    points, cells, used = _export_mesh()
+    points, cells, nodes, parts = _export_mesh(apart=method != "cells")
     with tempfile.TemporaryDirectory() as folder:
         filename = os.path.join(folder, f"result.{file_format}")
         if file_format == "vtu":
             _restore(job, substep or substeps(job))
-            point_data, cell_data = _export_data(used, method)
+            point_data, cell_data = _export_data(nodes, parts, method)
             meshio.Mesh(
                 points, cells, point_data=point_data, cell_data=cell_data
             ).write(filename)
@@ -940,10 +949,15 @@ def export(job, file_format, substep=None, method="cells"):
                 writer.write_points_cells(points, cells)
                 for substep in range(1, substeps(job) + 1):
                     _restore(job, substep)
-                    point_data, cell_data = _export_data(used, method)
+                    point_data, cell_data = _export_data(nodes, parts, method)
                     writer.write_data(float(substep), point_data, cell_data)
-                # the names of the sections and the units, for an import (#414)
-                information = {"sections": _state["sections"], "units": _state["units"]}
+                # the names of the sections, the units and the nodes, for an import
+                information = {
+                    "sections": _state["sections"],
+                    "units": _state["units"],
+                    # the node of the model of every point of the file
+                    "nodes": nodes.tolist(),
+                }
                 ET.SubElement(
                     writer.domain,
                     "Information",

@@ -258,7 +258,7 @@ The **Results** workspace shows the deformed shape of a substep:
 
 - *Constraints* (or C) shows or hides the lines of the multi-point constraints and the control points, moved with the displacements; they are shown by default. Without them, the contour of a body with many constraints is easier to read, e.g. of a face glued to a rigid plate. The rigid surfaces stay. The toggle is there only in a model with constraints or control points, also during a run with live results.
 - A click on a **job** in the browser shows its results; a click on another object switches to the Model workspace with its properties. *Results* shows the results again as you left them; the eye of the browser hides a section in the results too.
-- **Import results…** in the File menu, or in the Results ribbon before any run, shows the results of a job of an XDMF file exported before (*Export ▸ Results of the job*), whatever model is open, also without one, e.g. the results of an earlier version of the model or of a colleague. The job is the name of the file, its substeps those of the file; the contour offers what the file has: the values at the cells, and at the points as they were exported, if they were. The ribbon says where the results come from, e.g. *Results of bushing-radial.xdmf*. A file has no curve, no control points, no constraints and no steps, and its results are not exported again. They replace the results of the last run, and the next *Solve* replaces them again. A file of version 0.10 names its sections *Section 0*, *Section 1*, … and has no units.
+- **Import results…** in the File menu, or in the Results ribbon before any run, shows the results of a job of an XDMF file exported before (*Export ▸ Results of the job*), whatever model is open, also without one, e.g. the results of an earlier version of the model or of a colleague. The job is the name of the file, its substeps those of the file; the contour offers what the file has: the values at the cells, and at the points as they were exported, if they were (per section, as after the run). The ribbon says where the results come from, e.g. *Results of bushing-radial.xdmf*. A file has no curve, no control points, no constraints and no steps, and its results are not exported again. They replace the results of the last run, and the next *Solve* replaces them again. A file of version 0.10 names its sections *Section 0*, *Section 1*, … and has no units.
 
 ## The script
 
@@ -269,7 +269,7 @@ The ribbon tab **Script** shows the FElupe script of the model instead of the vi
 The **Export** menu has
 
 - the **Python script** of the model: it runs with FElupe and meshio outside the app, next to the mesh files,
-- the **results of the job** (XDMF), which *Import results…* shows again, and of the **substep** (VTU), e.g. for ParaView,
+- the **results of the job** (XDMF), which *Import results…* shows again, and of the **substep** (VTU), e.g. for ParaView. With *Values at* the points, the strains and the stresses are at the points too, per section as in the view: every section has its own points in the file, so ParaView shows the sections as pieces that touch, with the jumps of the values at their interfaces,
 - the **control points** (CSV): displacements and forces per substep,
 - a **picture of the view** (PNG).
 

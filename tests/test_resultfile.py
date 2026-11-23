@@ -110,15 +110,33 @@ def test_the_description_of_a_file(monkeypatch):
     assert "plastic_strain" not in description["quantities"]
 
 
-def test_values_at_the_points_as_exported(monkeypatch):
-    # one section: the values at the points of the export are those of the view
-    solve("bar_single_body", monkeypatch)
+@pytest.mark.parametrize(
+    "case", ["bar_single_body", "bar_two_materials", "bar_cell_types"]
+)
+def test_values_at_the_points_as_exported(case, monkeypatch):
+    # the values at the points of every section, also at the common points of two
+    # sections: the scenes and the ranges of the file are those of its run
+    solve(case, monkeypatch)
     quantities = ["strain_max", "stress_mises"]
-    expected = scenes("job_1", quantities, "mean")
+    cut = middle()
+    expected = (
+        scenes("job_1", quantities, "mean"),
+        scenes("job_1", quantities, "mean", cut),
+        [results.ranges("job_1", quantity, "mean") for quantity in quantities],
+    )
     data = results.export("job_1", "xdmf", method="mean")
     job = imported("job_1", data)["job"]
-    assert scenes(job, quantities, "mean") == expected
-    # every method at the points takes them, nothing is projected instead
+    assert (
+        scenes(job, quantities, "mean"),
+        scenes(job, quantities, "mean", cut),
+        [results.ranges(job, quantity, "mean") for quantity in quantities],
+    ) == expected
+
+
+def test_every_method_at_the_points_takes_those_of_the_file(monkeypatch):
+    solve("bar_single_body", monkeypatch)
+    job = imported("job_1", results.export("job_1", "xdmf", method="mean"))["job"]
+    # nothing is projected instead
     for method in ("project", "topoints"):
         meta, _ = results.scene(job, 3, "stress_mises", method)
         assert json.loads(meta)["at"] == "point"
@@ -128,6 +146,7 @@ def test_values_at_the_points_as_exported(monkeypatch):
 
     # a file without them: the values stay at the cells
     solve("bar_single_body", monkeypatch)
+    quantities = ["strain_max", "stress_mises"]
     expected = scenes("job_1", quantities)
     job = imported("job_1", results.export("job_1", "xdmf"))["job"]
     assert scenes(job, quantities, "mean") == expected
@@ -139,6 +158,7 @@ def test_the_export_has_the_sections_and_the_units(monkeypatch, tmp_path):
     assert json.loads(information(data).get("Value")) == {
         "sections": ["body"],
         "units": {"length": "mm", "force": "N"},
+        "nodes": list(range(len(results._state["namespace"]["field"][0].values))),
     }
     # meshio reads the file as before
     path = tmp_path / "results.xdmf"
@@ -162,6 +182,32 @@ def test_a_file_without_the_information(monkeypatch):
     assert description["units"] is None
     meta, _ = results.scene(description["job"], 1, "displacement")
     assert list(json.loads(meta)["sections"]) == ["Section 0", "Section 1"]
+
+
+def test_a_file_with_other_nodes(monkeypatch):
+    # the points of the file are those of the nodes of its information
+    solve("bar_two_materials", monkeypatch)
+    [(expected, surfaces)] = scenes("job_1", ["displacement"])[-1:]
+    root = ET.fromstring(results.export("job_1", "xdmf"))
+    element = root.find("Domain").find("Information")
+    value = json.loads(element.get("Value"))
+    element.set("Value", json.dumps({**value, "nodes": value["nodes"][:-1]}))
+    with pytest.raises(ValueError, match="points, not one per node"):
+        imported("job_1", ET.tostring(root))
+
+    # other numbers of the nodes: the same scenes at those nodes
+    element.set(
+        "Value", json.dumps({**value, "nodes": [2 * n for n in value["nodes"]]})
+    )
+    job = imported("job_1", ET.tostring(root))["job"]
+    [(meta, shown)] = scenes(job, ["displacement"])[-1:]
+    assert meta["extremes"]["max"]["index"] == 2 * expected["extremes"]["max"]["index"]
+    for surface, other in zip(shown, surfaces, strict=True):
+        assert surface["positions"] == other["positions"]
+        assert surface["values"] == other["values"]
+        nodes = np.frombuffer(other["nodes"], "<i4")
+        doubled = np.where(nodes >= 0, 2 * nodes, -1).astype("<i4")
+        assert surface["nodes"] == doubled.tobytes()
 
 
 def test_the_results_of_a_file_replace_those_of_the_run(monkeypatch):

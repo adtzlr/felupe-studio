@@ -4,14 +4,18 @@
 The file has the points that the cells use, the cells of the sections and, per
 substep (a time of the file), the displacements at the points and the strains, the
 stresses and the state variables at the cells, also at the points if they were
-exported at the points (#231). meshio reads the cells of neighbouring sections of
-the same cell type as one block, so the cell data ``Section``, the index of the
+exported at the points (#231): then every section has its own points, with its own
+values at a point of two sections. meshio reads the cells of neighbouring sections
+of the same cell type as one block, so the cell data ``Section``, the index of the
 section of every cell, tells them apart.
 
-The names of the sections and the units of the model are the ``Information`` of the
-export (:data:`felupe_studio.results.INFORMATION`), which ParaView ignores. A file
-without it, e.g. of FElupe Studio 0.10, has the sections ``Section 0``,
-``Section 1``, … (the values of ``Section``, as in ParaView) and no units.
+The names of the sections, the units of the model and the node of the model of
+every point are the ``Information`` of the export
+(:data:`felupe_studio.results.INFORMATION`), which ParaView ignores. With the nodes,
+the points of every section are those of the model again, so its scenes are those
+of the run. A file without it, e.g. of FElupe Studio 0.10, has the sections
+``Section 0``, ``Section 1``, … (the values of ``Section``, as in ParaView), no units
+and the points of the file as the nodes.
 """
 
 import json
@@ -119,8 +123,8 @@ class ResultFile:
     steps : list of tuple
         The point data and the cell data of every time step of the file.
     information : dict
-        The information of the export: the names of the ``sections`` and the
-        ``units`` of the model, if any.
+        The information of the export: the names of the ``sections``, the ``units``
+        of the model and the ``nodes`` of the model of the points, if any.
     """
 
     def __init__(self, name, points, blocks, steps, information):
@@ -142,12 +146,25 @@ class ResultFile:
             return names[number] if number < len(names) else f"Section {number}"
 
         self.sections = [section(number) for number in sorted(sections)]
-        # the cell type, the cells and their indices in the file, by section
-        self.blocks = {section(number): block for number, block in sections.items()}
         self.units = information.get("units")
+        # the node of the model of every point of the file: the sections are apart
+        # in a file with the values at the points (#414)
+        self.nodes = np.asarray(information.get("nodes", np.arange(len(points))))
+        if self.nodes.shape != (len(points),):
+            raise ValueError(f"{name} has {len(points)} points, not one per node.")
+        # the cell type, the cells (of the nodes) and their indices in the file, and
+        # the points of the file of every section
+        self.blocks = {
+            section(number): (cell_type, self.nodes[cells], indices)
+            for number, (cell_type, cells, indices) in sections.items()
+        }
+        self.parts = {
+            section(number): np.unique(cells)
+            for number, (_, cells, _) in sections.items()
+        }
         # a 2D model (#175): 2D cells, the points in the plane z = 0
         self.planar = all(t not in CELLS_3D for t, _, _ in self.blocks.values())
-        self.points = points[:, :2] if self.planar else points
+        self.points = self._nodal(points[:, :2] if self.planar else points)
         self.steps = [self._step(*step) for step in steps]
         self.current = self.steps[-1]
         # the strains and the stresses at the points, if they were exported there
@@ -207,23 +224,35 @@ class ResultFile:
             raise IndexError(f"The job '{job}' has {len(self.steps)} substeps.")
         self.current = self.steps[substep - 1]
 
+    def _nodal(self, values, section=None):
+        """Return values of the points of the file at the nodes of the model: of the
+        points of a section, or of all points (the same at the points of a node)."""
+        part = slice(None) if section is None else self.parts[section]
+        result = np.zeros((self.nodes.max(initial=-1) + 1, values.shape[1]))
+        result[self.nodes[part]] = values[part]
+        return result
+
     def mesh(self, section):
-        """Return the points, the cells and their cell type of a section."""
+        """Return the points, the cells and their cell type of a section, of the
+        nodes of the model."""
         cell_type, cells, _ = self.blocks[section]
         return self.points, cells, cell_type
 
     def displacement(self, section):
-        """Return the displacements of the points of the current substep."""
-        return self.current["displacement"]
+        """Return the displacements of the nodes of a section of the current
+        substep."""
+        return self._nodal(self.current["displacement"], section)
 
     def data(self, kind, section, method="cells"):
         """Return the data of a kind of the current substep: of the cells of a
-        section, or at the points (all points) with another method."""
+        section, or at its nodes with another method."""
         at = "cells" if method == "cells" else "points"
         data = self.current[at].get(kind)
         if data is None:
             raise KeyError(f"{self.name} has no {NAMES[kind]} at the {at}.")
-        return data[self.blocks[section][2]] if at == "cells" else data
+        if at == "cells":
+            return data[self.blocks[section][2]]
+        return self._nodal(data, section)
 
     def method(self, method):
         """Return the method of the values of the strains and the stresses: a
