@@ -230,9 +230,28 @@ def switches(steps):
     return any("boundaries" in step for step in steps)
 
 
-def step_boundaries(step):
+def held_sections(context, step):
+    """The sections that a step leaves out whose dual fields it holds (#428): those of
+    the formulation u-p-J, which may have mixed fields (``mixed_field`` decides by the
+    type of the cells when the script runs)."""
+    if "sections" not in step:
+        return []
+    return [
+        sec["name"]
+        for sec in context.sections
+        if sec["name"] not in step["sections"] and sec["formulation"] == "u-p-J"
+    ]
+
+
+def holds(context):
+    """Whether a step leaves out a section whose dual fields it holds (#428)."""
+    return any(held_sections(context, step) for step in context.get("step.add"))
+
+
+def step_boundaries(step, held=()):
     """The boundaries of a step: all of them by default, or those of its boundaries,
-    load cases and symmetry planes (#393).
+    load cases and symmetry planes (#393), and those that hold the dual fields of the
+    held sections (#428).
 
     Examples
     --------
@@ -240,11 +259,20 @@ def step_boundaries(step):
     'boundaries=boundaries'
     >>> str(step_boundaries({"name": "release", "boundaries": ["fixed", "tension"]}))
     'boundaries=pick(boundaries, ["fixed", "tension"])'
+    >>> str(step_boundaries({"name": "pull", "sections": ["hexahedrons"]}, ["tets"]))
+    'boundaries={**boundaries, **hold_dual_fields(field, field_tets)}'
     """
-    if "boundaries" not in step:
-        return "boundaries=boundaries"
-    names = List(map(quote, step["boundaries"]))
-    return Call("boundaries=pick", ["boundaries", names])
+    prefix = "**" if held else "boundaries="
+    if "boundaries" in step:
+        names = List(map(quote, step["boundaries"]))
+        chosen = Call(f"{prefix}pick", ["boundaries", names])
+    else:
+        chosen = f"{prefix}boundaries"
+    if not held:
+        return chosen
+    fields = [f"field_{name}" for name in held]
+    hold = Call("**hold_dual_fields", ["field", *fields])
+    return Dict([chosen, hold], prefix="boundaries=")
 
 
 def step_add(context, step):
@@ -254,7 +282,7 @@ def step_add(context, step):
         lines, arrays = ramp_arrays(step)
         entries = [e for t, v in arrays.items() for e in ramped(context, t, v)]
         args.append(Dict(entries, prefix="ramp="))
-    args.append(step_boundaries(step))
+    args.append(step_boundaries(step, held_sections(context, step)))
     return [*lines, f"{step['name']} = fem.Step(\n{explode(args)})"]
 
 

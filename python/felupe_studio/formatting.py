@@ -84,12 +84,11 @@ class Dict:
         self.prefix = prefix
 
     def __str__(self):
-        return f"{self.prefix}{{{', '.join(self.items)}}}"
+        return f"{self.prefix}{{{', '.join(map(str, self.items))}}}"
 
     def exploded(self, level):
         pad = "    " * level
-        items = "".join(f"{pad}    {item},\n" for item in self.items)
-        return f"{self.prefix}{{\n{items}{pad}}}"
+        return f"{self.prefix}{{\n{explode(self.items, level + 1)}{pad}}}"
 
 
 class Call:

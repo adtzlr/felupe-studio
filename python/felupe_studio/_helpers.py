@@ -165,6 +165,39 @@ def nearly_incompressible(umat, field, bulk, volumetric="volume-ratio"):
     return fem.SolidBody(umat, field)
 
 
+# --- embedded in generated scripts with steps that leave out u-p-J sections ---
+class Held(fem.Boundary):
+    """A boundary that holds all points of a field where they are (#428): its value
+    is the values of the field when a substep starts, so a given value is ignored."""
+
+    def __init__(self, field):
+        super().__init__(field, mask=np.ones(field.region.mesh.npoints, dtype=bool))
+
+    @property
+    def value(self):
+        return self.field.values.ravel()[self.dof]
+
+    @value.setter
+    def value(self, value):
+        pass
+
+
+def hold_dual_fields(field, *containers):
+    """Return the boundaries of a step that hold the dual fields of the sections that
+    it leaves out (#428): the fields after the first one of their field containers,
+    e.g. the pressure and the volume ratio of mixed fields, at their values at the
+    start of the step. Only the solid body of a section has stiffness for them, so
+    without it they would make the system singular. They are fields of the top-level
+    field, at the slots of the field containers; a field container of the
+    displacements only (``mixed_field`` of linear hexahedrons and quads) has none."""
+    boundaries = {}
+    for container in containers:
+        slots = getattr(container, "slots", None) or range(len(container.fields))
+        for slot in slots[1:]:
+            boundaries[f"field[{slot}]"] = Held(field[slot])
+    return boundaries
+
+
 # --- embedded in generated scripts with face sets ---
 # boundary regions by cell type of the solid cells (no tetrahedrons and triangles in
 # FElupe 12); the faces of the 2D cells of 2D models are their edges
