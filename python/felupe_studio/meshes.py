@@ -139,7 +139,8 @@ def _summary(mesh, result):
     """:func:`_read` of a meshio mesh, with ``result`` as the start of the summary."""
     result["points"] = len(mesh.points)
     result["blocks"] = [{"type": b.type, "cells": len(b.data)} for b in mesh.cells]
-    if not mesh.cells:
+    # also a file of empty cell blocks (#418)
+    if not any(len(block.data) for block in mesh.cells):
         result["error"] = "The file has no cells."
         return result, {}
 

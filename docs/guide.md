@@ -160,6 +160,21 @@ mesh = {"soft": disc.expand(n=layers + 1, z=height)}
 
 The lines with `globals().get()` are optional: they give the script values of its own, so it also runs alone (`python disc.py`) and linters know the names.
 
+A part that is **empty** for some values of the parameters, e.g. a sandwich spring without its steel sheets, is **one degenerate cell** of its cell type: all its points are one point. So the model keeps its mesh, cell set and section. Leave its section out of the steps (*Sections* of a step): a cell without volume has forces and stiffness that are not numbers, so a step with it does not converge. The point of the degenerate cell is yours: put it on a point of another part, which it is merged with, or hold it with a boundary. It also counts for the bounds of point sets, e.g. `z == min`. E.g. a parameter `sheets` (0 for none) and these lines at the end of the script of the sandwich spring of the samples: with one soft layer and without sheets, it gives the same force as a model without them.
+
+```python
+# without sheets: one degenerate cell on a point of the soft layers
+if sheets == 0:
+    soft = mesh["soft"]
+    mesh["metal"] = fem.Mesh(
+        points=soft.points[soft.cells[:1, 0]],
+        cells=np.zeros((1, 8), dtype=int),
+        cell_type="hexahedron",
+    )
+```
+
+A mesh without cells is an issue of its mesh, e.g. *The mesh 'metal' of 'sandwich_spring.py' has no cells. Make an empty part one degenerate cell of its cell type, …*; FElupe cannot make the fields and the solid body of a section without cells.
+
 The cells of a model come from **cell sets**: **Cell set of a mesh** takes all cells, **Cell set from tag** the cells with a value of an integer cell data array (the *Cell tag* of the import, e.g. `material` or `gmsh:physical`). The meshes are merged at their common points; **Merge points** also merges points that agree to a number of decimals, e.g. of meshes from different programs.
 
 Every mesh, cell set and section has the color of its position among the objects of its kind in the viewport (*Color by: Meshes*, *Cell sets* or *Sections*). Its *Color* in the properties gives it a color of its own instead, e.g. steel in gray and rubber in black: pick it, or type it as `#rrggbb`; *Automatic* takes the color of its position again. The legend and the pictures of the view take it, and a duplicated object keeps it. The other objects keep the colors of their positions. Construction meshes of the mesh tools stay gray.
