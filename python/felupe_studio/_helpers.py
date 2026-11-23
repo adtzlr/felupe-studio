@@ -316,7 +316,8 @@ def script_mesh(file, parameters, item=None):
     """Run a Python script that makes a mesh, with the parameters as variables, and
     return its variable ``mesh`` as a meshio mesh. The mesh is a ``fem.Mesh``, a
     ``fem.MeshContainer``, a ``meshio.Mesh`` or a dict of names and meshes, of which
-    ``item`` is taken."""
+    ``item`` is taken. A mesh without cells raises a ``ValueError`` that shows how to
+    make an empty part instead."""
     import runpy
 
     namespace = runpy.run_path(str(file), init_globals=dict(parameters))
@@ -338,6 +339,19 @@ def script_mesh(file, parameters, item=None):
         raise TypeError(
             f"The mesh of '{file}' is a {type(mesh).__name__}, not a fem.Mesh, a "
             "fem.MeshContainer, a meshio.Mesh or a dict of them."
+        )
+    if not any(len(block.data) for block in mesh.cells):
+        # an empty part is one degenerate cell of its cell type (#418)
+        cell_type, npoints = "hexahedron", 8
+        if mesh.cells and np.ndim(mesh.cells[0].data) == 2:
+            cell_type, npoints = mesh.cells[0].type, np.shape(mesh.cells[0].data)[1]
+        dim = 2 if DIMENSIONS.get(cell_type) == 2 else 3
+        name = "The mesh" if item is None else f"The mesh {item!r}"
+        raise ValueError(
+            f"{name} of '{file}' has no cells. Make an empty part one degenerate "
+            f"cell of its cell type, e.g. fem.Mesh(points=np.zeros((1, {dim})), "
+            f'cells=np.zeros((1, {npoints}), dtype=int), cell_type="{cell_type}"), '
+            "and leave its section out of the steps."
         )
     return mesh
 

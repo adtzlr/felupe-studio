@@ -241,6 +241,34 @@ describe("meshes made by scripts (#182)", () => {
     ]);
   });
 
+  it("report an empty mesh of a script (#418)", async () => {
+    // the error of script_mesh() for an item without cells
+    const error =
+      "ValueError: The mesh 'metal' of 'spring.py' has no cells. Make an empty part one degenerate cell of its cell type, e.g. fem.Mesh(points=np.zeros((1, 3)), cells=np.zeros((1, 8), dtype=int), cell_type=\"hexahedron\"), and leave its section out of the steps.";
+    const files = new MeshFiles(undefined, {
+      write: async () => {},
+      make: async (file, _parameters, item) => ({
+        info:
+          item === "metal"
+            ? { file, error, traceback: `${error}\n` }
+            : info(file, 6),
+      }),
+    });
+    await files.add("spring.py", new Uint8Array([1]));
+    makeMeshes(script, files);
+    await Promise.resolve();
+    await Promise.resolve();
+    const notes = fileNotes(script, files);
+    expect(notes.get("rubber_mesh")).toBeUndefined();
+    expect(notes.get("metal_mesh")).toEqual([`spring.py: ${error}`]);
+    const [, metal] = script.slice(2) as MeshScript[];
+    expect(meshStatus(metal, script, files)).toEqual({
+      state: "error",
+      message: error,
+      traceback: `${error}\n`,
+    });
+  });
+
   it("are not made without Python", async () => {
     const files = new MeshFiles();
     expect((await files.add("spring.py", new Uint8Array([1]))).status).toEqual({
