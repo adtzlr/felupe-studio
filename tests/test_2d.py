@@ -33,6 +33,9 @@ def with_mesh(tmp_path, monkeypatch, mesh, analysis, formulation="u"):
     for cmd in doc["commands"]:
         if cmd["command"] == "model.settings":
             cmd["analysis"] = analysis
+        # u-p-J takes a material without a volumetric part (#417)
+        if cmd["command"] == "material.add" and formulation == "u-p-J":
+            cmd.update(model="NeoHooke", parameters={"mu": 1.0})
         if cmd["command"] == "section.add":
             cmd["formulation"] = formulation
             if formulation == "u-p-J":

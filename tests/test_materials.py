@@ -8,6 +8,7 @@ import pytest
 
 from felupe_studio.commands import schema_errors
 from felupe_studio.materials import (
+    has_volumetric,
     lame_call,
     material_call,
     models,
@@ -221,6 +222,20 @@ def test_needs_bulk():
     assert not needs_bulk({"model": "NeoHooke", "parameters": {"mu": 1, "bulk": 5}})
     assert needs_bulk({"model": "MooneyRivlin", "parameters": {"C10": 1, "C01": 0}})
     assert not needs_bulk({"model": "NeoHookeCompressible", "parameters": {}})
+
+
+def test_has_volumetric():
+    # the materials that the u-p-J formulation does not take (#417)
+    assert not has_volumetric({"model": "NeoHooke", "parameters": {"mu": 1}})
+    assert has_volumetric({"model": "NeoHooke", "parameters": {"mu": 1, "bulk": 5}})
+    mooney_rivlin = {"C10": 1, "C01": 0}
+    assert not has_volumetric({"model": "MooneyRivlin", "parameters": mooney_rivlin})
+    assert has_volumetric(
+        {"model": "MooneyRivlin", "parameters": {**mooney_rivlin, "bulk": 5}}
+    )
+    compressible = {"mu": 1, "lmbda": 2}
+    assert has_volumetric({"model": "NeoHookeCompressible", "parameters": compressible})
+    assert has_volumetric({"model": "LinearElastic", "parameters": {"E": 1, "nu": 0}})
 
 
 def test_volumetric_parameter_is_added():

@@ -268,6 +268,9 @@ def test_every_cell_type_and_formulation(cell_type, formulation, tmp_path, monke
                 "name": command["name"],
                 "mesh": command["mesh"],
             }
+        # u-p-J takes a material without a volumetric part (#417)
+        if command["command"] == "material.add" and formulation == "u-p-J":
+            command.update(model="NeoHooke", parameters={"mu": 1.0})
         if command["command"] == "section.add" and formulation == "u-p-J":
             command.update(formulation="u-p-J", bulk=5000.0)
     run(document)

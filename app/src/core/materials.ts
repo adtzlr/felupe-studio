@@ -89,6 +89,15 @@ export function needsBulk(material: Material): boolean {
   return !!model?.optionalBulk && parameters.bulk === undefined;
 }
 
+/**
+ * True if a material has a volumetric part of its own (#417): its bulk modulus is
+ * given, or its model has no optional bulk modulus (a compressible or a strain-based
+ * model). The u-p-J formulation adds the volumetric part of the section, so it takes
+ * a material without one (like `has_volumetric` of felupe_studio.materials).
+ */
+export const hasVolumetric = (material: Material): boolean =>
+  !needsBulk(material);
+
 /** True if a material is strain-based (#191): it needs the formulation u. */
 export const strainBased = (material: Material): boolean =>
   !!MATERIAL_MODELS.find((m) => m.name === material.model)?.strain;

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { fieldSpecs, initialDraft } from "./form";
-import { MATERIAL_MODELS, materialProblems, needsBulk } from "./materials";
+import {
+  MATERIAL_MODELS,
+  hasVolumetric,
+  materialProblems,
+  needsBulk,
+} from "./materials";
 import { validate } from "./validate";
 
 describe("material registry", () => {
@@ -81,6 +86,18 @@ describe("material registry", () => {
     expect(
       needsBulk(material("NeoHookeCompressible", { mu: 1, lmbda: 2 })),
     ).toBe(false);
+    // the materials that the u-p-J formulation does not take (#417)
+    expect(hasVolumetric(material("NeoHooke", { mu: 1 }))).toBe(false);
+    expect(hasVolumetric(material("NeoHooke", { mu: 1, bulk: 5 }))).toBe(true);
+    expect(
+      hasVolumetric(material("MooneyRivlin", { C10: 1, C01: 0, bulk: 5 })),
+    ).toBe(true);
+    expect(
+      hasVolumetric(material("NeoHookeCompressible", { mu: 1, lmbda: 2 })),
+    ).toBe(true);
+    expect(hasVolumetric(material("LinearElastic", { E: 1, nu: 0 }))).toBe(
+      true,
+    );
   });
 
   it("gives forms the labels, hints and defaults of the schema", () => {
