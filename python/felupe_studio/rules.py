@@ -26,7 +26,7 @@ from .commands import (
     value_at,
 )
 from .loadcases import problems as loadcase_problems
-from .materials import needs_bulk, strain_based
+from .materials import has_volumetric, models, needs_bulk, strain_based
 from .materials import problems as material_problems
 
 
@@ -328,7 +328,11 @@ def section_bulk(model, cmd):
 def section_isochoric(model, cmd):
     """The formulation without a volumetric part needs a material without one."""
     material = material_of(model, cmd)
-    if cmd["formulation"] != "u-isochoric" or material is None or needs_bulk(material):
+    if (
+        cmd["formulation"] != "u-isochoric"
+        or material is None
+        or not has_volumetric(material)
+    ):
         return []
     return [
         f"section '{cmd['name']}' uses the formulation u-isochoric with "
@@ -348,6 +352,30 @@ def section_strain_based(model, cmd):
         f"section '{cmd['name']}' uses the u-p-J formulation with the strain-based "
         f"{material['model']} '{material['name']}'. Use the displacement "
         "formulation 'u'."
+    ]
+
+
+def section_volumetric(model, cmd):
+    """The u-p-J formulation adds the volumetric part of the section to the material,
+    which must not have one of its own (#417): it would act on the volume ratio of
+    the displacements, too stiff."""
+    material = material_of(model, cmd)
+    if cmd["formulation"] != "u-p-J" or material is None:
+        return []
+    if not has_volumetric(material) or strain_based(material):
+        return []
+    start = (
+        f"section '{cmd['name']}' uses the u-p-J formulation with "
+        f"{material['model']} '{material['name']}', which "
+    )
+    if models()[material["model"]].optional_bulk:
+        return [
+            f"{start}has a volumetric part (its bulk modulus). Remove 'bulk' from "
+            "the material, or use the displacement formulation 'u'."
+        ]
+    return [
+        f"{start}is compressible. Use 'u', or a nearly incompressible model without "
+        "a bulk modulus."
     ]
 
 
@@ -467,7 +495,12 @@ RULES = {
     "mesh.generate": (mesh_tool, mesh_inputs),
     "cellset.from_tag": (cellset_tag, cellset_model_mesh),
     "cellset.from_file": (cellset_model_mesh,),
-    "section.add": (section_bulk, section_isochoric, section_strain_based),
+    "section.add": (
+        section_bulk,
+        section_isochoric,
+        section_strain_based,
+        section_volumetric,
+    ),
     "loadcase.add": (loadcase,),
     "point.add": (vertex_coordinates,),
     "rigid.add": (vertex_coordinates, rigid_shape),

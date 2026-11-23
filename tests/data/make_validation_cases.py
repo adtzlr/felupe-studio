@@ -290,6 +290,16 @@ CHANGES = {
         find(d, "section_soft").update(formulation="u"),
         find(d, "section_soft").pop("bulk"),
     ),
+    # u-p-J adds the volumetric part of the section to a material without one (#417)
+    "NeoHooke with bulk and u-p-J": lambda d: (
+        find(d, "umat_soft")["parameters"].update(bulk=5000),
+    ),
+    "MooneyRivlin with bulk and u-p-J": lambda d: find(d, "umat_soft").update(
+        model="MooneyRivlin", parameters={"C10": 0.4, "C01": 0.1, "bulk": 5000}
+    ),
+    "compressible material with u-p-J": lambda d: find(d, "umat_soft").update(
+        model="NeoHookeCompressible", parameters={"mu": 1.0, "lmbda": 5000.0}
+    ),
     # a strain-based material needs the displacement formulation (#191)
     "strain-based material with u-p-J": lambda d: find(d, "umat_soft").update(
         model="LinearElasticPlasticIsotropicHardening",
@@ -350,7 +360,7 @@ CHANGES = {
         ],
     ),
     "ogden with fewer exponents than moduli": lambda d: find(d, "umat_soft").update(
-        model="Ogden", parameters={"mu": [1.0, 0.2], "alpha": [2.0], "bulk": 50.0}
+        model="Ogden", parameters={"mu": [1.0, 0.2], "alpha": [2.0]}
     ),
     "two model settings": lambda d: d["commands"].__setitem__(
         slice(0, 0),

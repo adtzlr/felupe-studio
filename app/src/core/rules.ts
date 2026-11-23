@@ -31,7 +31,13 @@ import {
   VERTICES,
 } from "./kinds";
 import { loadcaseFieldErrors, loadcaseProblems } from "./loadcases";
-import { materialProblems, needsBulk, strainBased } from "./materials";
+import {
+  MATERIAL_MODELS,
+  hasVolumetric,
+  materialProblems,
+  needsBulk,
+  strainBased,
+} from "./materials";
 import { parameterProblems } from "./parameters";
 import {
   NAME_MAX_LENGTH,
@@ -418,7 +424,11 @@ const sectionBulk: Rule<CommandOf<"section.add">> = (model, cmd) => {
 /** The formulation without a volumetric part needs a material without one. */
 const sectionIsochoric: Rule<CommandOf<"section.add">> = (model, cmd) => {
   const material = materialOf(model, cmd);
-  if (cmd.formulation !== "u-isochoric" || !material || needsBulk(material))
+  if (
+    cmd.formulation !== "u-isochoric" ||
+    !material ||
+    !hasVolumetric(material)
+  )
     return [];
   return [
     {
@@ -440,6 +450,33 @@ const sectionStrainBased: Rule<CommandOf<"section.add">> = (model, cmd) => {
       message:
         `section '${cmd.name}' uses the u-p-J formulation with the strain-based ` +
         `${material.model} '${material.name}'. Use the displacement formulation 'u'.`,
+      field: "formulation",
+    },
+  ];
+};
+
+/**
+ * The u-p-J formulation adds the volumetric part of the section to the material,
+ * which must not have one of its own (#417): it would act on the volume ratio of
+ * the displacements, too stiff.
+ */
+const sectionVolumetric: Rule<CommandOf<"section.add">> = (model, cmd) => {
+  const material = materialOf(model, cmd);
+  if (cmd.formulation !== "u-p-J" || !material) return [];
+  if (!hasVolumetric(material) || strainBased(material)) return [];
+  const start =
+    `section '${cmd.name}' uses the u-p-J formulation with ${material.model} ` +
+    `'${material.name}', which `;
+  const optionalBulk = MATERIAL_MODELS.find(
+    (m) => m.name === material.model,
+  )?.optionalBulk;
+  return [
+    {
+      message: optionalBulk
+        ? `${start}has a volumetric part (its bulk modulus). Remove 'bulk' from ` +
+          `the material, or use the displacement formulation 'u'.`
+        : `${start}is compressible. Use 'u', or a nearly incompressible model ` +
+          `without a bulk modulus.`,
       field: "formulation",
     },
   ];
@@ -600,7 +637,12 @@ export const RULES: Rules = {
   "mesh.generate": [meshTool, meshInputs],
   "cellset.from_tag": [cellsetTag, cellsetModelMesh],
   "cellset.from_file": [cellsetModelMesh],
-  "section.add": [sectionBulk, sectionIsochoric, sectionStrainBased],
+  "section.add": [
+    sectionBulk,
+    sectionIsochoric,
+    sectionStrainBased,
+    sectionVolumetric,
+  ],
   "loadcase.add": [loadcase],
   "point.add": [vertexCoordinates],
   "rigid.add": [vertexCoordinates, rigidShape],

@@ -229,3 +229,11 @@ def needs_bulk(material):
     which is not given."""
     model = models()[material["model"]]
     return model.optional_bulk and "bulk" not in material["parameters"]
+
+
+def has_volumetric(material):
+    """True if a material has a volumetric part of its own (#417): its bulk modulus
+    is given, or its model has no optional bulk modulus (a compressible or a
+    strain-based model). The u-p-J formulation adds the volumetric part of the
+    section, so it takes a material without one."""
+    return not needs_bulk(material)

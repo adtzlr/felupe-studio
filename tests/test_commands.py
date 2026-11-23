@@ -235,7 +235,7 @@ def test_one_merge(document):
 def test_ogden_needs_as_many_exponents_as_moduli(document):
     # a check beyond the schema of the lists of the terms (#136)
     find(document, "umat_soft").update(
-        model="Ogden", parameters={"mu": [1.0, 0.2], "alpha": [2.0], "bulk": 50.0}
+        model="Ogden", parameters={"mu": [1.0, 0.2], "alpha": [2.0]}
     )
     messages = commands.errors(document)
     assert any(
