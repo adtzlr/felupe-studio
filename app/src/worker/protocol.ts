@@ -65,14 +65,19 @@ export interface BenchmarkResult {
 /** Integer cell data of solid cells, offered to create cell sets. */
 export interface CellTag {
   name: string;
-  /** The values with their number of cells; `label` is a Gmsh physical name. */
-  values: { value: number; cells: number; label?: string }[];
+  /**
+   * The values with their number of cells and the volume of these cells (#429);
+   * `label` is a Gmsh physical name.
+   */
+  values: { value: number; cells: number; volume?: number; label?: string }[];
 }
 
 /** The solid cells of one cell type of a mesh file. */
 export interface SolidInfo {
   cell_type: string;
   cells: number;
+  /** The volume of the cells (#429), the area of 2D cells. */
+  volume?: number;
   bounds: [number[], number[]];
   tags: CellTag[];
 }

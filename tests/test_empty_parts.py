@@ -1,7 +1,8 @@
 """Empty parts of mesh scripts (#418): a part that is empty for some values of the
-parameters is one degenerate cell of its cell type, all its points one point, and its
-section is left out of the steps. A mesh without cells is an error of the script that
-says so."""
+parameters is one degenerate cell of its cell type, all its points one point. Its
+section has no volume and is off in every step (#429, see
+``test_sections_without_volume.py``), or the user leaves it out of the steps. A mesh
+without cells is an error of the script that says so."""
 
 import contextlib
 import io
@@ -165,7 +166,7 @@ def test_an_empty_mesh_of_a_script(folder, metal):
         "ValueError: The mesh 'metal' of 'parts.py' has no cells. Make an empty part "
         "one degenerate cell of its cell type, e.g. fem.Mesh("
     )
-    assert message.endswith(", and leave its section out of the steps.")
+    assert message.endswith("): its section has no volume and is off in every step.")
     assert info["traceback"].endswith(message + "\n")
     assert "solids" not in info
     with pytest.raises(ValueError, match="has no cells"):
@@ -189,7 +190,7 @@ def test_the_example_of_the_message_is_of_the_cell_type(folder):
         message = json.loads(make("parts.py", {}, "metal")[0])["error"]
         assert (
             f"e.g. fem.Mesh(points=np.zeros((1, {dim})), cells=np.zeros((1, "
-            f'{npoints}), dtype=int), cell_type="{cell_type}"), and leave'
+            f'{npoints}), dtype=int), cell_type="{cell_type}"): its section'
         ) in message
     # a mesh that is not an item of a dict
     (folder / "alone.py").write_text("import meshio\nmesh = meshio.Mesh([], [])\n")
@@ -198,7 +199,8 @@ def test_the_example_of_the_message_is_of_the_cell_type(folder):
 
 
 def test_the_summary_of_a_degenerate_cell(folder):
-    """A degenerate cell is a mesh of one point and one cell, without an error."""
+    """A degenerate cell is a mesh of one point and one cell, without an error and
+    without volume (#429)."""
     script(folder, DEGENERATE)
     info = json.loads(make("parts.py", {}, "metal")[0])
     assert "error" not in info
@@ -207,6 +209,7 @@ def test_the_summary_of_a_degenerate_cell(folder):
         {
             "cell_type": "hexahedron",
             "cells": 1,
+            "volume": 0.0,
             "bounds": [[0.5, 0.5, 0.5], [0.5, 0.5, 0.5]],
             "tags": [],
         }

@@ -127,6 +127,11 @@ export interface Context {
   commands: readonly Command[];
   /** Name of the edited command; undefined for a new command. */
   editing?: string;
+  /**
+   * The sections without volume that are off in every step (#429), grayed out in
+   * the sections of a step.
+   */
+  withoutVolume?: ReadonlySet<string>;
 }
 
 interface Node {

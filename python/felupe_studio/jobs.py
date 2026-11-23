@@ -212,16 +212,29 @@ def ramp_arrays(step):
     return lines, arrays
 
 
+def step_sections(context, step):
+    """The names of the sections of a step, all of them by default."""
+    return step.get("sections", [s["name"] for s in context.sections])
+
+
+def items(context, solids, others):
+    """The items of a step or of the forces of a load: the solid bodies, of a script
+    with meshes of scripts those with a volume (#429), and the other items."""
+    if not context.volumes or not solids:
+        return List([*solids, *others], prefix="items=")
+    if not others:
+        return Call("items=with_volume", solids)
+    return List([Call("*with_volume", solids), *others], prefix="items=")
+
+
 def step_items(context, step):
     """The items of a step: the solid bodies of its sections, its constraints and
     its loads, all of them by default."""
-    names = step.get("sections", [s["name"] for s in context.sections])
     constraints = [c["name"] for c in context.get("mpc.add", "contact.add")]
-    return (
-        ["solid_" + n for n in names]
-        + step.get("constraints", constraints)
-        + step.get("loads", [*context.loads, *context.pressures])
+    others = step.get("constraints", constraints) + step.get(
+        "loads", [*context.loads, *context.pressures]
     )
+    return items(context, ["solid_" + n for n in step_sections(context, step)], others)
 
 
 def switches(steps):
@@ -243,15 +256,29 @@ def held_sections(context, step):
     ]
 
 
+def empty_sections(context, step):
+    """The sections of a step whose dual fields it holds if they have no volume when
+    the script runs (#429): those of the formulation u-p-J of a script with meshes of
+    scripts."""
+    if not context.volumes:
+        return []
+    formulations = {sec["name"]: sec["formulation"] for sec in context.sections}
+    return [n for n in step_sections(context, step) if formulations[n] == "u-p-J"]
+
+
 def holds(context):
-    """Whether a step leaves out a section whose dual fields it holds (#428)."""
-    return any(held_sections(context, step) for step in context.get("step.add"))
+    """Whether a step leaves out a section whose dual fields it holds (#428), or holds
+    them of a section without volume (#429)."""
+    return any(
+        held_sections(context, step) or empty_sections(context, step)
+        for step in context.get("step.add")
+    )
 
 
-def step_boundaries(step, held=()):
+def step_boundaries(step, held=(), empty=()):
     """The boundaries of a step: all of them by default, or those of its boundaries,
     load cases and symmetry planes (#393), and those that hold the dual fields of the
-    held sections (#428).
+    held sections (#428) and of its sections without volume (#429).
 
     Examples
     --------
@@ -261,28 +288,37 @@ def step_boundaries(step, held=()):
     'boundaries=pick(boundaries, ["fixed", "tension"])'
     >>> str(step_boundaries({"name": "pull", "sections": ["hexahedrons"]}, ["tets"]))
     'boundaries={**boundaries, **hold_dual_fields(field, field_tets)}'
+    >>> print(step_boundaries({"name": "pull"}, empty=["tets"]).exploded(0))
+    boundaries={
+        **boundaries,
+        **hold_dual_fields(field, *fields_without_volume(solid_tets)),
+    }
     """
-    prefix = "**" if held else "boundaries="
+    prefix = "**" if held or empty else "boundaries="
     if "boundaries" in step:
         names = List(map(quote, step["boundaries"]))
         chosen = Call(f"{prefix}pick", ["boundaries", names])
     else:
         chosen = f"{prefix}boundaries"
-    if not held:
+    if not held and not empty:
         return chosen
     fields = [f"field_{name}" for name in held]
+    if empty:
+        solids = [f"solid_{name}" for name in empty]
+        fields.append(Call("*fields_without_volume", solids))
     hold = Call("**hold_dual_fields", ["field", *fields])
     return Dict([chosen, hold], prefix="boundaries=")
 
 
 def step_add(context, step):
     """A step, after its ramp."""
-    lines, args = [], [List(step_items(context, step), prefix="items=")]
+    lines, args = [], [step_items(context, step)]
     if "ramp" in step:
         lines, arrays = ramp_arrays(step)
         entries = [e for t, v in arrays.items() for e in ramped(context, t, v)]
         args.append(Dict(entries, prefix="ramp="))
-    args.append(step_boundaries(step, held_sections(context, step)))
+    held = held_sections(context, step)
+    args.append(step_boundaries(step, held, empty_sections(context, step)))
     return [*lines, f"{step['name']} = fem.Step(\n{explode(args)})"]
 
 
@@ -317,8 +353,8 @@ def job_add(context, job):
         args.append(f"boundary={curve(context, job['curve'])}")
         if job["curve"] in context.loads:
             # the force of a load: the sum of the internal forces at its points
-            reacting = context.solids + [c["name"] for c in context.constraints]
-            args.append(List(reacting, prefix="items="))
+            constraints = [c["name"] for c in context.constraints]
+            args.append(items(context, context.solids, constraints))
     # the values of the boundaries switched on (#393) before a cutback, which
     # subdivides the substeps with them
     plugins = ["boundary_switch"] if switches(context.get("step.add")) else []
@@ -347,10 +383,21 @@ STEPS = {"step.add": step_add}
 JOBS = {"job.add": job_add}
 
 
+# the comment of the steps of a script with meshes of scripts (#429)
+VOLUMES = (
+    "# with_volume() leaves out the solid bodies of sections without volume (V = 0),"
+    "\n# e.g. of an empty part of a mesh script as one degenerate cell: off in every "
+    "step"
+)
+
+
 def steps(context):
     """The part of the steps, with the plugin of the boundaries that they switch on
     (#393)."""
-    lines = context.emit(STEPS, "# steps")
+    comment = "# steps"
+    if context.volumes and context.sections:
+        comment += "\n" + VOLUMES
+    lines = context.emit(STEPS, comment)
     if switches(context.get("step.add")):
         lines += boundary_switch(context)
     return lines

@@ -17,6 +17,8 @@ import {
   meshStatus,
   scriptParameters,
   sectionCellType,
+  sectionsWithoutVolume,
+  sectionVolume,
 } from "./meshfiles";
 
 const commands = (fixture as CommandList).commands;
@@ -244,7 +246,7 @@ describe("meshes made by scripts (#182)", () => {
   it("report an empty mesh of a script (#418)", async () => {
     // the error of script_mesh() for an item without cells
     const error =
-      "ValueError: The mesh 'metal' of 'spring.py' has no cells. Make an empty part one degenerate cell of its cell type, e.g. fem.Mesh(points=np.zeros((1, 3)), cells=np.zeros((1, 8), dtype=int), cell_type=\"hexahedron\"), and leave its section out of the steps.";
+      "ValueError: The mesh 'metal' of 'spring.py' has no cells. Make an empty part one degenerate cell of its cell type, e.g. fem.Mesh(points=np.zeros((1, 3)), cells=np.zeros((1, 8), dtype=int), cell_type=\"hexahedron\"): its section has no volume and is off in every step.";
     const files = new MeshFiles(undefined, {
       write: async () => {},
       make: async (file, _parameters, item) => ({
@@ -279,6 +281,130 @@ describe("meshes made by scripts (#182)", () => {
       state: "error",
       message: "Python is not available.",
     });
+  });
+});
+
+describe("sections without volume (#429)", () => {
+  // a sandwich of a script, its metal one degenerate cell without sheets (#418)
+  const sandwich: Command[] = [
+    { command: "parameter.add", name: "sheets", value: 0, integer: true },
+    {
+      command: "mesh.script",
+      name: "soft_mesh",
+      file: "spring.py",
+      item: "soft",
+    },
+    {
+      command: "mesh.script",
+      name: "metal_mesh",
+      file: "spring.py",
+      item: "metal",
+    },
+    { command: "cellset.from_file", name: "soft_cells", mesh: "soft_mesh" },
+    { command: "cellset.from_file", name: "metal_cells", mesh: "metal_mesh" },
+    {
+      command: "material.add",
+      name: "rubber",
+      model: "NeoHooke",
+      parameters: { mu: 1 },
+    },
+    {
+      command: "section.add",
+      name: "soft",
+      cellset: "soft_cells",
+      material: "rubber",
+      formulation: "u",
+    },
+    {
+      command: "section.add",
+      name: "metal",
+      cellset: "metal_cells",
+      material: "rubber",
+      formulation: "u",
+    },
+  ];
+  const solid = (cells: number, volume: number) => ({
+    cell_type: "hexahedron",
+    cells,
+    volume,
+    bounds: [
+      [0, 0, 0],
+      [1, 1, 1],
+    ] as [number[], number[]],
+    tags: [],
+  });
+  const sheets = (value: number) =>
+    sandwich.map((c) => (c.name === "sheets" ? { ...c, value } : c));
+
+  /** The meshes of the script made with the parameters of a model. */
+  async function make(model: readonly Command[], files: MeshFiles) {
+    makeMeshes(model, files);
+    await Promise.resolve();
+    await Promise.resolve();
+  }
+
+  it("are the sections of a script without volume, as its parameters say", async () => {
+    const files = new MeshFiles(undefined, {
+      write: async () => {},
+      make: async (file, parameters, item) => ({
+        info: {
+          file,
+          points: 8,
+          solids: [
+            item === "metal" && parameters.sheets === 0
+              ? solid(1, 0)
+              : solid(8, 1.5),
+          ],
+        },
+      }),
+    });
+    await files.add("spring.py", new Uint8Array([1]));
+    expect(sectionsWithoutVolume(sandwich, files).size).toBe(0);
+    await make(sandwich, files);
+    expect(sectionVolume(sandwich, "soft", files)).toBe(1.5);
+    expect(sectionVolume(sandwich, "metal", files)).toBe(0);
+    expect(sectionsWithoutVolume(sandwich, files)).toEqual(new Set(["metal"]));
+    // a parameter that gives the section a volume and takes it away again
+    await make(sheets(1), files);
+    expect(sectionVolume(sheets(1), "metal", files)).toBe(1.5);
+    expect(sectionsWithoutVolume(sheets(1), files).size).toBe(0);
+    await make(sheets(0), files);
+    expect(sectionsWithoutVolume(sheets(0), files)).toEqual(new Set(["metal"]));
+  });
+
+  it("know the volume of the cells of a tag, with the scale of a file", async () => {
+    const tagged = new MeshFiles(async (name) => ({
+      info: {
+        file: name,
+        points: 8,
+        solids: [
+          {
+            ...solid(2, 1),
+            tags: [
+              {
+                name: "material",
+                values: [
+                  { value: 1, cells: 1, volume: 0 },
+                  { value: 2, cells: 1, volume: 1 },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    }));
+    await tagged.add("specimen.vtu", new Uint8Array([1]));
+    expect(sectionVolume(commands, "section_hard", tagged)).toBe(0);
+    expect(sectionVolume(commands, "section_soft", tagged)).toBe(1);
+    const scaled = commands.map((c) =>
+      c.name === "specimen" ? { ...c, scale: "2 * 5" } : c,
+    ) as Command[];
+    expect(sectionVolume(scaled, "section_soft", tagged)).toBe(1000);
+    // only the steps of a model with meshes of scripts leave it out
+    expect(sectionsWithoutVolume(commands, tagged).size).toBe(0);
+    expect(sectionVolume(commands, "section_soft", new MeshFiles())).toBe(
+      undefined,
+    );
   });
 });
 

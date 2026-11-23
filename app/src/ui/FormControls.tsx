@@ -487,6 +487,9 @@ function SequenceReferences({
   );
 }
 
+/** The hint of a section without volume in the sections of a step (#429). */
+export const OFF_HINT = "no volume (V = 0): off in every step";
+
 /** References to several objects: a checkbox per object of the kind. */
 function ReferencesControl({
   form,
@@ -499,6 +502,12 @@ function ReferencesControl({
   const kind = kindLabel(input.kind);
   const items = Array.isArray(value) ? (value as string[]) : [];
   const all = [...names, ...items.filter((item) => !names.includes(item))];
+  // the sections without volume of a step, off in every step (#429): grayed out,
+  // their choice kept
+  const off =
+    form.type === "step.add" && spec.key === "sections"
+      ? form.context.withoutVolume
+      : undefined;
   return (
     <div
       {...common}
@@ -508,7 +517,11 @@ function ReferencesControl({
     >
       {all.length === 0 && <span class="muted">No {kind} yet.</span>}
       {all.map((name) => (
-        <label key={name} class="check">
+        <label
+          key={name}
+          class={off?.has(name) ? "check off" : "check"}
+          title={off?.has(name) ? OFF_HINT : undefined}
+        >
           <input
             type="checkbox"
             checked={items.includes(name)}
@@ -524,6 +537,7 @@ function ReferencesControl({
             }}
           />
           {names.includes(name) ? name : `${name} (missing)`}
+          {off?.has(name) && <small>{OFF_HINT}</small>}
         </label>
       ))}
       {!spec.required &&

@@ -61,19 +61,19 @@ def offset(expression, value):
 
 
 class List:
-    """A list argument ``prefix[item, ...]`` that ruff format may explode."""
+    """A list argument ``prefix[item, ...]`` that ruff format may explode, also its
+    items that are lists, dicts or calls."""
 
     def __init__(self, items, prefix=""):
         self.items = list(items)
         self.prefix = prefix
 
     def __str__(self):
-        return f"{self.prefix}[{', '.join(self.items)}]"
+        return f"{self.prefix}[{', '.join(map(str, self.items))}]"
 
     def exploded(self, level):
         pad = "    " * level
-        items = "".join(f"{pad}    {item},\n" for item in self.items)
-        return f"{self.prefix}[\n{items}{pad}]"
+        return f"{self.prefix}[\n{explode(self.items, level + 1)}{pad}]"
 
 
 class Dict:

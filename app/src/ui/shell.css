@@ -1045,6 +1045,15 @@ button {
   cursor: pointer;
 }
 
+/* a section without volume, off in every step (#429): grayed out with its hint */
+.check.off {
+  color: var(--color-text-muted);
+}
+
+.check.off small {
+  font-size: var(--text-xs);
+}
+
 .form-toggle,
 .command-form .actions {
   grid-column: 1 / -1;

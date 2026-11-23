@@ -648,6 +648,61 @@ describe("a form for a new object", () => {
   });
 });
 
+describe("sections without volume (#429)", () => {
+  it("are grayed out in the sections of a step, their choice kept", () => {
+    const commands = (fixture as CommandList).commands.map((c) =>
+      c.name === "step_1"
+        ? { ...c, sections: ["section_hard", "section_soft"] }
+        : c,
+    ) as Command[];
+    const step = commands.find((c) => c.name === "step_1")!;
+    const onSubmit = vi.fn();
+    const props = {
+      type: "step.add" as const,
+      initial: step as unknown as Record<string, unknown>,
+      submitLabel: "Apply",
+      requireChange: true,
+      onSubmit,
+    };
+    const { rerender } = render(
+      <CommandForm
+        {...props}
+        context={{
+          commands,
+          editing: "step_1",
+          withoutVolume: new Set(["section_hard"]),
+        }}
+      />,
+    );
+    const check = (name: string) =>
+      screen.getByRole("checkbox", { name: new RegExp(`^${name}`) })
+        .parentElement!;
+    expect(check("section_hard").className).toBe("check off");
+    expect(check("section_hard").textContent).toBe(
+      "section_hardno volume (V = 0): off in every step",
+    );
+    expect(check("section_soft").className).toBe("check");
+    // the choice of the step stays its own
+    const hard = screen.getByRole("checkbox", {
+      name: /^section_hard/,
+    }) as HTMLInputElement;
+    expect(hard.checked).toBe(true);
+    fireEvent.click(screen.getByRole("checkbox", { name: /^section_soft/ }));
+    fireEvent.submit(screen.getByRole("form"));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ sections: ["section_hard"] }),
+    );
+    // with a volume again, as the parameters say
+    rerender(
+      <CommandForm
+        {...props}
+        context={{ commands, editing: "step_1", withoutVolume: new Set() }}
+      />,
+    );
+    expect(check("section_hard").className).toBe("check");
+  });
+});
+
 describe("load cases", () => {
   it("are created with checkboxes for their flags", () => {
     const store = new ModelStore(fixture as CommandList);
