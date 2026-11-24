@@ -57,8 +57,12 @@ export interface BenchmarkResult {
   precision: Precision;
   /** The linear solver: SuperLU, or PARDISO in CPython (#308). */
   solver?: "superlu" | "pardiso";
+  /** A way of u-p-J of the nearly incompressible cube (#420), or the compressible. */
+  formulation?: string | null;
   setup: number;
   solve: number;
+  /** The Newton iterations of all substeps. */
+  iterations?: number;
   force: number;
 }
 
@@ -412,7 +416,14 @@ export type ToWorker =
       /** The folder of the bytecode cache of the brand (ADR 0017, ADR 0020). */
       cache?: string;
     }
-  | { type: "benchmark"; id: number; sizes: number[]; precision?: Precision }
+  | {
+      type: "benchmark";
+      id: number;
+      sizes: number[];
+      precision?: Precision;
+      /** A way of u-p-J (#420), else the compressible cube. */
+      formulation?: string;
+    }
   | { type: "write-file"; id: number; name: string; data: ArrayBuffer }
   /**
    * Inspect a mesh file. The mesh requests take a cut of the view (#395): the

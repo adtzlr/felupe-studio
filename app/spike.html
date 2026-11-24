@@ -41,6 +41,22 @@
             <option value="single">Linear system in single (float32)</option>
             <option value="model">Model in single (float32)</option>
           </select>
+          <label for="formulation">Formulation</label>
+          <select id="formulation" name="formulation">
+            <option value="">Compressible (u)</option>
+            <option value="u-p-J">
+              Nearly incompressible: automatic (u-p-J)
+            </option>
+            <option value="u-p-J-condensed">
+              Nearly incompressible: condensed per cell
+            </option>
+            <option value="u-p-J-mixed">
+              Nearly incompressible: mixed fields
+            </option>
+            <option value="u-p-J-three-field">
+              Nearly incompressible: three-field variation
+            </option>
+          </select>
           <button id="run" type="submit" disabled>Run benchmark</button>
         </form>
         <p id="error" role="alert"></p>
@@ -51,8 +67,10 @@
               <th scope="col">DOF</th>
               <th scope="col">Cells</th>
               <th scope="col">Precision</th>
+              <th scope="col">Formulation</th>
               <th scope="col">Setup in s</th>
               <th scope="col">Solve in s</th>
+              <th scope="col">Iterations</th>
               <th scope="col">Force</th>
             </tr>
           </thead>

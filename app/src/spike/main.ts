@@ -10,6 +10,7 @@ import type {
 } from "../worker/protocol";
 import {
   DEFAULT_SIZES,
+  formulationOf,
   loadParts,
   parseSizes,
   seconds,
@@ -24,6 +25,7 @@ const loadTable = $<HTMLTableElement>("#load");
 const form = $<HTMLFormElement>("#form");
 const sizesInput = $<HTMLInputElement>("#sizes");
 const precisionInput = $<HTMLSelectElement>("#precision");
+const formulationInput = $<HTMLSelectElement>("#formulation");
 const runButton = $<HTMLButtonElement>("#run");
 const errorBox = $<HTMLParagraphElement>("#error");
 const resultsTable = $<HTMLTableElement>("#results");
@@ -104,6 +106,8 @@ form.addEventListener("submit", async (event) => {
   }
   // runs of the precisions are listed one after another (ADR 0016)
   const precision = precisionInput.value as Precision;
+  // the compressible cube, or a way of u-p-J (#420)
+  const formulation = formulationInput.value || undefined;
   runButton.disabled = true;
   try {
     await client.benchmark(
@@ -115,8 +119,10 @@ form.addEventListener("submit", async (event) => {
           String(r.dofs),
           String(r.cells),
           r.precision,
+          formulationOf(r),
           seconds(r.setup),
           seconds(r.solve),
+          String(r.iterations ?? "–"),
           r.force.toFixed(4),
         ]);
         resultsTable.hidden = false;
@@ -124,6 +130,7 @@ form.addEventListener("submit", async (event) => {
       },
       (message) => (status.textContent = message),
       precision,
+      formulation,
     );
     status.textContent = "Done.";
   } catch (error) {

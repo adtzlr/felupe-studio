@@ -153,6 +153,32 @@ Per Newton iteration, the assembly of the condensed system is about 20 % faster 
 - It stops later at the same tolerance, but then it is often closer to the converged curve. The glued plate at the default tolerance is the extreme case: its moment deviates by 6 % with the mixed fields and by 4e-7 condensed.
 - The smaller system needs less memory, which matters in the browser. The times in Pyodide are still to be measured.
 
+## The ways of u-p-J (#420)
+
+The section of the cube of the section above in the four ways of `u-p-J`: `fem.NeoHooke(mu=1)` with the bulk modulus K = 5000, clamped, five increments to a stretch of 2, FElupe's default tolerance. `felupe_studio.benchmark.benchmark(n, formulation=...)` builds it like the generated script, and `spike.html` has the ways in *Formulation*. On linear hexahedrons, *Automatic* is condensed per cell (the same solid body), and mixed fields have a constant pressure and volume ratio per cell: all four are the same discretization (Q1/P0), with the same forces to all digits and 20 or 21 Newton iterations. The mixed fields have the pressure and the volume ratio of every cell as unknowns, about 50 % more degrees of freedom.
+
+**CPython:** container with 4 cores (x86_64), CPython 3.13.18, FElupe 12.1.1, NumPy 2.5.3, SciPy 1.18.1, SuperLU. Best of two runs, solve times in seconds:
+
+|  n | Cells | DOF: condensed / mixed | Automatic | Condensed per cell | Mixed fields | Three-field variation |  Force |
+| -: | ----: | ---------------------: | --------: | -----------------: | -----------: | --------------------: | -----: |
+|  5 |    64 |              375 / 503 |     0.147 |              0.132 |        0.174 |                 0.202 | 2.0835 |
+|  9 |   512 |            2187 / 3211 |     1.128 |              1.106 |        1.246 |                 1.499 | 2.0371 |
+| 13 |  1728 |           6591 / 10047 |     8.258 |              8.258 |        8.358 |                 8.796 | 2.0284 |
+
+**Pyodide:** Pyodide 314.0.7 (Python 3.14.2, NumPy 2.4.6, SciPy 1.18.0) in Node 22 on the same container, best of two runs, solve times in seconds:
+
+|  n | Automatic | Condensed per cell | Mixed fields | Three-field variation |  Force |
+| -: | --------: | -----------------: | -----------: | --------------------: | -----: |
+|  5 |     0.231 |              0.220 |        0.299 |                 0.382 | 2.0835 |
+|  9 |     1.791 |              1.804 |        1.994 |                 2.388 | 2.0371 |
+| 13 |    16.928 |             16.978 |       16.659 |                17.067 | 2.0284 |
+
+**Conclusion:**
+- Mixed fields take 1.0 to 1.35 times the time of condensed per cell, in both runtimes: the larger system costs most for small models, while for n = 13 the factorization of the displacements dominates (Pyodide: 0.98).
+- The three-field variation takes 1.05 to 1.3 times the time of mixed fields: it evaluates the material at the modified deformation gradient and the variations of the pressure and the volume ratio, which matters less where the linear solve dominates. It is the slowest way, as its hint says, but not by much: it pays for a material with a volumetric part of its own, e.g. a compressible or an elastic-plastic one.
+- Condensed per cell is the fastest way and the smallest system, and the default of *Automatic* for linear hexahedrons and quads stays.
+- **Single precision** (#297): mixed fields and the three-field variation run with the model in single precision (the golden cases of the ways run in `float32` too). The three-field variation of steel on quadratic tetrahedrons (`plasticity_cube_three_field`) converges with the default tolerance of the app, 0.01, within 2e-4 of double precision, but not with a tight tolerance such as 1.49e-8 or 1e-6: its residual in `float32` stalls at about 2.5 times the estimate of its round-off by FElupe 12.1.1, so the iterations do not stop at the round-off as they do for the other formulations. Such a model takes double precision.
+
 ## The linear equation system in single precision (ADR 0016)
 
 `solver.precision: "single"` of a job casts the matrix and the right-hand side to `float32`, factorizes them in `float32` and returns the increment in `float64`; the model, the residual forces and the convergence check stay in double precision. The page `spike.html` has *Precision: Double / Linear system in single (float32) / Model in single (float32)* (`precision` of the benchmark: `double`, `single`, `model`); runs of the precisions are listed one after another, with a column *Precision*.
