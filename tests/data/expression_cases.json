@@ -879,6 +879,118 @@
     },
     {
       "command": {
+        "command": "material.add",
+        "name": "rubber",
+        "model": "NeoHooke",
+        "parameters": {
+          "mu": "1.0"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "mu"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "body",
+        "cellset": "all_cells",
+        "material": "rubber",
+        "formulation": "u-p-J-condensed",
+        "bulk": "5000"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "loadcase.add",
+        "name": "tension",
+        "type": "uniaxial",
+        "clamped": true,
+        "symmetry": false
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "step_1",
+        "ramp": {
+          "num": "5",
+          "items": [
+            {
+              "target": "tension",
+              "end": "1.5"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "step_1"
+        ],
+        "curve": "tension",
+        "tol": "1.49e-08"
+      },
+      "fields": [
+        {
+          "path": [
+            "tol"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
         "command": "section.add",
         "name": "body",
         "cellset": "all_cells",
@@ -1019,16 +1131,6 @@
           "load"
         ],
         "curve": "move"
-      },
-      "fields": []
-    },
-    {
-      "command": {
-        "command": "loadcase.add",
-        "name": "tension",
-        "type": "uniaxial",
-        "clamped": true,
-        "symmetry": false
       },
       "fields": []
     },
@@ -1459,28 +1561,6 @@
           ],
           "integer": false,
           "bounds": {}
-        }
-      ]
-    },
-    {
-      "command": {
-        "command": "job.add",
-        "name": "job_1",
-        "steps": [
-          "step_1"
-        ],
-        "curve": "tension",
-        "tol": "1.49e-08"
-      },
-      "fields": [
-        {
-          "path": [
-            "tol"
-          ],
-          "integer": false,
-          "bounds": {
-            "exclusiveMinimum": 0
-          }
         }
       ]
     },
@@ -3626,6 +3706,88 @@
     },
     {
       "command": {
+        "command": "section.add",
+        "name": "body",
+        "cellset": "all_cells",
+        "material": "rubber",
+        "formulation": "u-p-J-mixed",
+        "bulk": "5000"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "rubber",
+        "model": "Yeoh",
+        "parameters": {
+          "C10": "0.5",
+          "C20": "-0.1",
+          "C30": "0.02",
+          "bulk": "5000"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "C10"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "C20"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "C30"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "body",
+        "cellset": "all_cells",
+        "material": "rubber",
+        "formulation": "u-p-J-three-field"
+      },
+      "fields": []
+    },
+    {
+      "command": {
         "command": "model.settings",
         "name": "settings",
         "analysis": "axisymmetric"
@@ -4150,6 +4312,16 @@
           }
         }
       ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "body",
+        "cellset": "all_cells",
+        "material": "steel",
+        "formulation": "u-p-J-three-field"
+      },
+      "fields": []
     },
     {
       "command": {

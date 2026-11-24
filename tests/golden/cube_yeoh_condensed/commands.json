@@ -1,0 +1,83 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "parameter.add",
+      "name": "nodes",
+      "value": 3,
+      "integer": true
+    },
+    {
+      "command": "mesh.generate",
+      "name": "cube",
+      "tool": "Cube",
+      "parameters": {
+        "a": [
+          0,
+          0,
+          0
+        ],
+        "b": [
+          1,
+          1,
+          1
+        ],
+        "n": [
+          "nodes",
+          "nodes",
+          "nodes"
+        ]
+      }
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "all_cells",
+      "mesh": "cube"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "Yeoh",
+      "parameters": {
+        "C10": 0.5,
+        "C20": -0.1,
+        "C30": 0.02
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "body",
+      "cellset": "all_cells",
+      "material": "rubber",
+      "formulation": "u-p-J-condensed",
+      "bulk": 5000
+    },
+    {
+      "command": "loadcase.add",
+      "name": "tension",
+      "type": "uniaxial"
+    },
+    {
+      "command": "step.add",
+      "name": "step_1",
+      "ramp": {
+        "num": 5,
+        "items": [
+          {
+            "target": "tension",
+            "end": 1
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "step_1"
+      ],
+      "curve": "tension",
+      "tol": 1.49e-08
+    }
+  ]
+}

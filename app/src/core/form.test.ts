@@ -271,7 +271,22 @@ describe("fieldSpecs", () => {
         { value: "u", label: "Displacement (u)", group: "Displacement" },
         {
           value: "u-p-J",
-          label: "Nearly incompressible (u, p, J)",
+          label: "Automatic",
+          group: "Nearly incompressible",
+        },
+        {
+          value: "u-p-J-condensed",
+          label: "Condensed per cell",
+          group: "Nearly incompressible",
+        },
+        {
+          value: "u-p-J-mixed",
+          label: "Mixed fields",
+          group: "Nearly incompressible",
+        },
+        {
+          value: "u-p-J-three-field",
+          label: "Three-field variation",
           group: "Nearly incompressible",
         },
         {

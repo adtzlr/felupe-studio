@@ -161,27 +161,39 @@ class Recorder(fem.Plugin):
         _state["controls"][self.job].append(_control_values(self.field))
 
 
+# the materials of the mixed fields of a solid body, which wrap the material of a
+# section and pass its state variables through (#420)
+WRAPPERS = (fem.NearlyIncompressible, fem.ThreeFieldVariation)
+
+
+def _material(section):
+    """Return the material of the solid body of a section, also inside
+    ``fem.NearlyIncompressible`` or ``fem.ThreeFieldVariation`` of mixed fields
+    (#420), whose state variables are those of the material."""
+    umat = getattr(_state["namespace"][f"solid_{section}"], "umat", None)
+    return umat.material if isinstance(umat, WRAPPERS) else umat
+
+
 def _history(section):
     """True if the material of a section has a load history: state variables of its
     own, e.g. the plastic strains of an elastic-plastic material (#191, see
     :func:`_plastic`) or the maximum strain energy density of the Mullins effect
     (#346), also in a ``fem.CompositeMaterial`` with a ``fem.Volumetric`` or in a
     nearly incompressible solid body. The stress of a restored substep needs them."""
-    solid = _state["namespace"][f"solid_{section}"]
-    if isinstance(getattr(solid, "umat", None), fem.MaterialStrain):
+    if isinstance(_material(section), fem.MaterialStrain):
         return _plastic(section)
-    statevars = solid.results.statevars
+    statevars = _state["namespace"][f"solid_{section}"].results.statevars
     return statevars is not None and len(statevars) > 0
 
 
 def _plastic(section):
     """True if the material of a section has state variables of its own (#191), e.g.
     the equivalent plastic strain (the first one) and the plastic strain tensor of
-    ``fem.linear_elastic_plastic_isotropic_hardening``. ``fem.MaterialStrain`` adds
-    the strain and the stress of the last substep, which a linear-elastic material
-    does not need to evaluate the stress of a restored substep."""
-    solid = _state["namespace"][f"solid_{section}"]
-    umat = getattr(solid, "umat", None)
+    ``fem.linear_elastic_plastic_isotropic_hardening``, also in the three-field
+    variation (#420). ``fem.MaterialStrain`` adds the strain and the stress of the
+    last substep, which a linear-elastic material does not need to evaluate the
+    stress of a restored substep."""
+    umat = _material(section)
     return isinstance(umat, fem.MaterialStrain) and umat.nstatevars > 0
 
 

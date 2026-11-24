@@ -66,6 +66,7 @@
         "names": [
           "BOUNDARY_REGIONS",
           "BoundarySwitch",
+          "CONDENSED",
           "CORNERS",
           "DIMENSIONS",
           "EDGES",
@@ -76,6 +77,7 @@
           "boundary_faces",
           "boundary_switch",
           "cell_volumes",
+          "condensed_region",
           "control_points",
           "embed",
           "fem",
@@ -2087,7 +2089,7 @@
       }
     },
     "MaterialLinearElastic": {
-      "description": "Linear-elastic material in terms of a strain (fem.MaterialStrain with fem.linear_elastic) in a framework: small strain or Total Lagrange. It needs the displacement formulation u.",
+      "description": "Linear-elastic material in terms of a strain (fem.MaterialStrain with fem.linear_elastic) in a framework: small strain or Total Lagrange. It needs the displacement formulation u, or the three-field variation u-p-J-three-field.",
       "x-label": "Linear elastic",
       "x-group": "Strain-based elasticity",
       "x-felupe": {
@@ -2165,7 +2167,7 @@
       }
     },
     "MaterialLinearElasticPlasticIsotropicHardening": {
-      "description": "Linear-elastic-plastic material with linear isotropic hardening (fem.MaterialStrain with fem.linear_elastic_plastic_isotropic_hardening, the return mapping algorithm of von Mises plasticity) in a framework: small strain or Total Lagrange. Its state variables are the equivalent plastic strain and the plastic strain tensor. It needs the displacement formulation u.",
+      "description": "Linear-elastic-plastic material with linear isotropic hardening (fem.MaterialStrain with fem.linear_elastic_plastic_isotropic_hardening, the return mapping algorithm of von Mises plasticity) in a framework: small strain or Total Lagrange. Its state variables are the equivalent plastic strain and the plastic strain tensor. It needs the displacement formulation u, or the three-field variation u-p-J-three-field.",
       "x-label": "Elastic-plastic, isotropic hardening",
       "x-group": "Strain-based elasticity",
       "x-felupe": {
@@ -2301,6 +2303,15 @@
           "$ref": "#/$defs/SectionNearlyIncompressible"
         },
         {
+          "$ref": "#/$defs/SectionCondensed"
+        },
+        {
+          "$ref": "#/$defs/SectionMixed"
+        },
+        {
+          "$ref": "#/$defs/SectionThreeField"
+        },
+        {
           "$ref": "#/$defs/SectionIsochoric"
         }
       ]
@@ -2309,6 +2320,7 @@
       "description": "The displacement formulation u: a field of the displacements only (fem.SolidBody). The material has a volumetric part of its own: its bulk modulus, or a compressible or a strain-based model.",
       "x-label": "Displacement (u)",
       "x-group": "Displacement",
+      "x-hint": "For a material with a volumetric part of its own: its bulk modulus, or a compressible or a strain-based model",
       "x-felupe": {
         "body": "fem.SolidBody",
         "fields": "u",
@@ -2340,12 +2352,13 @@
       }
     },
     "SectionNearlyIncompressible": {
-      "description": "The nearly incompressible formulation u-p-J of the displacements, the pressure and the volume ratio, for a material without a volumetric part: the section adds it with its bulk modulus. Linear hexahedrons and quads condense the pressure and the volume ratio of every cell (fem.SolidBodyNearlyIncompressible); the other cells have mixed fields (fem.FieldsMixed with fem.NearlyIncompressible), linear tetrahedra and triangles with a bubble point (MINI).",
-      "x-label": "Nearly incompressible (u, p, J)",
+      "description": "The nearly incompressible formulation u-p-J of the displacements, the pressure and the volume ratio, for a material without a volumetric part: the section adds it with its bulk modulus. It chooses its way by the cell type when the script runs: linear hexahedrons and quads condense the pressure and the volume ratio of every cell (fem.SolidBodyNearlyIncompressible, like u-p-J-condensed); the other cells have mixed fields (fem.FieldsMixed with fem.NearlyIncompressible, like u-p-J-mixed), linear tetrahedra and triangles with a bubble point (MINI).",
+      "x-label": "Automatic",
       "x-group": "Nearly incompressible",
+      "x-hint": "Condensed per cell of linear hexahedrons and quads, else mixed fields; for a material without a bulk modulus",
       "x-felupe": {
         "body": "nearly_incompressible",
-        "fields": "mixed",
+        "fields": "automatic",
         "cells": "all",
         "material": "isochoric"
       },
@@ -2391,10 +2404,159 @@
         }
       }
     },
+    "SectionCondensed": {
+      "description": "Nearly incompressible, condensed per cell (u-p-J-condensed): a field of the displacements only, whose solid body condenses the constant pressure and volume ratio of every cell (fem.SolidBodyNearlyIncompressible, Q1/P0 of linear and Q2/P0 of quadratic cells). It takes hexahedrons and quads, linear or quadratic, and a material without a volumetric part: the section adds it with its bulk modulus.",
+      "x-label": "Condensed per cell",
+      "x-group": "Nearly incompressible",
+      "x-hint": "Hexahedrons and quads only, also quadratic (Q2/P0); no unknowns of p and J in the system",
+      "x-felupe": {
+        "body": "fem.SolidBodyNearlyIncompressible",
+        "fields": "condensed",
+        "cells": [
+          "hexahedron",
+          "hexahedron20",
+          "hexahedron27",
+          "quad",
+          "quad8",
+          "quad9"
+        ],
+        "material": "isochoric"
+      },
+      "type": "object",
+      "required": [
+        "command",
+        "name",
+        "cellset",
+        "material",
+        "formulation",
+        "bulk"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "section.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "cellset": {
+          "$ref": "#/$defs/Name"
+        },
+        "material": {
+          "$ref": "#/$defs/Name"
+        },
+        "formulation": {
+          "const": "u-p-J-condensed"
+        },
+        "bulk": {
+          "description": "Bulk modulus of the nearly incompressible formulation.",
+          "type": ["number", "string"],
+          "exclusiveMinimum": 0,
+          "x-quantity": "stress"
+        },
+        "volumetric": {
+          "description": "The volumetric part U(J) of the strain energy with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)².",
+          "enum": ["volume-ratio", "stretch", "log"],
+          "default": "volume-ratio"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        }
+      }
+    },
+    "SectionMixed": {
+      "description": "Nearly incompressible on mixed fields (u-p-J-mixed): the displacements, the pressure and the volume ratio are fields of their own (fem.FieldsMixed with fem.NearlyIncompressible), of every cell type: linear tetrahedra and triangles with a bubble point (MINI), and a constant pressure and volume ratio per cell of linear hexahedrons and quads. It takes a material without a volumetric part: the section adds it with its bulk modulus.",
+      "x-label": "Mixed fields",
+      "x-group": "Nearly incompressible",
+      "x-hint": "Every cell type; the pressure and the volume ratio are unknowns of the system",
+      "x-felupe": {
+        "body": "fem.NearlyIncompressible",
+        "fields": "mixed",
+        "cells": "all",
+        "material": "isochoric"
+      },
+      "type": "object",
+      "required": [
+        "command",
+        "name",
+        "cellset",
+        "material",
+        "formulation",
+        "bulk"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "section.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "cellset": {
+          "$ref": "#/$defs/Name"
+        },
+        "material": {
+          "$ref": "#/$defs/Name"
+        },
+        "formulation": {
+          "const": "u-p-J-mixed"
+        },
+        "bulk": {
+          "description": "Bulk modulus of the nearly incompressible formulation.",
+          "type": ["number", "string"],
+          "exclusiveMinimum": 0,
+          "x-quantity": "stress"
+        },
+        "volumetric": {
+          "description": "The volumetric part U(J) of the strain energy with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)².",
+          "enum": ["volume-ratio", "stretch", "log"],
+          "default": "volume-ratio"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        }
+      }
+    },
+    "SectionThreeField": {
+      "description": "The three-field variation (u-p-J-three-field) of the displacements, the pressure and the volume ratio on mixed fields (fem.FieldsMixed with fem.ThreeFieldVariation), of every cell type like u-p-J-mixed. It takes any material with a volumetric part of its own: its bulk modulus, or a compressible or a strain-based model, also with state variables. The section has no bulk modulus. The slowest way of u-p-J.",
+      "x-label": "Three-field variation",
+      "x-group": "Nearly incompressible",
+      "x-hint": "Any material with a volumetric part, also compressible or strain-based; the slowest",
+      "x-felupe": {
+        "body": "fem.ThreeFieldVariation",
+        "fields": "mixed",
+        "cells": "all",
+        "material": "volumetric"
+      },
+      "type": "object",
+      "required": ["command", "name", "cellset", "material", "formulation"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "section.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "cellset": {
+          "$ref": "#/$defs/Name"
+        },
+        "material": {
+          "$ref": "#/$defs/Name"
+        },
+        "formulation": {
+          "const": "u-p-J-three-field"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        }
+      }
+    },
     "SectionIsochoric": {
       "description": "The displacement formulation u-isochoric: a field of the displacements only (fem.SolidBody), with a material without a bulk modulus whose strain energy has no volumetric part, e.g. air as a third medium between the parts of a model that come into contact.",
       "x-label": "Isochoric part only (third medium)",
       "x-group": "Third medium",
+      "x-hint": "For a material without a bulk modulus whose volume changes freely, e.g. air as a third medium",
       "x-felupe": {
         "body": "fem.SolidBody",
         "fields": "u",

@@ -31,7 +31,6 @@ from .analysis import analysis_of
 from .commands import SCHEMA_VERSION, ValidationError, validate
 from .expressions import names, resolve
 from .formatting import call, wrap
-from .formulations import formulation_of
 from .jobs import TOL, evaluate_options, solver_rtol, solver_source
 from .lines import object_lines
 from .materials import uses_functools
@@ -75,15 +74,24 @@ def _blocks(markers):
     return {"all": text, **blocks}
 
 
-# the helpers of the u-p-J formulation (the MINI element, #226), of the steps that
-# leave out its sections (#428), of face sets (#142), of point sets on the surface
-# (#222), of meshes made by scripts (#182) with the steps that leave out sections
-# without volume (#429), and of the linear solvers of jobs other
-# than SuperLU (#203) and in single precision (ADR 0016), and of steps that switch
+# the helpers of the mixed fields (the MINI element, #226), of the automatic u-p-J
+# formulation and of sections condensed per cell (#420), of the steps that leave out
+# sections with mixed fields (#428), of face sets (#142), of point sets on the
+# surface (#222), of meshes made by scripts (#182) with the steps that leave out
+# sections without volume (#429), and of the linear solvers of jobs other than
+# SuperLU (#203) and in single precision (ADR 0016), and of steps that switch
 # boundaries on and off (#393)
 BLOCKS = _blocks(
     {
-        "mixed": "\n\n# --- embedded in generated scripts with u-p-J sections ---\n",
+        "mixed": "\n\n# --- embedded in generated scripts with mixed fields ---\n",
+        "automatic": (
+            "\n\n# --- embedded in generated scripts with automatic u-p-J sections "
+            "---\n"
+        ),
+        "condensed": (
+            "\n\n# --- embedded in generated scripts with sections condensed per "
+            "cell ---\n"
+        ),
         "held": (
             "\n\n# --- embedded in generated scripts with steps that leave out u-p-J "
             "sections ---\n"
@@ -107,7 +115,9 @@ BLOCKS = _blocks(
 # the helpers of a script: a block and whether the script needs it, in this order
 HELPERS = (
     ("all", lambda context: True),
-    ("mixed", lambda context: context.mixed),
+    ("mixed", lambda context: "mixed" in context.section_helpers),
+    ("automatic", lambda context: "automatic" in context.section_helpers),
+    ("condensed", lambda context: "condensed" in context.section_helpers),
     ("held", lambda context: jobs.holds(context)),
     ("faces", lambda context: bool(context.facesets)),
     ("surfaces", lambda context: context.surface_points),
@@ -299,13 +309,10 @@ class Context:
         return bool(self.get("mesh.script"))
 
     @cached_property
-    def mixed(self):
-        """Whether a section has the mixed fields or the nearly incompressible solid
-        body of the helpers of the u-p-J formulation (ADR 0024)."""
-        return any(
-            f.fields == "mixed" or f.body == "nearly_incompressible"
-            for f in map(formulation_of, self.sections)
-        )
+    def section_helpers(self):
+        """The blocks of the helpers of the fields and the solid bodies of the
+        sections (ADR 0024), e.g. ``mixed`` of mixed fields."""
+        return sections.helpers(self.sections)
 
     @cached_property
     def controls(self):

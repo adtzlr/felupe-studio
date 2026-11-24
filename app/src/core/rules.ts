@@ -31,7 +31,13 @@ import {
   VERTICES,
 } from "./kinds";
 import { loadcaseFieldErrors, loadcaseProblems } from "./loadcases";
-import { first, fits, type Formulation, formulationOf } from "./formulations";
+import {
+  first,
+  fits,
+  type Formulation,
+  formulationOf,
+  sibling,
+} from "./formulations";
 import { MATERIAL_MODELS, materialProblems, strainBased } from "./materials";
 import { parameterProblems } from "./parameters";
 import {
@@ -420,8 +426,11 @@ const sectionMaterial: Rule<CommandOf<"section.add">> = (model, cmd) => {
 
 /**
  * Why a formulation does not take a material, and the formulations that do: of a
- * material with a volumetric part of its own (`u`), the isochoric part of a strain
- * energy (`u-p-J`, #417, #191) or without a volumetric part (`u-isochoric`, #241).
+ * material with a volumetric part of its own (`u`, the three-field variation of
+ * #420), the isochoric part of a strain energy (`u-p-J`, #417, #191) or without a
+ * volumetric part (`u-isochoric`, #241). A formulation of the same menu that takes
+ * the material is named too, e.g. the three-field variation of a nearly
+ * incompressible one (#420).
  */
 function misfit(
   formulation: Formulation,
@@ -429,6 +438,14 @@ function misfit(
 ): string {
   const { name } = formulation;
   const what = `${material.model} '${material.name}'`;
+  const other = sibling(formulation, material);
+  // a nearly incompressible formulation, e.g. the three-field variation
+  if (formulation.material === "volumetric" && other)
+    return (
+      `the ${name} formulation with ${what} without a bulk modulus: it takes the ` +
+      `volumetric part of the material. Add 'bulk' to the material, or use ` +
+      `'${other}' with the bulk modulus of the section.`
+    );
   if (formulation.material === "volumetric")
     return (
       `the displacement formulation with ${what} without a bulk modulus. Add ` +
@@ -441,21 +458,19 @@ function misfit(
       `the formulation ${name} with ${what}, which has a volumetric part. Use ` +
       `'${first("volumetric")}'.`
     );
-  const displacement = first("volumetric");
+  const displacement =
+    `the displacement formulation '${first("volumetric")}'` +
+    (other ? ` or '${other}'` : "");
   if (strainBased(material))
-    return (
-      `the ${name} formulation with the strain-based ${what}. Use the ` +
-      `displacement formulation '${displacement}'.`
-    );
+    return `the ${name} formulation with the strain-based ${what}. Use ${displacement}.`;
   const optionalBulk = MATERIAL_MODELS.find(
     (m) => m.name === material.model,
   )?.optionalBulk;
   return optionalBulk
     ? `the ${name} formulation with ${what}, which has a volumetric part (its ` +
-        `bulk modulus). Remove 'bulk' from the material, or use the displacement ` +
-        `formulation '${displacement}'.`
+        `bulk modulus). Remove 'bulk' from the material, or use ${displacement}.`
     : `the ${name} formulation with ${what}, which is compressible. Use ` +
-        `'${displacement}', or a nearly incompressible model without a bulk modulus.`;
+        `${displacement}, or a nearly incompressible model without a bulk modulus.`;
 }
 
 /** The axes of a load case, at the field of the error of the form. */

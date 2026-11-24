@@ -221,8 +221,9 @@ export class RuntimeClient {
 
   /**
    * The checks of a command list with the mesh data (`felupe_studio.checks`): the
-   * cells in no or in two sections and the hanging points of interfaces. Only the
-   * local runtime has them (#258).
+   * cells in no or in two sections, the hanging points of interfaces and the
+   * sections of cells that their formulation does not take (#420). Only the local
+   * runtime has them (#258).
    */
   async check(document: string): Promise<CheckReport> {
     const message = await this.request({ type: "check", document }, "text");

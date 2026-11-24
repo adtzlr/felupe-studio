@@ -53,18 +53,43 @@ describe("ribbonGroups", () => {
       ["section.add:u", { formulation: "u" }, "Displacement"],
       ["section.add:u-p-J", { formulation: "u-p-J" }, "Nearly incompressible"],
       [
+        "section.add:u-p-J-condensed",
+        { formulation: "u-p-J-condensed" },
+        "Nearly incompressible",
+      ],
+      [
+        "section.add:u-p-J-mixed",
+        { formulation: "u-p-J-mixed" },
+        "Nearly incompressible",
+      ],
+      [
+        "section.add:u-p-J-three-field",
+        { formulation: "u-p-J-three-field" },
+        "Nearly incompressible",
+      ],
+      [
         "section.add:u-isochoric",
         { formulation: "u-isochoric" },
         "Third medium",
       ],
     ]);
+    // the ways of u-p-J in the menu Nearly incompressible (#420)
     expect(
-      ribbonEntries(ribbonGroups("sections")[0]).map((e) => e.kind),
-    ).toEqual(["button", "button", "button"]);
+      ribbonEntries(ribbonGroups("sections")[0]).map((e) =>
+        e.kind === "menu" ? `${e.group} ▾` : e.item.label,
+      ),
+    ).toEqual([
+      "Displacement (u)",
+      "Nearly incompressible ▾",
+      "Isochoric part only (third medium)",
+    ]);
     expect(labels("sections")).toEqual([
       [
         "Displacement (u)",
-        "Nearly incompressible (u, p, J)",
+        "Automatic",
+        "Condensed per cell",
+        "Mixed fields",
+        "Three-field variation",
         "Isochoric part only (third medium)",
       ],
     ]);

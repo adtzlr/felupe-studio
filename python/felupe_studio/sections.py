@@ -5,8 +5,20 @@ container, merged into the top-level field with the control points, and the soli
 bodies of the sections after the merge (see :func:`felupe.field.merge`).
 """
 
+from textwrap import wrap as wrap_text
+
 from . import meshtools
-from .formatting import Dict, List, call, number, quote, vector, wrap
+from .formatting import (
+    LINE_LENGTH,
+    Call,
+    Dict,
+    List,
+    call,
+    number,
+    quote,
+    vector,
+    wrap,
+)
 from .formulations import formulation_of
 from .materials import lame_call, material_call
 
@@ -92,7 +104,29 @@ def displacement_fields(context, cellset, region, field):
     ]
 
 
+def condensed_fields(context, cellset, region, field):
+    """The region of the hexahedrons or quads of a cell set and the field container of
+    its displacements, whose solid body condenses the pressure and the volume ratio
+    of every cell (u-p-J-condensed, #420): ``condensed_region`` raises for other
+    cells."""
+    return [
+        call(region, "condensed_region", [cellset], context.astype),
+        context.container(field, region),
+    ]
+
+
 def mixed_fields(context, cellset, region, field):
+    """The region and the field container of the mixed fields of the displacements,
+    the pressure and the volume ratio, of every cell type (#420): linear tetrahedra
+    and triangles with a bubble point (MINI)."""
+    flag = [context.mixed_flag] if context.mixed_flag else []
+    return [
+        call(region, "mixed_region", [cellset], context.astype),
+        call(field, "fem.FieldsMixed", [region, "n=3", *flag, *context.dtype]),
+    ]
+
+
+def automatic_fields(context, cellset, region, field):
     """The region and the field container of the mixed fields of the displacements,
     the pressure and the volume ratio: the displacements only of linear hexahedrons
     and quads, whose pressure and volume ratio are condensed per cell (#226)."""
@@ -103,27 +137,115 @@ def mixed_fields(context, cellset, region, field):
     ]
 
 
-def solid(sec, field):
-    """The arguments of ``fem.SolidBody``."""
-    return [sec["material"], field]
+def comment(text):
+    """A comment of the script, wrapped at the line length.
+
+    Examples
+    --------
+    >>> comment("rubber: the pressure and the volume ratio as mixed fields")
+    '# rubber: the pressure and the volume ratio as mixed fields'
+    """
+    return "\n".join(f"# {line}" for line in wrap_text(text, LINE_LENGTH - 2))
 
 
-def nearly_incompressible(sec, field):
-    """The arguments of ``nearly_incompressible()``: fem.SolidBodyNearlyIncompressible
-    of linear hexahedrons and quads, else fem.NearlyIncompressible on the mixed fields
-    (#226), with the bulk modulus and the volumetric part of the strain energy if not
-    the default (#134)."""
-    args = [sec["material"], field, f"bulk={sec['bulk']!r}"]
+def bulk(sec):
+    """The bulk modulus of a nearly incompressible section and the volumetric part of
+    the strain energy if not the default (#134)."""
+    args = [f"bulk={sec['bulk']!r}"]
     volumetric = sec.get("volumetric", "volume-ratio")
     if volumetric != "volume-ratio":
         args.append(f"volumetric={quote(volumetric)}")
     return args
 
 
+def solid(sec, target, field):
+    """``fem.SolidBody`` of the material."""
+    return [call(target, "fem.SolidBody", [sec["material"], field])]
+
+
+def nearly_incompressible(sec, target, field):
+    """``nearly_incompressible()``: fem.SolidBodyNearlyIncompressible of linear
+    hexahedrons and quads, else fem.NearlyIncompressible on the mixed fields (#226),
+    with the bulk modulus of the section."""
+    return [call(target, "nearly_incompressible", [sec["material"], field, *bulk(sec)])]
+
+
+def condensed(sec, target, field):
+    """``fem.SolidBodyNearlyIncompressible``, which condenses the pressure and the
+    volume ratio of every cell (#420), with the bulk modulus of the section."""
+    return [
+        comment(f"{sec['name']}: the pressure and the volume ratio condensed per cell"),
+        call(
+            target,
+            "fem.SolidBodyNearlyIncompressible",
+            [sec["material"], field, *bulk(sec)],
+        ),
+    ]
+
+
+def mixed(sec, target, field):
+    """``fem.SolidBody`` of ``fem.NearlyIncompressible`` on the mixed fields (#420),
+    with the bulk modulus of the section."""
+    umat = Call("fem.NearlyIncompressible", [sec["material"], *bulk(sec)])
+    return [
+        comment(f"{sec['name']}: the pressure and the volume ratio as mixed fields"),
+        call(target, "fem.SolidBody", [umat, field]),
+    ]
+
+
+def three_field(sec, target, field):
+    """``fem.SolidBody`` of ``fem.ThreeFieldVariation`` on the mixed fields (#420),
+    with the volumetric part of the material."""
+    umat = Call("fem.ThreeFieldVariation", [sec["material"]])
+    return [
+        comment(
+            f"{sec['name']}: the three-field variation with the volumetric part of the "
+            "material"
+        ),
+        call(target, "fem.SolidBody", [umat, field]),
+    ]
+
+
 # the builders of the fields and of the solid body of a section, by the fields and
 # the body of its formulation (x-felupe of the formulation registry, ADR 0024)
-FIELDS = {"u": displacement_fields, "mixed": mixed_fields}
-BODIES = {"fem.SolidBody": solid, "nearly_incompressible": nearly_incompressible}
+FIELDS = {
+    "u": displacement_fields,
+    "condensed": condensed_fields,
+    "mixed": mixed_fields,
+    "automatic": automatic_fields,
+}
+BODIES = {
+    "fem.SolidBody": solid,
+    "fem.SolidBodyNearlyIncompressible": condensed,
+    "fem.NearlyIncompressible": mixed,
+    "fem.ThreeFieldVariation": three_field,
+    "nearly_incompressible": nearly_incompressible,
+}
+
+# the blocks of the helpers of the script that the builders of the fields and of the
+# solid bodies need, by the fields and the body of a formulation (embedded by codegen)
+FIELD_HELPERS = {
+    "condensed": ("condensed",),
+    "mixed": ("mixed",),
+    "automatic": ("mixed", "automatic"),
+}
+BODY_HELPERS = {"nearly_incompressible": ("automatic",)}
+
+
+def helpers(sections):
+    """The blocks of the helpers that the fields and the solid bodies of sections
+    need, e.g. ``mixed_region`` of mixed fields (``mixed``).
+
+    Examples
+    --------
+    >>> sorted(helpers([{"formulation": "u-p-J"}, {"formulation": "u"}]))
+    ['automatic', 'mixed']
+    """
+    needed = set()
+    for formulation in map(formulation_of, sections):
+        needed.update(FIELD_HELPERS.get(formulation.fields, ()))
+        needed.update(BODY_HELPERS.get(formulation.body, ()))
+    return needed
 
 
 def section_fields(context, sec):
@@ -135,9 +257,8 @@ def section_fields(context, sec):
 
 def solid_body(context, sec):
     """The solid body of a section."""
-    body = formulation_of(sec).body
-    args = BODIES[body](sec, f"field_{sec['name']}")
-    return [call(f"solid_{sec['name']}", body, args)]
+    name = sec["name"]
+    return BODIES[formulation_of(sec).body](sec, f"solid_{name}", f"field_{name}")
 
 
 def rigid_comment(rigid, dim=3):

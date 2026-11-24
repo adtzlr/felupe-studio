@@ -7,6 +7,7 @@ module of the package, which the app loads into the worker.
 
 import json
 import re
+from collections import Counter
 from pathlib import Path
 
 from felupe_studio.commands import RAMPED, REFERENCES, SCHEMA_VERSION, schema
@@ -229,6 +230,8 @@ def _table(rows, header=("Property", "Type", "Required", "Description")):
 def _variants(name, node, command):
     """The variants of a property or of a command (``oneOf``)."""
     out = []
+    # the number of variants of a menu of the ribbon (x-group)
+    groups = Counter(_resolve(v).get("x-group") for v in node["oneOf"])
     for variant in node["oneOf"]:
         title = variant.get("x-label") or _resolve(variant).get("x-label")
         resolved = _resolve(variant)
@@ -244,12 +247,17 @@ def _variants(name, node, command):
         ]
         keys = [k for k in resolved.get("required", []) if k in SELECT]
         label = title or (SELECT[keys[0]] if keys else ", ".join(required))
+        felupe = resolved.get("x-felupe")
+        group = resolved.get("x-group")
+        if isinstance(felupe, dict) and "body" in felupe and groups[group] > 1:
+            # a formulation in a menu of the ribbon, e.g. Nearly incompressible ▸
+            # Automatic (#420)
+            label = f"{group} ▸ {label}"
         head = f"#### {label}" + (f" ({', '.join(consts)})" if consts else "")
         out.append(head)
         description = resolved.get("description")
         if description:
             out.append(description)
-        felupe = resolved.get("x-felupe")
         if isinstance(felupe, dict) and "strain" in felupe:
             # a strain-based material (#191): fem.MaterialStrain of a function
             statevars = felupe.get("statevars")
@@ -258,8 +266,8 @@ def _variants(name, node, command):
                 + (f", state variables `{statevars}`" if statevars else "")
             )
         elif isinstance(felupe, dict) and "body" in felupe:
-            # a formulation of a section (ADR 0024)
-            out.append(_formulation(felupe))
+            # a formulation of a section (ADR 0024), and when to use it (#420)
+            out.append(_formulation(felupe, resolved.get("x-hint")))
         elif isinstance(felupe, dict) and felupe:
             functions = [f"`{v}`" for v in felupe.values() if isinstance(v, str)]
             out.append("FElupe: " + ", ".join(functions))
@@ -313,23 +321,24 @@ MATERIALS = {
     "isochoric": "is the isochoric part of a strain energy: the section adds the "
     "volumetric part",
     "none": "has no volumetric part, and the section adds none",
-    "any": "is any material",
 }
 
 
-def _formulation(felupe):
-    """The solid body, the fields, the cells and the material of a formulation."""
+def _formulation(felupe, hint=None):
+    """The solid body, the fields, the cells and the material of a formulation, and
+    when to use it."""
     cells = felupe["cells"]
     cells = (
         "all cell types"
         if cells == "all"
         else "the cell types " + _join([f"`{c}`" for c in cells])
     )
-    return (
+    text = (
         f"FElupe: the solid body `{felupe['body']}` of the fields "
         f"`{felupe['fields']}`, {cells}. The material "
         f"{MATERIALS[felupe['material']]}."
     )
+    return f"{text} When to use it: {hint[0].lower()}{hint[1:]}." if hint else text
 
 
 def _parameter_rows(params, command):

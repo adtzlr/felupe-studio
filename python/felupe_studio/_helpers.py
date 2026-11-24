@@ -110,7 +110,7 @@ def points_at(points, coordinates, atol=1e-8):
     return close.any(axis=1)
 
 
-# --- embedded in generated scripts with u-p-J sections ---
+# --- embedded in generated scripts with mixed fields ---
 def mixed_region(mesh):
     """Return the region of the mixed fields (u-p-J) of a mesh. Linear tetrahedra and
     triangles get a bubble point in every cell (MINI element), the dual fields are
@@ -130,6 +130,7 @@ def mixed_region(mesh):
     return REGIONS[mesh.cell_type](mesh)
 
 
+# --- embedded in generated scripts with automatic u-p-J sections ---
 def mixed_field(region, **kwargs):
     """Return the field container of a section with the u-p-J formulation. Linear
     hexahedrons and quads have the displacements only: their pressure and volume
@@ -163,6 +164,26 @@ def nearly_incompressible(umat, field, bulk, volumetric="volume-ratio"):
         )
     umat = fem.NearlyIncompressible(umat, bulk=bulk, volumetric=volumetric)
     return fem.SolidBody(umat, field)
+
+
+# --- embedded in generated scripts with sections condensed per cell ---
+# the cell types whose pressure and volume ratio fem.SolidBodyNearlyIncompressible
+# condenses per cell (u-p-J-condensed, #420)
+CONDENSED = ("hexahedron", "hexahedron20", "hexahedron27", "quad", "quad8", "quad9")
+
+
+def condensed_region(mesh):
+    """Return the region of a mesh of hexahedrons or quads, linear or quadratic, of a
+    section condensed per cell (u-p-J-condensed, #420): its solid body
+    ``fem.SolidBodyNearlyIncompressible`` condenses the constant pressure and volume
+    ratio of every cell. Other cells raise a ``ValueError``: a constant pressure of
+    tetrahedrons and triangles would lock."""
+    if mesh.cell_type not in CONDENSED:
+        raise ValueError(
+            "Condensed per cell (u-p-J-condensed) takes hexahedrons and quads, not "
+            f"{mesh.cell_type} cells. Use 'u-p-J' or 'u-p-J-mixed'."
+        )
+    return REGIONS[mesh.cell_type](mesh)
 
 
 # --- embedded in generated scripts with steps that leave out u-p-J sections ---

@@ -9,6 +9,7 @@ import type {
 import {
   faceSetNotes,
   fileNotes,
+  formulationNotes,
   generateChain,
   makeMeshes,
   MeshFiles,
@@ -82,6 +83,33 @@ describe("face sets and the mesh files (#142)", () => {
     expect(faceSetNotes(model, await files("triangle")).get("end")).toEqual([
       "The edges of triangle cells of 'section_soft' have no boundary region in FElupe 12; a face set of a 2D model needs a section of quads.",
     ]);
+  });
+});
+
+describe("the cells of a formulation and the mesh files (#420)", () => {
+  // the section soft condensed per cell, which takes hexahedrons and quads
+  const condensed = commands.map((c) =>
+    c.name === "section_soft" ? { ...c, formulation: "u-p-J-condensed" } : c,
+  ) as Command[];
+
+  it("are a problem of other cells", async () => {
+    expect(formulationNotes(condensed, await files("hexahedron20")).size).toBe(
+      0,
+    );
+    expect(formulationNotes(condensed, await files("quad9")).size).toBe(0);
+    expect(
+      Object.fromEntries(formulationNotes(condensed, await files("tetra10"))),
+    ).toEqual({
+      section_soft: [
+        "Condensed per cell (u-p-J-condensed) takes hexahedrons and quads, not the tetra10 cells of 'section_soft'. Use 'u-p-J' or 'u-p-J-mixed'.",
+      ],
+    });
+    // without the mesh file, nothing is known
+    expect(formulationNotes(condensed, new MeshFiles()).size).toBe(0);
+  });
+
+  it("are no problem of a formulation of all cells", async () => {
+    expect(formulationNotes(commands, await files("tetra")).size).toBe(0);
   });
 });
 

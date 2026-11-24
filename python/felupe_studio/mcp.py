@@ -102,8 +102,9 @@ DESCRIPTIONS = {
     ),
     "delete_command": ("Delete a command that no other command references."),
     "check": (
-        "The checks that need the mesh data: cells in no or in two sections, and "
-        "hanging points of interfaces."
+        "The checks that need the mesh data: cells in no or in two sections, "
+        "hanging points of interfaces, and sections of cells that their formulation "
+        "does not take."
     ),
     "script": ("The FElupe script of the model, as the app exports it."),
     "solve": (

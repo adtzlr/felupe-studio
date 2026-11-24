@@ -131,6 +131,20 @@ def main():
     for case in [*MATERIAL_CASES, "plasticity_cube", "linear_elastic_cube"]:
         write_vtu(HERE / case / "cube.vtu", fem.Cube(n=3))
 
+    # the cube of the elastic-plastic material as quadratic tetrahedrons, for the
+    # three-field variation (#420)
+    tetra = fem.Cube(n=3).triangulate()
+    write_vtu(
+        HERE / "plasticity_cube_three_field" / "cube.vtu",
+        fem.mesh.add_midpoints_edges(tetra, cell_type_new="tetra10"),
+    )
+
+    # the bar of quadratic hexahedrons (6 x 2 x 2 cells), condensed per cell (#420)
+    write_vtu(
+        HERE / "bar_hexahedron20_condensed" / "bar.vtu",
+        fem.mesh.convert(bar(n=(7, 3, 3)), order=2),
+    )
+
 
 # the material tests of the models of tensortrax (#136), and of the Mullins effect
 # (#346)

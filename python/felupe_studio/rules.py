@@ -25,7 +25,7 @@ from .commands import (
     reserved,
     value_at,
 )
-from .formulations import first, formulations
+from .formulations import first, formulations, sibling
 from .loadcases import problems as loadcase_problems
 from .materials import models, strain_based
 from .materials import problems as material_problems
@@ -326,10 +326,20 @@ def section_material(model, cmd):
 
 def misfit(formulation, material):
     """Why a formulation does not take a material, and the formulations that do: of a
-    material with a volumetric part of its own (``u``), the isochoric part of a strain
-    energy (``u-p-J``, #417, #191) or without a volumetric part (``u-isochoric``,
-    #241)."""
+    material with a volumetric part of its own (``u``, the three-field variation of
+    #420), the isochoric part of a strain energy (``u-p-J``, #417, #191) or without
+    a volumetric part (``u-isochoric``, #241). A formulation of the same menu that
+    takes the material is named too, e.g. the three-field variation of a
+    nearly incompressible one (#420)."""
     name, what = formulation.name, f"{material['model']} '{material['name']}'"
+    other = sibling(formulation, material)
+    if formulation.material == "volumetric" and other is not None:
+        # a nearly incompressible formulation, e.g. the three-field variation
+        return (
+            f"the {name} formulation with {what} without a bulk modulus: it takes the "
+            f"volumetric part of the material. Add 'bulk' to the material, or use "
+            f"'{other}' with the bulk modulus of the section."
+        )
     if formulation.material == "volumetric":
         return (
             f"the displacement formulation with {what} without a bulk modulus. Add "
@@ -342,21 +352,21 @@ def misfit(formulation, material):
             f"the formulation {name} with {what}, which has a volumetric part. Use "
             f"'{first('volumetric')}'."
         )
-    displacement = first("volumetric")
+    displacement = f"the displacement formulation '{first('volumetric')}'"
+    if other is not None:
+        displacement += f" or '{other}'"
     if strain_based(material):
         return (
-            f"the {name} formulation with the strain-based {what}. Use the "
-            f"displacement formulation '{displacement}'."
+            f"the {name} formulation with the strain-based {what}. Use {displacement}."
         )
     if models()[material["model"]].optional_bulk:
         return (
             f"the {name} formulation with {what}, which has a volumetric part (its "
-            "bulk modulus). Remove 'bulk' from the material, or use the displacement "
-            f"formulation '{displacement}'."
+            f"bulk modulus). Remove 'bulk' from the material, or use {displacement}."
         )
     return (
         f"the {name} formulation with {what}, which is compressible. Use "
-        f"'{displacement}', or a nearly incompressible model without a bulk modulus."
+        f"{displacement}, or a nearly incompressible model without a bulk modulus."
     )
 
 

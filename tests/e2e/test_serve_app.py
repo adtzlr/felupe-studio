@@ -845,6 +845,68 @@ def test_a_step_that_releases_a_boundary_solved(url, page):
     assert page.errors == []
 
 
+def test_a_section_switched_to_the_three_field_variation_solved(url, page):
+    """A section of a material with its bulk modulus switched from the displacement
+    formulation to the three-field variation in its properties, and solved (#420):
+    the form shows when to use it and no bulk modulus of the section, and the script
+    has fem.ThreeFieldVariation."""
+    page.goto(url)
+    page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
+
+    def command(text):
+        name = text.split('"name": "')[1].split('"')[0]
+        line = page.get_by_label("Command", exact=True)
+        line.fill(text)
+        line.press("Enter")
+        page.get_by_text(f"Created {name}.").first.wait_for(timeout=60_000)
+
+    for text in [
+        'mesh.generate {"name": "bar", "tool": "Cube", '
+        '"parameters": {"a": [0, 0, 0], "b": [3, 1, 1], "n": [4, 2, 2]}}',
+        'cellset.from_file {"name": "cells", "mesh": "bar"}',
+        'material.add {"name": "rubber", "model": "NeoHooke", '
+        '"parameters": {"mu": 1, "bulk": 5000}}',
+        'section.add {"name": "solid", "cellset": "cells", "material": "rubber", '
+        '"formulation": "u"}',
+        'pointset.add {"name": "start", "select": {"axis": "x", "value": 0}}',
+        'pointset.add {"name": "end", "select": {"axis": "x", "value": 3}}',
+        'boundary.add {"name": "fixed", "pointset": "start", '
+        '"constrained": ["x", "y", "z"]}',
+        'boundary.add {"name": "pull", "pointset": "end", "constrained": ["x"]}',
+        'step.add {"name": "tension", "ramp": {"num": 3, '
+        '"items": [{"target": "pull", "end": 0.3}]}}',
+        'job.add {"name": "job", "steps": ["tension"], "curve": "pull"}',
+    ]:
+        command(text)
+
+    tree = page.get_by_role("navigation", name="Model browser")
+    tree.get_by_text("solid", exact=True).click()
+    properties = page.get_by_role("region", name="Properties")
+    properties.get_by_label("Formulation").select_option(label="Three-field variation")
+    properties.get_by_text(
+        "Any material with a volumetric part, also compressible or strain-based; "
+        "the slowest"
+    ).wait_for()
+    assert properties.get_by_label("Bulk modulus").count() == 0
+    properties.get_by_role("button", name="Apply").click()
+    tree.get_by_text("rubber · u-p-J-three-field").wait_for()
+    page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)
+
+    page.get_by_role("tab", name="Script", exact=True).click()
+    page.get_by_text(
+        "solid_solid = fem.SolidBody(fem.ThreeFieldVariation(rubber), field_solid)"
+    ).wait_for(timeout=60_000)
+
+    page.get_by_role("button", name="Solve").click()
+    results = page.get_by_role("button", name="Show results")
+    results.wait_for(timeout=120_000)
+    summary = page.get_by_text("substeps in").first.inner_text()
+    assert "4 substeps" in summary and "Last substep: ux = 0.3" in summary
+    results.click()
+    page.wait_for_selector("text=/Displacement magnitude/", timeout=60_000)
+    assert page.errors == []
+
+
 def test_a_cut_of_the_model(url, page):
     """A cut of the view in the Model workspace (#395): the meshes are cut by the
     local Python, and without the cut the view is the same as before."""
