@@ -25,8 +25,9 @@ from .commands import (
     reserved,
     value_at,
 )
+from .formulations import first, formulations
 from .loadcases import problems as loadcase_problems
-from .materials import has_volumetric, models, needs_bulk, strain_based
+from .materials import models, strain_based
 from .materials import problems as material_problems
 
 
@@ -312,71 +313,51 @@ def material_of(model, section):
     return material
 
 
-def section_bulk(model, cmd):
-    """A model with an optional bulk modulus has no volumetric part without it."""
+def section_material(model, cmd):
+    """The material fits the formulation of the section (ADR 0024): by ``material`` of
+    the formulation registry, its volumetric part. The message names a formulation
+    that fits."""
     material = material_of(model, cmd)
-    if cmd["formulation"] != "u" or material is None or not needs_bulk(material):
+    formulation = formulations().get(cmd["formulation"])
+    if material is None or formulation is None or formulation.fits(material):
         return []
-    return [
-        f"section '{cmd['name']}' uses the displacement formulation with "
-        f"{material['model']} '{material['name']}' without a bulk modulus. Add "
-        "'bulk' to the material, use 'u-p-J', or 'u-isochoric' for a material "
-        "without a volumetric part, e.g. air as a third medium."
-    ]
+    return [f"section '{cmd['name']}' uses {misfit(formulation, material)}"]
 
 
-def section_isochoric(model, cmd):
-    """The formulation without a volumetric part needs a material without one."""
-    material = material_of(model, cmd)
-    if (
-        cmd["formulation"] != "u-isochoric"
-        or material is None
-        or not has_volumetric(material)
-    ):
-        return []
-    return [
-        f"section '{cmd['name']}' uses the formulation u-isochoric with "
-        f"{material['model']} '{material['name']}', which has a volumetric part. "
-        "Use 'u'."
-    ]
-
-
-def section_strain_based(model, cmd):
-    """A strain-based material has no strain energy for the u-p-J formulation."""
-    material = material_of(model, cmd)
-    if cmd["formulation"] != "u-p-J" or material is None:
-        return []
-    if not strain_based(material):
-        return []
-    return [
-        f"section '{cmd['name']}' uses the u-p-J formulation with the strain-based "
-        f"{material['model']} '{material['name']}'. Use the displacement "
-        "formulation 'u'."
-    ]
-
-
-def section_volumetric(model, cmd):
-    """The u-p-J formulation adds the volumetric part of the section to the material,
-    which must not have one of its own (#417): it would act on the volume ratio of
-    the displacements, too stiff."""
-    material = material_of(model, cmd)
-    if cmd["formulation"] != "u-p-J" or material is None:
-        return []
-    if not has_volumetric(material) or strain_based(material):
-        return []
-    start = (
-        f"section '{cmd['name']}' uses the u-p-J formulation with "
-        f"{material['model']} '{material['name']}', which "
-    )
+def misfit(formulation, material):
+    """Why a formulation does not take a material, and the formulations that do: of a
+    material with a volumetric part of its own (``u``), the isochoric part of a strain
+    energy (``u-p-J``, #417, #191) or without a volumetric part (``u-isochoric``,
+    #241)."""
+    name, what = formulation.name, f"{material['model']} '{material['name']}'"
+    if formulation.material == "volumetric":
+        return (
+            f"the displacement formulation with {what} without a bulk modulus. Add "
+            f"'bulk' to the material, use '{first('isochoric')}', or "
+            f"'{first('none')}' for a material without a volumetric part, e.g. air "
+            "as a third medium."
+        )
+    if formulation.material == "none":
+        return (
+            f"the formulation {name} with {what}, which has a volumetric part. Use "
+            f"'{first('volumetric')}'."
+        )
+    displacement = first("volumetric")
+    if strain_based(material):
+        return (
+            f"the {name} formulation with the strain-based {what}. Use the "
+            f"displacement formulation '{displacement}'."
+        )
     if models()[material["model"]].optional_bulk:
-        return [
-            f"{start}has a volumetric part (its bulk modulus). Remove 'bulk' from "
-            "the material, or use the displacement formulation 'u'."
-        ]
-    return [
-        f"{start}is compressible. Use 'u', or a nearly incompressible model without "
-        "a bulk modulus."
-    ]
+        return (
+            f"the {name} formulation with {what}, which has a volumetric part (its "
+            "bulk modulus). Remove 'bulk' from the material, or use the displacement "
+            f"formulation '{displacement}'."
+        )
+    return (
+        f"the {name} formulation with {what}, which is compressible. Use "
+        f"'{displacement}', or a nearly incompressible model without a bulk modulus."
+    )
 
 
 def loadcase(model, cmd):
@@ -495,12 +476,7 @@ RULES = {
     "mesh.generate": (mesh_tool, mesh_inputs),
     "cellset.from_tag": (cellset_tag, cellset_model_mesh),
     "cellset.from_file": (cellset_model_mesh,),
-    "section.add": (
-        section_bulk,
-        section_isochoric,
-        section_strain_based,
-        section_volumetric,
-    ),
+    "section.add": (section_material,),
     "loadcase.add": (loadcase,),
     "point.add": (vertex_coordinates,),
     "rigid.add": (vertex_coordinates, rigid_shape),

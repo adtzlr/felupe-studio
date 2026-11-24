@@ -31,6 +31,7 @@ from .analysis import analysis_of
 from .commands import SCHEMA_VERSION, ValidationError, validate
 from .expressions import names, resolve
 from .formatting import call, wrap
+from .formulations import formulation_of
 from .jobs import TOL, evaluate_options, solver_rtol, solver_source
 from .lines import object_lines
 from .materials import uses_functools
@@ -299,8 +300,12 @@ class Context:
 
     @cached_property
     def mixed(self):
-        """Whether a section has the u-p-J formulation."""
-        return any(sec["formulation"] == "u-p-J" for sec in self.sections)
+        """Whether a section has the mixed fields or the nearly incompressible solid
+        body of the helpers of the u-p-J formulation (ADR 0024)."""
+        return any(
+            f.fields == "mixed" or f.body == "nearly_incompressible"
+            for f in map(formulation_of, self.sections)
+        )
 
     @cached_property
     def controls(self):

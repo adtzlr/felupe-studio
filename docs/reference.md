@@ -479,16 +479,46 @@ The Mullins effect of Ogden and Roxburgh (fem.OgdenRoxburgh): the material is so
 
 ### `section.add`
 
-Assign a material and a formulation to a cell set. Each section becomes a solid body.
+Assign a material and a formulation to a cell set. Each section becomes a solid body. Every formulation is a definition below (the formulation registry, ADR 0024): its label, the solid body and the fields of FElupe, the cell types and the material that it takes, and its properties.
+
+Every variant has a `name`, the name of the object.
+
+#### Displacement (u) (`formulation: "u"`)
+
+The displacement formulation u: a field of the displacements only (fem.SolidBody). The material has a volumetric part of its own: its bulk modulus, or a compressible or a strain-based model.
+
+FElupe: the solid body `fem.SolidBody` of the fields `u`, all cell types. The material has a volumetric part of its own.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `name` | name | yes | Name of the object. |
 | `cellset` | name of a cell set | yes |  |
 | `material` | name of a material | yes |  |
-| `formulation` | `u`, `u-p-J` or `u-isochoric` | yes | u: displacement field only. u-p-J: mixed fields (fem.FieldsMixed) for nearly incompressible materials. u-isochoric: displacement field only, with a material without a bulk modulus whose strain energy has no volumetric part, e.g. air as a third medium between the parts of a model that come into contact. |
-| `bulk` | number > 0 (or an expression) | if `formulation` is `u-p-J` | Bulk modulus of the nearly incompressible formulation (required for u-p-J). |
-| `volumetric` | `volume-ratio`, `stretch` or `log` |  | The volumetric part U(J) of the strain energy of the u-p-J formulation with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)². Default `volume-ratio`. |
+| `color` | string |  | An own color of a mesh, a cell set or a section in the viewport (Color by: Meshes, Cell sets or Sections) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position among the objects of its kind in the model. A property of the model, not of the script: the generated script is the same. |
+
+#### Nearly incompressible (u, p, J) (`formulation: "u-p-J"`)
+
+The nearly incompressible formulation u-p-J of the displacements, the pressure and the volume ratio, for a material without a volumetric part: the section adds it with its bulk modulus. Linear hexahedrons and quads condense the pressure and the volume ratio of every cell (fem.SolidBodyNearlyIncompressible); the other cells have mixed fields (fem.FieldsMixed with fem.NearlyIncompressible), linear tetrahedra and triangles with a bubble point (MINI).
+
+FElupe: the solid body `nearly_incompressible` of the fields `mixed`, all cell types. The material is the isochoric part of a strain energy: the section adds the volumetric part.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `cellset` | name of a cell set | yes |  |
+| `material` | name of a material | yes |  |
+| `bulk` | number > 0 (or an expression) | yes | Bulk modulus of the nearly incompressible formulation. |
+| `volumetric` | `volume-ratio`, `stretch` or `log` |  | The volumetric part U(J) of the strain energy with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)². Default `volume-ratio`. |
+| `color` | string |  | An own color of a mesh, a cell set or a section in the viewport (Color by: Meshes, Cell sets or Sections) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position among the objects of its kind in the model. A property of the model, not of the script: the generated script is the same. |
+
+#### Isochoric part only (third medium) (`formulation: "u-isochoric"`)
+
+The displacement formulation u-isochoric: a field of the displacements only (fem.SolidBody), with a material without a bulk modulus whose strain energy has no volumetric part, e.g. air as a third medium between the parts of a model that come into contact.
+
+FElupe: the solid body `fem.SolidBody` of the fields `u`, all cell types. The material has no volumetric part, and the section adds none.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `cellset` | name of a cell set | yes |  |
+| `material` | name of a material | yes |  |
 | `color` | string |  | An own color of a mesh, a cell set or a section in the viewport (Color by: Meshes, Cell sets or Sections) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position among the objects of its kind in the model. A property of the model, not of the script: the generated script is the same. |
 
 ### `pointset.add`

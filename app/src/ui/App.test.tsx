@@ -435,7 +435,9 @@ describe("compact windows (#378)", () => {
     fireEvent.click(tab("Materials"));
     fireEvent.click(tab("Sections"));
     expect(panel.hidden).toBe(false);
-    fireEvent.click(within(panel).getByRole("button", { name: "Section" }));
+    fireEvent.click(
+      within(panel).getByRole("button", { name: "Displacement (u)" }),
+    );
     expect(screen.getByRole("dialog")).toBeTruthy();
     expect(panel.hidden).toBe(true);
     fireEvent.click(

@@ -17,6 +17,7 @@ from .formatting import (
     vector,
     wrap,
 )
+from .formulations import formulation_of
 from .loadcases import moving
 
 # the default tolerance of the Newton-Raphson method: the norm of the residual forces
@@ -245,25 +246,25 @@ def switches(steps):
 
 def held_sections(context, step):
     """The sections that a step leaves out whose dual fields it holds (#428): those of
-    the formulation u-p-J, which may have mixed fields (``mixed_field`` decides by the
-    type of the cells when the script runs)."""
+    a formulation whose fields may be mixed fields, e.g. u-p-J (``mixed_field``
+    decides by the type of the cells when the script runs)."""
     if "sections" not in step:
         return []
     return [
         sec["name"]
         for sec in context.sections
-        if sec["name"] not in step["sections"] and sec["formulation"] == "u-p-J"
+        if sec["name"] not in step["sections"] and formulation_of(sec).dual
     ]
 
 
 def empty_sections(context, step):
     """The sections of a step whose dual fields it holds if they have no volume when
-    the script runs (#429): those of the formulation u-p-J of a script with meshes of
-    scripts."""
+    the script runs (#429): those of a formulation whose fields may be mixed fields,
+    e.g. u-p-J, of a script with meshes of scripts."""
     if not context.volumes:
         return []
-    formulations = {sec["name"]: sec["formulation"] for sec in context.sections}
-    return [n for n in step_sections(context, step) if formulations[n] == "u-p-J"]
+    dual = {sec["name"]: formulation_of(sec).dual for sec in context.sections}
+    return [n for n in step_sections(context, step) if dual[n]]
 
 
 def holds(context):

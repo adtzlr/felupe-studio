@@ -257,6 +257,9 @@ def _variants(name, node, command):
                 f"FElupe: `fem.MaterialStrain` of `{felupe['strain']}`"
                 + (f", state variables `{statevars}`" if statevars else "")
             )
+        elif isinstance(felupe, dict) and "body" in felupe:
+            # a formulation of a section (ADR 0024)
+            out.append(_formulation(felupe))
         elif isinstance(felupe, dict) and felupe:
             functions = [f"`{v}`" for v in felupe.values() if isinstance(v, str)]
             out.append("FElupe: " + ", ".join(functions))
@@ -294,11 +297,39 @@ def _variants(name, node, command):
             rows = [
                 r
                 for r in _rows(resolved, command, prefix=f"{name}." if name else "")
-                if not (name == "" and r[0] in ("`name`", "`type`", "`model`"))
+                if not (
+                    name == ""
+                    and r[0] in ("`name`", "`type`", "`model`", "`formulation`")
+                )
             ]
             if rows:
                 out.append(_table(rows))
     return out
+
+
+# what the material of a formulation has (x-felupe: material, ADR 0024)
+MATERIALS = {
+    "volumetric": "has a volumetric part of its own",
+    "isochoric": "is the isochoric part of a strain energy: the section adds the "
+    "volumetric part",
+    "none": "has no volumetric part, and the section adds none",
+    "any": "is any material",
+}
+
+
+def _formulation(felupe):
+    """The solid body, the fields, the cells and the material of a formulation."""
+    cells = felupe["cells"]
+    cells = (
+        "all cell types"
+        if cells == "all"
+        else "the cell types " + _join([f"`{c}`" for c in cells])
+    )
+    return (
+        f"FElupe: the solid body `{felupe['body']}` of the fields "
+        f"`{felupe['fields']}`, {cells}. The material "
+        f"{MATERIALS[felupe['material']]}."
+    )
 
 
 def _parameter_rows(params, command):

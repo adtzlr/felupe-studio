@@ -914,7 +914,7 @@ export function initialDraft(
   const draft = normalize(type, { name, ...preset, command: type }, context);
   const initial = REGISTRY[type].initial;
   if (!initial) return draft;
-  const adjusted = initial(draft, context.commands);
+  const adjusted = initial(draft, context.commands, preset);
   return normalize(type, { ...adjusted, ...preset, command: type }, context);
 }
 

@@ -46,7 +46,28 @@ describe("ribbonGroups", () => {
       ["Model settings"],
       ["Parameter"],
     ]);
-    expect(labels("sections")).toEqual([["Section"]]);
+    // one button per formulation of the registry (ADR 0024), with its menu
+    expect(
+      ribbonGroups("sections")[0].map((i) => [i.id, i.preset, i.group]),
+    ).toEqual([
+      ["section.add:u", { formulation: "u" }, "Displacement"],
+      ["section.add:u-p-J", { formulation: "u-p-J" }, "Nearly incompressible"],
+      [
+        "section.add:u-isochoric",
+        { formulation: "u-isochoric" },
+        "Third medium",
+      ],
+    ]);
+    expect(
+      ribbonEntries(ribbonGroups("sections")[0]).map((e) => e.kind),
+    ).toEqual(["button", "button", "button"]);
+    expect(labels("sections")).toEqual([
+      [
+        "Displacement (u)",
+        "Nearly incompressible (u, p, J)",
+        "Isochoric part only (third medium)",
+      ],
+    ]);
     expect(labels("loads")).toEqual([
       ["Boundary"],
       ["Uniaxial", "Biaxial", "Planar", "Shear"],

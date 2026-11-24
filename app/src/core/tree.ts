@@ -215,7 +215,10 @@ const DETAILS: { [C in Command["command"]]: Detail<C> } = {
     joined(
       cmd.material,
       cmd.formulation,
-      cmd.volumetric && cmd.volumetric !== "volume-ratio" && cmd.volumetric,
+      // the volumetric part of a nearly incompressible section, if not the default
+      "volumetric" in cmd &&
+        cmd.volumetric !== "volume-ratio" &&
+        cmd.volumetric,
     ),
   "pointset.add": pointsetDetail,
   "point.add": (cmd, { length }) => `control ${at(cmd.coordinates, length)}`,
