@@ -111,7 +111,7 @@ describe("ribbon commands", () => {
     fireEvent.click(cells);
     expect(screen.queryByRole("dialog")).toBeNull();
     tab("Sections");
-    expect(command("Section").getAttribute("title")).toBe(
+    expect(command("Displacement (u)").getAttribute("title")).toBe(
       "Create a cell set and a material first.",
     );
   });
@@ -154,6 +154,46 @@ describe("ribbon commands", () => {
     // creating is one undo step
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(store.commands).toHaveLength(0);
+  });
+
+  it("create a section of the formulation of a button (ADR 0024)", () => {
+    // the fixture without its sections: a linear-elastic and a NeoHooke material
+    // without a bulk modulus, the latest
+    const document = fixture as CommandList;
+    const commands = document.commands.filter(
+      (c) => c.command !== "section.add",
+    );
+    const { store, tab, command, dialog, field, create } = setup(
+      new ModelStore({ ...document, commands: commands.slice(0, 5) }),
+    );
+    tab("Sections");
+    fireEvent.click(command("Nearly incompressible (u, p, J)"));
+    expect(field("Formulation").value).toBe("u-p-J");
+    expect(field("Material").value).toBe("umat_soft");
+    expect(field("Bulk modulus").value).toBe("5000");
+    create();
+    fireEvent.click(command("Displacement (u)"));
+    // the latest material that the formulation takes
+    expect(field("Material").value).toBe("umat_hard");
+    expect(within(dialog()).queryByLabelText("Bulk modulus")).toBeNull();
+    create();
+    expect(store.commands.slice(5)).toEqual([
+      {
+        command: "section.add",
+        name: "section_1",
+        cellset: "hard",
+        material: "umat_soft",
+        formulation: "u-p-J",
+        bulk: 5000,
+      },
+      {
+        command: "section.add",
+        name: "section_2",
+        cellset: "soft",
+        material: "umat_hard",
+        formulation: "u",
+      },
+    ]);
   });
 
   it("close the dialog with Cancel, Close and Escape and return the focus", () => {
@@ -231,7 +271,7 @@ describe("ribbon commands", () => {
       fireEvent.input(field("Coordinate"), { target: { value: "3" } }),
     );
     add("Materials", "Hyperelasticity > Neo-Hooke (compressible)");
-    add("Sections", "Section");
+    add("Sections", "Displacement (u)");
     add("Loads & BCs", "Boundary", () =>
       fireEvent.change(field("Point set"), { target: { value: "points_1" } }),
     );

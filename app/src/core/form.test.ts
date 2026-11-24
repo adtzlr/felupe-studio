@@ -247,7 +247,7 @@ describe("fieldSpecs", () => {
       "name:name*",
       "cellset:reference*",
       "material:reference*",
-      "formulation:choice*",
+      "formulation:variant*",
       "bulk:number*",
       "volumetric:choice",
       // an own color of the section (#376)
@@ -258,9 +258,29 @@ describe("fieldSpecs", () => {
       "name:name*",
       "cellset:reference*",
       "material:reference*",
-      "formulation:choice*",
+      "formulation:variant*",
       "color:color",
     ]);
+    // the formulations of the registry, in the groups of the ribbon (ADR 0024)
+    const formulation = fieldSpecs("section.add", find("section_hard")).find(
+      (s) => s.key === "formulation",
+    )!;
+    expect(formulation.input).toMatchObject({
+      type: "variant",
+      options: [
+        { value: "u", label: "Displacement (u)", group: "Displacement" },
+        {
+          value: "u-p-J",
+          label: "Nearly incompressible (u, p, J)",
+          group: "Nearly incompressible",
+        },
+        {
+          value: "u-isochoric",
+          label: "Isochoric part only (third medium)",
+          group: "Third medium",
+        },
+      ],
+    });
     const hard = { ...find("section_hard"), volumetric: "log", bulk: 1 };
     const context = { commands: (fixture as CommandList).commands };
     expect(normalize("section.add", hard as Draft, context)).not.toHaveProperty(
@@ -530,6 +550,37 @@ describe("new sections", () => {
     expect(
       initialDraft("section.add", { commands: model }, { formulation: "u" }),
     ).not.toHaveProperty("bulk");
+  });
+
+  it("take the latest material that fits the formulation of the ribbon (ADR 0024)", () => {
+    // the button Displacement (u): the linear-elastic material, not NeoHooke
+    // without a bulk modulus, which is the latest
+    expect(
+      initialDraft("section.add", { commands: model }, { formulation: "u" }),
+    ).toMatchObject({ material: "umat_hard", formulation: "u" });
+    expect(
+      initialDraft(
+        "section.add",
+        { commands: model },
+        { formulation: "u-isochoric" },
+      ),
+    ).toMatchObject({ material: "umat_soft", formulation: "u-isochoric" });
+    // the latest material, if none fits, and a material of the preset
+    const hard = model.filter((c) => c.name !== "umat_soft");
+    expect(
+      initialDraft("section.add", { commands: hard }, { formulation: "u-p-J" }),
+    ).toMatchObject({
+      material: "umat_hard",
+      formulation: "u-p-J",
+      bulk: 5000,
+    });
+    expect(
+      initialDraft(
+        "section.add",
+        { commands: model },
+        { formulation: "u", material: "umat_soft" },
+      ),
+    ).toMatchObject({ material: "umat_soft", formulation: "u" });
   });
 });
 

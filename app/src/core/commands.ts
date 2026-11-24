@@ -86,6 +86,14 @@ export type MaterialAdd =
   | MaterialLinearElastic
   | MaterialLinearElasticPlasticIsotropicHardening;
 /**
+ * Assign a material and a formulation to a cell set. Each section becomes a solid body. Every formulation is a definition below (the formulation registry, ADR 0024): its label, the solid body and the fields of FElupe, the cell types and the material that it takes, and its properties.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "SectionAdd".
+ */
+export type SectionAdd =
+  SectionDisplacement | SectionNearlyIncompressible | SectionIsochoric;
+/**
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "Axis".
  */
@@ -1187,28 +1195,53 @@ export interface MaterialLinearElasticPlasticIsotropicHardening {
   };
 }
 /**
- * Assign a material and a formulation to a cell set. Each section becomes a solid body.
+ * The displacement formulation u: a field of the displacements only (fem.SolidBody). The material has a volumetric part of its own: its bulk modulus, or a compressible or a strain-based model.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
- * via the `definition` "SectionAdd".
+ * via the `definition` "SectionDisplacement".
  */
-export interface SectionAdd {
+export interface SectionDisplacement {
   command: "section.add";
   name: Name;
   cellset: Name;
   material: Name;
+  formulation: "u";
+  color?: Color;
+}
+/**
+ * The nearly incompressible formulation u-p-J of the displacements, the pressure and the volume ratio, for a material without a volumetric part: the section adds it with its bulk modulus. Linear hexahedrons and quads condense the pressure and the volume ratio of every cell (fem.SolidBodyNearlyIncompressible); the other cells have mixed fields (fem.FieldsMixed with fem.NearlyIncompressible), linear tetrahedra and triangles with a bubble point (MINI).
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "SectionNearlyIncompressible".
+ */
+export interface SectionNearlyIncompressible {
+  command: "section.add";
+  name: Name;
+  cellset: Name;
+  material: Name;
+  formulation: "u-p-J";
   /**
-   * u: displacement field only. u-p-J: mixed fields (fem.FieldsMixed) for nearly incompressible materials. u-isochoric: displacement field only, with a material without a bulk modulus whose strain energy has no volumetric part, e.g. air as a third medium between the parts of a model that come into contact.
+   * Bulk modulus of the nearly incompressible formulation.
    */
-  formulation: "u" | "u-p-J" | "u-isochoric";
+  bulk: number | string;
   /**
-   * Bulk modulus of the nearly incompressible formulation (required for u-p-J).
-   */
-  bulk?: number | string;
-  /**
-   * The volumetric part U(J) of the strain energy of the u-p-J formulation with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)².
+   * The volumetric part U(J) of the strain energy with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)².
    */
   volumetric?: "volume-ratio" | "stretch" | "log";
+  color?: Color;
+}
+/**
+ * The displacement formulation u-isochoric: a field of the displacements only (fem.SolidBody), with a material without a bulk modulus whose strain energy has no volumetric part, e.g. air as a third medium between the parts of a model that come into contact.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "SectionIsochoric".
+ */
+export interface SectionIsochoric {
+  command: "section.add";
+  name: Name;
+  cellset: Name;
+  material: Name;
+  formulation: "u-isochoric";
   color?: Color;
 }
 /**

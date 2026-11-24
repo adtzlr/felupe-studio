@@ -4,7 +4,7 @@
 import { BRAND } from "../app";
 import { analysisOf, is2d } from "./analysis";
 import type { Command } from "./commands";
-import { needsBulk } from "./materials";
+import { fits, fitting, formulationOf } from "./formulations";
 import type { CommandType, Kind } from "./validate";
 
 export interface FieldInfo {
@@ -41,11 +41,13 @@ export interface CommandInfo {
   noun?: string;
   /**
    * Adjust the defaults of a new object to the model, e.g. a section takes a cell
-   * set without a section. Values of a preset are applied afterwards.
+   * set without a section. Values of a preset (e.g. of a button of the ribbon) are
+   * applied afterwards.
    */
   initial?: (
     draft: Record<string, unknown>,
     commands: readonly Command[],
+    preset: Record<string, unknown>,
   ) => Record<string, unknown>;
 }
 
@@ -119,10 +121,16 @@ function initialFaceSet(
   return sections.length ? { ...draft, section: sections.at(-1)!.name } : draft;
 }
 
-/** The first cell set without a section, and u-p-J for incompressible materials. */
+/**
+ * The first cell set without a section, and a material and a formulation that fit
+ * (ADR 0024): the formulation of a button of the ribbon with the latest material
+ * that it takes, else the first formulation that takes the material, e.g. u-p-J of
+ * an incompressible material.
+ */
 function initialSection(
   draft: Record<string, unknown>,
   commands: readonly Command[],
+  preset: Record<string, unknown>,
 ): Record<string, unknown> {
   const used = new Set(
     commands.flatMap((c) => (c.command === "section.add" ? [c.cellset] : [])),
@@ -134,10 +142,22 @@ function initialSection(
   );
   const next = { ...draft };
   if (free) next.cellset = free.name;
-  const material = commands.find((c) => c.name === next.material);
-  if (material?.command === "material.add" && needsBulk(material)) {
-    next.formulation = "u-p-J";
+  const materials = commands.filter(
+    (c): c is Extract<Command, { command: "material.add" }> =>
+      c.command === "material.add",
+  );
+  const chosen =
+    typeof preset.formulation === "string"
+      ? formulationOf(preset.formulation)
+      : undefined;
+  if (chosen) {
+    const material = [...materials].reverse().find((m) => fits(chosen, m));
+    if (material) next.material = material.name;
+    return next;
   }
+  const material = materials.find((m) => m.name === next.material);
+  const formulation = material && fitting(material);
+  if (formulation) next.formulation = formulation.name;
   return next;
 }
 
@@ -355,12 +375,9 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         placeholder: "automatic",
       },
     },
+    // the labels of the formulations are in the formulation registry of the schema
+    // (x-label, ADR 0024)
     options: {
-      formulation: {
-        u: "Displacement (u)",
-        "u-p-J": "Mixed (u, p, J)",
-        "u-isochoric": "Displacement, isochoric part only (third medium)",
-      },
       volumetric: {
         "volume-ratio": "Volume ratio: K/2 (J − 1)²",
         stretch: "Stretch: 9K/2 (J^⅓ − 1)²",

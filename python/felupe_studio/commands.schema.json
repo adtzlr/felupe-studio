@@ -2292,7 +2292,29 @@
       }
     },
     "SectionAdd": {
-      "description": "Assign a material and a formulation to a cell set. Each section becomes a solid body.",
+      "description": "Assign a material and a formulation to a cell set. Each section becomes a solid body. Every formulation is a definition below (the formulation registry, ADR 0024): its label, the solid body and the fields of FElupe, the cell types and the material that it takes, and its properties.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/SectionDisplacement"
+        },
+        {
+          "$ref": "#/$defs/SectionNearlyIncompressible"
+        },
+        {
+          "$ref": "#/$defs/SectionIsochoric"
+        }
+      ]
+    },
+    "SectionDisplacement": {
+      "description": "The displacement formulation u: a field of the displacements only (fem.SolidBody). The material has a volumetric part of its own: its bulk modulus, or a compressible or a strain-based model.",
+      "x-label": "Displacement (u)",
+      "x-group": "Displacement",
+      "x-felupe": {
+        "body": "fem.SolidBody",
+        "fields": "u",
+        "cells": "all",
+        "material": "volumetric"
+      },
       "type": "object",
       "required": ["command", "name", "cellset", "material", "formulation"],
       "additionalProperties": false,
@@ -2310,44 +2332,96 @@
           "$ref": "#/$defs/Name"
         },
         "formulation": {
-          "description": "u: displacement field only. u-p-J: mixed fields (fem.FieldsMixed) for nearly incompressible materials. u-isochoric: displacement field only, with a material without a bulk modulus whose strain energy has no volumetric part, e.g. air as a third medium between the parts of a model that come into contact.",
-          "enum": ["u", "u-p-J", "u-isochoric"]
+          "const": "u"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
+        }
+      }
+    },
+    "SectionNearlyIncompressible": {
+      "description": "The nearly incompressible formulation u-p-J of the displacements, the pressure and the volume ratio, for a material without a volumetric part: the section adds it with its bulk modulus. Linear hexahedrons and quads condense the pressure and the volume ratio of every cell (fem.SolidBodyNearlyIncompressible); the other cells have mixed fields (fem.FieldsMixed with fem.NearlyIncompressible), linear tetrahedra and triangles with a bubble point (MINI).",
+      "x-label": "Nearly incompressible (u, p, J)",
+      "x-group": "Nearly incompressible",
+      "x-felupe": {
+        "body": "nearly_incompressible",
+        "fields": "mixed",
+        "cells": "all",
+        "material": "isochoric"
+      },
+      "type": "object",
+      "required": [
+        "command",
+        "name",
+        "cellset",
+        "material",
+        "formulation",
+        "bulk"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "section.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "cellset": {
+          "$ref": "#/$defs/Name"
+        },
+        "material": {
+          "$ref": "#/$defs/Name"
+        },
+        "formulation": {
+          "const": "u-p-J"
         },
         "bulk": {
-          "description": "Bulk modulus of the nearly incompressible formulation (required for u-p-J).",
+          "description": "Bulk modulus of the nearly incompressible formulation.",
           "type": ["number", "string"],
           "exclusiveMinimum": 0,
           "x-quantity": "stress"
         },
         "volumetric": {
-          "description": "The volumetric part U(J) of the strain energy of the u-p-J formulation with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)².",
+          "description": "The volumetric part U(J) of the strain energy with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)².",
           "enum": ["volume-ratio", "stretch", "log"],
           "default": "volume-ratio"
         },
         "color": {
           "$ref": "#/$defs/Color"
         }
+      }
+    },
+    "SectionIsochoric": {
+      "description": "The displacement formulation u-isochoric: a field of the displacements only (fem.SolidBody), with a material without a bulk modulus whose strain energy has no volumetric part, e.g. air as a third medium between the parts of a model that come into contact.",
+      "x-label": "Isochoric part only (third medium)",
+      "x-group": "Third medium",
+      "x-felupe": {
+        "body": "fem.SolidBody",
+        "fields": "u",
+        "cells": "all",
+        "material": "none"
       },
-      "if": {
-        "properties": {
-          "formulation": {
-            "const": "u-p-J"
-          }
-        }
-      },
-      "then": {
-        "required": ["bulk"]
-      },
-      "else": {
-        "not": {
-          "anyOf": [
-            {
-              "required": ["bulk"]
-            },
-            {
-              "required": ["volumetric"]
-            }
-          ]
+      "type": "object",
+      "required": ["command", "name", "cellset", "material", "formulation"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "section.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "cellset": {
+          "$ref": "#/$defs/Name"
+        },
+        "material": {
+          "$ref": "#/$defs/Name"
+        },
+        "formulation": {
+          "const": "u-isochoric"
+        },
+        "color": {
+          "$ref": "#/$defs/Color"
         }
       }
     },

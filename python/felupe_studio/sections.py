@@ -7,6 +7,7 @@ bodies of the sections after the merge (see :func:`felupe.field.merge`).
 
 from . import meshtools
 from .formatting import Dict, List, call, number, quote, vector, wrap
+from .formulations import formulation_of
 from .materials import lame_call, material_call
 
 
@@ -83,37 +84,60 @@ def material(context, mat):
     return lines
 
 
-def section_fields(context, sec):
-    """The region and the field container of a section."""
-    c, region = sec["cellset"], f"region_{sec['name']}"
-    # (u-isochoric: the displacements of a material without a volumetric part, e.g.
-    # air as a third medium, #241)
-    if sec["formulation"] != "u-p-J":
-        return [
-            call(region, f"REGIONS[{c}.cell_type]", [c], context.astype),
-            context.container(f"field_{sec['name']}", region),
-        ]
-    # the displacements only of linear hexahedrons and quads (#226)
+def displacement_fields(context, cellset, region, field):
+    """The region of a cell set and the field container of its displacements."""
+    return [
+        call(region, f"REGIONS[{cellset}.cell_type]", [cellset], context.astype),
+        context.container(field, region),
+    ]
+
+
+def mixed_fields(context, cellset, region, field):
+    """The region and the field container of the mixed fields of the displacements,
+    the pressure and the volume ratio: the displacements only of linear hexahedrons
+    and quads, whose pressure and volume ratio are condensed per cell (#226)."""
     flag = [context.mixed_flag] if context.mixed_flag else []
     return [
-        call(region, "mixed_region", [c], context.astype),
-        call(f"field_{sec['name']}", "mixed_field", [region, *flag, *context.dtype]),
+        call(region, "mixed_region", [cellset], context.astype),
+        call(field, "mixed_field", [region, *flag, *context.dtype]),
     ]
+
+
+def solid(sec, field):
+    """The arguments of ``fem.SolidBody``."""
+    return [sec["material"], field]
+
+
+def nearly_incompressible(sec, field):
+    """The arguments of ``nearly_incompressible()``: fem.SolidBodyNearlyIncompressible
+    of linear hexahedrons and quads, else fem.NearlyIncompressible on the mixed fields
+    (#226), with the bulk modulus and the volumetric part of the strain energy if not
+    the default (#134)."""
+    args = [sec["material"], field, f"bulk={sec['bulk']!r}"]
+    volumetric = sec.get("volumetric", "volume-ratio")
+    if volumetric != "volume-ratio":
+        args.append(f"volumetric={quote(volumetric)}")
+    return args
+
+
+# the builders of the fields and of the solid body of a section, by the fields and
+# the body of its formulation (x-felupe of the formulation registry, ADR 0024)
+FIELDS = {"u": displacement_fields, "mixed": mixed_fields}
+BODIES = {"fem.SolidBody": solid, "nearly_incompressible": nearly_incompressible}
+
+
+def section_fields(context, sec):
+    """The region and the field container of a section."""
+    builder = FIELDS[formulation_of(sec).fields]
+    name = sec["name"]
+    return builder(context, sec["cellset"], f"region_{name}", f"field_{name}")
 
 
 def solid_body(context, sec):
     """The solid body of a section."""
-    umat, field = sec["material"], f"field_{sec['name']}"
-    if sec["formulation"] != "u-p-J":
-        return [call(f"solid_{sec['name']}", "fem.SolidBody", [umat, field])]
-    # fem.SolidBodyNearlyIncompressible of linear hexahedrons and quads, else
-    # fem.NearlyIncompressible on the mixed fields (#226)
-    args = [umat, field, f"bulk={sec['bulk']!r}"]
-    # the volumetric part of the strain energy, if not the default (#134)
-    volumetric = sec.get("volumetric", "volume-ratio")
-    if volumetric != "volume-ratio":
-        args.append(f"volumetric={quote(volumetric)}")
-    return [call(f"solid_{sec['name']}", "nearly_incompressible", args)]
+    body = formulation_of(sec).body
+    args = BODIES[body](sec, f"field_{sec['name']}")
+    return [call(f"solid_{sec['name']}", body, args)]
 
 
 def rigid_comment(rigid, dim=3):

@@ -300,6 +300,16 @@ describe("editing in the properties panel", () => {
     choose("Volumetric part", "log");
     fireEvent.click(button("Apply"));
     expect(store.get("section_soft")).toMatchObject({ volumetric: "log" });
+    // the formulations of the registry in the groups of the ribbon (ADR 0024)
+    const groups = [...field<HTMLSelectElement>("Formulation").children].map(
+      (g) =>
+        `${(g as HTMLOptGroupElement).label}: ${[...g.children].map((o) => o.textContent).join()}`,
+    );
+    expect(groups).toEqual([
+      "Displacement: Displacement (u)",
+      "Nearly incompressible: Nearly incompressible (u, p, J)",
+      "Third medium: Isochoric part only (third medium)",
+    ]);
     choose("Formulation", "u");
     expect(within(properties).queryByLabelText("Bulk modulus")).toBeNull();
     expect(within(properties).queryByLabelText("Volumetric part")).toBeNull();

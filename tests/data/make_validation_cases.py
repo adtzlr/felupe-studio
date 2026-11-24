@@ -10,7 +10,8 @@ import copy
 import json
 from pathlib import Path
 
-from felupe_studio.commands import errors, notes
+from felupe_studio.commands import errors, notes, schema
+from felupe_studio.formulations import formulations
 
 HERE = Path(__file__).parent
 
@@ -1344,6 +1345,43 @@ CHANGES |= {
         find(d, "step_1").update(boundaries=["tension", "half"]),
         find(d, "step_1")["ramp"]["items"][0].update(target="tension"),
     ),
+}
+
+# every formulation of the registry with every kind of material (ADR 0024): the rule
+# that the material fits the formulation, the same in both languages
+MATERIAL_KINDS = {
+    "an incompressible material": ("NeoHooke", {"mu": 1}),
+    "a material with a bulk modulus": ("NeoHooke", {"mu": 1, "bulk": 5000}),
+    "a compressible material": ("NeoHookeCompressible", {"mu": 1, "lmbda": 5000}),
+    "a strain-based material": ("LinearElastic", {"E": 210000, "nu": 0.3}),
+}
+
+
+def formulation(document, name, model, parameters):
+    """The section soft of a formulation, with the bulk modulus if the formulation
+    has one, and its material of a model."""
+    find(document, "umat_soft").update(model=model, parameters=parameters)
+    section = find(document, "section_soft")
+    section.pop("bulk", None)
+    section["formulation"] = name
+    if "bulk" in SECTIONS[name]["required"]:
+        section["bulk"] = 5000
+
+
+SECTIONS = {
+    node["properties"]["formulation"]["const"]: node
+    for node in (
+        schema()["$defs"][ref["$ref"].split("/")[-1]]
+        for ref in schema()["$defs"]["SectionAdd"]["oneOf"]
+    )
+}
+
+CHANGES |= {
+    f"formulation {name} with {kind}": (
+        lambda d, name=name, material=material: formulation(d, name, *material)
+    )
+    for name in formulations()
+    for kind, material in MATERIAL_KINDS.items()
 }
 
 

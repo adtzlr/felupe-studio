@@ -31,13 +31,8 @@ import {
   VERTICES,
 } from "./kinds";
 import { loadcaseFieldErrors, loadcaseProblems } from "./loadcases";
-import {
-  MATERIAL_MODELS,
-  hasVolumetric,
-  materialProblems,
-  needsBulk,
-  strainBased,
-} from "./materials";
+import { first, fits, type Formulation, formulationOf } from "./formulations";
+import { MATERIAL_MODELS, materialProblems, strainBased } from "./materials";
 import { parameterProblems } from "./parameters";
 import {
   NAME_MAX_LENGTH,
@@ -406,81 +401,62 @@ function materialOf(model: Model, section: CommandOf<"section.add">) {
   return material?.command === "material.add" ? material : undefined;
 }
 
-/** A model with an optional bulk modulus has no volumetric part without it. */
-const sectionBulk: Rule<CommandOf<"section.add">> = (model, cmd) => {
+/**
+ * The material fits the formulation of the section (ADR 0024): by `material` of the
+ * formulation registry, its volumetric part. The message names a formulation that
+ * fits.
+ */
+const sectionMaterial: Rule<CommandOf<"section.add">> = (model, cmd) => {
   const material = materialOf(model, cmd);
-  if (cmd.formulation !== "u" || !material || !needsBulk(material)) return [];
+  const formulation = formulationOf(cmd.formulation);
+  if (!material || !formulation || fits(formulation, material)) return [];
   return [
     {
-      message:
-        `section '${cmd.name}' uses the displacement formulation with ${material.model} ` +
-        `'${material.name}' without a bulk modulus. Add 'bulk' to the material, use 'u-p-J', ` +
-        `or 'u-isochoric' for a material without a volumetric part, e.g. air as a third medium.`,
-      field: "formulation",
-    },
-  ];
-};
-
-/** The formulation without a volumetric part needs a material without one. */
-const sectionIsochoric: Rule<CommandOf<"section.add">> = (model, cmd) => {
-  const material = materialOf(model, cmd);
-  if (
-    cmd.formulation !== "u-isochoric" ||
-    !material ||
-    !hasVolumetric(material)
-  )
-    return [];
-  return [
-    {
-      message:
-        `section '${cmd.name}' uses the formulation u-isochoric with ${material.model} ` +
-        `'${material.name}', which has a volumetric part. Use 'u'.`,
-      field: "formulation",
-    },
-  ];
-};
-
-/** A strain-based material has no strain energy for the u-p-J formulation. */
-const sectionStrainBased: Rule<CommandOf<"section.add">> = (model, cmd) => {
-  const material = materialOf(model, cmd);
-  if (cmd.formulation !== "u-p-J" || !material || !strainBased(material))
-    return [];
-  return [
-    {
-      message:
-        `section '${cmd.name}' uses the u-p-J formulation with the strain-based ` +
-        `${material.model} '${material.name}'. Use the displacement formulation 'u'.`,
+      message: `section '${cmd.name}' uses ${misfit(formulation, material)}`,
       field: "formulation",
     },
   ];
 };
 
 /**
- * The u-p-J formulation adds the volumetric part of the section to the material,
- * which must not have one of its own (#417): it would act on the volume ratio of
- * the displacements, too stiff.
+ * Why a formulation does not take a material, and the formulations that do: of a
+ * material with a volumetric part of its own (`u`), the isochoric part of a strain
+ * energy (`u-p-J`, #417, #191) or without a volumetric part (`u-isochoric`, #241).
  */
-const sectionVolumetric: Rule<CommandOf<"section.add">> = (model, cmd) => {
-  const material = materialOf(model, cmd);
-  if (cmd.formulation !== "u-p-J" || !material) return [];
-  if (!hasVolumetric(material) || strainBased(material)) return [];
-  const start =
-    `section '${cmd.name}' uses the u-p-J formulation with ${material.model} ` +
-    `'${material.name}', which `;
+function misfit(
+  formulation: Formulation,
+  material: CommandOf<"material.add">,
+): string {
+  const { name } = formulation;
+  const what = `${material.model} '${material.name}'`;
+  if (formulation.material === "volumetric")
+    return (
+      `the displacement formulation with ${what} without a bulk modulus. Add ` +
+      `'bulk' to the material, use '${first("isochoric")}', or ` +
+      `'${first("none")}' for a material without a volumetric part, e.g. air ` +
+      `as a third medium.`
+    );
+  if (formulation.material === "none")
+    return (
+      `the formulation ${name} with ${what}, which has a volumetric part. Use ` +
+      `'${first("volumetric")}'.`
+    );
+  const displacement = first("volumetric");
+  if (strainBased(material))
+    return (
+      `the ${name} formulation with the strain-based ${what}. Use the ` +
+      `displacement formulation '${displacement}'.`
+    );
   const optionalBulk = MATERIAL_MODELS.find(
     (m) => m.name === material.model,
   )?.optionalBulk;
-  return [
-    {
-      message: optionalBulk
-        ? `${start}has a volumetric part (its bulk modulus). Remove 'bulk' from ` +
-          `the material, or use the displacement formulation 'u'.`
-        : `${start}is compressible. Use 'u', or a nearly incompressible model ` +
-          `without a bulk modulus.`,
-      field: "formulation",
-    },
-  ];
-};
+  return optionalBulk
+    ? `the ${name} formulation with ${what}, which has a volumetric part (its ` +
+        `bulk modulus). Remove 'bulk' from the material, or use the displacement ` +
+        `formulation '${displacement}'.`
+    : `the ${name} formulation with ${what}, which is compressible. Use ` +
+        `'${displacement}', or a nearly incompressible model without a bulk modulus.`;
+}
 
 /** The axes of a load case, at the field of the error of the form. */
 const loadcase: Rule<CommandOf<"loadcase.add">> = (_, cmd) => {
@@ -637,12 +613,7 @@ export const RULES: Rules = {
   "mesh.generate": [meshTool, meshInputs],
   "cellset.from_tag": [cellsetTag, cellsetModelMesh],
   "cellset.from_file": [cellsetModelMesh],
-  "section.add": [
-    sectionBulk,
-    sectionIsochoric,
-    sectionStrainBased,
-    sectionVolumetric,
-  ],
+  "section.add": [sectionMaterial],
   "loadcase.add": [loadcase],
   "point.add": [vertexCoordinates],
   "rigid.add": [vertexCoordinates, rigidShape],
