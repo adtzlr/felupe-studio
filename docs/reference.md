@@ -23,7 +23,7 @@ A number of a command (*or an expression* below) may be an expression of the par
 - [`parameter.add`](#parameteradd): A parameter of the model: a number, e.g. a dimension or the number of cells of a mesh made by a script, or a derived parameter, an expression of other parameters (ADR 0021).
 - [`mesh.import`](#meshimport): Import a mesh file (read with meshio).
 - [`mesh.script`](#meshscript): A mesh made by a Python script next to the project, e.g. with the mesh tools of FElupe.
-- [`mesh.generate`](#meshgenerate): A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes made by tools before, like expand or revolve.
+- [`mesh.generate`](#meshgenerate): A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes of the model before (made by tools, of files or of scripts), like expand or revolve.
 - [`mesh.merge`](#meshmerge): Merge points of the sections whose coordinates agree to the given number of decimals (fem.field.merge(..., decimals)).
 - [`cellset.from_tag`](#cellsetfrom_tag): Cell set of all cells of a mesh with the given tag value.
 - [`cellset.from_file`](#cellsetfrom_file): Cell set of all cells of a mesh.
@@ -102,7 +102,7 @@ A mesh made by a Python script next to the project, e.g. with the mesh tools of 
 
 ### `mesh.generate`
 
-A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes made by tools before, like expand or revolve. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh.
+A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes of the model before (made by tools, of files or of scripts), like expand or revolve. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh.
 
 Every variant has a `name`, the name of the object.
 
@@ -170,7 +170,7 @@ A triangle in the xy-plane (fem.mesh.Triangle): three quad sections between the 
 
 Expand a mesh along a new axis (mesh.expand): a point to a line, a line to quads in the xy-plane, quads to hexahedrons along z, with n points over the length z.
 
-Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool before.
+Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -181,7 +181,7 @@ Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool
 
 Revolve a mesh about an axis (mesh.revolve): a point to a line, a line to quads, quads to hexahedrons, with n points over the angle phi.
 
-Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool before.
+Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -193,7 +193,7 @@ Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool
 
 Embed a mesh into one dimension more (embed, e.g. np.pad of the points): its points get the coordinate value of the new axis, its cells stay, e.g. a line into the plane y = value.
 
-Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool before.
+Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -203,7 +203,7 @@ Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool
 
 Move a mesh along an axis (mesh.translate).
 
-Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool before.
+Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -214,7 +214,7 @@ Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool
 
 Rotate a mesh about an axis through a center (mesh.rotate); a mesh of 2D points turns about z.
 
-Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool before.
+Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -226,7 +226,7 @@ Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool
 
 Mirror a mesh at a plane normal to an axis (mesh.mirror), at the coordinate value of the axis.
 
-Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool before.
+Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -237,7 +237,7 @@ Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool
 
 Fill the cells between two meshes of the same cells and points (fem.mesh.fill_between): quads between two lines in a plane, hexahedrons between two quad meshes in space, with n points from the first mesh to the second.
 
-Inputs (`inputs`): 2 meshes. The two meshes made by tools before, from the first to the second, of the same cell type and number of points, e.g. two lines embedded in a plane.
+Inputs (`inputs`): 2 meshes. The two meshes of the model before, from the first to the second, of the same cell type and number of points, e.g. two lines embedded in a plane.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -247,7 +247,7 @@ Inputs (`inputs`): 2 meshes. The two meshes made by tools before, from the first
 
 Add runouts to a mesh (mesh.add_runouts), e.g. the concave free surfaces of a rubber body between metal parts: the points move perpendicular to the axis by a relative amount, most at the centerpoint.
 
-Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool before.
+Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -261,7 +261,7 @@ Inputs (`inputs`): one mesh. The mesh that the tool takes: a mesh made by a tool
 
 Stack several meshes of the same cells and points into one (fem.MeshContainer(meshes, merge=True, decimals).stack()): the points of all meshes, with the points at the same place merged, and the cells of all meshes, e.g. a profile of several rectangles that is revolved at once.
 
-Inputs (`inputs`): 2 or more meshes, each once. The meshes that the tool stacks: two or more meshes made by tools before, of the same cell type and dimension of the points.
+Inputs (`inputs`): 2 or more meshes, each once. The meshes that the tool stacks: two or more meshes of the model before, of the same cell type and dimension of the points.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
