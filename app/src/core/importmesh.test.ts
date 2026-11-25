@@ -5,6 +5,7 @@ import {
   defaultMode,
   describePlanned,
   meshSize,
+  offersConstruction,
   planImport,
   suggestMeshName,
   suggestScale,
@@ -297,6 +298,49 @@ describe("planImport", () => {
         file: "hybrid.vtu",
         cell_type: "hexahedron",
       },
+    ]);
+  });
+});
+
+describe("a construction mesh of a file (#438)", () => {
+  const profile = solids("profile.vtu", { cell_type: "quad", cells: 12 });
+  const settings = (analysis: "plane-strain" | "3d") =>
+    [{ command: "model.settings", name: "settings", analysis }] as Command[];
+
+  it("is offered for 2D cells in a 3D model", () => {
+    expect(offersConstruction(profile, [])).toBe(true);
+    expect(offersConstruction(profile, settings("plane-strain"))).toBe(false);
+    const bar = solids("bar.vtu", { cell_type: "hexahedron", cells: 1 });
+    expect(offersConstruction(bar, [])).toBe(false);
+    expect(offersConstruction({ file: "empty.vtu" }, [])).toBe(false);
+  });
+
+  it("takes its cell type, without cell sets", () => {
+    const plan = planImport(profile, "profile", { mode: "all" }, [], 1, true);
+    expect(plan).toEqual([
+      {
+        command: "mesh.import",
+        name: "profile",
+        file: "profile.vtu",
+        cell_type: "quad",
+      },
+    ]);
+    expect(validate(plan)).toEqual([]);
+    expect(describePlanned(plan[0], plan, profile)).toBe(
+      "quad, 12 cells, construction",
+    );
+    // a mesh of a 2D model
+    expect(
+      describePlanned(plan[0], plan, profile, settings("plane-strain")),
+    ).toBe("quad, 12 cells");
+    // a cell set of it is a problem
+    const cells: Command = {
+      command: "cellset.from_file",
+      name: "profile_cells",
+      mesh: "profile",
+    };
+    expect(validate([...plan, cells]).map((e) => e.message)).toEqual([
+      "commands/1: cell set 'profile_cells' takes mesh 'profile' of quad cells (2D), but a cell set of a 3D model needs 3D cells with 3D points.",
     ]);
   });
 });

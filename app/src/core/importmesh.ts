@@ -1,9 +1,12 @@
 // Plan the commands of a mesh import: the mesh and its cell sets, with readable,
 // valid and unused names derived from the file and its cell tags. A file with more
-// than one type of solid cells gives one mesh per cell type.
+// than one type of solid cells gives one mesh per cell type. A file of 2D cells in a
+// 3D model may be a construction mesh, e.g. a profile to revolve (#438).
+import { analysisOf, CELLS_2D, is2d } from "./analysis";
 import type { Command, MeshImport } from "./commands";
 import type { Units } from "./units";
 import { fileTags, solidOf, solidTypes } from "./meshinfo";
+import { isConstruction } from "./meshtools";
 import type { MeshInfo } from "../worker/protocol";
 import { NAME_MAX_LENGTH } from "./schema";
 import { nameProblem } from "./validate";
@@ -40,6 +43,23 @@ export function suggestMeshName(
   commands: readonly Command[],
 ): string {
   return toName(stem(file), new Set(commands.map((c) => c.name)), "mesh");
+}
+
+/**
+ * Whether the file may be a construction mesh of the model (#438): its solid cells
+ * are 2D cells, e.g. a profile, and the model is 3D. A construction mesh is an
+ * input of the mesh tools (`revolve`, `expand`), without cell sets.
+ */
+export function offersConstruction(
+  info: MeshInfo,
+  commands: readonly Command[],
+): boolean {
+  const solids = info.solids ?? [];
+  return (
+    !is2d(analysisOf(commands)) &&
+    solids.length > 0 &&
+    solids.every((s) => CELLS_2D.includes(s.cell_type))
+  );
 }
 
 /** One cell set per tag value if the file has tags, else one with all cells. */
@@ -155,13 +175,15 @@ function cellsetsOf(
  * The commands that import a mesh and create its cell sets (one undo step). With
  * more than one type of solid cells in the file, every mesh takes one cell type and
  * is named `<name>_<cell type>`. A scale other than 1 multiplies the coordinates.
+ * A `construction` mesh (#438) takes its cell type, without cell sets.
  */
 export function planImport(
   info: MeshInfo,
   name: string,
-  mode: CellSetMode,
+  cellsets: CellSetMode,
   commands: readonly Command[],
   scale = 1,
+  construction = false,
 ): Command[] {
   const taken = new Set([...commands.map((c) => c.name), name]);
   const take = (text: string, fallback: string) => {
@@ -170,6 +192,7 @@ export function planImport(
     return result;
   };
 
+  const mode: CellSetMode = construction ? { mode: "none" } : cellsets;
   const solids = info.solids ?? [];
   const byType = solidTypes(info).length > 1;
   if (mode.mode === "tag" && !fileTags(info).some((t) => t.name === mode.tag)) {
@@ -189,7 +212,7 @@ export function planImport(
       name: meshName,
       file: info.file,
       ...(tag ? { tag: tag.name } : {}),
-      ...(byType
+      ...(byType || construction
         ? { cell_type: solid.cell_type as MeshImport["cell_type"] }
         : {}),
       ...(scale !== 1 ? { scale } : {}),
@@ -199,11 +222,15 @@ export function planImport(
   return plan;
 }
 
-/** What a planned command creates, e.g. `hexahedron, 96 cells`. */
+/**
+ * What a planned command creates, e.g. `hexahedron, 96 cells`, and whether a mesh
+ * is a construction mesh in the model (#438).
+ */
 export function describePlanned(
   command: Command,
   plan: readonly Command[],
   info: MeshInfo,
+  commands: readonly Command[] = [],
 ): string {
   const solid = (meshName: string) => {
     const mesh = plan.find((c) => c.name === meshName);
@@ -218,7 +245,10 @@ export function describePlanned(
   switch (command.command) {
     case "mesh.import": {
       const s = solid(command.name);
-      return s ? `${s.cell_type}, ${cells(s.cells)}` : "";
+      const construction = isConstruction(command.name, [...commands, ...plan]);
+      return s
+        ? `${s.cell_type}, ${cells(s.cells)}${construction ? ", construction" : ""}`
+        : "";
     }
     case "cellset.from_tag": {
       const s = solid(command.mesh);

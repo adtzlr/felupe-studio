@@ -253,6 +253,8 @@ export const PLANAR: { [K in Command["command"]]?: PlanarRule<K> } = {
  * The problems of a command in a model of a type of analysis, with the field of
  * the command that has them: a 2D model has 2D cells and no z components, except
  * the rotation about z of the `rotations` (the rotation points of constraints).
+ * The 2D cells of a mesh of a file or of a script in a 3D model are a construction
+ * mesh (#438), without cell sets.
  */
 export function analysisProblems(
   cmd: Command,
@@ -263,14 +265,7 @@ export function analysisProblems(
     cmd.command === "mesh.import" || cmd.command === "mesh.script"
       ? cmd.cell_type
       : undefined;
-  if (analysis === "3d") {
-    return cellType && !CELLS_3D.includes(cellType)
-      ? problem(
-          `mesh '${cmd.name}' takes ${cellType} cells, which are 2D cells: set the analysis of the settings to plane strain or axisymmetric.`,
-          "cell_type",
-        )
-      : [];
-  }
+  if (analysis === "3d") return [];
   if (cellType && CELLS_3D.includes(cellType)) {
     return problem(
       `mesh '${cmd.name}' takes ${cellType} cells, but a 2D model has 2D cells.`,

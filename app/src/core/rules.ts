@@ -484,15 +484,15 @@ const cellsetTag: Rule<CommandOf<"cellset.from_tag">> = (model, cmd) => {
 };
 
 /**
- * A cell set needs a mesh of the model: of a mesh made by a tool, its points and
- * its cells have the dimension of the model; a lower one is a construction mesh
- * (ADR 0019).
+ * A cell set needs a mesh of the model: its points and its cells have the dimension
+ * of the model; a lower one is a construction mesh (ADR 0019), also of a file or a
+ * script with 2D cells in a 3D model (#438).
  */
 const cellsetModelMesh: Rule<
   CommandOf<"cellset.from_tag" | "cellset.from_file">
 > = (model, cmd) => {
   const mesh = model.before(cmd.mesh);
-  if (mesh?.command !== "mesh.generate") return [];
+  if (!mesh) return [];
   const dimension = model.dimensions.get(mesh.name);
   const dim = model.axes.length;
   if (!dimension || modelMesh(dimension, dim)) return [];

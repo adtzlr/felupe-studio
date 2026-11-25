@@ -287,4 +287,74 @@ describe("meshes of files and scripts as inputs of the tools (#438)", () => {
       "stack needs meshes of the same cells and points: 'half' tetra cells with 3D points, 'block' hexahedron cells with 3D points.",
     ]);
   });
+
+  it("are construction meshes of 2D cells in a 3D model, by their cell type", async () => {
+    const made: string[] = [];
+    const files = new MeshFiles(
+      async (name) => ({
+        info: {
+          file: name,
+          points: 3,
+          solids: [
+            {
+              cell_type: "quad",
+              cells: 1,
+              bounds: [
+                [0, 1, 0],
+                [3, 2, 0],
+              ],
+              tags: [],
+            },
+          ],
+        },
+        surfaces: { quad: surface(3, [0, 1, 2], [0, 1]) },
+      }),
+      {
+        generate: async (_, name) => {
+          made.push(name);
+          const dimension = { points: 3, cells: 3, cell_type: "hexahedron" };
+          return { info: { file: name, dimension, solids: [] } };
+        },
+      },
+    );
+    const profile = {
+      command: "mesh.import",
+      name: "profile",
+      file: "profile.vtu",
+      cell_type: "quad",
+    };
+    const tube = {
+      command: "mesh.generate",
+      name: "tube",
+      tool: "revolve",
+      inputs: ["profile"],
+      parameters: { n: 5, phi: 90, axis: "x" },
+    };
+    const commands = [profile, tube] as Command[];
+    await files.add("profile.vtu", new Uint8Array([1]));
+    expect(fileNotes(commands, files).size).toBe(0);
+    expect(generateSources(tube as MeshGenerate, commands, files)).toEqual([
+      { name: "profile", file: "profile.vtu", cell_type: "quad", dim: 3 },
+    ]);
+    makeMeshes(commands, files);
+    await settle();
+    expect(made).toEqual(["tube"]);
+    // drawn like a construction mesh of the tools
+    const content = viewportContent(
+      commands as ResolvedCommand[],
+      files,
+      new Set(),
+      "mesh",
+    );
+    expect(content.meshes).toEqual([]);
+    expect(content.construction.map((m) => [m.name, m.opacity])).toEqual([
+      ["profile", 0.35],
+    ]);
+    // without its cell type, a mesh of a 2D model
+    const plain = [{ ...profile, cell_type: undefined }, tube] as Command[];
+    expect(fileNotes(plain, files).get("profile")).toEqual([
+      "The file 'profile.vtu' has quad cells, which are 2D cells: set the analysis of the settings to plane strain or axisymmetric, or take them as a construction mesh with the cell type quad, e.g. a profile to revolve.",
+    ]);
+    expect(generateSources(tube as MeshGenerate, plain, files)).toBeUndefined();
+  });
 });
