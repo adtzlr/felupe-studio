@@ -14,9 +14,12 @@ env:
   FELUPE_VERSION: "12.1.1"
 
 jobs:
+  # a job that hangs fails after its timeout, not after the 6 hours of GitHub;
+  # each of them takes about 1 to 5 minutes
   app:
     name: App (lint, test, build)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     defaults:
       run:
         working-directory: app
@@ -37,6 +40,7 @@ jobs:
   python:
     name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -57,6 +61,7 @@ jobs:
   package:
     name: Package (wheel outside of a clone)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       # the built app is part of the wheel, for felupe-studio serve (#240)
@@ -86,6 +91,7 @@ jobs:
   local:
     name: Local runtime and agent bridge (app in a browser)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -108,6 +114,7 @@ jobs:
   brand:
     name: Example brand (build, browser without internet, wheel)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7

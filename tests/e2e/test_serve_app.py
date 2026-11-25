@@ -9,9 +9,6 @@ chromium``, or ``CHROME`` with the path of a Chrome) and the built app
 import base64
 import os
 import re
-import socket
-import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -21,32 +18,12 @@ pytestmark = pytest.mark.e2e
 sync_api = pytest.importorskip("playwright.sync_api")
 pytest.importorskip("uvicorn")
 
-DIST = Path(__file__).parents[2] / "app" / "dist"
 TOKEN = "e2e-token"
 
 
 @pytest.fixture(scope="module")
-def url():
-    if not (DIST / "index.html").is_file():
-        pytest.skip("The app is not built: npm run build in app/.")
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        port = s.getsockname()[1]
-    code = (
-        "from felupe_studio.serve import serve; "
-        f"serve(port={port}, app={str(DIST)!r}, browser=False, token={TOKEN!r})"
-    )
-    server = subprocess.Popen(
-        [sys.executable, "-c", code],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
-    line = server.stdout.readline()
-    assert "FElupe Studio runs at" in line, line + server.stdout.read()
-    yield f"http://127.0.0.1:{port}/?token={TOKEN}"
-    server.terminate()
-    server.wait()
+def url(serve):
+    return f"http://127.0.0.1:{serve(token=TOKEN)}/?token={TOKEN}"
 
 
 @pytest.fixture
