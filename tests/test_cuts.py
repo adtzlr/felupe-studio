@@ -247,6 +247,25 @@ def test_plane_outside():
         assert len(empty.triangles) == len(empty.edges) == len(positions) == 0
 
 
+def test_many_points_with_32_bit_indices(monkeypatch):
+    """A mesh of more than 46,340 points is cut with the indices of Pyodide (#442):
+    ``np.intp`` is 32 bits in wasm32, and the keys of the points of a cut overflowed
+    there. The mesh of an item of a script has all points of its ``MeshContainer``,
+    most of them unused, like this cube."""
+    cube = fem.Cube(n=4)
+    unused = np.random.default_rng(0).random((46341, 3)) + 2.0
+    mesh = fem.Mesh(np.vstack([cube.points, unused]), cube.cells, cube.cell_type)
+    expected, at_expected = cut_of(mesh, X)
+
+    shared = cuts._shared
+    monkeypatch.setattr(cuts, "_shared", lambda *args: shared(*args).astype(np.int32))
+    result, positions = cut_of(mesh, X)
+    assert np.array_equal(result.triangles, expected.triangles)
+    assert np.array_equal(result.edges, expected.edges)
+    assert np.allclose(positions, at_expected)
+    assert np.isclose(enclosed_volume(positions, result.triangles), 0.5)
+
+
 def solid_of(mesh):
     return volume_cells(meshio.Mesh(mesh.points, [(mesh.cell_type, mesh.cells)]))
 

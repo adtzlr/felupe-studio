@@ -421,12 +421,14 @@ def cut(surface, points, cells, cell_type, plane, order=1):
         first = int(surface.faces.max(initial=-1)) + 1
         face_numbers = np.concatenate([face_numbers, first + cell])
 
-    # the points of the cut, numbered once
+    # the points of the cut, numbered once by a key of their pair of points: in 64
+    # bits, since an index (np.intp) is 32 bits in Pyodide (wasm32), where the key
+    # overflowed for more than 46,340 points (#442)
     pairs = np.concatenate(
         [triangles.reshape(-1, 2), section.reshape(-1, 2)]
         + [e.reshape(-1, 2) for e in edges]
     )
-    pairs = nodes[pairs]
+    pairs = nodes[pairs].astype(np.int64)
     size = npoints + base.shape[0]
     unique, inverse = np.unique(pairs[:, 0] * size + pairs[:, 1], return_inverse=True)
     a, b = unique // size, unique % size
