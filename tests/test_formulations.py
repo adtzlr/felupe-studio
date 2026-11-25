@@ -3,12 +3,21 @@
 import re
 from pathlib import Path
 
+import felupe as fem
 import pytest
 
 from felupe_studio import sections
-from felupe_studio._helpers import REGIONS
+from felupe_studio._helpers import CONDENSED, REGIONS, condensed_region
 from felupe_studio.commands import schema, schema_errors
-from felupe_studio.formulations import MATERIALS, first, formulation_of, formulations
+from felupe_studio.formulations import (
+    MATERIALS,
+    alternatives,
+    cell_problem,
+    first,
+    formulation_of,
+    formulations,
+    sibling,
+)
 
 ROOT = Path(__file__).parents[1]
 
@@ -16,38 +25,71 @@ ROOT = Path(__file__).parents[1]
 KINDS = {
     "incompressible": (
         {"model": "NeoHooke", "parameters": {"mu": 1}},
-        ["u-p-J", "u-isochoric"],
+        ["u-p-J", "u-p-J-condensed", "u-p-J-mixed", "u-isochoric"],
     ),
     "with a bulk modulus": (
         {"model": "NeoHooke", "parameters": {"mu": 1, "bulk": 5000}},
-        ["u"],
+        ["u", "u-p-J-three-field"],
     ),
     "compressible": (
         {"model": "NeoHookeCompressible", "parameters": {"mu": 1, "lmbda": 5000}},
-        ["u"],
+        ["u", "u-p-J-three-field"],
     ),
     "strain-based": (
         {"model": "LinearElastic", "parameters": {"E": 210000, "nu": 0.3}},
-        ["u"],
+        ["u", "u-p-J-three-field"],
     ),
 }
+
+NEARLY_INCOMPRESSIBLE = "Nearly incompressible"
 
 
 def test_the_registry_is_read_from_the_schema():
     registry = formulations()
-    assert list(registry) == ["u", "u-p-J", "u-isochoric"]
+    assert list(registry) == [
+        "u",
+        "u-p-J",
+        "u-p-J-condensed",
+        "u-p-J-mixed",
+        "u-p-J-three-field",
+        "u-isochoric",
+    ]
     assert [
         (f.label, f.group, f.body, f.fields, f.cells, f.material)
         for f in registry.values()
     ] == [
         ("Displacement (u)", "Displacement", "fem.SolidBody", "u", None, "volumetric"),
         (
-            "Nearly incompressible (u, p, J)",
-            "Nearly incompressible",
+            "Automatic",
+            NEARLY_INCOMPRESSIBLE,
             "nearly_incompressible",
+            "automatic",
+            None,
+            "isochoric",
+        ),
+        (
+            "Condensed per cell",
+            NEARLY_INCOMPRESSIBLE,
+            "fem.SolidBodyNearlyIncompressible",
+            "condensed",
+            CONDENSED,
+            "isochoric",
+        ),
+        (
+            "Mixed fields",
+            NEARLY_INCOMPRESSIBLE,
+            "fem.NearlyIncompressible",
             "mixed",
             None,
             "isochoric",
+        ),
+        (
+            "Three-field variation",
+            NEARLY_INCOMPRESSIBLE,
+            "fem.ThreeFieldVariation",
+            "mixed",
+            None,
+            "volumetric",
         ),
         (
             "Isochoric part only (third medium)",
@@ -59,7 +101,16 @@ def test_the_registry_is_read_from_the_schema():
         ),
     ]
     # the dual fields of mixed fields, which a step that leaves out the section holds
-    assert [f.dual for f in registry.values()] == [False, True, False]
+    assert [f.dual for f in registry.values()] == [
+        False,
+        True,
+        False,
+        True,
+        True,
+        False,
+    ]
+    # every formulation says when to use it, the hint of the form (#420)
+    assert all(f.hint for f in registry.values())
     section = {"formulation": "u-p-J"}
     assert formulation_of(section) is registry["u-p-J"]
 
@@ -87,7 +138,42 @@ def test_a_formulation_fits_a_material(kind):
 
 
 def test_the_first_formulation_of_a_kind_of_material():
-    assert [first(m) for m in MATERIALS if m != "any"] == ["u", "u-p-J", "u-isochoric"]
+    assert [first(m) for m in MATERIALS] == ["u", "u-p-J", "u-isochoric"]
+
+
+def test_a_formulation_of_the_same_menu_takes_a_material():
+    """The messages of the rule name it (#420), e.g. the three-field variation for a
+    material with a volumetric part on a section u-p-J."""
+    incompressible, with_bulk = KINDS["incompressible"][0], KINDS["strain-based"][0]
+    registry = formulations()
+    assert sibling(registry["u-p-J"], with_bulk) == "u-p-J-three-field"
+    assert sibling(registry["u-p-J-mixed"], with_bulk) == "u-p-J-three-field"
+    assert sibling(registry["u-p-J-three-field"], incompressible) == "u-p-J"
+    assert sibling(registry["u"], incompressible) is None
+    assert sibling(registry["u-isochoric"], with_bulk) is None
+
+
+def test_the_cells_of_a_formulation():
+    """Condensed per cell takes hexahedrons and quads, linear or quadratic (#420):
+    the registry, the helper of the script and the message of the checks agree."""
+    condensed = formulations()["u-p-J-condensed"]
+    assert set(CONDENSED) <= set(REGIONS)
+    assert [t for t in REGIONS if condensed.takes(t)] == list(CONDENSED)
+    assert condensed.kinds == "hexahedrons and quads"
+    assert all(f.takes("tetra") for f in formulations().values() if f is not condensed)
+    assert alternatives(condensed, "triangle6") == ["u-p-J", "u-p-J-mixed"]
+    section = {"name": "rubber", "formulation": "u-p-J-condensed"}
+    assert cell_problem(section, "tetra10") == (
+        "Condensed per cell (u-p-J-condensed) takes hexahedrons and quads, not the "
+        "tetra10 cells of 'rubber'. Use 'u-p-J' or 'u-p-J-mixed'."
+    )
+    assert cell_problem(section, "hexahedron27") is None
+    assert cell_problem({"name": "rubber", "formulation": "u-p-J"}, "tetra") is None
+    # the script says the same when it runs
+    with pytest.raises(ValueError, match="not tetra cells. Use 'u-p-J' or"):
+        condensed_region(fem.Cube(n=2).triangulate())
+    region = condensed_region(fem.mesh.convert(fem.Rectangle(n=2), order=2))
+    assert isinstance(region, fem.RegionQuadraticQuad)
 
 
 def test_the_documents_of_today_stay_valid():
@@ -106,7 +192,15 @@ def test_the_documents_of_today_stay_valid():
     assert schema_errors(document(formulation="u-p-J"))
     assert schema_errors(document(formulation="u", bulk=5000))
     assert schema_errors(document(formulation="u-isochoric", volumetric="log"))
-    assert schema_errors(document(formulation="u-p-J-condensed", bulk=5000))
+    assert schema_errors(document(formulation="u-p-J-automatic", bulk=5000))
+    # the ways of u-p-J (#420): a bulk modulus of the section, except the three-field
+    # variation, which takes the volumetric part of the material
+    for name in ("u-p-J-condensed", "u-p-J-mixed"):
+        assert schema_errors(document(formulation=name, bulk=5000)) == []
+        assert schema_errors(document(formulation=name, bulk=1, volumetric="log")) == []
+        assert schema_errors(document(formulation=name))
+    assert schema_errors(document(formulation="u-p-J-three-field")) == []
+    assert schema_errors(document(formulation="u-p-J-three-field", bulk=5000))
 
 
 def test_no_comparison_of_a_formulation_is_left():
@@ -122,7 +216,7 @@ def test_no_comparison_of_a_formulation_is_left():
     ]
     pattern = re.compile(
         r"formulation['\"]?\]?\s*[!=]==?\s*['\"]u['\"-]"
-        r"|['\"]u(-p-J|-isochoric)?['\"]\s*[!=]==?"
+        r"|['\"]u(-p-J(-[a-z-]+)?|-isochoric)?['\"]\s*[!=]==?"
     )
     found = [
         f"{path.relative_to(ROOT)}: {line.strip()}"

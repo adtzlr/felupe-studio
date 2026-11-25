@@ -307,9 +307,20 @@ describe("editing in the properties panel", () => {
     );
     expect(groups).toEqual([
       "Displacement: Displacement (u)",
-      "Nearly incompressible: Nearly incompressible (u, p, J)",
+      "Nearly incompressible: Automatic,Condensed per cell,Mixed fields,Three-field variation",
       "Third medium: Isochoric part only (third medium)",
     ]);
+    // the hint of a formulation says when to use it (#420)
+    const hint = () =>
+      properties.querySelector("#field-formulation-hint")?.textContent;
+    expect(hint()).toMatch(
+      /^Condensed per cell of linear hexahedrons and quads/,
+    );
+    choose("Formulation", "u-p-J-three-field");
+    expect(hint()).toMatch(/the slowest$/);
+    expect(within(properties).queryByLabelText("Bulk modulus")).toBeNull();
+    choose("Formulation", "u-p-J-condensed");
+    expect(field("Bulk modulus").value).toBe("5000");
     choose("Formulation", "u");
     expect(within(properties).queryByLabelText("Bulk modulus")).toBeNull();
     expect(within(properties).queryByLabelText("Volumetric part")).toBeNull();

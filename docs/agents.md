@@ -51,7 +51,7 @@ The tools are few and generic and follow the schema of the commands, like the co
 | `list_commands()`, `add_command(command, before?)`, `update_command(name, changes)`, `delete_command(name)` | The commands. A command that does not fit its schema is not added (or not changed); every change returns the errors and notes of the validation of the app, so the agent can fix them. A new name renames a command, and the references to it follow; a command that others use is not deleted. |
 | `write_file(name, content)` | A text file in the project folder, e.g. a mesh script. |
 | `inspect_mesh(file, item?, parameters?)` | The cells, bounds and tags of a mesh file, or of the mesh of a mesh script. |
-| `check()` | The checks that need the mesh data: cells in no or in two sections, hanging points of interfaces. |
+| `check()` | The checks that need the mesh data: cells in no or in two sections, hanging points of interfaces, sections of cells that their formulation does not take (#420). |
 | `script()` | The FElupe script, as the app exports it. |
 | `solve(job?)` | Solves the jobs (up to a job) with FElupe; progress as notifications. Returns per job the substeps, the time and the curve (displacements and forces per substep), or the message and the traceback of a failure. |
 | `results(job, quantity?, substep?, method?)` | A quantity at a substep (the last one): its range, the minimum and the maximum with their section, node or cell and position, the control points with their forces. |

@@ -76,6 +76,38 @@ def test_meshes_of_cell_types_of_one_file():
     assert (interface["shared"], interface["hanging"]) == (25, 0)
 
 
+def test_cells_of_a_formulation():
+    # the hexahedrons and the tetrahedrons of one file, both condensed per cell
+    # (#420): the formulation takes hexahedrons and quads only, like
+    # formulationNotes() of the app
+    document = load("bar_cell_types")
+    for cmd in document["commands"]:
+        if cmd["command"] == "material.add":
+            cmd.update(model="NeoHooke", parameters={"mu": 1.0})
+        if cmd["command"] == "section.add":
+            cmd.update(formulation="u-p-J-condensed", bulk=5000)
+    report = check(document, GOLDEN / "bar_cell_types")
+    assert not report["ok"]
+    assert report["formulations"] == [
+        {
+            "section": "right_body",
+            "formulation": "u-p-J-condensed",
+            "cell_type": "tetra",
+        }
+    ]
+    assert report["messages"][-1] == (
+        "Condensed per cell (u-p-J-condensed) takes hexahedrons and quads, not the "
+        "tetra cells of 'right_body'. Use 'u-p-J' or 'u-p-J-mixed'."
+    )
+    # mixed fields take every cell type
+    for cmd in document["commands"]:
+        if cmd["command"] == "section.add":
+            cmd["formulation"] = "u-p-J-mixed"
+    report = check(document, GOLDEN / "bar_cell_types")
+    assert report["ok"], report["messages"]
+    assert report["formulations"] == []
+
+
 def test_non_conforming_interface(tmp_path):
     # the right half is finer: 9 x 9 points at the interface, 5 x 5 of them shared
     write(tmp_path / "left.vtu", fem.Cube(b=(1.5, 1, 1), n=(7, 5, 5)))

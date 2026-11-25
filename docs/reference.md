@@ -11,7 +11,7 @@ A project file is a JSON document `{"schema_version": 3, "commands": [...]}`. Ev
 
 Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
 
-A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `BoundarySwitch`, `CORNERS`, `DIMENSIONS`, `EDGES`, `Held`, `REGIONS`, `SimpleNamespace`, `boundaries`, `boundary_faces`, `boundary_switch`, `cell_volumes`, `control_points`, `embed`, `fem`, `field`, `fields_without_volume`, `has_volume`, `hold_dual_fields`, `iterative_solver`, `meshio`, `mixed_field`, `mixed_region`, `nearly_incompressible`, `np`, `pick`, `points`, `points_at`, `pypardiso`, `run_mesh_script`, `script_mesh`, `single_point`, `single_precision`, `solid_points`, `solid_types`, `spsolve`, `surface_points`, `vertex_region`, `volume_cells`, `with_volume`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
+A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `BoundarySwitch`, `CONDENSED`, `CORNERS`, `DIMENSIONS`, `EDGES`, `Held`, `REGIONS`, `SimpleNamespace`, `boundaries`, `boundary_faces`, `boundary_switch`, `cell_volumes`, `condensed_region`, `control_points`, `embed`, `fem`, `field`, `fields_without_volume`, `has_volume`, `hold_dual_fields`, `iterative_solver`, `meshio`, `mixed_field`, `mixed_region`, `nearly_incompressible`, `np`, `pick`, `points`, `points_at`, `pypardiso`, `run_mesh_script`, `script_mesh`, `single_point`, `single_precision`, `solid_points`, `solid_types`, `spsolve`, `surface_points`, `vertex_region`, `volume_cells`, `with_volume`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
 
 ## Expressions
 
@@ -437,7 +437,7 @@ FElupe: `fem.extended_tube`
 
 #### Linear elastic (`model: "LinearElastic"`)
 
-Linear-elastic material in terms of a strain (fem.MaterialStrain with fem.linear_elastic) in a framework: small strain or Total Lagrange. It needs the displacement formulation u.
+Linear-elastic material in terms of a strain (fem.MaterialStrain with fem.linear_elastic) in a framework: small strain or Total Lagrange. It needs the displacement formulation u, or the three-field variation u-p-J-three-field.
 
 FElupe: `fem.MaterialStrain` of `fem.linear_elastic`
 
@@ -452,7 +452,7 @@ Strain exponent (`strain_exponent`): The strain exponent m of the Seth-Hill stra
 
 #### Elastic-plastic, isotropic hardening (`model: "LinearElasticPlasticIsotropicHardening"`)
 
-Linear-elastic-plastic material with linear isotropic hardening (fem.MaterialStrain with fem.linear_elastic_plastic_isotropic_hardening, the return mapping algorithm of von Mises plasticity) in a framework: small strain or Total Lagrange. Its state variables are the equivalent plastic strain and the plastic strain tensor. It needs the displacement formulation u.
+Linear-elastic-plastic material with linear isotropic hardening (fem.MaterialStrain with fem.linear_elastic_plastic_isotropic_hardening, the return mapping algorithm of von Mises plasticity) in a framework: small strain or Total Lagrange. Its state variables are the equivalent plastic strain and the plastic strain tensor. It needs the displacement formulation u, or the three-field variation u-p-J-three-field.
 
 FElupe: `fem.MaterialStrain` of `fem.linear_elastic_plastic_isotropic_hardening`, state variables `(1, (3, 3))`
 
@@ -487,7 +487,7 @@ Every variant has a `name`, the name of the object.
 
 The displacement formulation u: a field of the displacements only (fem.SolidBody). The material has a volumetric part of its own: its bulk modulus, or a compressible or a strain-based model.
 
-FElupe: the solid body `fem.SolidBody` of the fields `u`, all cell types. The material has a volumetric part of its own.
+FElupe: the solid body `fem.SolidBody` of the fields `u`, all cell types. The material has a volumetric part of its own. When to use it: for a material with a volumetric part of its own: its bulk modulus, or a compressible or a strain-based model.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -495,11 +495,11 @@ FElupe: the solid body `fem.SolidBody` of the fields `u`, all cell types. The ma
 | `material` | name of a material | yes |  |
 | `color` | string |  | An own color of a mesh, a cell set or a section in the viewport (Color by: Meshes, Cell sets or Sections) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position among the objects of its kind in the model. A property of the model, not of the script: the generated script is the same. |
 
-#### Nearly incompressible (u, p, J) (`formulation: "u-p-J"`)
+#### Nearly incompressible ▸ Automatic (`formulation: "u-p-J"`)
 
-The nearly incompressible formulation u-p-J of the displacements, the pressure and the volume ratio, for a material without a volumetric part: the section adds it with its bulk modulus. Linear hexahedrons and quads condense the pressure and the volume ratio of every cell (fem.SolidBodyNearlyIncompressible); the other cells have mixed fields (fem.FieldsMixed with fem.NearlyIncompressible), linear tetrahedra and triangles with a bubble point (MINI).
+The nearly incompressible formulation u-p-J of the displacements, the pressure and the volume ratio, for a material without a volumetric part: the section adds it with its bulk modulus. It chooses its way by the cell type when the script runs: linear hexahedrons and quads condense the pressure and the volume ratio of every cell (fem.SolidBodyNearlyIncompressible, like u-p-J-condensed); the other cells have mixed fields (fem.FieldsMixed with fem.NearlyIncompressible, like u-p-J-mixed), linear tetrahedra and triangles with a bubble point (MINI).
 
-FElupe: the solid body `nearly_incompressible` of the fields `mixed`, all cell types. The material is the isochoric part of a strain energy: the section adds the volumetric part.
+FElupe: the solid body `nearly_incompressible` of the fields `automatic`, all cell types. The material is the isochoric part of a strain energy: the section adds the volumetric part. When to use it: condensed per cell of linear hexahedrons and quads, else mixed fields; for a material without a bulk modulus.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -509,11 +509,51 @@ FElupe: the solid body `nearly_incompressible` of the fields `mixed`, all cell t
 | `volumetric` | `volume-ratio`, `stretch` or `log` |  | The volumetric part U(J) of the strain energy with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)². Default `volume-ratio`. |
 | `color` | string |  | An own color of a mesh, a cell set or a section in the viewport (Color by: Meshes, Cell sets or Sections) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position among the objects of its kind in the model. A property of the model, not of the script: the generated script is the same. |
 
+#### Nearly incompressible ▸ Condensed per cell (`formulation: "u-p-J-condensed"`)
+
+Nearly incompressible, condensed per cell (u-p-J-condensed): a field of the displacements only, whose solid body condenses the constant pressure and volume ratio of every cell (fem.SolidBodyNearlyIncompressible, Q1/P0 of linear and Q2/P0 of quadratic cells). It takes hexahedrons and quads, linear or quadratic, and a material without a volumetric part: the section adds it with its bulk modulus.
+
+FElupe: the solid body `fem.SolidBodyNearlyIncompressible` of the fields `condensed`, the cell types `hexahedron`, `hexahedron20`, `hexahedron27`, `quad`, `quad8` or `quad9`. The material is the isochoric part of a strain energy: the section adds the volumetric part. When to use it: hexahedrons and quads only, also quadratic (Q2/P0); no unknowns of p and J in the system.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `cellset` | name of a cell set | yes |  |
+| `material` | name of a material | yes |  |
+| `bulk` | number > 0 (or an expression) | yes | Bulk modulus of the nearly incompressible formulation. |
+| `volumetric` | `volume-ratio`, `stretch` or `log` |  | The volumetric part U(J) of the strain energy with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)². Default `volume-ratio`. |
+| `color` | string |  | An own color of a mesh, a cell set or a section in the viewport (Color by: Meshes, Cell sets or Sections) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position among the objects of its kind in the model. A property of the model, not of the script: the generated script is the same. |
+
+#### Nearly incompressible ▸ Mixed fields (`formulation: "u-p-J-mixed"`)
+
+Nearly incompressible on mixed fields (u-p-J-mixed): the displacements, the pressure and the volume ratio are fields of their own (fem.FieldsMixed with fem.NearlyIncompressible), of every cell type: linear tetrahedra and triangles with a bubble point (MINI), and a constant pressure and volume ratio per cell of linear hexahedrons and quads. It takes a material without a volumetric part: the section adds it with its bulk modulus.
+
+FElupe: the solid body `fem.NearlyIncompressible` of the fields `mixed`, all cell types. The material is the isochoric part of a strain energy: the section adds the volumetric part. When to use it: every cell type; the pressure and the volume ratio are unknowns of the system.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `cellset` | name of a cell set | yes |  |
+| `material` | name of a material | yes |  |
+| `bulk` | number > 0 (or an expression) | yes | Bulk modulus of the nearly incompressible formulation. |
+| `volumetric` | `volume-ratio`, `stretch` or `log` |  | The volumetric part U(J) of the strain energy with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)². Default `volume-ratio`. |
+| `color` | string |  | An own color of a mesh, a cell set or a section in the viewport (Color by: Meshes, Cell sets or Sections) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position among the objects of its kind in the model. A property of the model, not of the script: the generated script is the same. |
+
+#### Nearly incompressible ▸ Three-field variation (`formulation: "u-p-J-three-field"`)
+
+The three-field variation (u-p-J-three-field) of the displacements, the pressure and the volume ratio on mixed fields (fem.FieldsMixed with fem.ThreeFieldVariation), of every cell type like u-p-J-mixed. It takes any material with a volumetric part of its own: its bulk modulus, or a compressible or a strain-based model, also with state variables. The section has no bulk modulus. The slowest way of u-p-J.
+
+FElupe: the solid body `fem.ThreeFieldVariation` of the fields `mixed`, all cell types. The material has a volumetric part of its own. When to use it: any material with a volumetric part, also compressible or strain-based; the slowest.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `cellset` | name of a cell set | yes |  |
+| `material` | name of a material | yes |  |
+| `color` | string |  | An own color of a mesh, a cell set or a section in the viewport (Color by: Meshes, Cell sets or Sections) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position among the objects of its kind in the model. A property of the model, not of the script: the generated script is the same. |
+
 #### Isochoric part only (third medium) (`formulation: "u-isochoric"`)
 
 The displacement formulation u-isochoric: a field of the displacements only (fem.SolidBody), with a material without a bulk modulus whose strain energy has no volumetric part, e.g. air as a third medium between the parts of a model that come into contact.
 
-FElupe: the solid body `fem.SolidBody` of the fields `u`, all cell types. The material has no volumetric part, and the section adds none.
+FElupe: the solid body `fem.SolidBody` of the fields `u`, all cell types. The material has no volumetric part, and the section adds none. When to use it: for a material without a bulk modulus whose volume changes freely, e.g. air as a third medium.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |

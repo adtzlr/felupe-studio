@@ -23,6 +23,10 @@ export function parseSizes(text: string): number[] {
   });
 }
 
+/** The formulation of a benchmark: a way of u-p-J (#420), or the compressible u. */
+export const formulationOf = (result: BenchmarkResult): string =>
+  result.formulation ?? "u";
+
 /** Format seconds with three decimals. */
 export function seconds(value: number): string {
   return value.toFixed(3);
@@ -74,11 +78,11 @@ export function toMarkdown(
     ),
     `| **Total** | **${seconds(timings.total / 1000)}** |`,
     "",
-    "| n | DOF | Cells | Precision | Setup in s | Solve in s | Force |",
-    "| ---: | ---: | ---: | --- | ---: | ---: | ---: |",
+    "| n | DOF | Cells | Precision | Formulation | Setup in s | Solve in s | Iterations | Force |",
+    "| ---: | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: |",
     ...results.map(
       (r) =>
-        `| ${r.n} | ${r.dofs} | ${r.cells} | ${r.precision} | ${seconds(r.setup)} | ${seconds(r.solve)} | ${r.force.toFixed(4)} |`,
+        `| ${r.n} | ${r.dofs} | ${r.cells} | ${r.precision} | ${formulationOf(r)} | ${seconds(r.setup)} | ${seconds(r.solve)} | ${r.iterations ?? "–"} | ${r.force.toFixed(4)} |`,
     ),
   ];
   return lines.join("\n");

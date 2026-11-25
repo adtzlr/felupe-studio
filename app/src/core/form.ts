@@ -161,6 +161,8 @@ interface Node {
   "x-quantity"?: Quantity;
   /** A group of the definitions of a variant, e.g. `Polynomial` (#136). */
   "x-group"?: string;
+  /** When to use a definition, the hint of the field that selects it (#420). */
+  "x-hint"?: string;
   /** Lists of values that need the same number of values, e.g. of Ogden. */
   "x-same-length"?: string[];
   /**
@@ -630,9 +632,12 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
       const path = [...prefix, name];
       const key = path.join(".");
       if (raw.const !== undefined) {
-        // constants are not edited, except the one that selects the definition
-        if (prefix.length === 0 && name === discriminator)
+        // constants are not edited, except the one that selects the definition,
+        // with the hint of the selected one, e.g. of a formulation (#420)
+        if (prefix.length === 0 && name === discriminator) {
           push(path, true, definitionInput(type, key, name, nodes));
+          if (node["x-hint"]) specs.at(-1)!.hint ??= node["x-hint"];
+        }
         continue;
       }
       const property = resolve(raw);

@@ -661,7 +661,11 @@ LARGE_ROUNDOFF = {
     # estimate of 0.74
     "plate_rotation_plane_strain",
 }
-NOT_CONVERGED = {"block_contact_friction"}
+# the three-field variation of steel on quadratic tetrahedrons (#420): the residual
+# of float32 stalls at about 2.5 times the estimate of its round-off by FElupe 12.1.1,
+# above the tight tolerance of the case; with the default tolerance of the app, it
+# converges (test_three_field_variation_in_single_precision)
+NOT_CONVERGED = {"block_contact_friction", "plasticity_cube_three_field"}
 
 
 @pytest.mark.parametrize("case", CASES)
@@ -786,6 +790,68 @@ def test_default_tolerance(case, tmp_path, monkeypatch):
         assert 0 < deviation < 0.01, f"{case}: {deviation:.2%}"
 
 
+# the cube of cube_yeoh in the explicit ways of u-p-J (#420)
+WAYS = ["cube_yeoh_condensed", "cube_yeoh_mixed", "cube_yeoh_three_field"]
+
+
+@pytest.mark.parametrize("case", WAYS)
+def test_ways_of_u_p_j_like_the_automatic_one(case):
+    # condensed per cell, mixed fields of a constant pressure and volume ratio per
+    # cell (Q1/P0) and the three-field variation of Yeoh with the volumetric part
+    # K/2 (J - 1)² of the material: the same discretization of the cube of linear
+    # hexahedrons as the automatic u-p-J, so the same converged curve
+    def curve(case):
+        text = (HERE / case / "results.json").read_text(encoding="utf-8")
+        return json.loads(text)["jobs"]["job_1"]
+
+    automatic, way = curve("cube_made_by_tools"), curve(case)
+    np.testing.assert_allclose(way["displacement"], automatic["displacement"])
+    np.testing.assert_allclose(way["force"], automatic["force"], rtol=1e-7)
+    # the script says which way it is
+    script = (HERE / case / "script.py").read_text(encoding="utf-8")
+    assert "# body: the " in script
+    assert "nearly_incompressible(" not in script
+
+
+def test_condensed_like_mixed_fields_of_quadratic_hexahedrons(tmp_path, monkeypatch):
+    # the clamped bar of quadratic hexahedrons condensed per cell (Q2/P0) and on
+    # mixed fields, whose pressure and volume ratio are constant per cell of
+    # hexahedron20 too (#420): the same converged curve
+    document = load("bar_hexahedron20_condensed")
+    for cmd in document["commands"]:
+        if cmd["command"] == "section.add":
+            cmd["formulation"] = "u-p-J-mixed"
+    mixed = evaluate("bar_hexahedron20_condensed", tmp_path, monkeypatch, document)
+    text = (HERE / "bar_hexahedron20_condensed" / "results.json").read_text("utf-8")
+    condensed = json.loads(text)["jobs"]["job_1"]
+    np.testing.assert_allclose(
+        mixed["jobs"]["job_1"]["force"], condensed["force"], rtol=1e-6, atol=1e-12
+    )
+    script = (HERE / "bar_hexahedron20_condensed" / "script.py").read_text("utf-8")
+    assert "region_body = condensed_region(all_cells)" in script
+    assert "fem.SolidBodyNearlyIncompressible(rubber, field_body, bulk=5000)" in script
+
+
+def test_three_field_variation_in_single_precision(tmp_path, monkeypatch):
+    # the steel of plasticity_cube_three_field in float32 (#297, #420) with the
+    # default tolerance of the app: the curve of double precision within 1e-3 of the
+    # largest force (it does not converge with the tight tolerance of the case, see
+    # NOT_CONVERGED)
+    document = load("plasticity_cube_three_field")
+    for cmd in document["commands"]:
+        if cmd["command"] == "job.add":
+            del cmd["tol"]
+    for path in (HERE / "plasticity_cube_three_field").glob("*.vtu"):
+        shutil.copy(path, tmp_path)
+    monkeypatch.chdir(tmp_path)
+    reference = np.array(run(document)["job_1"]["y"], dtype=float)
+    settings = next(c for c in document["commands"] if c["command"] == "model.settings")
+    settings["precision"] = "single"
+    single = np.array(run(document)["job_1"]["y"], dtype=float)
+    scale = np.abs(reference).max()
+    assert np.abs(single - reference).max() < 1e-3 * scale
+
+
 def test_plasticity_like_linear_hardening(tmp_path, monkeypatch):
     # uniaxial tension of a unit cube of steel beyond its yield stress and unloaded
     # (#191): von Mises plasticity with linear isotropic hardening K gives the stress
@@ -809,6 +875,27 @@ def test_plasticity_like_linear_hardening(tmp_path, monkeypatch):
     namespace = run_script(document, "plasticity_cube", tmp_path, monkeypatch)
     statevars = namespace["solid_body"].results.statevars
     np.testing.assert_allclose(statevars[0], remaining, rtol=1e-10)
+
+
+def test_plasticity_of_the_three_field_variation():
+    # the cube of plasticity_cube_three_field, quadratic tetrahedrons in the
+    # three-field variation (#420): the stress sy + K ep and the elastic unloading of
+    # von Mises plasticity, like the displacement formulation of plasticity_cube
+    E, sy, K = 210000.0, 250.0, 1000.0
+    curve = json.loads(
+        (HERE / "plasticity_cube_three_field" / "results.json").read_text("utf-8")
+    )["jobs"]["job_1"]
+    u, force = np.array(curve["displacement"]), np.array(curve["force"])
+    loading, unloading = slice(0, 6), slice(6, None)
+    plastic = np.maximum((u[loading] - sy / E) / (1 + K / E), 0)
+    expected = np.where(plastic > 0, sy + K * plastic, E * u[loading])
+    np.testing.assert_allclose(force[loading], expected, rtol=1e-8)
+    np.testing.assert_allclose(
+        force[unloading], E * (u[unloading] - plastic[-1]), rtol=1e-6
+    )
+    script = (HERE / "plasticity_cube_three_field" / "script.py").read_text("utf-8")
+    assert "fem.SolidBody(fem.ThreeFieldVariation(steel), field_body)" in script
+    assert "field_body = fem.FieldsMixed(region_body, n=3)" in script
 
 
 def test_linear_elastic_small_strain_like_hooke(tmp_path, monkeypatch):

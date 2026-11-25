@@ -193,7 +193,13 @@ def _benchmark(request, send):
 
     for n in request["sizes"]:
         send({"type": "progress", "id": request["id"], "message": f"Running n = {n} …"})
-        result = benchmark(n=n, num=5, precision=request.get("precision", "double"))
+        result = benchmark(
+            n=n,
+            num=5,
+            precision=request.get("precision", "double"),
+            # the cube of a way of u-p-J (#420), or the compressible one
+            formulation=request.get("formulation"),
+        )
         send({"type": "benchmark-result", "id": request["id"], "result": result})
     send({"type": "done", "id": request["id"]})
 

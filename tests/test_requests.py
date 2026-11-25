@@ -146,6 +146,12 @@ def test_the_requests_of_the_app(answers, tmp_path, monkeypatch):
     )
     assert progress[0]["type"] == "progress" and done == {"type": "done", "id": 13}
     assert result["result"]["precision"] == "single" and result["result"]["dofs"] == 24
+    # of a way of u-p-J (#420)
+    *_, result, _ = answers(
+        {"type": "benchmark", "id": 14, "sizes": [2], "formulation": "u-p-J-mixed"}
+    )
+    assert result["result"]["formulation"] == "u-p-J-mixed"
+    assert result["result"]["dofs"] == 24 + 2
 
 
 def test_scripts_make_meshes(answers, tmp_path, monkeypatch):

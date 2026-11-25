@@ -92,7 +92,12 @@ export type MaterialAdd =
  * via the `definition` "SectionAdd".
  */
 export type SectionAdd =
-  SectionDisplacement | SectionNearlyIncompressible | SectionIsochoric;
+  | SectionDisplacement
+  | SectionNearlyIncompressible
+  | SectionCondensed
+  | SectionMixed
+  | SectionThreeField
+  | SectionIsochoric;
 /**
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "Axis".
@@ -1129,7 +1134,7 @@ export interface MaterialExtendedTube {
   };
 }
 /**
- * Linear-elastic material in terms of a strain (fem.MaterialStrain with fem.linear_elastic) in a framework: small strain or Total Lagrange. It needs the displacement formulation u.
+ * Linear-elastic material in terms of a strain (fem.MaterialStrain with fem.linear_elastic) in a framework: small strain or Total Lagrange. It needs the displacement formulation u, or the three-field variation u-p-J-three-field.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "MaterialLinearElastic".
@@ -1158,7 +1163,7 @@ export interface MaterialLinearElastic {
   };
 }
 /**
- * Linear-elastic-plastic material with linear isotropic hardening (fem.MaterialStrain with fem.linear_elastic_plastic_isotropic_hardening, the return mapping algorithm of von Mises plasticity) in a framework: small strain or Total Lagrange. Its state variables are the equivalent plastic strain and the plastic strain tensor. It needs the displacement formulation u.
+ * Linear-elastic-plastic material with linear isotropic hardening (fem.MaterialStrain with fem.linear_elastic_plastic_isotropic_hardening, the return mapping algorithm of von Mises plasticity) in a framework: small strain or Total Lagrange. Its state variables are the equivalent plastic strain and the plastic strain tensor. It needs the displacement formulation u, or the three-field variation u-p-J-three-field.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "MaterialLinearElasticPlasticIsotropicHardening".
@@ -1209,7 +1214,7 @@ export interface SectionDisplacement {
   color?: Color;
 }
 /**
- * The nearly incompressible formulation u-p-J of the displacements, the pressure and the volume ratio, for a material without a volumetric part: the section adds it with its bulk modulus. Linear hexahedrons and quads condense the pressure and the volume ratio of every cell (fem.SolidBodyNearlyIncompressible); the other cells have mixed fields (fem.FieldsMixed with fem.NearlyIncompressible), linear tetrahedra and triangles with a bubble point (MINI).
+ * The nearly incompressible formulation u-p-J of the displacements, the pressure and the volume ratio, for a material without a volumetric part: the section adds it with its bulk modulus. It chooses its way by the cell type when the script runs: linear hexahedrons and quads condense the pressure and the volume ratio of every cell (fem.SolidBodyNearlyIncompressible, like u-p-J-condensed); the other cells have mixed fields (fem.FieldsMixed with fem.NearlyIncompressible, like u-p-J-mixed), linear tetrahedra and triangles with a bubble point (MINI).
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "SectionNearlyIncompressible".
@@ -1228,6 +1233,64 @@ export interface SectionNearlyIncompressible {
    * The volumetric part U(J) of the strain energy with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)².
    */
   volumetric?: "volume-ratio" | "stretch" | "log";
+  color?: Color;
+}
+/**
+ * Nearly incompressible, condensed per cell (u-p-J-condensed): a field of the displacements only, whose solid body condenses the constant pressure and volume ratio of every cell (fem.SolidBodyNearlyIncompressible, Q1/P0 of linear and Q2/P0 of quadratic cells). It takes hexahedrons and quads, linear or quadratic, and a material without a volumetric part: the section adds it with its bulk modulus.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "SectionCondensed".
+ */
+export interface SectionCondensed {
+  command: "section.add";
+  name: Name;
+  cellset: Name;
+  material: Name;
+  formulation: "u-p-J-condensed";
+  /**
+   * Bulk modulus of the nearly incompressible formulation.
+   */
+  bulk: number | string;
+  /**
+   * The volumetric part U(J) of the strain energy with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)².
+   */
+  volumetric?: "volume-ratio" | "stretch" | "log";
+  color?: Color;
+}
+/**
+ * Nearly incompressible on mixed fields (u-p-J-mixed): the displacements, the pressure and the volume ratio are fields of their own (fem.FieldsMixed with fem.NearlyIncompressible), of every cell type: linear tetrahedra and triangles with a bubble point (MINI), and a constant pressure and volume ratio per cell of linear hexahedrons and quads. It takes a material without a volumetric part: the section adds it with its bulk modulus.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "SectionMixed".
+ */
+export interface SectionMixed {
+  command: "section.add";
+  name: Name;
+  cellset: Name;
+  material: Name;
+  formulation: "u-p-J-mixed";
+  /**
+   * Bulk modulus of the nearly incompressible formulation.
+   */
+  bulk: number | string;
+  /**
+   * The volumetric part U(J) of the strain energy with the bulk modulus K (fem.NearlyIncompressible): volume-ratio K/2 (J - 1)², stretch 9K/2 (J^(1/3) - 1)² or log K/2 ln(J)².
+   */
+  volumetric?: "volume-ratio" | "stretch" | "log";
+  color?: Color;
+}
+/**
+ * The three-field variation (u-p-J-three-field) of the displacements, the pressure and the volume ratio on mixed fields (fem.FieldsMixed with fem.ThreeFieldVariation), of every cell type like u-p-J-mixed. It takes any material with a volumetric part of its own: its bulk modulus, or a compressible or a strain-based model, also with state variables. The section has no bulk modulus. The slowest way of u-p-J.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "SectionThreeField".
+ */
+export interface SectionThreeField {
+  command: "section.add";
+  name: Name;
+  cellset: Name;
+  material: Name;
+  formulation: "u-p-J-three-field";
   color?: Color;
 }
 /**

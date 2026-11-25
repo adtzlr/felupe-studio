@@ -353,11 +353,8 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     fields: {
       cellset: { label: "Cell set" },
       material: { label: "Material" },
-      formulation: {
-        label: "Formulation",
-        hint: "u-p-J for (nearly) incompressible materials; linear tetrahedra get a bubble point (MINI). u-isochoric for a material without a bulk modulus, e.g. air as a third medium",
-        default: "u",
-      },
+      // the hint of a formulation says when to use it (x-hint of the schema, #420)
+      formulation: { label: "Formulation", default: "u" },
       bulk: {
         label: "Bulk modulus",
         hint: "Of the volumetric part, fem.NearlyIncompressible",
@@ -375,8 +372,8 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         placeholder: "automatic",
       },
     },
-    // the labels of the formulations are in the formulation registry of the schema
-    // (x-label, ADR 0024)
+    // the labels and the hints of the formulations are in the formulation registry
+    // of the schema (x-label, x-hint, ADR 0024)
     options: {
       volumetric: {
         "volume-ratio": "Volume ratio: K/2 (J − 1)²",

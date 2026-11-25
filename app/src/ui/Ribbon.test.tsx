@@ -167,7 +167,20 @@ describe("ribbon commands", () => {
       new ModelStore({ ...document, commands: commands.slice(0, 5) }),
     );
     tab("Sections");
-    fireEvent.click(command("Nearly incompressible (u, p, J)"));
+    // the ways of u-p-J in a menu (#420)
+    fireEvent.click(command("Nearly incompressible"));
+    const menu = screen.getByRole("menu", { name: "Nearly incompressible" });
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((i) => i.textContent),
+    ).toEqual([
+      "Automatic",
+      "Condensed per cell",
+      "Mixed fields",
+      "Three-field variation",
+    ]);
+    fireEvent.click(within(menu).getByRole("menuitem", { name: "Automatic" }));
     expect(field("Formulation").value).toBe("u-p-J");
     expect(field("Material").value).toBe("umat_soft");
     expect(field("Bulk modulus").value).toBe("5000");

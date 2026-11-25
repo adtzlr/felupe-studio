@@ -45,3 +45,18 @@ def test_benchmark_with_pardiso():
     pardiso = benchmark(n=3, num=2, solver="pardiso")
     assert (superlu["solver"], pardiso["solver"]) == ("superlu", "pardiso")
     assert abs(pardiso["force"] - superlu["force"]) < 1e-10 * superlu["force"]
+
+
+def test_benchmark_of_the_ways_of_u_p_j():
+    # the nearly incompressible cube (Neo-Hooke, K = 5000) in the ways of u-p-J
+    # (#420): the same force, the mixed fields with the pressure and the volume ratio
+    # of every cell as unknowns
+    ways = ["u-p-J", "u-p-J-condensed", "u-p-J-mixed", "u-p-J-three-field"]
+    results = [benchmark(n=3, num=2, formulation=way) for way in ways]
+    assert [r["formulation"] for r in results] == ways
+    assert [r["dofs"] for r in results] == [81, 81, 81 + 2 * 8, 81 + 2 * 8]
+    forces = [r["force"] for r in results]
+    assert max(forces) - min(forces) < 1e-6 * forces[0]
+    assert all(r["iterations"] > 0 for r in results)
+    # the compressible cube of the displacements by default
+    assert benchmark(n=3, num=2)["formulation"] is None

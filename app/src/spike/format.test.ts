@@ -60,11 +60,32 @@ describe("toMarkdown", () => {
           solve: 0.3,
           force: 1.8007,
         },
+        {
+          n: 5,
+          points: 125,
+          cells: 64,
+          dofs: 503,
+          increments: 5,
+          precision: "double",
+          formulation: "u-p-J-three-field",
+          setup: 0.02,
+          solve: 0.26,
+          iterations: 20,
+          force: 2.0835,
+        },
       ],
     );
     expect(md).toContain("| **Total** | **5.000** |");
-    expect(md).toContain("| 3 | 81 | 8 | double | 0.010 | 0.100 | 1.8216 |");
-    expect(md).toContain("| 5 | 375 | 64 | single | 0.020 | 0.300 | 1.8007 |");
+    expect(md).toContain(
+      "| 3 | 81 | 8 | double | u | 0.010 | 0.100 | – | 1.8216 |",
+    );
+    expect(md).toContain(
+      "| 5 | 375 | 64 | single | u | 0.020 | 0.300 | – | 1.8007 |",
+    );
+    // a way of u-p-J with its Newton iterations (#420)
+    expect(md).toContain(
+      "| 5 | 503 | 64 | double | u-p-J-three-field | 0.020 | 0.260 | 20 | 2.0835 |",
+    );
     expect(md).toContain("**Memory:** unknown");
     expect(md).toContain("**Service worker cache:** not active");
   });

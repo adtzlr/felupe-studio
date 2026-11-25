@@ -9,6 +9,9 @@
   that lie on the surface of another section without being one of its points are
   *hanging*: they are not connected, e.g. at a non-conforming interface or if the
   coordinates of two files differ slightly.
+- **Formulations:** the formulation of every section takes the cells of its mesh,
+  e.g. condensed per cell hexahedrons and quads only (#420), like
+  ``formulationNotes()`` of the app.
 
 :func:`check` returns a JSON-serializable report.
 """
@@ -26,6 +29,7 @@ from ._helpers import run_mesh_script, volume_cells
 from .codegen import analysis_of, parameter_value
 from .commands import validate
 from .expressions import resolve
+from .formulations import cell_problem
 
 # faces of the solid cells by their corner points (VTK ordering, quadratic cells
 # start with their corner points)
@@ -270,6 +274,25 @@ def _interfaces(commands, meshes, cellsets, sections, dim, messages):
     return interfaces
 
 
+def _formulations(meshes, cellsets, sections, messages):
+    """The sections of cells that their formulation does not take (#420), e.g.
+    tetrahedrons condensed per cell."""
+    problems = []
+    for sec in sections:
+        cell_type = meshes[cellsets[sec["cellset"]][0]].cell_type
+        problem = cell_problem(sec, cell_type)
+        if problem is not None:
+            problems.append(
+                {
+                    "section": sec["name"],
+                    "formulation": sec["formulation"],
+                    "cell_type": cell_type,
+                }
+            )
+            messages.append(problem)
+    return problems
+
+
 def check(document, directory="."):
     """Check the cell assignment and the interfaces of the sections of a model.
 
@@ -284,8 +307,10 @@ def check(document, directory="."):
     -------
     dict
         ``ok`` (bool), ``messages`` (list of str), ``cells`` with ``total``,
-        ``unassigned`` and ``multiple`` per mesh, and ``interfaces`` with the
-        number of ``shared`` and ``hanging`` points per pair of sections.
+        ``unassigned`` and ``multiple`` per mesh, ``interfaces`` with the
+        number of ``shared`` and ``hanging`` points per pair of sections, and
+        ``formulations`` with the sections of cells that their formulation does not
+        take (``section``, ``formulation`` and ``cell_type``, #420).
     """
     validate(document)
     # the values of the expressions of the parameters (#242)
@@ -298,9 +323,17 @@ def check(document, directory="."):
     messages = []
     cells = _assignment(meshes, cellsets, sections, messages)
     interfaces = _interfaces(commands, meshes, cellsets, sections, dim, messages)
+    formulations = _formulations(meshes, cellsets, sections, messages)
     ok = (
         not cells["unassigned"]
         and not cells["multiple"]
         and all(face["hanging"] == 0 for face in interfaces)
+        and not formulations
     )
-    return {"ok": ok, "messages": messages, "cells": cells, "interfaces": interfaces}
+    return {
+        "ok": ok,
+        "messages": messages,
+        "cells": cells,
+        "interfaces": interfaces,
+        "formulations": formulations,
+    }

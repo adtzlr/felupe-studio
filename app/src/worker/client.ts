@@ -177,15 +177,22 @@ export class RuntimeClient {
 
   /**
    * Run the benchmark of the spike (#9) for the given mesh sizes, with the linear
-   * equation system or the model in single precision (ADR 0016).
+   * equation system or the model in single precision (ADR 0016), of the compressible
+   * cube or of a way of u-p-J (#420).
    */
   async benchmark(
     sizes: number[],
     onResult: (result: BenchmarkResult) => void,
     onProgress: (message: string) => void = () => {},
     precision: Precision = "double",
+    formulation?: string,
   ): Promise<void> {
-    const request = { type: "benchmark", sizes, precision } as const;
+    const request = {
+      type: "benchmark",
+      sizes,
+      precision,
+      ...(formulation ? { formulation } : {}),
+    } as const;
     await this.request(request, "done", (message) => {
       if (message.type === "progress") onProgress(message.message);
       if (message.type === "benchmark-result") onResult(message.result);
@@ -221,8 +228,9 @@ export class RuntimeClient {
 
   /**
    * The checks of a command list with the mesh data (`felupe_studio.checks`): the
-   * cells in no or in two sections and the hanging points of interfaces. Only the
-   * local runtime has them (#258).
+   * cells in no or in two sections, the hanging points of interfaces and the
+   * sections of cells that their formulation does not take (#420). Only the local
+   * runtime has them (#258).
    */
   async check(document: string): Promise<CheckReport> {
     const message = await this.request({ type: "check", document }, "text");

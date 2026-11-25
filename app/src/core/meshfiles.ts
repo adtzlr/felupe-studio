@@ -6,6 +6,7 @@
 // they make with the parameters of the model are kept by their file, item and
 // parameter values.
 import { analysisOf, CELLS_2D, is2d } from "./analysis";
+import { cellProblem, formulationOf } from "./formulations";
 import type { Command, MeshGenerate, MeshImport, MeshScript } from "./commands";
 import { parameterValues, resolveCommands } from "./resolve";
 import { solidOf } from "./meshinfo";
@@ -500,6 +501,28 @@ export function faceSetNotes(
           : `The faces of ${type} cells of '${command.section}' have no boundary region in FElupe 12; a face set needs a section of hexahedrons.`,
       ]);
     }
+  }
+  return notes;
+}
+
+/**
+ * Problems of the formulations of sections that need the mesh data (#420): a
+ * formulation that takes some cell types only, e.g. condensed per cell of
+ * hexahedrons and quads, and a section of other cells. Like `faceSetNotes()`, an
+ * issue of the model that blocks Solve.
+ */
+export function formulationNotes(
+  commands: readonly Command[],
+  files: MeshFiles,
+): Map<string, string[]> {
+  const notes = new Map<string, string[]>();
+  for (const command of commands) {
+    if (command.command !== "section.add") continue;
+    const formulation = formulationOf(command.formulation);
+    const type = sectionCellType(commands, command.name, files);
+    const problem =
+      formulation && type && cellProblem(command.name, formulation, type);
+    if (problem) notes.set(command.name, [problem]);
   }
   return notes;
 }

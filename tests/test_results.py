@@ -251,9 +251,21 @@ def solid_meshes():
     }
 
 
+# the formulations of the sections (#420), with a material that they take
+FORMULATIONS = {
+    "u": {},
+    "u-p-J": {"bulk": 5000.0},
+    "u-p-J-condensed": {"bulk": 5000.0},
+    "u-p-J-mixed": {"bulk": 5000.0},
+    "u-p-J-three-field": {},
+}
+
+
 @pytest.mark.parametrize("cell_type", list(solid_meshes()))
-@pytest.mark.parametrize("formulation", ["u", "u-p-J"])
+@pytest.mark.parametrize("formulation", list(FORMULATIONS))
 def test_every_cell_type_and_formulation(cell_type, formulation, tmp_path, monkeypatch):
+    if formulation == "u-p-J-condensed" and cell_type.startswith("tetra"):
+        pytest.skip("Condensed per cell takes hexahedrons and quads (#420).")
     mesh = solid_meshes()[cell_type]
     meshio.Mesh(mesh.points, [(cell_type, mesh.cells)]).write(tmp_path / "bar.vtu")
     monkeypatch.chdir(tmp_path)
@@ -268,11 +280,13 @@ def test_every_cell_type_and_formulation(cell_type, formulation, tmp_path, monke
                 "name": command["name"],
                 "mesh": command["mesh"],
             }
-        # u-p-J takes a material without a volumetric part (#417)
-        if command["command"] == "material.add" and formulation == "u-p-J":
+        # a section with a bulk modulus takes a material without a volumetric part
+        # (#417), the others the compressible material of the bar
+        bulk = FORMULATIONS[formulation]
+        if command["command"] == "material.add" and bulk:
             command.update(model="NeoHooke", parameters={"mu": 1.0})
-        if command["command"] == "section.add" and formulation == "u-p-J":
-            command.update(formulation="u-p-J", bulk=5000.0)
+        if command["command"] == "section.add":
+            command.update(formulation=formulation, **bulk)
     run(document)
 
     # the stresses at the cells and projected to the points (#231)
@@ -732,6 +746,30 @@ def test_plastic_strain_and_stress_of_every_substep(plastic, tmp_path):
     assert ranges[1] == [0.0, 0.0]
     assert ranges[2] == pytest.approx([ep, ep])
     # the export has the equivalent plastic strain of the last substep
+    mesh = meshio.read(read(results.export("job_1", "vtu"), ".vtu", tmp_path))
+    data = np.concatenate(mesh.cell_data["Equivalent Plastic Strain"])
+    np.testing.assert_allclose(data, 0.0037914691943128, rtol=1e-8)
+
+
+def test_plastic_strain_of_the_three_field_variation(monkeypatch, tmp_path):
+    # the state variables of a material inside fem.ThreeFieldVariation (#420): the
+    # cube of steel of the three-field variation has the plastic strain and the
+    # stress of the displacement formulation, its deformation is homogeneous
+    monkeypatch.chdir(GOLDEN / "plasticity_cube")
+    document = load("plasticity_cube")
+    for command in document["commands"]:
+        if command["command"] == "section.add":
+            command["formulation"] = "u-p-J-three-field"
+    run(document)
+    assert isinstance(LAST["solid_body"].umat, fem.ThreeFieldVariation)
+    E, sy, K = 210000.0, 250.0, 1000.0
+    ep = (0.002 - sy / E) / (1 + K / E)
+    low, high = json.loads(results.scene("job_1", 3, "stress_max")[0])["range"]
+    assert low == pytest.approx(sy + K * ep, rel=1e-2)
+    meta = json.loads(results.scene("job_1", 3, "plastic_strain")[0])
+    assert meta["range"] == pytest.approx([ep, ep], rel=1e-8)
+    end = json.loads(results.scene("job_1", 11, "plastic_strain")[0])
+    assert end["range"][0] == pytest.approx(0.0037914691943128, rel=1e-8)
     mesh = meshio.read(read(results.export("job_1", "vtu"), ".vtu", tmp_path))
     data = np.concatenate(mesh.cell_data["Equivalent Plastic Strain"])
     np.testing.assert_allclose(data, 0.0037914691943128, rtol=1e-8)
