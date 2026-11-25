@@ -2165,6 +2165,13 @@ button {
   background: var(--color-bar);
 }
 
+/* Choose file… and, of the script of a material, Download template (#423) */
+.file-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
 /* the parameters of a project (#183): a row per parameter with a slider */
 .parameters-dialog {
   display: flex;

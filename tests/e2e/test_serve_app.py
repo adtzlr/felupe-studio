@@ -1457,10 +1457,12 @@ def test_a_cylindrical_constraint_turned_and_recorded(url, page):
     assert page.errors == []
 
 
-def test_a_material_of_a_script_solved(url, page):
+def test_a_material_of_a_script_solved(url, page, tmp_path):
     """A user-defined material of a Python file (ADR 0025): the template of a
-    constitutive model, created with the ribbon, its file chosen in its properties,
-    with the parameters of the model, and solved: the curve of the golden case."""
+    constitutive model, created with the ribbon, downloaded and chosen in its
+    properties, run once with the parameters of the model (#423), and solved: the
+    curve of the golden case."""
+    page.context.add_init_script(RECORD_SAVES)
     page.goto(url)
     page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
 
@@ -1498,8 +1500,26 @@ def test_a_material_of_a_script_solved(url, page):
         / "templates"
         / "material_constitutive.py"
     )
+    # the template of the package, under the name of the file of the material
+    download = properties.get_by_role("button", name="Download template")
+    name, data = saved(page, download.click)
+    assert (name, data) == ("material_constitutive.py", template.read_bytes())
+
+    # a file with an error: an issue of the material before a job, with its traceback
+    broken = tmp_path / "broken.py"
+    broken.write_text("import felupe as fem\n\numat = fem.NeoHooke(mu=nu)\n")
+    page.get_by_test_id("mesh-file").set_input_files(str(broken))
+    properties.get_by_text("NameError: name 'nu' is not defined").first.wait_for(
+        timeout=60_000
+    )
+    properties.get_by_text("Traceback of the script").click()
+    assert "line 3, in <module>" in properties.locator(".traceback pre").inner_text()
+
     page.get_by_test_id("mesh-file").set_input_files(str(template))
-    properties.get_by_text("not loaded").wait_for(state="detached")
+    properties.get_by_text("umat: NeoHooke · no state variables").wait_for(
+        timeout=60_000
+    )
+    assert properties.get_by_text("Traceback of the script").count() == 0
 
     for text in [
         'section.add {"name": "body", "cellset": "cells", "material": "rubber", '

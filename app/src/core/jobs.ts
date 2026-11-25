@@ -209,14 +209,14 @@ export function solveBlocker({
   /** The commands as written or with the values of their expressions. */
   commands: readonly { command: string }[];
   issues: number;
-  /** Messages about the mesh files, by object name. */
+  /** Messages about the files of meshes and materials, by object name. */
   notes: number;
   runtime: "loading" | "ready" | "error";
 }): string | undefined {
   if (!commands.some((c) => c.command === "job.add"))
     return "Add a job to the model first (Steps & Job).";
   if (issues) return "Fix the issues of the model first.";
-  if (notes) return "Load the mesh files of the model first.";
+  if (notes) return "Load the files of the model first, and fix their errors.";
   if (runtime === "loading") return "Python is still loading.";
   if (runtime === "error") return "Python could not be loaded.";
   return undefined;

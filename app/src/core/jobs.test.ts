@@ -98,7 +98,7 @@ describe("solve", () => {
     expect(solveBlocker(base)).toBeUndefined();
     expect(solveBlocker({ ...base, commands: [] })).toContain("Add a job");
     expect(solveBlocker({ ...base, issues: 2 })).toContain("issues");
-    expect(solveBlocker({ ...base, notes: 1 })).toContain("mesh files");
+    expect(solveBlocker({ ...base, notes: 1 })).toContain("files of the model");
     expect(solveBlocker({ ...base, runtime: "loading" })).toContain("loading");
     expect(solveBlocker({ ...base, runtime: "error" })).toContain(
       "could not be loaded",

@@ -6,8 +6,9 @@
 // they make with the parameters of the model are kept by their file, item and
 // parameter values. The meshes of the tools (ADR 0019) are kept by their chain and
 // the meshes of files and scripts that they take (#438). The scripts of
-// user-defined materials (ADR 0025) are kept and written like those of meshes; the
-// jobs run them.
+// user-defined materials (ADR 0025) are kept and written like those of meshes; they
+// are run once with the parameters of the model (#423), so their errors are notes
+// before a job, and the jobs run them again.
 import { analysisOf, CELLS_2D, is2d } from "./analysis";
 import { cellProblem, formulationOf } from "./formulations";
 import type {
@@ -27,6 +28,7 @@ import {
 } from "./meshtools";
 import type {
   Cut,
+  MaterialInfo,
   MeshInfo,
   MeshSource,
   MeshSurface,
@@ -45,6 +47,15 @@ export type FileState =
       /** Outer surfaces of the solid cells by cell type, for the viewer. */
       surfaces: Record<string, MeshSurface>;
     }
+  | { state: "error"; message: string; traceback?: string };
+
+/**
+ * The state of the script of a material (ADR 0025), run once with the parameters
+ * of the model (#423): what it made, or its error with the traceback of the script.
+ */
+export type MaterialState =
+  | { state: "reading" }
+  | { state: "ready"; info: MaterialInfo }
   | { state: "error"; message: string; traceback?: string };
 
 export interface MeshFile {
@@ -74,6 +85,15 @@ export type Maker = (
   parameters: Record<string, number>,
   item?: string,
 ) => Promise<Inspection & { info: { traceback?: string } }>;
+
+/**
+ * Runs the script of a material of the project directory once with parameters
+ * (ADR 0025, #423).
+ */
+export type MaterialInspector = (
+  file: string,
+  parameters: Record<string, number>,
+) => Promise<MaterialInfo>;
 
 /**
  * Makes a mesh with the tools of FElupe (ADR 0019): the commands of the tools that
@@ -136,14 +156,43 @@ export const isMeshObject = <C extends Command>(
 /** A Python script of the project, by its name (#182). */
 export const isScript = (name: string) => name.toLowerCase().endsWith(".py");
 
+/**
+ * What Python made once, with the files that it read: its state, and its final
+ * state once it is done.
+ */
+interface Made<S> {
+  files: readonly string[];
+  status: S;
+  done?: Promise<S>;
+}
+
+/** What Python made, by its key. */
+type Kept<S> = Map<string, Made<S>>;
+
+/** The state of an error, with the traceback of a script. */
+const failed = (message: string, traceback?: string) => ({
+  state: "error" as const,
+  message,
+  ...(traceback ? { traceback } : {}),
+});
+
+/** The final state of a mesh of Python: its summary and surfaces, or its error. */
+const meshState = ({ info, surfaces = {} }: Inspection): FileState =>
+  info.error
+    ? failed(info.error, info.traceback)
+    : { state: "ready", info, surfaces };
+
+/** The final state of the script of a material: what it made, or its error. */
+const materialState = (info: MaterialInfo): MaterialState =>
+  info.error ? failed(info.error, info.traceback) : { state: "ready", info };
+
 export class MeshFiles {
   private files = new Map<string, { data: Uint8Array; file: MeshFile }>();
   // the meshes made by scripts (scriptKey) and by tools (generateKey), by their key,
   // with the files that they read
-  private made = new Map<
-    string,
-    { files: readonly string[]; status: FileState }
-  >();
+  private made: Kept<FileState> = new Map();
+  // the scripts of materials run with parameters (materialKey, #423)
+  private materials: Kept<MaterialState> = new Map();
   // the cut surfaces of the drawn meshes (#395), by their mesh (meshCutKey)
   private cuts = new Map<string, CutEntry>();
   private listeners = new Set<() => void>();
@@ -158,6 +207,8 @@ export class MeshFiles {
       generate?: Generator;
       /** Cuts the kept cells of a mesh (#395). */
       cut?: Cutter;
+      /** Runs the script of a material once (#423). */
+      inspect?: MaterialInspector;
     } = {},
   ) {}
 
@@ -182,9 +233,10 @@ export class MeshFiles {
   /** Forget all files, e.g. for a new project. */
   clear(): void {
     this.cuts.clear();
-    if (!this.files.size && !this.made.size) return;
+    if (!this.files.size && !this.made.size && !this.materials.size) return;
     this.files.clear();
     this.made.clear();
+    this.materials.clear();
     this.notify();
   }
 
@@ -278,9 +330,10 @@ export class MeshFiles {
   ): Promise<FileState> {
     const { make } = this.scripts;
     return this.produce(
+      this.made,
       key,
       [file],
-      make && (() => make(file, parameters, item)),
+      make && (async () => meshState(await make(file, parameters, item))),
     );
   }
 
@@ -298,54 +351,88 @@ export class MeshFiles {
   ): Promise<FileState> {
     const { generate } = this.scripts;
     return this.produce(
+      this.made,
       key,
       sources.map((s) => s.file),
-      generate && (() => generate(commands, name, sources)),
+      generate &&
+        (async () => meshState(await generate(commands, name, sources))),
     );
   }
 
-  /** Make a mesh once per key with a maker of Python, and keep its state. */
-  private async produce(
+  /** The state of the script of a material run once, by its key (`materialKey`). */
+  inspectedStatus(key: string): MaterialState | undefined {
+    return this.materials.get(key)?.status;
+  }
+
+  /**
+   * Run the script of a material once per key with parameters (#423): resolves with
+   * its final state; errors of the script (with their traceback) are part of it. A
+   * new version of the file runs it again.
+   */
+  async inspectMaterial(
+    key: string,
+    file: string,
+    parameters: Record<string, number>,
+  ): Promise<MaterialState> {
+    const { inspect } = this.scripts;
+    return this.produce(
+      this.materials,
+      key,
+      [file],
+      inspect && (async () => materialState(await inspect(file, parameters))),
+    );
+  }
+
+  /** Run Python once per key, and keep the final state of what it made. */
+  private async produce<S extends FileState | MaterialState>(
+    kept: Kept<S>,
     key: string,
     files: readonly string[],
-    maker: (() => Promise<Inspection>) | undefined,
-  ): Promise<FileState> {
-    const existing = this.made.get(key);
-    if (existing) return existing.status;
-    const entry = { files, status: { state: "reading" } as FileState };
-    this.made.set(key, entry);
+    run: (() => Promise<S>) | undefined,
+  ): Promise<S> {
+    // of a key being made: its final state too, e.g. for a tool of an agent
+    const existing = kept.get(key);
+    if (existing) return existing.done ?? existing.status;
+    const entry: Made<S> = { files, status: { state: "reading" } as S };
+    kept.set(key, entry);
     this.notify();
-    const set = (status: FileState) => {
+    const set = (status: S) => {
       // replaced or forgotten meanwhile
-      if (this.made.get(key) !== entry) return status;
+      if (kept.get(key) !== entry) return status;
       entry.status = status;
       this.notify();
       return status;
     };
-    if (!maker)
-      return set({ state: "error", message: "Python is not available." });
-    try {
-      const { info, surfaces = {} } = await maker();
-      return info.error
-        ? set({
-            state: "error",
-            message: info.error,
-            ...(info.traceback ? { traceback: info.traceback } : {}),
-          })
-        : set({ state: "ready", info, surfaces });
-    } catch (error) {
-      return set({ state: "error", message: (error as Error).message });
-    }
+    entry.done = (async () => {
+      if (!run) return set(failed("Python is not available.") as S);
+      try {
+        return set(await run());
+      } catch (error) {
+        return set(failed((error as Error).message) as S);
+      }
+    })();
+    return entry.done;
   }
 
   /** Forget the made meshes of other keys, e.g. of old parameter values. */
   keepMade(keys: ReadonlySet<string>): void {
+    this.keep(this.made, keys);
+  }
+
+  /** Forget the runs of the scripts of materials of other keys (#423). */
+  keepMaterials(keys: ReadonlySet<string>): void {
+    this.keep(this.materials, keys);
+  }
+
+  private keep(
+    kept: Kept<FileState | MaterialState>,
+    keys: ReadonlySet<string>,
+  ) {
     let changed = false;
-    for (const key of [...this.made.keys()]) {
-      if (keys.has(key)) continue;
-      // a mesh being made is kept until it is ready
-      if (this.made.get(key)!.status.state === "reading") continue;
-      this.made.delete(key);
+    for (const [key, entry] of [...kept]) {
+      // a mesh being made, or a script being run, is kept until it is done
+      if (keys.has(key) || entry.status.state === "reading") continue;
+      kept.delete(key);
       changed = true;
     }
     if (changed) this.notify();
@@ -370,10 +457,12 @@ export class MeshFiles {
     set({ state: "reading" });
     // the kept cells of Python are forgotten, and with them the cuts (#395)
     this.cuts.clear();
-    // the meshes of a replaced script are made again, and the meshes of tools that
-    // take a mesh of the file (#438)
-    for (const [k, entry] of [...this.made]) {
-      if (entry.files.includes(key)) this.made.delete(k);
+    // the meshes of a replaced script are made again, the meshes of tools that take
+    // a mesh of the file (#438), and a replaced script of a material is run again
+    for (const kept of [this.made, this.materials] as const) {
+      for (const [k, entry] of [...kept]) {
+        if (entry.files.includes(key)) kept.delete(k);
+      }
     }
     if (isScript(key)) {
       if (!this.scripts.write)
@@ -416,6 +505,7 @@ export class MeshFiles {
   /** Write all files into the worker again, e.g. after it was restarted. */
   async resend(): Promise<void> {
     this.made.clear();
+    this.materials.clear();
     await Promise.all(
       [...this.files.entries()].map(([name, { data }]) => this.add(name, data)),
     );
@@ -591,15 +681,15 @@ export { projectFileNames };
 export { parameterValues };
 
 /**
- * The parameters of a mesh made by a script: the listed ones, or all parameters
- * of the model (#182).
+ * The parameters of a script of a mesh (#182) or of a material (ADR 0025): the
+ * listed ones, or all parameters of the model.
  */
 export function scriptParameters(
-  mesh: MeshScript,
+  script: MeshScript | MaterialScript,
   commands: readonly Command[],
 ): Record<string, number> {
   const values = parameterValues(commands);
-  const names = mesh.parameters ?? Object.keys(values);
+  const names = script.parameters ?? Object.keys(values);
   return Object.fromEntries(
     names.filter((n) => n in values).map((n) => [n, values[n]]),
   );
@@ -615,6 +705,36 @@ export function scriptKey(
     mesh.item ?? null,
     scriptParameters(mesh, commands),
   ]);
+}
+
+/**
+ * The key of a run of the script of a material (#423): its file and the values of
+ * its parameters.
+ */
+export const materialKey = (
+  file: string,
+  parameters: Record<string, number>,
+): string => JSON.stringify([file, parameters]);
+
+/**
+ * The state of the script of a material (#423): of its file, or of its run with the
+ * parameters of the model (undefined if the file is not loaded or the run is not
+ * asked for yet).
+ */
+export function materialStatus(
+  material: MaterialScript,
+  commands: readonly Command[],
+  files: MeshFiles,
+): MaterialState | undefined {
+  const status = files.get(material.file)?.status;
+  if (status?.state === "script")
+    return files.inspectedStatus(
+      materialKey(material.file, scriptParameters(material, commands)),
+    );
+  // a mesh file named like a script
+  if (status?.state === "ready")
+    return failed(`'${material.file}' is not a Python script.`);
+  return status;
 }
 
 // the commands with the values of their expressions, once per command list
@@ -885,6 +1005,26 @@ export function makeMeshes(
 }
 
 /**
+ * Run the scripts of the materials of a model (#423) that are not run yet with the
+ * parameters of the model, so their errors are notes before a job.
+ */
+export function inspectMaterials(
+  commands: readonly Command[],
+  files: MeshFiles,
+): void {
+  const keys = new Set<string>();
+  for (const material of commands) {
+    if (material.command !== "material.script") continue;
+    if (files.get(material.file)?.status.state !== "script") continue;
+    const parameters = scriptParameters(material, commands);
+    const key = materialKey(material.file, parameters);
+    keys.add(key);
+    void files.inspectMaterial(key, material.file, parameters);
+  }
+  files.keepMaterials(keys);
+}
+
+/**
  * Messages for meshes and materials of the model whose file is not loaded or not
  * usable.
  */
@@ -900,7 +1040,7 @@ export function fileNotes(
         : isMesh(command)
           ? fileNote(command, commands, files)
           : command.command === "material.script"
-            ? scriptNote(command, files)
+            ? scriptNote(command, commands, files)
             : undefined;
     if (note) notes.set(command.name, [note]);
   }
@@ -908,17 +1048,18 @@ export function fileNotes(
 }
 
 /**
- * Why the script of a material (ADR 0025) is not loaded or not usable: the jobs run
- * it.
+ * Why the script of a material (ADR 0025) is not loaded or not usable: the error of
+ * its run with the parameters of the model (#423).
  */
 function scriptNote(
   command: MaterialScript,
+  commands: readonly Command[],
   files: MeshFiles,
 ): string | undefined {
-  const status = files.get(command.file)?.status;
-  if (!status)
+  const status = materialStatus(command, commands, files);
+  if (!files.get(command.file))
     return `The script '${command.file}' is not loaded. Choose it in the properties.`;
-  return status.state === "error"
+  return status?.state === "error"
     ? `${command.file}: ${status.message}`
     : undefined;
 }

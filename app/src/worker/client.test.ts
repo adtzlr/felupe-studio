@@ -211,6 +211,22 @@ describe("jobs", () => {
     await expect(script).resolves.toBe("import felupe as fem\n");
   });
 
+  it("runs the script of a material once (#423)", async () => {
+    const { worker, client } = start();
+    worker.reply(ready);
+    const inspected = client.inspectMaterial("soft.py", { mu: 1 });
+    await vi.waitFor(() => expect(worker.sent).toHaveLength(2));
+    expect(worker.sent[1]).toEqual({
+      type: "inspect-material",
+      id: 1,
+      file: "soft.py",
+      parameters: { mu: 1 },
+    });
+    const info = { file: "soft.py", type: "NeoHooke", statevars: 0 };
+    worker.reply({ type: "text", id: 1, text: JSON.stringify(info) });
+    await expect(inspected).resolves.toEqual(info);
+  });
+
   it("exports the results of a job", async () => {
     const { worker, client } = start();
     worker.reply(ready);

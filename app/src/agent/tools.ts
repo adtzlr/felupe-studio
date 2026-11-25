@@ -5,7 +5,7 @@
 // the agent gets.
 import type { Command } from "../core/commands";
 import type { JobRun, JobRunner } from "../core/jobs";
-import { isScript, type MeshFiles } from "../core/meshfiles";
+import { isScript, materialKey, type MeshFiles } from "../core/meshfiles";
 import { parameterValues } from "../core/resolve";
 import { type ResultView, substepsOf } from "../core/results";
 import type { Sample } from "../core/samples";
@@ -301,6 +301,28 @@ export function agentTools(host: AgentHost): Handler {
       const data = new TextEncoder().encode(content);
       await files.add(name, data);
       return { written: name, bytes: data.length };
+    },
+
+    // the script of a material run once, like inspect_material of the MCP server
+    // (#423): with the parameters of the model, changed by `parameters`
+    inspect_material: async (args) => {
+      const file = safeName(string(args, "file"));
+      if (!isScript(file)) throw new Error(`'${file}' is not a Python script.`);
+      const loaded = files.get(file)?.status;
+      if (!loaded)
+        throw new Error(`No file '${file}' in the files of the model.`);
+      if (loaded.state === "error")
+        throw new Error(`${file}: ${loaded.message}`);
+      const parameters = {
+        ...parameterValues(store.commands),
+        ...(optional<Record<string, number>>(args, "parameters") ?? {}),
+      };
+      const key = materialKey(file, parameters);
+      const run = await files.inspectMaterial(key, file, parameters);
+      if (run.state === "ready") return run.info;
+      if (run.state === "error")
+        return { file, error: run.message, traceback: run.traceback ?? "" };
+      throw new Error(`The script '${file}' did not run.`);
     },
 
     check: async () => {
