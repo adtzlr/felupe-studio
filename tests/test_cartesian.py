@@ -98,9 +98,7 @@ def test_ramp_of_a_constraint_in_2d():
     step = fem.Step([solid, support], ramp={support: table}, boundaries=boundaries)
     job = fem.CharacteristicCurve(steps=[step], boundary=support, items=[solid])
     job.evaluate(tol=1.49e-8, verbose=0)
-    np.testing.assert_allclose(
-        force, np.array(job.y) @ rotation, rtol=1e-6, atol=1e-12
-    )
+    np.testing.assert_allclose(force, np.array(job.y) @ rotation, rtol=1e-6, atol=1e-12)
 
 
 def test_script_of_a_constraint():
