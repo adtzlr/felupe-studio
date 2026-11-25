@@ -3,15 +3,18 @@
 A ``mesh.generate`` command makes one mesh with a tool of the registry in the
 command schema (the definitions of ``MeshGenerate``): its FElupe call
 (``x-felupe``), the dimensions of its points and cells and its cell type
-(``x-dimension``) and its parameters. :func:`dimensions` knows them before Python
-runs, like ``dimensions()`` of ``app/src/core/meshtools.ts``. A mesh whose points and
-cells have the dimension of the model is a model mesh with cell sets; a lower one is
-a construction mesh. :func:`call` is the line of a tool in the script, and
-:func:`generate` makes the meshes with these lines, like the script.
+(``x-dimension``) and its parameters. Its inputs are meshes of the model before:
+made by tools, of files or of scripts (#438). :func:`dimensions` knows them before
+Python runs, like ``dimensions()`` of ``app/src/core/meshtools.ts``; the cell type of
+a mesh of a file or a script is unknown before its read, unless it is given. A mesh
+whose points and cells have the dimension of the model is a model mesh with cell
+sets; a lower one is a construction mesh. :func:`call` is the line of a tool in the
+script, and :func:`generate` makes the meshes with these lines, like the script.
 """
 
 from functools import cache
 
+from .analysis import analysis_of
 from .commands import schema
 from .formatting import List, vector
 from .project import js_number
@@ -21,6 +24,7 @@ __all__ = [
     "dimensions",
     "generate",
     "input_problems",
+    "measured",
     "model_mesh",
     "problems",
     "tools",
@@ -28,8 +32,18 @@ __all__ = [
 
 AXES = ("x", "y", "z")
 
-# the dimension of the cells of a cell type
-CELLS = {"vertex": 0, "line": 1, "quad": 2, "triangle": 2, "hexahedron": 3, "tetra": 3}
+# the dimension of the cells of a cell type: of the tools, and of the solid cells of
+# files and scripts (#438)
+CELLS = {
+    "vertex": 0,
+    "line": 1,
+    **dict.fromkeys(["quad", "quad8", "quad9", "triangle", "triangle6"], 2),
+    **dict.fromkeys(["hexahedron", "hexahedron20", "hexahedron27"], 3),
+    **dict.fromkeys(["tetra", "tetra10"], 3),
+}
+
+# the mesh objects of files and scripts, inputs of the tools like made meshes (#438)
+SOURCES = ("mesh.import", "mesh.script")
 
 
 @cache
@@ -53,9 +67,15 @@ def tools():
 
 def output(rule, dimension):
     """The dimensions of the mesh of an operation (``x-dimension`` of its tool) from
-    those of its input, or None if the input does not fit."""
+    those of its input, or None if the input does not fit. An input of an unknown
+    cell type (of a file before its read, #438) is taken as the cell type of its
+    dimension that the operation takes, if there is one; the app checks it with the
+    read."""
     cell_type = dimension["cell_type"]
     types = rule["cell_type"]
+    if cell_type is None and types != "same":
+        fitting = [t for t in types if CELLS[t] == dimension["cells"]]
+        cell_type = fitting[0] if len(fitting) == 1 else None
     if types != "same" and cell_type not in types:
         return None
     new = cell_type if types == "same" else types[cell_type]
@@ -63,15 +83,65 @@ def output(rule, dimension):
     added = added if isinstance(added, int) else added[cell_type]
     return {
         "points": dimension["points"] + added,
-        "cells": CELLS[new],
+        "cells": dimension["cells"] if new is None else CELLS[new],
         "cell_type": new,
     }
 
 
-def dimensions(commands):
+def source_dimension(command, dim):
+    """The dimensions of a mesh of a file or of a script (#438), from its command: the
+    points and the cells of the model of dimension ``dim``, which it reads, or of the
+    dimension of its cell type. The cell type is unknown (None) before the read,
+    unless it is given.
+
+    Examples
+    --------
+    >>> mesh = {"command": "mesh.import", "name": "half", "file": "half.vtu"}
+    >>> source_dimension(mesh, 3)
+    {'points': 3, 'cells': 3, 'cell_type': None}
+    """
+    cell_type = command.get("cell_type")
+    cells = CELLS.get(cell_type, dim)
+    return {"points": cells, "cells": cells, "cell_type": cell_type}
+
+
+def same(inputs):
+    """The dimensions of the inputs of an operation, if they have the same points and
+    cells and the same cell type where it is known (with the known one), else
+    None."""
+    first = inputs[0]
+    types = {d["cell_type"] for d in inputs} - {None}
+    sizes = {(d["points"], d["cells"]) for d in inputs}
+    if len(types) > 1 or len(sizes) > 1:
+        return None
+    return {**first, "cell_type": next(iter(types), None)}
+
+
+def measured(meshes):
+    """The dimensions of meshes (``fem.Mesh``) by their names, e.g. of the meshes of
+    files and scripts that the tools take (#438)."""
+    return {
+        name: {
+            "points": mesh.dim,
+            "cells": CELLS.get(mesh.cell_type, mesh.dim),
+            "cell_type": mesh.cell_type,
+        }
+        for name, mesh in meshes.items()
+    }
+
+
+def cells_of(dimension):
+    """The cells of a mesh in a message: its cell type, or the dimension of its cells
+    if the cell type is unknown before the read (#438)."""
+    return dimension["cell_type"] or f"{dimension['cells']}D"
+
+
+def dimensions(commands, known=None):
     """Return the dimensions of the points and of the cells and the cell type of every
-    mesh made by a tool, by its name, from the commands alone: of a primitive from its
-    tool, of an operation from its input (none if it does not fit).
+    mesh of the model, by its name, from the commands alone: of a mesh of a file or a
+    script from the model (:func:`source_dimension`, #438) unless it is ``known``
+    (e.g. of its read, see :func:`measured`), of a primitive from its tool, of an
+    operation from its input (none if it does not fit).
 
     Examples
     --------
@@ -82,8 +152,12 @@ def dimensions(commands):
     >>> dimensions([line, face])["face"]
     {'points': 2, 'cells': 2, 'cell_type': 'quad'}
     """
-    result = {}
+    dim = 3 if analysis_of(commands) == "3d" else 2
+    result = dict(known or {})
     for c in commands:
+        if c["command"] in SOURCES:
+            result.setdefault(c["name"], source_dimension(c, dim))
+            continue
         if c["command"] != "mesh.generate" or c.get("tool") not in tools():
             continue
         rule = tools()[c["tool"]]["x-dimension"]
@@ -93,9 +167,9 @@ def dimensions(commands):
         inputs = [result.get(name) for name in c.get("inputs", [])]
         # inputs of the same cells and points, and an output of up to 3D points
         # with at least the dimension of its cells
-        if not inputs or not all(inputs) or any(d != inputs[0] for d in inputs):
+        if not inputs or not all(inputs) or (input := same(inputs)) is None:
             continue
-        made = output(rule, inputs[0])
+        made = output(rule, input)
         if made is not None and made["cells"] <= made["points"] <= 3:
             result[c["name"]] = made
     return result
@@ -200,7 +274,7 @@ def input_problems(command, known):
             names = ", ".join(types[:-1]) + " or " + types[-1]
             problems.append(
                 f"{label} needs a mesh of {names} cells; '{name}' has "
-                f"{dimension['cell_type']} cells."
+                f"{cells_of(dimension)} cells."
             )
         elif made["points"] > 3:
             problems.append(
@@ -218,16 +292,15 @@ def input_problems(command, known):
 
 
 def _same_inputs(command, known):
-    """The inputs of an operation of several meshes have the same cell type and the
-    same dimension of their points."""
+    """The inputs of an operation of several meshes have the same cell type (where it
+    is known, #438) and the same dimension of their points."""
     inputs = [
         (name, known[name]) for name in command.get("inputs", []) if name in known
     ]
-    if len({(d["cell_type"], d["points"]) for _, d in inputs}) < 2:
+    if len(inputs) < 2 or same([d for _, d in inputs]) is not None:
         return []
     meshes = ", ".join(
-        f"'{name}' {d['cell_type']} cells with {d['points']}D points"
-        for name, d in inputs
+        f"'{name}' {cells_of(d)} cells with {d['points']}D points" for name, d in inputs
     )
     return [f"{command['tool']} needs meshes of the same cells and points: {meshes}."]
 
@@ -322,10 +395,11 @@ def uses_embed(commands):
     )
 
 
-def generate(commands, values=None):
+def generate(commands, values=None, meshes=None):
     """Make the meshes of the tools of resolved commands with the lines of the script
     and return them by their names (``fem.Mesh``). ``values`` are the values of the
-    parameters of the model, which the expressions of the values use.
+    parameters of the model, which the expressions of the values use, and ``meshes``
+    the meshes of files and scripts that the tools take, by their names (#438).
 
     Examples
     --------
@@ -343,7 +417,8 @@ def generate(commands, values=None):
 
     # embed() is a helper of the script (ADR 0019)
     namespace = {"fem": fem, "np": np, "embed": embed, **(values or {})}
-    known = dimensions(commands)
+    namespace.update(meshes or {})
+    known = dimensions(commands, measured(meshes or {}))
     names = []
     for command in commands:
         if command["command"] != "mesh.generate":

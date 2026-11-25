@@ -324,7 +324,7 @@
       }
     },
     "MeshGenerate": {
-      "description": "A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes made by tools before, like expand or revolve. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh.",
+      "description": "A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes of the model before (made by tools, of files or of scripts), like expand or revolve. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh.",
       "oneOf": [
         {
           "$ref": "#/$defs/MeshPoint"
@@ -797,7 +797,7 @@
           "const": "expand"
         },
         "inputs": {
-          "description": "The mesh that the tool takes: a mesh made by a tool before.",
+          "description": "The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.",
           "type": "array",
           "minItems": 1,
           "maxItems": 1,
@@ -864,7 +864,7 @@
           "const": "revolve"
         },
         "inputs": {
-          "description": "The mesh that the tool takes: a mesh made by a tool before.",
+          "description": "The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.",
           "type": "array",
           "minItems": 1,
           "maxItems": 1,
@@ -930,7 +930,7 @@
           "const": "embed"
         },
         "inputs": {
-          "description": "The mesh that the tool takes: a mesh made by a tool before.",
+          "description": "The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.",
           "type": "array",
           "minItems": 1,
           "maxItems": 1,
@@ -981,7 +981,7 @@
           "const": "translate"
         },
         "inputs": {
-          "description": "The mesh that the tool takes: a mesh made by a tool before.",
+          "description": "The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.",
           "type": "array",
           "minItems": 1,
           "maxItems": 1,
@@ -1038,7 +1038,7 @@
           "const": "rotate"
         },
         "inputs": {
-          "description": "The mesh that the tool takes: a mesh made by a tool before.",
+          "description": "The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.",
           "type": "array",
           "minItems": 1,
           "maxItems": 1,
@@ -1106,7 +1106,7 @@
           "const": "mirror"
         },
         "inputs": {
-          "description": "The mesh that the tool takes: a mesh made by a tool before.",
+          "description": "The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.",
           "type": "array",
           "minItems": 1,
           "maxItems": 1,
@@ -1166,7 +1166,7 @@
           "const": "fill_between"
         },
         "inputs": {
-          "description": "The two meshes made by tools before, from the first to the second, of the same cell type and number of points, e.g. two lines embedded in a plane.",
+          "description": "The two meshes of the model before, from the first to the second, of the same cell type and number of points, e.g. two lines embedded in a plane.",
           "type": "array",
           "minItems": 2,
           "maxItems": 2,
@@ -1217,7 +1217,7 @@
           "const": "add_runouts"
         },
         "inputs": {
-          "description": "The mesh that the tool takes: a mesh made by a tool before.",
+          "description": "The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.",
           "type": "array",
           "minItems": 1,
           "maxItems": 1,
@@ -1300,7 +1300,7 @@
           "const": "stack"
         },
         "inputs": {
-          "description": "The meshes that the tool stacks: two or more meshes made by tools before, of the same cell type and dimension of the points.",
+          "description": "The meshes that the tool stacks: two or more meshes of the model before, of the same cell type and dimension of the points.",
           "type": "array",
           "minItems": 2,
           "uniqueItems": true,

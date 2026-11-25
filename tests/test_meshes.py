@@ -181,7 +181,9 @@ def test_volume_cells_by_cell_type():
         volume_cells(mesh, cell_type="tetra10")
     tetra = volume_cells(mesh, cell_type="tetra")
     assert (tetra.cell_type, tetra.cells.shape) == ("tetra", (576, 4))
-    assert tetra.points is mesh.points
+    # a fem.Mesh, an input of the mesh tools like a mesh made by them (#438)
+    assert isinstance(tetra, fem.Mesh) and tetra.tags is None
+    assert np.array_equal(tetra.points, mesh.points)
 
 
 BLOCKS = """import felupe as fem

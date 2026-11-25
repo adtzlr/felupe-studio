@@ -5,8 +5,6 @@ The part below the marker is copied verbatim into every generated script (see
 is used by :mod:`felupe_studio.checks`.
 """
 
-from types import SimpleNamespace
-
 import felupe as fem
 import meshio
 import numpy as np
@@ -50,12 +48,14 @@ def solid_types(mesh):
 
 
 def volume_cells(mesh, tag=None, cell_type=None, scale=1.0, dim=3):
-    """Return the points (multiplied by the scale), the cell type, the solid cells and
-    their tags (optional) of a meshio mesh. Lower-dimensional cell blocks (e.g.
-    boundary faces) are ignored. A mesh with more than one type of solid cells needs
-    the cell type to take. The cells are 3D cells, or 2D cells for a 2D model (plane
-    strain or axisymmetric) with ``dim=2``. The points of 2D cells have the
-    coordinates x and y only (the z of a mesh file is dropped)."""
+    """Return the solid cells of a meshio mesh as a ``fem.Mesh``, with the points
+    multiplied by the scale and the tags of its cells as ``tags`` (None without a
+    tag). So the mesh of a file is an input of the mesh tools like a mesh made by
+    them (#438). Lower-dimensional cell blocks (e.g. boundary faces) are ignored. A
+    mesh with more than one type of solid cells needs the cell type to take. The
+    cells are 3D cells, or 2D cells for a 2D model (plane strain or axisymmetric)
+    with ``dim=2``. The points of 2D cells have the coordinates x and y only (the z
+    of a mesh file is dropped)."""
     types = solid_types(mesh)
     if cell_type is None and len(types) == 1:
         cell_type = types[0]
@@ -79,7 +79,9 @@ def volume_cells(mesh, tag=None, cell_type=None, scale=1.0, dim=3):
     points = mesh.points if scale == 1 else mesh.points * scale
     if DIMENSIONS[cell_type] == 2:
         points = np.asarray(points)[:, :2]
-    return SimpleNamespace(points=points, cell_type=cell_type, cells=cells, tags=tags)
+    solid = fem.Mesh(points, cells, cell_type)
+    solid.tags = tags
+    return solid
 
 
 def single_point(mask, name):
@@ -378,7 +380,8 @@ def script_mesh(file, parameters, item=None):
 
 
 def run_mesh_script(file, parameters, item=None, tag=None, cell_type=None, dim=3):
-    """Return the solid cells of the mesh of a script, like ``volume_cells()``."""
+    """Return the solid cells of the mesh of a script as a ``fem.Mesh`` with the tags
+    of its cells, like ``volume_cells()``."""
     mesh = script_mesh(file, parameters, item)
     return volume_cells(mesh, tag=tag, cell_type=cell_type, dim=dim)
 

@@ -808,6 +808,73 @@ def test_a_stacked_profile_revolved_and_solved(url, page):
     assert page.errors == []
 
 
+def test_an_imported_half_mirrored_stacked_and_solved(url, page):
+    """The half of a bar of a file, mirrored and stacked into the whole with the
+    ribbon, and solved (#438): the mesh tools take a mesh of a file like a mesh made
+    by them, shown below the mesh that uses it."""
+    page.goto(url)
+    page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
+
+    def command(text, done):
+        line = page.get_by_label("Command", exact=True)
+        line.fill(text)
+        line.press("Enter")
+        page.get_by_text(done).first.wait_for(timeout=60_000)
+
+    command('mesh.import {"name": "half", "file": "half.vtu"}', "Created half.")
+    tree = page.get_by_role("navigation", name="Model browser")
+    tree.get_by_text("half", exact=True).click()
+    half = Path(__file__).parents[1] / "golden" / "bar_mirrored_half" / "half.vtu"
+    page.get_by_test_id("mesh-file").set_input_files(str(half))
+    page.get_by_text("hexahedron", exact=False).first.wait_for(timeout=60_000)
+
+    def operation(tool, name):
+        page.get_by_role("button", name="Operations").click()
+        page.get_by_role("menuitem", name=tool, exact=True).click()
+        dialog = page.get_by_role("dialog")
+        dialog.get_by_label("Name", exact=True).fill(name)
+        return dialog
+
+    # the imported mesh is the input of the mirror
+    dialog = operation("Mirror", "other")
+    assert dialog.locator("select[id$='-inputs']").input_value() == "half"
+    dialog.get_by_label("value", exact=True).fill("1.5")
+    dialog.get_by_role("button", name="Create").click()
+    tree.get_by_text("mirror half").wait_for()
+    dialog = operation("Stack", "bar")
+    dialog.get_by_role("checkbox", name="half", exact=True).check()
+    assert dialog.get_by_role("checkbox", name="other", exact=True).is_checked()
+    dialog.get_by_role("button", name="Create").click()
+    tree.get_by_text("stack half, other").wait_for()
+    for text in [
+        'cellset.from_file {"name": "cells", "mesh": "bar"}',
+        'material.add {"name": "rubber", "model": "NeoHookeCompressible", '
+        '"parameters": {"mu": 1, "lmbda": 2}}',
+        'section.add {"name": "body", "cellset": "cells", "material": "rubber", '
+        '"formulation": "u"}',
+        'pointset.add {"name": "left", "select": {"axis": "x", "value": 0}}',
+        'pointset.add {"name": "right", "select": {"axis": "x", "value": 3}}',
+        'boundary.add {"name": "fixed", "pointset": "left", '
+        '"constrained": ["x", "y", "z"]}',
+        'boundary.add {"name": "move", "pointset": "right", "constrained": ["x"]}',
+        'step.add {"name": "step_1", "ramp": {"num": 5, '
+        '"items": [{"target": "move", "end": 0.5}]}}',
+        'job.add {"name": "job_1", "steps": ["step_1"], "curve": "move"}',
+    ]:
+        name = text.split('"name": "')[1].split('"')[0]
+        command(text, f"Created {name}.")
+    page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)
+
+    page.get_by_role("button", name="Solve").click()
+    results = page.get_by_role("button", name="Show results")
+    results.wait_for(timeout=120_000)
+    summary = page.get_by_text("substeps in").first.inner_text()
+    # the force of the bar of the golden cases, made of one piece
+    assert "6 substeps" in summary
+    assert "Last substep: ux = 0.5, Fx = 0.4005" in summary
+    assert page.errors == []
+
+
 def test_a_step_that_releases_a_boundary_solved(url, page):
     """A step without a boundary, made with its form, and solved (#393): the
     viewport fades the boundary with the step selected, the free end springs back,

@@ -71,6 +71,13 @@ def _make_mesh(request, send):
     _mesh_info(request, send, result)
 
 
+def _sources(request):
+    """The meshes of files and scripts that the tools of a mesh take (#438), with
+    plain file names."""
+    sources = request.get("sources") or []
+    return [{**spec, "file": safe_name(spec["file"])} for spec in sources]
+
+
 def _generate_mesh(request, send):
     from . import meshes
 
@@ -78,7 +85,9 @@ def _generate_mesh(request, send):
     commands = request["commands"]
     if not isinstance(commands, str):
         commands = json.dumps(commands)
-    result = meshes.generate_json(commands, request["name"], request.get("cut"))
+    result = meshes.generate_json(
+        commands, request["name"], request.get("cut"), _sources(request)
+    )
     _mesh_info(request, send, result)
 
 
@@ -172,7 +181,7 @@ def _export_mesh(request, send):
     # a mesh made by the tools of FElupe: the commands of its tools (ADR 0019)
     if request.get("commands") is not None:
         data = meshes.export_generated(
-            request["commands"], request["file"], request["format"]
+            request["commands"], request["file"], request["format"], _sources(request)
         )
         send({"type": "bytes", "id": request["id"], "data": data})
         return

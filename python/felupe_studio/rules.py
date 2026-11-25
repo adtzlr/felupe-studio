@@ -107,7 +107,7 @@ class Model:
 
     @cached_property
     def dimensions(self):
-        """The dimensions of the meshes made by tools, by their names (ADR 0019)."""
+        """The dimensions of the meshes of the model, by their names (ADR 0019)."""
         return meshtools.dimensions(self.commands)
 
     @cached_property
@@ -406,16 +406,11 @@ def mesh_tool(model, cmd):
 
 
 def mesh_inputs(model, cmd):
-    """The inputs of an operation of the mesh tools are meshes made by tools before,
-    whose dimensions fit the operation (ADR 0019)."""
-    problems = []
-    for name in cmd.get("inputs", []):
-        mesh = model.before(name)
-        if mesh is not None and mesh["command"] != "mesh.generate":
-            problems.append(
-                f"{cmd['tool']} takes meshes made by tools; '{name}' is not."
-            )
-    problems.extend(meshtools.input_problems(cmd, model.dimensions))
+    """The inputs of an operation of the mesh tools are meshes of the model before,
+    made by tools, of files or of scripts (#438), whose dimensions fit the operation
+    (ADR 0019). A rule of the cell type of a mesh of a file or a script that is not
+    given is checked by the app with its read."""
+    problems = meshtools.input_problems(cmd, model.dimensions)
     return [f"mesh '{cmd['name']}': {p}" for p in problems]
 
 
