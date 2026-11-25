@@ -486,6 +486,21 @@ def embed(mesh, value=0.0):
     return fem.Mesh(points, mesh.cells, mesh.cell_type)
 
 
+# --- embedded in generated scripts with the cell tags of made meshes ---
+def tags_of(mesh, *inputs):
+    """Return the cell tags of a mesh made by a tool of meshes with cell tags (#438):
+    the tags of the inputs, concatenated like the cells of a stack, repeated per layer
+    of the cells of the mesh, e.g. of an expand or a revolve. A tool that moves the
+    points keeps the cells, and so their tags."""
+    tags = np.concatenate([np.ravel(m.tags) for m in inputs])
+    if len(tags) == 0 or len(mesh.cells) % len(tags):
+        raise ValueError(
+            f"The {len(mesh.cells)} cells of the mesh are no layers of the "
+            f"{len(tags)} cells of its inputs, whose tags it would take."
+        )
+    return np.tile(tags, len(mesh.cells) // len(tags))
+
+
 # --- embedded in generated scripts with steps that switch boundaries ---
 def pick(boundaries, names):
     """Return the boundaries of a step (#393): those of the names, and all boundaries

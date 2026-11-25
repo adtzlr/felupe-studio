@@ -111,6 +111,12 @@ class Model:
         return meshtools.dimensions(self.commands)
 
     @cached_property
+    def tag_names(self):
+        """The names of the cell tags of the meshes with cell tags, also of those
+        made by tools (#438)."""
+        return meshtools.tag_names(self.commands)
+
+    @cached_property
     def selects(self):
         """The selections of the point sets, by their names."""
         return {
@@ -364,22 +370,25 @@ def cylindrical_axis(model, cmd):
 
 
 def cellset_tag(model, cmd):
-    """A cell set from tags needs a mesh imported with a tag; a mesh made by a tool
-    has no cell tags (ADR 0019)."""
+    """A cell set from tags needs a mesh with cell tags: of a file or a script
+    imported with a tag, or made by a tool of such meshes, which keeps their tags
+    (#438). A primitive of the tools has none."""
     mesh = model.before(cmd["mesh"])
-    if mesh is not None and mesh["command"] == "mesh.generate":
-        return [
-            f"cell set '{cmd['name']}' uses tag values, but mesh '{mesh['name']}' is "
-            "made by a tool, without cell tags."
-        ]
-    if mesh is None or mesh["command"] not in ("mesh.import", "mesh.script"):
+    if mesh is None or mesh["name"] in model.tag_names:
         return []
-    if "tag" in mesh:
+    start = f"cell set '{cmd['name']}' uses tag values, but mesh '{mesh['name']}'"
+    if mesh["command"] in meshtools.SOURCES:
+        return [f"{start} was imported without a tag."]
+    if mesh["command"] != "mesh.generate" or mesh.get("tool") not in meshtools.tools():
         return []
-    return [
-        f"cell set '{cmd['name']}' uses tag values, but mesh '{mesh['name']}' was "
-        "imported without a tag."
+    untagged = [
+        name for name in meshtools.tag_inputs(mesh) if name not in model.tag_names
     ]
+    if not untagged:
+        return [f"{start} is made by a tool, without cell tags."]
+    names = ", ".join(f"'{name}'" for name in untagged)
+    meshes = "a mesh" if len(untagged) == 1 else "meshes"
+    return [f"{start} is made by a tool of {meshes} without cell tags: {names}."]
 
 
 def cellset_model_mesh(model, cmd):

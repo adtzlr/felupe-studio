@@ -300,9 +300,26 @@ def made(commands, name, sources=None):
     from . import meshtools
 
     meshes = {spec["name"]: source_mesh(spec) for spec in sources or []}
-    mesh = meshtools.generate(commands, meshes=meshes)[name]
+    mesh = meshtools.generate(commands, meshes=meshes, tags=_tags_of(sources))[name]
     known = meshtools.dimensions(commands, meshtools.measured(meshes))
     return mesh, known[name]
+
+
+def _tags_of(sources):
+    """The names of the cell tags of the meshes of files and scripts that the tools
+    take, by their names (#438)."""
+    return {spec["name"]: spec["tag"] for spec in sources or [] if spec.get("tag")}
+
+
+def _meshio(commands, name, mesh, sources=None):
+    """A made mesh as a meshio mesh, with the cell tags of the meshes it takes as the
+    cell data of their name (#438), like a mesh file."""
+    from . import meshtools
+
+    tag = meshtools.tag_names(commands, _tags_of(sources)).get(name)
+    tags = getattr(mesh, "tags", None)
+    cell_data = {} if tag is None or tags is None else {tag: [np.asarray(tags)]}
+    return meshio.Mesh(mesh.points, [(mesh.cell_type, mesh.cells)], cell_data=cell_data)
 
 
 def generate(commands, name, cut=None, sources=None):
@@ -310,9 +327,10 @@ def generate(commands, name, cut=None, sources=None):
     ``name`` of the resolved commands of the tools that make it (with the values of
     their expressions) and of the meshes of files and scripts that they take
     (``sources``, see :func:`source_mesh`, #438), made with the lines of the script. A
-    mesh of 2D or 3D cells is summarized like a mesh file, a mesh of lines or
-    vertices (a construction mesh) by its points and cells, with the lines for the
-    viewer. The summary has the ``dimension`` of the mesh; an error of FElupe, of a
+    mesh of 2D or 3D cells is summarized like a mesh file, with the cell tags of the
+    meshes it takes as a tag of their name (#438), a mesh of lines or vertices (a
+    construction mesh) by its points and cells, with the lines for the viewer. The
+    summary has the ``dimension`` of the mesh; an error of FElupe, of a
     file or of a script is its ``error``. With a ``cut``, the kept cells of the
     latest mesh of these commands and sources are cut, not the lines."""
     from .scene import wire
@@ -332,8 +350,7 @@ def generate(commands, name, cut=None, sources=None):
                 dimension=dimension,
             )
             return result, {}, {mesh.cell_type: wire(mesh)}, None
-        made_mesh = meshio.Mesh(mesh.points, [(mesh.cell_type, mesh.cells)])
-        info, solids = _summary(made_mesh, result)
+        info, solids = _summary(_meshio(commands, name, mesh, sources), result)
         info["dimension"] = dimension
         return info, solids, {}, None
 
@@ -378,15 +395,15 @@ def export_generated(commands, name, format="vtu", sources=None):
     """Return a mesh made by the tools of FElupe (ADR 0019) as the bytes of a file of
     a format of :data:`EXPORT_FORMATS`, like :func:`export`: the mesh ``name`` of the
     resolved commands of the tools that make it and of the meshes of files and
-    scripts that they take (``sources``, see :func:`source_mesh`, #438). A mesh of lines
-    or vertices (a construction mesh) has no solid cells to export."""
+    scripts that they take (``sources``, see :func:`source_mesh`, #438), with the cell
+    tags of these meshes. A mesh of lines or vertices (a construction mesh) has no
+    solid cells to export."""
     if format not in EXPORT_FORMATS:
         raise ValueError(
             f"Unknown format '{format}'; use one of {', '.join(EXPORT_FORMATS)}."
         )
     mesh, _ = made(commands, name, sources)
-    mesh = meshio.Mesh(mesh.points, [(mesh.cell_type, mesh.cells)])
-    return _write(mesh, name, format)
+    return _write(_meshio(commands, name, mesh, sources), name, format)
 
 
 def _write(mesh, name, format, cell_type=None, scale=None):

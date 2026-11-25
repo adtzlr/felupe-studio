@@ -68,10 +68,10 @@ def tool(document, tool="Cube", tags=False, **parameters):
             cellset["command"] = "cellset.from_file"
 
 
-def operation(document, kind, inputs, before=(), **parameters):
+def operation(document, kind, inputs, before=(), tags=False, **parameters):
     """The specimen made by an operation of the mesh tools (ADR 0019) of meshes made
-    before it, its cell sets all of its cells."""
-    tool(document)
+    before it, its cell sets all of its cells (or of the tags of its inputs, #438)."""
+    tool(document, tags=tags)
     index = document["commands"].index(find(document, "specimen"))
     document["commands"][index:index] = list(before)
     specimen = find(document, "specimen")
@@ -97,6 +97,7 @@ PROFILE = [
 # a mesh of a file and of a script, inputs of the tools like made meshes (#438)
 PART = {"command": "mesh.import", "name": "part", "file": "part.vtu"}
 SCRIPT_PART = {"command": "mesh.script", "name": "part", "file": "part.py"}
+TAGGED = {**PART, "tag": "material"}
 LINES = [
     made("bottom", "Line", a=0, b=3, n=4),
     made("bottom_2d", "embed", ["bottom"], value=0),
@@ -1226,6 +1227,48 @@ CHANGES = {
     ),
     "a profile of a script expanded": lambda d: operation(
         d, "expand", ["part"], [{**SCRIPT_PART, "cell_type": "quad"}], n=2, z=1
+    ),
+    # the cell tags of the meshes that a tool takes (#438)
+    "the tags of a stack of an imported half and its mirror": lambda d: operation(
+        d,
+        "stack",
+        ["part", "other"],
+        [TAGGED, made("other", "mirror", ["part"], axis="x", value=0)],
+        tags=True,
+        decimals=10,
+    ),
+    "the tags of a profile of a file revolved": lambda d: operation(
+        d,
+        "revolve",
+        ["part"],
+        [{**TAGGED, "cell_type": "quad"}],
+        tags=True,
+        n=3,
+        phi=90,
+        axis="x",
+    ),
+    "the tags of a mesh of a script moved": lambda d: operation(
+        d,
+        "translate",
+        ["part"],
+        [{**SCRIPT_PART, "tag": "material"}],
+        tags=True,
+        move=1,
+        axis="x",
+    ),
+    "the tags of a mirror of a mesh without a tag": lambda d: operation(
+        d, "mirror", ["part"], [PART], tags=True, axis="x", value=0
+    ),
+    "the tags of a stack of an imported mesh and a cube": lambda d: operation(
+        d, "stack", ["part", "block"], [TAGGED, CUBE], tags=True, decimals=10
+    ),
+    "the tags of a stack of two meshes without a tag": lambda d: operation(
+        d,
+        "stack",
+        ["part", "other"],
+        [PART, made("other", "mirror", ["part"], axis="x", value=0)],
+        tags=True,
+        decimals=10,
     ),
     "a stack of an imported mesh of tetrahedrons and a cube": lambda d: operation(
         d,

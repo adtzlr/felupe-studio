@@ -321,6 +321,23 @@ def test_revolved_profile_of_a_file_like_the_tool():
     assert line in script
 
 
+def test_mirrored_half_with_tags_like_the_whole():
+    # the bar of two materials as its half with the tag of the material, mirrored and
+    # stacked into the whole with the tags of the half (#438): the cell sets of the
+    # tags of the whole, the curve of the whole of a file
+    mirrored, whole = (
+        json.loads((HERE / case / "results.json").read_text(encoding="utf-8"))
+        for case in ("bar_two_materials_mirrored", "bar_two_materials")
+    )
+    for key in ("displacement", "force"):
+        np.testing.assert_allclose(
+            mirrored["jobs"]["job_1"][key], whole["jobs"]["job_1"][key], rtol=1e-10
+        )
+    script = (HERE / "bar_two_materials_mirrored" / "script.py").read_text("utf-8")
+    assert "other.tags = tags_of(other, half)\n" in script
+    assert "bar.tags = tags_of(bar, half, other)\n" in script
+
+
 def test_pardiso_like_superlu():
     # the bar of two materials with PARDISO of Intel oneMKL (#308): the curve of
     # SuperLU, stored where pypardiso is installed

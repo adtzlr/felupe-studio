@@ -9,7 +9,8 @@ Python runs, like ``dimensions()`` of ``app/src/core/meshtools.ts``; the cell ty
 a mesh of a file or a script is unknown before its read, unless it is given. A mesh
 whose points and cells have the dimension of the model is a model mesh with cell
 sets; a lower one is a construction mesh. :func:`call` is the line of a tool in the
-script, and :func:`generate` makes the meshes with these lines, like the script.
+script, and :func:`generate` makes the meshes with these lines, like the script. A
+tool keeps the cell tags of the meshes it takes (:func:`tag_names`, #438).
 """
 
 from functools import cache
@@ -27,6 +28,9 @@ __all__ = [
     "measured",
     "model_mesh",
     "problems",
+    "tag_inputs",
+    "tag_names",
+    "tags_call",
     "tools",
 ]
 
@@ -173,6 +177,71 @@ def dimensions(commands, known=None):
         if made is not None and made["cells"] <= made["points"] <= 3:
             result[c["name"]] = made
     return result
+
+
+def tag_inputs(command):
+    """Return the inputs of an operation whose cell tags its mesh takes (#438): all
+    meshes of a stack, whose tags are concatenated like their cells, else the first
+    mesh, whose tags are repeated per layer of cells, e.g. of an expand, a revolve or
+    a fill between two meshes, or kept by a tool that moves the points. A primitive
+    has none.
+
+    Examples
+    --------
+    >>> tag_inputs({"tool": "stack", "inputs": ["left", "right"]})
+    ['left', 'right']
+    >>> tag_inputs({"tool": "fill_between", "inputs": ["bottom", "top"]})
+    ['bottom']
+    """
+    rule = tools()[command["tool"]]["x-dimension"]
+    inputs = list(command.get("inputs", []))
+    if "inputs" not in rule:
+        return []
+    return inputs if rule["inputs"] == "list" else inputs[:1]
+
+
+def tag_names(commands, known=None):
+    """Return the name of the cell tag of every mesh with cell tags, by the name of
+    the mesh (#438): of a mesh of a file or a script imported with a tag, also of one
+    that is ``known`` and not among the commands (e.g. the meshes of files and
+    scripts that the worker takes), and of a mesh made by an operation whose inputs
+    of tags (:func:`tag_inputs`) all have them, with the name of the tag of the first
+    one.
+
+    Examples
+    --------
+    >>> half = {"command": "mesh.import", "name": "half", "file": "half.msh",
+    ...         "tag": "gmsh:physical"}
+    >>> other = {"command": "mesh.generate", "name": "other", "tool": "mirror",
+    ...          "inputs": ["half"], "parameters": {"axis": "x", "value": 0}}
+    >>> block = {"command": "mesh.generate", "name": "block", "tool": "Cube",
+    ...          "parameters": {}}
+    >>> tag_names([half, other, block])
+    {'half': 'gmsh:physical', 'other': 'gmsh:physical'}
+    """
+    result = dict(known or {})
+    for c in commands:
+        if c["command"] in SOURCES and c.get("tag"):
+            result[c["name"]] = c["tag"]
+        elif c["command"] == "mesh.generate" and c.get("tool") in tools():
+            inputs = tag_inputs(c)
+            if inputs and all(name in result for name in inputs):
+                result[c["name"]] = result[inputs[0]]
+    return result
+
+
+def tags_call(command):
+    """Return the line of the cell tags of a mesh made by an operation of meshes with
+    cell tags (#438) as the target, the function and the arguments of a call: the
+    helper ``tags_of()`` of the mesh and the inputs of its tags.
+
+    Examples
+    --------
+    >>> tags_call({"name": "body", "tool": "revolve", "inputs": ["profile"]})
+    ('body.tags', 'tags_of', ['body', 'profile'])
+    """
+    name = command["name"]
+    return f"{name}.tags", "tags_of", [name, *tag_inputs(command)]
 
 
 def model_mesh(dimension, dim):
@@ -395,11 +464,23 @@ def uses_embed(commands):
     )
 
 
-def generate(commands, values=None, meshes=None):
+def uses_tags(commands):
+    """Whether a script needs the helper ``tags_of()``: a mesh made by a tool of
+    meshes with cell tags (#438)."""
+    tagged = tag_names(commands)
+    return any(
+        c["command"] == "mesh.generate" and c["name"] in tagged for c in commands
+    )
+
+
+def generate(commands, values=None, meshes=None, tags=None):
     """Make the meshes of the tools of resolved commands with the lines of the script
     and return them by their names (``fem.Mesh``). ``values`` are the values of the
     parameters of the model, which the expressions of the values use, and ``meshes``
-    the meshes of files and scripts that the tools take, by their names (#438).
+    the meshes of files and scripts that the tools take, by their names (#438). A
+    made mesh has the cell tags of the meshes it takes, if they have them
+    (:func:`tag_names`, with the names of the ``tags`` of meshes of files and scripts
+    that are not among the commands).
 
     Examples
     --------
@@ -412,18 +493,22 @@ def generate(commands, values=None, meshes=None):
     import felupe as fem
     import numpy as np
 
-    from ._helpers import embed
+    from ._helpers import embed, tags_of
     from .formatting import call as call_line
 
-    # embed() is a helper of the script (ADR 0019)
-    namespace = {"fem": fem, "np": np, "embed": embed, **(values or {})}
+    # embed() and tags_of() are helpers of the script (ADR 0019, #438)
+    namespace = {"fem": fem, "np": np, "embed": embed, "tags_of": tags_of}
+    namespace.update(values or {})
     namespace.update(meshes or {})
     known = dimensions(commands, measured(meshes or {}))
+    tagged = tag_names(commands, tags)
     names = []
     for command in commands:
         if command["command"] != "mesh.generate":
             continue
         function, args, end = call(command, known)
         exec(call_line(command["name"], function, args, end), namespace)
+        if command["name"] in tagged:
+            exec(call_line(*tags_call(command)), namespace)
         names.append(command["name"])
     return {name: namespace[name] for name in names}
