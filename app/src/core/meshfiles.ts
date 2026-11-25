@@ -76,9 +76,19 @@ export type Cutter = (
   cut: Cut,
 ) => Promise<Record<string, MeshSurface>>;
 
+/**
+ * The cut of a drawn mesh (#395): the name of the mesh object, the request that
+ * made its mesh and the cut in the coordinates of its file.
+ */
+export interface MeshCut {
+  name: string;
+  source: MeshSource;
+  cut: Cut;
+}
+
 /** The cut surfaces of a mesh (#395): the wanted cut, the one asked for, the latest. */
 interface CutEntry {
-  wanted: { key: string; source: MeshSource; cut: Cut };
+  wanted: { key: string } & MeshCut;
   /** The key of the cut that is being made. */
   pending?: string;
   /** The latest cut that arrived, or its error. */
@@ -111,7 +121,7 @@ export class MeshFiles {
   private files = new Map<string, { data: Uint8Array; file: MeshFile }>();
   // the meshes made by scripts (scriptKey) and by tools (generateKey), by their key
   private made = new Map<string, { file?: string; status: FileState }>();
-  // the cut surfaces of the drawn meshes (#395), by their source (sourceKey)
+  // the cut surfaces of the drawn meshes (#395), by their mesh (meshCutKey)
   private cuts = new Map<string, CutEntry>();
   private listeners = new Set<() => void>();
   private version = 0;
@@ -161,19 +171,20 @@ export class MeshFiles {
   }
 
   /**
-   * Cut the meshes of their sources (#395), each with its cut (in the coordinates
-   * of its file): the latest cut of a mesh is asked for once the one being made has
-   * arrived, and the cuts of other meshes are forgotten (all of them without one).
+   * Cut the drawn meshes (#395), each with its cut (in the coordinates of its file):
+   * the latest cut of a mesh is asked for once the one being made has arrived, and
+   * the cuts of other meshes are forgotten (all of them without one). Two meshes of
+   * one file are cut each, also with different scales of their imports (#442).
    */
-  cutMeshes(wanted: readonly { source: MeshSource; cut: Cut }[]): void {
-    const keys = new Set(wanted.map(({ source }) => sourceKey(source)));
+  cutMeshes(wanted: readonly MeshCut[]): void {
+    const keys = new Set(wanted.map(meshCutKey));
     for (const key of [...this.cuts.keys()]) {
       if (!keys.has(key)) this.cuts.delete(key);
     }
-    for (const { source, cut } of wanted) {
-      const key = sourceKey(source);
+    for (const mesh of wanted) {
+      const key = meshCutKey(mesh);
       const entry = this.cuts.get(key);
-      const next = { key: cutKey(cut), source, cut };
+      const next = { ...mesh, key: cutKey(mesh.cut) };
       if (entry?.wanted.key === next.key) continue;
       if (entry) entry.wanted = next;
       else this.cuts.set(key, { wanted: next });
@@ -182,11 +193,22 @@ export class MeshFiles {
   }
 
   /**
-   * The latest cut surfaces of the mesh of a source by cell type (#395), also of an
-   * older cut while the wanted one is being made; undefined before the first.
+   * The latest cut surfaces of a drawn mesh by cell type (#395), also of an older
+   * cut while the wanted one is being made, or after an error; undefined before the
+   * first.
    */
-  cutSurfaces(source: MeshSource): Record<string, MeshSurface> | undefined {
-    return this.cuts.get(sourceKey(source))?.done?.surfaces;
+  cutSurfaces(
+    mesh: Omit<MeshCut, "cut">,
+  ): Record<string, MeshSurface> | undefined {
+    return this.cuts.get(meshCutKey(mesh))?.done?.surfaces;
+  }
+
+  /**
+   * The error of the latest cut of a drawn mesh (#442), with the traceback of
+   * Python; undefined once a cut of it arrives.
+   */
+  cutError(mesh: Omit<MeshCut, "cut">): string | undefined {
+    return this.cuts.get(meshCutKey(mesh))?.done?.error;
   }
 
   /** Ask for the wanted cut of a mesh, unless a cut of it is being made. */
@@ -641,12 +663,18 @@ export function meshStatus(
   return files.madeStatus(scriptKey(mesh, commands));
 }
 
-/** The key of the request that made a mesh (#395). */
-export const sourceKey = (source: MeshSource) => JSON.stringify(source);
-
 /** The key of a cut (#395). */
 export const cutKey = (cut: Cut) =>
   JSON.stringify([cut.axis, cut.value, cut.half]);
+
+/**
+ * The key of the cut of a drawn mesh (#395): its name and the request that made its
+ * mesh. So a mesh made anew is drawn whole until its first cut arrives, and two
+ * meshes of one source get a cut each, e.g. imports of a file with different scales
+ * (#442).
+ */
+const meshCutKey = ({ name, source }: Omit<MeshCut, "cut">) =>
+  JSON.stringify([name, source]);
 
 /**
  * The request that made the mesh of a mesh object (#395): the read of its file, the

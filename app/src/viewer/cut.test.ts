@@ -8,6 +8,7 @@ import {
   cutLayers,
   cutLines,
   cutMarkers,
+  failedCuts,
   isVisible,
   meshCuts,
   planeOf,
@@ -180,6 +181,30 @@ describe("the cut meshes (#395)", () => {
     expect(a.surface.triangles).toBe(half.triangles);
     expect(a.surface.positions).toEqual(half.positions.map((x) => 2 * x));
     expect(b).toBe(content.meshes[1]);
+  });
+
+  it("tell the meshes whose cut failed, by the exception (#442)", async () => {
+    const cut = { axis: "x" as const, value: 1, half: "+" as const };
+    const of = (name: string) => ({ name, source: { ...source, name }, cut });
+    const cuts = [of("a"), of("b"), of("c"), of("d")];
+    const files = new MeshFiles(undefined, {
+      cut: async (request) => {
+        const { name } = request as typeof source;
+        if (name === "d") return { quad: surface };
+        throw new Error(
+          name === "c"
+            ? "Traceback (most recent call last):\nnumpy._core._exceptions._ArrayMemoryError: Unable to allocate"
+            : "Traceback (most recent call last):\nValueError: negative axis 1 index: -26780\n",
+        );
+      },
+    });
+    expect(failedCuts(cuts, files)).toEqual([]);
+    files.cutMeshes(cuts);
+    await new Promise((resolve) => setTimeout(resolve));
+    expect(failedCuts(cuts, files)).toEqual([
+      { names: ["a", "b"], error: "ValueError: negative axis 1 index: -26780" },
+      { names: ["c"], error: "_ArrayMemoryError: Unable to allocate" },
+    ]);
   });
 
   it("pick the triangles of the outer surface, not the cut face", () => {

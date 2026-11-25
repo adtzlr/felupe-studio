@@ -1,7 +1,7 @@
 // The toolbar and the panels of the viewport (#312): the selected point set, the
 // tip about picking, a picked face, picked surfaces and picked nodes, the warnings
-// about the selected object and what is off in the selected step (#393), stacked
-// between the axes and the job panel (#128).
+// about the selected object, what is off in the selected step (#393) and the cuts
+// that failed (#442), stacked between the axes and the job panel (#128).
 import type { ComponentProps } from "preact";
 import { toName } from "../core/importmesh";
 import type { Command, FaceSetAdd, PointSetAdd } from "../core/resolved";
@@ -552,6 +552,23 @@ export function OffInStep({
     <p class="viewport-status muted" role="status">
       Off in {off.step} (faded): {off.names.join(", ")}
     </p>
+  );
+}
+
+/** The meshes whose cut failed (#442), by the exception of Python. */
+export function FailedCuts({
+  failed,
+}: {
+  failed: readonly { names: readonly string[]; error: string }[];
+}) {
+  return (
+    <>
+      {failed.map(({ names, error }) => (
+        <p key={error} class="viewport-status warning" role="status">
+          {names.join(", ")}: the cut failed with {error}
+        </p>
+      ))}
+    </>
   );
 }
 
