@@ -1,10 +1,11 @@
 """The parts of the script of the items besides the solid bodies (ADR 0018).
 
-The multi-point constraints, the contacts with rigid surfaces, the point loads and
-the pressures on face sets.
+The multi-point constraints, the Cartesian constraints, the contacts with rigid
+surfaces, the point loads and the pressures on face sets.
 """
 
-from .formatting import List, call, quote, vector
+from .cartesian import DIRECTIONS, E2, components
+from .formatting import Call, List, call, quote, vector
 
 
 def single_point(name):
@@ -27,6 +28,37 @@ def constraint(context, mpc):
     if "rotation" in mpc:
         args.append(f"rotationpoint={single_point(mpc['rotation'])}")
     return [call(mpc["name"], "fem.MultiPointConstraint", args)]
+
+
+def base_vectors(context, command):
+    """The rotation matrix of a Cartesian constraint as written: ``base_vectors()``
+    of its e1 and e2, of a 2D model of e1 only (e2 is e1 turned by 90°)."""
+    vectors = [command["e1"][: context.dim]]
+    if context.dim == 3:
+        vectors.append(command.get("e2", E2))
+    return Call("rotation=base_vectors", [List(map(repr, v)) for v in vectors])
+
+
+def cartesian(context, command):
+    """A Cartesian constraint (#421): the points of a point set in the directions of
+    a rotated coordinate system, the skipped directions free."""
+    args = [
+        "field",
+        f"points=np.flatnonzero({command['points']})",
+        base_vectors(context, command),
+    ]
+    value = command.get("value", 0)
+    displacement = components(command, value, context.dim)
+    if any(float(v) != 0 for v in displacement):
+        args.append(f"displacement={vector(displacement)}")
+    skip = tuple(
+        int(d not in command["constrained"]) for d in DIRECTIONS[: context.dim]
+    )
+    if any(skip):
+        args.append(f"skip={skip!r}")
+    if "multiplier" in command:
+        args.append(f"multiplier={command['multiplier']!r}")
+    return [call(command["name"], "fem.CartesianConstraint", args)]
 
 
 def shape_args(context, shape):
@@ -80,6 +112,7 @@ def pressure(context, p):
 
 
 CONSTRAINTS = {"mpc.add": constraint}
+CARTESIANS = {"cartesian.add": cartesian}
 CONTACTS = {"contact.add": contact}
 LOADS = {"load.add": load}
 PRESSURES = {"pressure.add": pressure}
@@ -94,6 +127,15 @@ def constraints(context):
             "about z"
         )
     return context.emit(CONSTRAINTS, comment)
+
+
+def cartesians(context):
+    """The part of the Cartesian constraints (#421)."""
+    return context.emit(
+        CARTESIANS,
+        "# Cartesian constraints: the points held or moved in the directions of a\n"
+        "# coordinate system (the columns of the rotation), the skipped ones free",
+    )
 
 
 def contacts(context):

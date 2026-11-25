@@ -42,6 +42,9 @@ KINDS = {
     # symmetry planes (#186): boundaries of all steps, neither ramped nor a curve
     "symmetry.add": "symmetry",
     "mpc.add": "constraint",
+    # a Cartesian constraint (#421): an item of the steps like a multi-point
+    # constraint, also ramped by the steps and the curve of a job
+    "cartesian.add": "constraint",
     # a contact with a rigid surface (#220): an item of the steps like a constraint
     "contact.add": "constraint",
     "load.add": "load",
@@ -62,6 +65,9 @@ VERTICES = {"point.add": "control point", "rigid.add": "rigid surface"}
 # kinds of objects that a step can ramp (a load case is a boundary)
 RAMPED = ("boundary", "load", "pressure")
 
+# the constraints that a step can ramp and that can be the curve of a job (#421)
+MOVED = ("cartesian.add",)
+
 # references of a command: field name (or a path of fields, joined by dots) -> (kind,
 # is a list)
 REFERENCES = {
@@ -81,6 +87,7 @@ REFERENCES = {
         "center": ("pointset", False),
         "rotation": ("pointset", False),
     },
+    "cartesian.add": {"points": ("pointset", False)},
     "load.add": {"points": (("pointset", "rigid"), False)},
     "contact.add": {
         "points": (("pointset", "faceset"), False),
@@ -94,9 +101,18 @@ REFERENCES = {
         # the boundaries, load cases and symmetry planes of a step (#393)
         "boundaries": (("boundary", "symmetry"), True),
     },
-    # the curve of a job: a boundary (force-displacement) or a point load
-    "job.add": {"steps": ("step", True), "curve": (("boundary", "load"), False)},
+    # the curve of a job: a boundary (force-displacement), a point load or a
+    # Cartesian constraint (#421, checked by a rule)
+    "job.add": {
+        "steps": ("step", True),
+        "curve": (("boundary", "load", "constraint"), False),
+    },
 }
+
+
+# the names of the kinds of references in the messages, if not the kinds themselves:
+# the curve of a job is a constraint only of a Cartesian constraint (#421)
+REFERENCE_NAMES = {("job.add", "curve"): "boundary, load or Cartesian constraint"}
 
 
 # the names of the numbers of a parameter in the messages (#180)

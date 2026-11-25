@@ -546,3 +546,16 @@ class BoundarySwitch(fem.Plugin):
             if boundary in state.values:
                 ramped = self.prescribed(boundary, state.values[boundary])
                 state.values[boundary] = values + ramped
+
+
+# --- embedded in generated scripts with Cartesian constraints ---
+def base_vectors(e1, e2=None):
+    """Return the rotation matrix of a Cartesian constraint (#421): its normalized base
+    vectors as columns, e1, e2 and e3 = e1 x e2. Of a 2D model (e1 of two
+    components), e2 is e1 turned by 90° about z."""
+    e1 = np.asarray(e1, dtype=float)
+    if e2 is None:
+        e1 = e1 / np.linalg.norm(e1)
+        return np.array([[e1[0], -e1[1]], [e1[1], e1[0]]])
+    vectors = np.column_stack([e1, e2, np.cross(e1, e2)])
+    return vectors / np.linalg.norm(vectors, axis=0)

@@ -1347,6 +1347,119 @@ CHANGES |= {
     ),
 }
 
+
+def cartesian(document, index=11, **fields):
+    """A Cartesian constraint of the point set right (#421): its points slide in the
+    plane normal to z, unless the fields change it."""
+    command = {
+        "command": "cartesian.add",
+        "name": "slide",
+        "points": "right",
+        "e1": [0, 0, 1],
+        "e2": [1, 0, 0],
+        "constrained": ["1"],
+        **fields,
+    }
+    document["commands"].insert(index, command)
+
+
+def glue(document):
+    """A multi-point constraint of the point set right to left."""
+    document["commands"].insert(
+        11,
+        {
+            "command": "mpc.add",
+            "name": "glue",
+            "points": "right",
+            "center": "left",
+            "constrained": ["x", "y", "z"],
+        },
+    )
+
+
+# the Cartesian constraints (#421): ramped by the steps and the curve of a job, their
+# base vectors and their values
+CHANGES |= {
+    "Cartesian constraint ramped and recorded": lambda d: (
+        cartesian(d, multiplier=1e4, value=0.1),
+        find(d, "step_1")["ramp"]["items"].append({"target": "slide", "end": 0.2}),
+        find(d, "job_1").update(curve="slide"),
+    ),
+    "Cartesian constraint ramped per direction": lambda d: (
+        cartesian(d, constrained=["3", "1"], value=[0.1, 0.2]),
+        find(d, "step_1")["ramp"]["items"].append(
+            {"target": "slide", "start": [0, 0], "end": [0.1, "stroke"]}
+        ),
+        parameters(d),
+    ),
+    "Cartesian constraint without e2": lambda d: (
+        cartesian(d, e1=[0, 0, 1]),
+        find(d, "slide").pop("e2"),
+    ),
+    "Cartesian constraint with a base vector of zero length": lambda d: cartesian(
+        d, e1=[0, 0, 0], e2=[0, 0, 0]
+    ),
+    "Cartesian constraint with base vectors not orthogonal": lambda d: cartesian(
+        d, e1=[1, 0, 1], e2=[1, 1, 0]
+    ),
+    "Cartesian constraint with a value per direction": lambda d: cartesian(
+        d, value=[0.1, 0.2]
+    ),
+    "Cartesian constraint ramped with values per direction": lambda d: (
+        cartesian(d, constrained=["1", "2"]),
+        find(d, "step_1")["ramp"]["items"].append(
+            {"target": "slide", "end": [0.1, 0.2, 0.3]}
+        ),
+    ),
+    "Cartesian constraint off in a step that ramps it": lambda d: (
+        cartesian(d),
+        glue(d),
+        find(d, "step_1").update(constraints=["glue"]),
+        find(d, "step_1")["ramp"]["items"].append({"target": "slide", "end": 0.1}),
+    ),
+    "Cartesian constraint of a control point": lambda d: (
+        d["commands"].insert(
+            9, {"command": "point.add", "name": "pin", "coordinates": [4, 0, 0]}
+        ),
+        cartesian(d, 12, points="pin", constrained=["1", "2", "3"]),
+    ),
+    "Cartesian constraint along a rotated direction": lambda d: cartesian(
+        d, e1=[1, 0, 1], e2=[0, 1, 0]
+    ),
+    "ramp of a multi-point constraint": lambda d: (
+        glue(d),
+        find(d, "step_1")["ramp"]["items"].append({"target": "glue", "end": 0.1}),
+    ),
+    "curve of a multi-point constraint": lambda d: (
+        glue(d),
+        find(d, "job_1").update(curve="glue"),
+    ),
+    "Cartesian constraint in a 2D model": lambda d: (
+        tool(d, "Rectangle"),
+        planar(d),
+        cartesian(d, e1=[1, 0, 0], constrained=["2"], value=-0.1),
+        find(d, "slide").pop("e2"),
+        find(d, "job_1").update(curve="slide"),
+    ),
+    "Cartesian constraint with e1 in z in a 2D model": lambda d: (
+        tool(d, "Rectangle"),
+        planar(d),
+        cartesian(d, e1=[1, 0, 1]),
+        find(d, "slide").pop("e2"),
+    ),
+    "Cartesian constraint with e2 in a 2D model": lambda d: (
+        tool(d, "Rectangle"),
+        planar(d),
+        cartesian(d, e1=[1, 0, 0], e2=[0, 1, 0]),
+    ),
+    "Cartesian constraint of direction 3 in a 2D model": lambda d: (
+        tool(d, "Rectangle"),
+        planar(d),
+        cartesian(d, e1=[1, 0, 0], constrained=["3"]),
+        find(d, "slide").pop("e2"),
+    ),
+}
+
 # every formulation of the registry with every kind of material (ADR 0024): the rule
 # that the material fits the formulation, the same in both languages
 MATERIAL_KINDS = {

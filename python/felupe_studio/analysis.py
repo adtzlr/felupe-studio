@@ -104,6 +104,28 @@ def planar_constraint(cmd, analysis, rotations):
     return []
 
 
+def planar_cartesian(cmd, analysis, rotations):
+    """The directions of a Cartesian constraint are in the xy-plane: e1 without a z
+    component, and e2 is e1 turned by 90° about z (#421)."""
+    name = cmd["name"]
+    if cmd["e1"][2] != 0:
+        return [
+            f"Cartesian constraint '{name}' has e1 with a z component: the directions "
+            "of a 2D model are in the xy-plane."
+        ]
+    if "e2" in cmd:
+        return [
+            f"Cartesian constraint '{name}' has e2: in a 2D model, e2 is e1 turned by "
+            "90° about z."
+        ]
+    if "3" in cmd["constrained"]:
+        return [
+            f"Cartesian constraint '{name}' constrains direction 3, which a 2D model "
+            "does not have."
+        ]
+    return []
+
+
 def planar_symmetry(cmd, analysis, rotations):
     if "z" not in cmd["axes"]:
         return []
@@ -159,6 +181,7 @@ PLANAR = {
     "point.add": planar_point,
     "rigid.add": planar_rigid,
     "mpc.add": planar_constraint,
+    "cartesian.add": planar_cartesian,
     "symmetry.add": planar_symmetry,
     "loadcase.add": planar_loadcase,
     "faceset.add": planar_faceset,

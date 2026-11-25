@@ -5,6 +5,7 @@ steps and their evaluation with the settings of the Newton-Raphson method and of
 linear solver.
 """
 
+from .cartesian import components
 from .formatting import (
     LINE_LENGTH,
     Call,
@@ -176,8 +177,11 @@ def ramp_value(item, num):
 
 def ramped(context, name, values):
     """The entries of the ramp of a step of an item: a boundary, the moving
-    boundaries of a load case, a point load (its force, scaled by the values) or a
-    pressure (scaled by the values)."""
+    boundaries of a load case, a Cartesian constraint (its displacements, #421), a
+    point load (its force, scaled by the values) or a pressure (scaled by the
+    values)."""
+    if name in context.cartesians:
+        return [f"{name}: {values}"]
     if name in context.loads:
         load = context.loads[name]
         force = vector(context.components(load["force"], load["points"]))
@@ -192,12 +196,29 @@ def ramped(context, name, values):
     ]
 
 
-def ramp_arrays(step):
+def directions(context, item):
+    """The ramped item of a step with the values of all directions of a Cartesian
+    constraint (#421), whose ramp is a table of its displacements: the values of the
+    constrained directions and 0 of the free ones."""
+    command = context.cartesians.get(item["target"])
+    if command is None:
+        return item
+    return {
+        **item,
+        "start": components(command, item.get("start", 0), context.dim),
+        "end": components(command, item["end"], context.dim),
+    }
+
+
+def ramp_arrays(context, step):
     """The lines of the ramp of a step and the array of every ramped item: one array
     if the values of all items are the same, else an array per item, in the order of
     the items."""
     r, ramp = step["ramp"], f"ramp_{step['name']}"
-    values = {item["target"]: ramp_value(item, r["num"]) for item in r["items"]}
+    values = {
+        item["target"]: ramp_value(directions(context, item), r["num"])
+        for item in r["items"]
+    }
     if len({str(v) for v in values.values()}) == 1:
         lines = [assign(ramp, values[r["items"][0]["target"]])]
         return lines, {target: ramp for target in values}
@@ -231,7 +252,9 @@ def items(context, solids, others):
 def step_items(context, step):
     """The items of a step: the solid bodies of its sections, its constraints and
     its loads, all of them by default."""
-    constraints = [c["name"] for c in context.get("mpc.add", "contact.add")]
+    constraints = [
+        c["name"] for c in context.get("mpc.add", "cartesian.add", "contact.add")
+    ]
     others = step.get("constraints", constraints) + step.get(
         "loads", [*context.loads, *context.pressures]
     )
@@ -315,7 +338,7 @@ def step_add(context, step):
     """A step, after its ramp."""
     lines, args = [], [step_items(context, step)]
     if "ramp" in step:
-        lines, arrays = ramp_arrays(step)
+        lines, arrays = ramp_arrays(context, step)
         entries = [e for t, v in arrays.items() for e in ramped(context, t, v)]
         args.append(Dict(entries, prefix="ramp="))
     held = held_sections(context, step)
@@ -339,8 +362,9 @@ def boundary_switch(context):
 
 def curve(context, name):
     """The boundary of a characteristic curve (of a load case: its first move), or a
-    point load (the displacement of its first point over its total force)."""
-    if name in context.loads:
+    point load or a Cartesian constraint (#421): the displacement of its first point
+    over its total force."""
+    if name in context.loads or name in context.cartesians:
         return name
     if name in context.loadcases:
         name = f"{name}/{moving(context.loadcases[name])[0][0]}"
@@ -352,9 +376,13 @@ def job_add(context, job):
     args = [List(job["steps"], prefix="steps=")]
     if "curve" in job:
         args.append(f"boundary={curve(context, job['curve'])}")
-        if job["curve"] in context.loads:
-            # the force of a load: the sum of the internal forces at its points
-            constraints = [c["name"] for c in context.constraints]
+        if job["curve"] in context.loads or job["curve"] in context.cartesians:
+            # the force of a load: the sum of the internal forces at its points; of
+            # a Cartesian constraint (#421) the reaction force, those of the other
+            # items at its points
+            constraints = [
+                c["name"] for c in context.constraints if c["name"] != job["curve"]
+            ]
             args.append(items(context, context.solids, constraints))
     # the values of the boundaries switched on (#393) before a cutback, which
     # subdivides the substeps with them

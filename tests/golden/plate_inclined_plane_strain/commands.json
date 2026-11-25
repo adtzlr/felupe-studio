@@ -1,0 +1,163 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "model.settings",
+      "name": "settings",
+      "analysis": "plane-strain"
+    },
+    {
+      "command": "mesh.generate",
+      "name": "square",
+      "tool": "Rectangle",
+      "parameters": {
+        "a": [
+          0,
+          0
+        ],
+        "b": [
+          1,
+          1
+        ],
+        "n": [
+          4,
+          4
+        ]
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "plate",
+      "tool": "rotate",
+      "inputs": [
+        "square"
+      ],
+      "parameters": {
+        "angle_deg": 30,
+        "axis": "z"
+      }
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "all_cells",
+      "mesh": "plate"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 1.0,
+        "bulk": 5.0
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "body",
+      "cellset": "all_cells",
+      "material": "rubber",
+      "formulation": "u"
+    },
+    {
+      "command": "pointset.add",
+      "name": "bottom",
+      "select": {
+        "points": [
+          [
+            0.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.28867513459481287,
+            0.16666666666666663,
+            0.0
+          ],
+          [
+            0.5773502691896257,
+            0.33333333333333326,
+            0.0
+          ],
+          [
+            0.8660254037844387,
+            0.49999999999999994,
+            0.0
+          ]
+        ]
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "top",
+      "select": {
+        "points": [
+          [
+            -0.49999999999999994,
+            0.8660254037844387,
+            0.0
+          ],
+          [
+            -0.21132486540518708,
+            1.0326920704511053,
+            0.0
+          ],
+          [
+            0.07735026918962579,
+            1.1993587371177719,
+            0.0
+          ],
+          [
+            0.36602540378443876,
+            1.3660254037844386,
+            0.0
+          ]
+        ]
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "top",
+      "constrained": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "command": "cartesian.add",
+      "name": "support",
+      "points": "bottom",
+      "e1": [
+        0.8660254037844387,
+        0.5,
+        0
+      ],
+      "constrained": [
+        "2"
+      ],
+      "multiplier": 10000
+    },
+    {
+      "command": "step.add",
+      "name": "lift",
+      "ramp": {
+        "num": 4,
+        "items": [
+          {
+            "target": "support",
+            "end": 0.2
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "lift"
+      ],
+      "curve": "support",
+      "tol": 1.49e-08
+    }
+  ]
+}

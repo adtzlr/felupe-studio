@@ -11,7 +11,7 @@ A project file is a JSON document `{"schema_version": 3, "commands": [...]}`. Ev
 
 Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
 
-A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `BoundarySwitch`, `CONDENSED`, `CORNERS`, `DIMENSIONS`, `EDGES`, `Held`, `REGIONS`, `SimpleNamespace`, `boundaries`, `boundary_faces`, `boundary_switch`, `cell_volumes`, `condensed_region`, `control_points`, `embed`, `fem`, `field`, `fields_without_volume`, `has_volume`, `hold_dual_fields`, `iterative_solver`, `meshio`, `mixed_field`, `mixed_region`, `nearly_incompressible`, `np`, `pick`, `points`, `points_at`, `pypardiso`, `run_mesh_script`, `script_mesh`, `single_point`, `single_precision`, `solid_points`, `solid_types`, `spsolve`, `surface_points`, `vertex_region`, `volume_cells`, `with_volume`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
+A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `BoundarySwitch`, `CONDENSED`, `CORNERS`, `DIMENSIONS`, `EDGES`, `Held`, `REGIONS`, `SimpleNamespace`, `base_vectors`, `boundaries`, `boundary_faces`, `boundary_switch`, `cell_volumes`, `condensed_region`, `control_points`, `embed`, `fem`, `field`, `fields_without_volume`, `has_volume`, `hold_dual_fields`, `iterative_solver`, `meshio`, `mixed_field`, `mixed_region`, `nearly_incompressible`, `np`, `pick`, `points`, `points_at`, `pypardiso`, `run_mesh_script`, `script_mesh`, `single_point`, `single_precision`, `solid_points`, `solid_types`, `spsolve`, `surface_points`, `vertex_region`, `volume_cells`, `with_volume`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
 
 ## Expressions
 
@@ -37,6 +37,7 @@ A number of a command (*or an expression* below) may be an expression of the par
 - [`loadcase.add`](#loadcaseadd): A load case of FElupe (fem.dof) on the merged field: the boundaries of a standard test.
 - [`symmetry.add`](#symmetryadd): Symmetry planes normal to x, y or z (fem.dof.symmetry): on a plane, the displacement component normal to it is zero and the components in the plane are free.
 - [`mpc.add`](#mpcadd): A multi-point constraint (fem.MultiPointConstraint): the points of a point set follow a center point rigidly, connected by a penalty.
+- [`cartesian.add`](#cartesianadd): A Cartesian constraint (fem.CartesianConstraint, #421): the points of a point set held or moved in the directions of a rotated coordinate system by a penalty, the other directions free, e.g. points that slide on an inclined plane.
 - [`contact.add`](#contactadd): A contact of points with a rigid surface (#220): fem.ContactRigidPlane or fem.ContactRigidCylinder, an item of the steps like the constraints.
 - [`load.add`](#loadadd): A point load (fem.PointLoad): a force at every point of a point set or at a control point, an item of the steps.
 - [`pressure.add`](#pressureadd): A pressure on the faces of a face set (fem.SolidBodyPressure), an item of the steps: a force per deformed area, normal to the faces.
@@ -799,6 +800,20 @@ A multi-point constraint (fem.MultiPointConstraint): the points of a point set f
 | `multiplier` | number > 0 (or an expression) |  | The penalty of the relative displacements (default 1000). |
 | `rotation` | name of a point set or control point |  | The rotation point: a control point or a point set of one point, whose values are the rotations about the center point in rad (its coordinates are not used). |
 
+### `cartesian.add`
+
+A Cartesian constraint (fem.CartesianConstraint, #421): the points of a point set held or moved in the directions of a rotated coordinate system by a penalty, the other directions free, e.g. points that slide on an inclined plane. The coordinate system is fixed in space: e1, e2 and e3 = e1 × e2, normalized by the script. An item of the steps; a ramp of a step moves the points like a boundary, and it may be the curve of a job.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | name | yes | Name of the object. |
+| `points` | name of a point set or control point | yes | The point set of the constrained points. |
+| `e1` | three numbers `[x, y, z]` | yes | The first base vector e1 of the coordinate system, e.g. the normal of an inclined plane. |
+| `e2` | three numbers `[x, y, z]` |  | The second base vector e2, orthogonal to e1 (default 0, 1, 0). None in a 2D model: there, e2 is e1 turned by 90° about z. |
+| `constrained` | list of `1`, `2` or `3` (at least 1, unique) | yes | The constrained directions of e1, e2 and e3 (skip the others). |
+| `value` | number or list of 1 to 3 numbers (or an expression) |  | Prescribed displacement in the constrained directions (default 0): one number for all of them, or one number per constrained direction in the order 1, 2, 3. |
+| `multiplier` | number > 0 (or an expression) |  | The penalty per point and direction (default 1000). |
+
 ### `contact.add`
 
 A contact of points with a rigid surface (#220): fem.ContactRigidPlane or fem.ContactRigidCylinder, an item of the steps like the constraints. The penalty of the contact is a factor of the mean stiffness of the solid bodies at the points.
@@ -840,26 +855,26 @@ A step with its items and boundaries (all by default), optionally ramping items,
 | --- | --- | --- | --- |
 | `name` | name | yes | Name of the object. |
 | `sections` | names of sections (at least 1, unique) |  | Sections whose solid bodies are items of the step (default: all). |
-| `constraints` | names of multi-point constraints or contacts (at least 1, unique) |  | Multi-point constraints that are items of the step (default: all). |
+| `constraints` | names of multi-point constraints, Cartesian constraints or contacts (at least 1, unique) |  | Multi-point constraints, Cartesian constraints and contacts that are items of the step (default: all). |
 | `loads` | names of point loads or pressures (at least 1, unique) |  | Point loads and pressures that are items of the step (default: all). |
 | `boundaries` | names of boundaries, load cases or symmetry planes (at least 1, unique) |  | Boundaries, load cases and symmetry planes of the step (default: all). A boundary that the step does not have is off in it: its points are free, and its reaction force is released at once. |
 | `switched_on` | `step` or `job` |  | The values of the boundaries that the step switches on, those that the step evaluated before it does not have: the displacements of their points at the start of the step (default), or at the start of the job (of a boundary that was on then, its values then). A ramp of such a boundary is relative to these values. |
 | `ramp` | object |  | Ramp the values of items with fem.math.linsteps([start, end], num), with the same number of increments for all items. |
 | `ramp.num` | integer ≥ 1 (or an expression) | yes | Increments of the step. |
 | `ramp.items` | list of objects (at least 1) | yes | The ramped items, each with its own values. |
-| `ramp.items[].target` | name of a boundary, load case, point load or pressure | yes | The ramped boundary, load case, point load or pressure. |
-| `ramp.items[].start` | number or list of 1 to 3 numbers (or an expression) |  | Value at the start of the step (default 0); of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z. |
-| `ramp.items[].end` | number or list of 1 to 3 numbers (or an expression) | yes | Value at the end of the step; of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z. |
+| `ramp.items[].target` | name of a boundary, load case, point load, pressure or Cartesian constraint | yes | The ramped boundary, load case, Cartesian constraint, point load or pressure. |
+| `ramp.items[].start` | number or list of 1 to 3 numbers (or an expression) |  | Value at the start of the step (default 0); of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z (of a Cartesian constraint per direction in the order 1, 2, 3). |
+| `ramp.items[].end` | number or list of 1 to 3 numbers (or an expression) | yes | Value at the end of the step; of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z (of a Cartesian constraint per direction in the order 1, 2, 3). |
 
 ### `job.add`
 
-A job evaluating steps one after another (fem.Job). With a curve, the force-displacement curve of a boundary, a load case or a point load is recorded (fem.CharacteristicCurve).
+A job evaluating steps one after another (fem.Job). With a curve, the force-displacement curve of a boundary, a load case, a Cartesian constraint or a point load is recorded (fem.CharacteristicCurve).
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `name` | name | yes | Name of the object. |
 | `steps` | names of steps (at least 1) | yes | Steps evaluated one after another, in this order; a step may be repeated, e.g. load, unload, load. |
-| `curve` | name of a boundary, load case or point load |  | The boundary, load case or point load of the force-displacement curve. |
+| `curve` | name of a boundary, load case, point load or Cartesian constraint |  | The boundary, load case, Cartesian constraint or point load of the force-displacement curve. Of a Cartesian constraint, the displacement of its first point and the force of the solid bodies at its points, in its directions 1, 2 and 3. |
 | `tol` | number > 0 (or an expression) |  | Tolerance of the Newton-Raphson method: the norm of the residual forces relative to a reference force, the reaction forces or the forces between the items (e.g. of a pressure on a solid body), if they are larger (default 0.01, like commercial codes). |
 | `maxiter` | integer ≥ 1 (or an expression) |  | The maximum number of Newton iterations of a substep (default 16). |
 | `solver` | object |  | The linear solver of the Newton iterations (Job.evaluate(solver=...)); without it, SuperLU of FElupe. |
