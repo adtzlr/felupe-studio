@@ -28,5 +28,6 @@ Short records of decisions that shape felupe-studio. A record is changed by a ne
 | [0022](0022-cut-through-the-model.md)       | A cut through the model        | Accepted |
 | [0023](0023-results-of-a-file.md)           | The results of a file          | Accepted |
 | [0024](0024-formulations-of-the-sections.md) | The formulations of the sections | Accepted |
+| [0025](0025-user-defined-materials.md)      | User-defined materials         | Accepted |
 
 Template: Context, Decision, Consequences, Alternatives.
