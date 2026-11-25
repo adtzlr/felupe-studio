@@ -106,6 +106,7 @@
           "solid_types",
           "spsolve",
           "surface_points",
+          "tags_of",
           "vertex_region",
           "volume_cells",
           "with_volume"
@@ -238,7 +239,7 @@
           "minLength": 1
         },
         "tag": {
-          "description": "Name of an integer cell data array used to split the mesh into cell sets, e.g. material or gmsh:physical.",
+          "description": "Name of an integer cell data array used to split the mesh into cell sets, e.g. material or gmsh:physical. The mesh tools keep the tags of the cells, also of a construction mesh.",
           "type": "string",
           "minLength": 1
         },
@@ -299,7 +300,7 @@
           "minLength": 1
         },
         "tag": {
-          "description": "Name of an integer cell data array of a meshio.Mesh used to split the mesh into cell sets.",
+          "description": "Name of an integer cell data array of a meshio.Mesh used to split the mesh into cell sets. The mesh tools keep the tags of the cells, also of a construction mesh.",
           "type": "string",
           "minLength": 1
         },
@@ -324,7 +325,7 @@
       }
     },
     "MeshGenerate": {
-      "description": "A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes of the model before (made by tools, of files or of scripts), like expand or revolve. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh.",
+      "description": "A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes of the model before (made by tools, of files or of scripts), like expand or revolve. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh. An operation keeps the cell tags of the meshes it takes: a stack concatenates them, expand, revolve and fill_between repeat those of their first mesh per layer of cells.",
       "oneOf": [
         {
           "$ref": "#/$defs/MeshPoint"
@@ -1458,7 +1459,7 @@
       }
     },
     "CellSetFromTag": {
-      "description": "Cell set of all cells of a mesh with the given tag value.",
+      "description": "Cell set of all cells of a mesh with the given tag value: of a mesh imported with a tag, or of a mesh made by tools of such meshes, which keep their tags.",
       "type": "object",
       "required": ["command", "name", "mesh", "value"],
       "additionalProperties": false,

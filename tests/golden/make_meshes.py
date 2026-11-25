@@ -70,6 +70,11 @@ def main():
     # the left half of the bar, mirrored and stacked into the whole by the mesh tools
     # (#438)
     write_vtu(HERE / "bar_mirrored_half" / "half.vtu", bar(b=(1.5, 1, 1), n=(7, 5, 5)))
+    # the bar of two materials of bar_two_materials as its half at y < 0.5 with the
+    # tag of the material, mirrored and stacked into the whole with its tags (#438)
+    half = bar(b=(3, 0.5, 1), n=(13, 3, 5))
+    path = HERE / "bar_two_materials_mirrored" / "half.vtu"
+    write_vtu(path, half, {"material": [material_tag(half)]})
     # the profile of tube_sleeve_torsion as a file of quads with the points of a 3D
     # mesh generator (z = 0), a construction mesh revolved into the tube (#438)
     profile = fem.Rectangle(a=(0, 1), b=(3, 2), n=(7, 3))

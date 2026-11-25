@@ -3,7 +3,8 @@
 // they make, like felupe_studio.meshtools in Python. Their inputs are meshes of the
 // model before: made by tools, of files or of scripts (#438). A mesh whose points
 // and cells have the dimension of the model is a model mesh with cell sets; a lower
-// one is a construction mesh.
+// one is a construction mesh. A tool keeps the cell tags of the meshes it takes
+// (`tagNames()`, #438).
 import { type Analysis, analysisOf, is2d } from "./analysis";
 import type { Command } from "./resolved";
 import { schema } from "./schema";
@@ -325,6 +326,50 @@ function axisProblems(
     );
   }
   return problems;
+}
+
+/**
+ * The inputs of an operation whose cell tags its mesh takes (#438), like
+ * `tag_inputs()` in Python: all meshes of a stack, whose tags are concatenated like
+ * their cells, else the first mesh, whose tags are repeated per layer of cells, e.g.
+ * of an expand, a revolve or a fill between two meshes, or kept by a tool that
+ * moves the points. A primitive has none.
+ */
+export function tagInputs(command: {
+  tool?: string;
+  inputs?: readonly string[];
+}): string[] {
+  const rule = TOOLS.get(command.tool ?? "")?.dimension;
+  const inputs = [...(command.inputs ?? [])];
+  if (!rule || !isOperation(rule)) return [];
+  return rule.inputs === "list" ? inputs : inputs.slice(0, 1);
+}
+
+/**
+ * The name of the cell tag of every mesh with cell tags, by the name of the mesh
+ * (#438), like `tag_names()` in Python: of a mesh of a file or a script imported
+ * with a tag, and of a mesh made by an operation whose inputs of tags
+ * (`tagInputs()`) all have them, with the name of the tag of the first one.
+ */
+export function tagNames(
+  commands: readonly {
+    command: string;
+    name: string;
+    tool?: string;
+    inputs?: readonly string[];
+    tag?: string;
+  }[],
+): Map<string, string> {
+  const result = new Map<string, string>();
+  for (const c of commands) {
+    if (SOURCES.includes(c.command) && c.tag) result.set(c.name, c.tag);
+    else if (c.command === "mesh.generate" && TOOLS.has(c.tool ?? "")) {
+      const inputs = tagInputs(c);
+      if (inputs.length && inputs.every((name) => result.has(name)))
+        result.set(c.name, result.get(inputs[0])!);
+    }
+  }
+  return result;
 }
 
 /** Whether a mesh of these dimensions is a mesh of a model of dimension `dim`. */

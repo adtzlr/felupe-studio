@@ -11,6 +11,7 @@ import numpy as np
 import pytest
 
 from felupe_studio import checks, codegen, meshes, meshtools
+from felupe_studio._helpers import tags_of
 from felupe_studio.commands import errors
 from felupe_studio.expressions import resolve
 
@@ -575,3 +576,147 @@ def test_a_profile_of_a_file_is_a_construction_mesh(tmp_path, monkeypatch):
     source.pop("cell_type")
     info = json.loads(meshes.generate([tube], "tube", sources=[source])[0])
     assert "which are 2D cells" in info["error"]
+
+
+# the cell tags of the meshes that a tool takes (#438): a profile of a file with the
+# tag 1 at x < 1.5 and 2 beyond, and tools that keep the x of every cell
+def step(name, tool, inputs, **parameters):
+    """A mesh made by an operation of the tools."""
+    return {**made(tool, name, **parameters), "inputs": inputs}
+
+
+TAGGED = {
+    "command": "mesh.import",
+    "name": "profile",
+    "file": "profile.vtu",
+    "tag": "material",
+    "cell_type": "quad",
+}
+BODY = step("body", "expand", ["profile"], n=3, z=1)
+PLANES = [
+    step("bottom", "embed", ["profile"], value=0),
+    step("top", "embed", ["profile"], value=1),
+]
+
+
+def by_x(mesh):
+    """The tag 1 of the cells at x < 1.5, else 2."""
+    centers = np.asarray(mesh.points)[mesh.cells].mean(axis=1)
+    return np.where(centers[:, 0] < 1.5, 1, 2)
+
+
+def tagged_profile():
+    """The profile of a file imported with a tag, like ``volume_cells()``."""
+    profile = fem.Rectangle(a=(0, 1), b=(3, 2), n=(7, 3))
+    profile.tags = by_x(profile)
+    return profile
+
+
+@pytest.mark.parametrize(
+    "chain",
+    [
+        [BODY],
+        [step("body", "revolve", ["profile"], n=4, phi=90, axis="x")],
+        [step("body", "revolve", ["profile"], n=5, phi=360, axis="x")],
+        [step("body", "embed", ["profile"], value=1)],
+        [step("body", "translate", ["profile"], move=1, axis="y")],
+        [*PLANES, step("body", "fill_between", ["bottom", "top"], n=3)],
+        [BODY, step("other", "rotate", ["body"], angle_deg=30, axis="x")],
+        [BODY, step("other", "mirror", ["body"], axis="y", value=1)],
+        [BODY, step("other", "add_runouts", ["body"], values=[0.1, 0.2], axis="x")],
+        [
+            BODY,
+            step("half", "mirror", ["body"], axis="y", value=1),
+            step("other", "stack", ["body", "half"], decimals=10),
+        ],
+    ],
+    ids=lambda chain: "-".join(c["tool"] for c in chain),
+)
+def test_the_tools_keep_the_cell_tags(chain):
+    # kept by a tool that moves the points, repeated per layer by expand, revolve and
+    # fill_between, concatenated by stack, like the cells
+    commands = [TAGGED, *chain]
+    name = chain[-1]["name"]
+    assert meshtools.tag_names(commands)[name] == "material"
+    made_mesh = meshtools.generate(commands, meshes={"profile": tagged_profile()})[name]
+    np.testing.assert_array_equal(made_mesh.tags, by_x(made_mesh))
+
+
+def test_the_tags_of_a_made_mesh_are_of_its_inputs():
+    profile = {k: v for k, v in TAGGED.items() if k != "tag"}
+    cube = made("Cube", "block", a=[0, 0, 0], b=[1, 1, 1], n=[2, 2, 2])
+    stack = step("whole", "stack", ["body", "block"], decimals=10)
+    # a primitive has no tags, and a stack has the tags of all of its meshes
+    assert meshtools.tag_names([TAGGED, BODY, cube, stack]) == {
+        "profile": "material",
+        "body": "material",
+    }
+    assert meshtools.tag_names([profile, BODY]) == {}
+    # the meshes of files and scripts of the worker are known by their specs
+    assert meshtools.tag_names([BODY], {"profile": "gmsh:physical"}) == {
+        "profile": "gmsh:physical",
+        "body": "gmsh:physical",
+    }
+    # fill_between takes the tags of its first mesh
+    assert meshtools.tag_inputs(step("x", "fill_between", ["a", "b"], n=2)) == ["a"]
+
+
+def test_the_tags_of_a_made_mesh_in_the_script():
+    document = {"schema_version": 3, "commands": [TAGGED, *PLANES, BODY]}
+    script = codegen(document, evaluate=False)
+    assert "def tags_of(mesh, *inputs):" in script
+    assert "body = profile.expand(n=3, z=1)\nbody.tags = tags_of(body, profile)\n" in (
+        script
+    )
+    assert "bottom.tags = tags_of(bottom, profile)" in script
+    # no helper and no line of tags without tags
+    untagged = {k: v for k, v in TAGGED.items() if k != "tag"}
+    script = codegen(
+        {"schema_version": 3, "commands": [untagged, BODY]}, evaluate=False
+    )
+    assert "tags_of" not in script
+
+
+def test_the_tags_of_a_tool_are_no_layers():
+    profile = tagged_profile()
+    message = "The 4 cells of the mesh are no layers of the 24 cells"
+    with pytest.raises(ValueError, match=message):
+        tags_of(fem.Rectangle(n=(3, 3)), profile, profile)
+
+
+def test_a_mirrored_half_with_tags_in_the_worker(tmp_path, monkeypatch):
+    # the summary and the export of a made mesh have the tags of its file (#438)
+    half = fem.Cube(b=(3, 0.5, 1), n=(7, 2, 3))
+    meshio.Mesh(
+        half.points, [("hexahedron", half.cells)], cell_data={"material": [by_x(half)]}
+    ).write(tmp_path / "half.vtu")
+    monkeypatch.chdir(tmp_path)
+    meshes.forget()
+    tools = [
+        step("other", "mirror", ["half"], axis="y", value=0.5),
+        step("whole", "stack", ["half", "other"], decimals=10),
+    ]
+    source = {"name": "half", "file": "half.vtu", "tag": "material", "dim": 3}
+    info, surfaces = meshes.generate(tools, "whole", sources=[source])
+    [solid] = json.loads(info)["solids"]
+    assert solid["tags"] == [
+        {
+            "name": "material",
+            "values": [
+                {"value": 1, "cells": 12, "volume": 1.5},
+                {"value": 2, "cells": 12, "volume": 1.5},
+            ],
+        }
+    ]
+    assert list(surfaces["hexahedron"]["tags"]) == ["material"]
+    exported = tmp_path / "whole.vtu"
+    exported.write_bytes(meshes.export_generated(tools, "whole", sources=[source]))
+    mesh = meshio.read(exported)
+    np.testing.assert_array_equal(
+        mesh.cell_data["material"][0],
+        by_x(fem.Mesh(mesh.points, mesh.cells[0].data, "hexahedron")),
+    )
+    # without the tag of the file, the made mesh has none
+    source.pop("tag")
+    [solid] = json.loads(meshes.generate(tools, "whole", sources=[source])[0])["solids"]
+    assert solid["tags"] == []

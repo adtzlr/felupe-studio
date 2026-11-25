@@ -47,7 +47,7 @@ export type Name = string;
  */
 export type Color = string;
 /**
- * A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes of the model before (made by tools, of files or of scripts), like expand or revolve. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh.
+ * A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes of the model before (made by tools, of files or of scripts), like expand or revolve. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh. An operation keeps the cell tags of the meshes it takes: a stack concatenates them, expand, revolve and fill_between repeat those of their first mesh per layer of cells.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "MeshGenerate".
@@ -301,7 +301,7 @@ export interface MeshImport {
    */
   file: string;
   /**
-   * Name of an integer cell data array used to split the mesh into cell sets, e.g. material or gmsh:physical.
+   * Name of an integer cell data array used to split the mesh into cell sets, e.g. material or gmsh:physical. The mesh tools keep the tags of the cells, also of a construction mesh.
    */
   tag?: string;
   /**
@@ -346,7 +346,7 @@ export interface MeshScript {
    */
   item?: string;
   /**
-   * Name of an integer cell data array of a meshio.Mesh used to split the mesh into cell sets.
+   * Name of an integer cell data array of a meshio.Mesh used to split the mesh into cell sets. The mesh tools keep the tags of the cells, also of a construction mesh.
    */
   tag?: string;
   /**
@@ -850,7 +850,7 @@ export interface MeshMerge {
   decimals: number;
 }
 /**
- * Cell set of all cells of a mesh with the given tag value.
+ * Cell set of all cells of a mesh with the given tag value: of a mesh imported with a tag, or of a mesh made by tools of such meshes, which keep their tags.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "CellSetFromTag".

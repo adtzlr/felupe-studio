@@ -18,7 +18,7 @@ import {
 } from "./units";
 import { MATERIAL_MODELS } from "./materials";
 import { describeParameter } from "./parameters";
-import { isConstruction, usersOf } from "./meshtools";
+import { isConstruction, tagNames, usersOf } from "./meshtools";
 
 export interface TreeNode {
   /** Unique id: the object name, or `group:<kind>` for a group. */
@@ -231,14 +231,16 @@ const DETAILS: { [C in Command["command"]]: Detail<C> } = {
       isConstruction(cmd.name, commands) && "construction",
     ),
   // a mesh made by a tool (ADR 0019): the tool with its inputs, its points per
-  // axis, and whether it is a construction mesh
+  // axis, the cell tag of its inputs (#438), and whether it is a construction mesh
   "mesh.generate": (cmd, { commands }) => {
     const n = (cmd.parameters as { n?: unknown }).n;
     const points = Array.isArray(n) ? n.join(" × ") : n;
     const inputs = (cmd as { inputs?: string[] }).inputs ?? [];
+    const tag = tagNames(commands).get(cmd.name);
     return joined(
       inputs.length ? `${cmd.tool} ${inputs.join(", ")}` : cmd.tool,
       points !== undefined && `n = ${points}`,
+      tag && `tag ${tag}`,
       isConstruction(cmd.name, commands) && "construction",
     );
   },

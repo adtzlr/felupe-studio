@@ -103,10 +103,10 @@ describe("color by", () => {
     const mesh = model[0] as Extract<Command, { command: "mesh.import" }>;
     const left = model[1] as Extract<Command, { command: "cellset.from_tag" }>;
     const all = model[3] as Extract<Command, { command: "cellset.from_file" }>;
-    expect([...cellMask(left, mesh, surface)!]).toEqual([1, 0, 0]);
-    expect([...cellMask(all, mesh, surface)!]).toEqual([1, 1, 1]);
+    expect([...cellMask(left, mesh.tag, surface)!]).toEqual([1, 0, 0]);
+    expect([...cellMask(all, mesh.tag, surface)!]).toEqual([1, 1, 1]);
     // without the tag values, the cells are unknown
-    expect(cellMask(left, mesh, { ...surface, tags: {} })).toBeUndefined();
+    expect(cellMask(left, mesh.tag, { ...surface, tags: {} })).toBeUndefined();
   });
 
   it("colors the sections and names the cells without a section", async () => {

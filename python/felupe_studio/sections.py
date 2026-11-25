@@ -67,9 +67,13 @@ def mesh_import(context, mesh):
 
 
 def mesh_generate(context, mesh):
-    """A mesh made by a tool of FElupe (ADR 0019), one line per step."""
+    """A mesh made by a tool of FElupe (ADR 0019), one line per step, and the cell
+    tags of the meshes it takes, if they have them (#438)."""
     function, args, end = meshtools.call(mesh, context.dimensions)
-    return [call(mesh["name"], function, args, end)]
+    lines = [call(mesh["name"], function, args, end)]
+    if mesh["name"] in context.tag_names:
+        lines.append(call(*meshtools.tags_call(mesh)))
+    return lines
 
 
 def cellset(context, command):

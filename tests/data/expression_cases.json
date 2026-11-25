@@ -1675,6 +1675,39 @@
     },
     {
       "command": {
+        "command": "mesh.import",
+        "name": "half",
+        "file": "half.vtu",
+        "tag": "material"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "other",
+        "tool": "mirror",
+        "inputs": [
+          "half"
+        ],
+        "parameters": {
+          "axis": "y",
+          "value": "0.5"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
         "command": "job.add",
         "name": "job_1",
         "steps": [

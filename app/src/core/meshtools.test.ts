@@ -14,9 +14,12 @@ import {
   hiddenObjects,
   inputProblems,
   modelMesh,
+  tagInputs,
+  tagNames,
   toolProblems,
 } from "./meshtools";
 import type { Command } from "./resolved";
+import { validate } from "./validate";
 
 type MeshGenerate = Extract<Command, { command: "mesh.generate" }>;
 
@@ -391,6 +394,45 @@ describe("the meshes of files and scripts as inputs (#438)", () => {
       (g) => g.id === "group:mesh",
     )!.children;
     expect(meshes.map((c) => c.detail)).toEqual(["half.vtu"]);
+  });
+
+  it("keep their cell tags through the tools, like Python", () => {
+    const withTag = { ...half, tag: "gmsh:physical" };
+    const block = made(
+      "Cube",
+      { a: [0, 0, 0], b: [1, 1, 1], n: [2, 2, 2] },
+      "block",
+    );
+    const both = {
+      ...made("stack", { decimals: 10 }, "both"),
+      inputs: ["whole", "block"],
+    } as MeshGenerate;
+    // kept by an operation, concatenated by a stack, none of a primitive
+    expect([...tagNames([withTag, other, whole, block, both])]).toEqual([
+      ["half", "gmsh:physical"],
+      ["other", "gmsh:physical"],
+      ["whole", "gmsh:physical"],
+    ]);
+    expect([...tagNames([half, other])]).toEqual([]);
+    expect(tagInputs(whole)).toEqual(["half", "other"]);
+    expect(tagInputs({ tool: "fill_between", inputs: ["a", "b"] })).toEqual([
+      "a",
+    ]);
+    expect(tagInputs(block)).toEqual([]);
+    // the browser names the tag of a made mesh, like that of a file
+    const tree = deriveTree([withTag, other, whole] as Command[]);
+    const meshes = tree.find((g) => g.id === "group:mesh")!.children;
+    expect(meshes.find((c) => c.label === "whole")?.detail).toBe(
+      "stack half, other · tag gmsh:physical",
+    );
+    // a cell set of the tags of a made mesh, or why it has none
+    const cells = { ...tagged, mesh: "whole" };
+    expect(validate([withTag, other, whole, cells] as Command[])).toEqual([]);
+    expect(
+      validate([half, other, whole, cells] as Command[]).map((e) => e.message),
+    ).toEqual([
+      "commands/3: cell set 'rubber' uses tag values, but mesh 'whole' is made by a tool of meshes without cell tags: 'half', 'other'.",
+    ]);
   });
 
   it("are offered by the form of a tool", () => {

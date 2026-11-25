@@ -19,7 +19,12 @@ import {
   meshStatus,
 } from "../core/meshfiles";
 import { solidOf } from "../core/meshinfo";
-import { dimensions, type MeshDimension, modelMesh } from "../core/meshtools";
+import {
+  dimensions,
+  type MeshDimension,
+  modelMesh,
+  tagNames,
+} from "../core/meshtools";
 import type { MeshSource, MeshSurface } from "../worker/protocol";
 import {
   categorical,
@@ -140,15 +145,18 @@ export function defaultColorBy(commands: readonly Command[]): ColorBy {
   return "mesh";
 }
 
-/** The cells of a cell set (non-zero), or undefined if the tag is not available. */
+/**
+ * The cells of a cell set (non-zero), or undefined if the tag is not available:
+ * the cell tag of its mesh, also of a mesh made by tools of meshes with tags
+ * (`tagNames()`, #438).
+ */
 export function cellMask(
   cellset: CellSet,
-  mesh: MeshCommand,
+  tag: string | undefined,
   surface: MeshSurface,
 ): Uint8Array | undefined {
   const mask = new Uint8Array(surface.cells);
   if (cellset.command === "cellset.from_file") return mask.fill(1);
-  const tag = mesh.command === "mesh.generate" ? undefined : mesh.tag;
   const values = tag ? surface.tags?.[tag] : undefined;
   if (!values) return undefined;
   for (let cell = 0; cell < mask.length; cell++) {
@@ -216,9 +224,10 @@ function masksOf(
   surface: MeshSurface,
 ) {
   const masks = new Map<string, Uint8Array>();
+  const tag = tagNames(commands).get(mesh.name);
   for (const c of commands) {
     if (!isCellSet(c) || c.mesh !== mesh.name) continue;
-    const mask = cellMask(c, mesh, surface);
+    const mask = cellMask(c, tag, surface);
     if (mask) masks.set(c.name, mask);
   }
   return masks;

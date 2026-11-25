@@ -12,6 +12,8 @@ import {
   inputProblems,
   type MeshDimension,
   modelMesh,
+  tagInputs,
+  tagNames,
   toolProblems,
 } from "./meshtools";
 import type { Command as ResolvedCommand, PointSetAdd } from "./resolved";
@@ -139,6 +141,7 @@ export class Model {
   readonly defined = new Map<string, [number, ResolvedCommand]>();
   private selections?: Map<string, PointSetAdd["select"]>;
   private made?: Map<string, MeshDimension>;
+  private tags?: Map<string, string>;
 
   constructor(readonly commands: readonly ResolvedCommand[]) {
     this.analysis = analysisOf(commands);
@@ -150,13 +153,22 @@ export class Model {
     );
   }
 
-  /** The selections of the point sets, by their names. */
   /** The dimensions of the meshes of the model, by their names (ADR 0019). */
   get dimensions(): Map<string, MeshDimension> {
     this.made ??= dimensions(this.commands);
     return this.made;
   }
 
+  /**
+   * The names of the cell tags of the meshes with cell tags, also of those made by
+   * tools (#438).
+   */
+  get tagNames(): Map<string, string> {
+    this.tags ??= tagNames(this.commands);
+    return this.tags;
+  }
+
+  /** The selections of the point sets, by their names. */
   get selects(): Map<string, PointSetAdd["select"]> {
     this.selections ??= new Map(
       this.commands.flatMap((c) =>
@@ -461,26 +473,27 @@ const cylindricalAxis: Rule<CommandOf<"cylindrical.add">> = (_, cmd) =>
         },
       ];
 
-/** A cell set from tags needs a mesh imported with a tag. */
+/**
+ * A cell set from tags needs a mesh with cell tags: of a file or a script imported
+ * with a tag, or made by a tool of such meshes, which keeps their tags (#438). A
+ * primitive of the tools has none.
+ */
 const cellsetTag: Rule<CommandOf<"cellset.from_tag">> = (model, cmd) => {
   const mesh = model.before(cmd.mesh);
-  // a mesh made by a tool has no cell tags (ADR 0019)
-  if (mesh?.command === "mesh.generate")
-    return [
-      {
-        message: `cell set '${cmd.name}' uses tag values, but mesh '${mesh.name}' is made by a tool, without cell tags.`,
-        field: "mesh",
-      },
-    ];
-  if (mesh?.command !== "mesh.import" && mesh?.command !== "mesh.script")
-    return [];
-  if (mesh.tag !== undefined) return [];
-  return [
-    {
-      message: `cell set '${cmd.name}' uses tag values, but mesh '${mesh.name}' was imported without a tag.`,
-      field: "mesh",
-    },
-  ];
+  if (!mesh || model.tagNames.has(mesh.name)) return [];
+  const start = `cell set '${cmd.name}' uses tag values, but mesh '${mesh.name}'`;
+  const problem = (message: string) => [{ message, field: "mesh" }];
+  if (mesh.command === "mesh.import" || mesh.command === "mesh.script")
+    return problem(`${start} was imported without a tag.`);
+  if (mesh.command !== "mesh.generate") return [];
+  const untagged = tagInputs(mesh).filter((name) => !model.tagNames.has(name));
+  if (!untagged.length)
+    return problem(`${start} is made by a tool, without cell tags.`);
+  const names = untagged.map((name) => `'${name}'`).join(", ");
+  const meshes = untagged.length === 1 ? "a mesh" : "meshes";
+  return problem(
+    `${start} is made by a tool of ${meshes} without cell tags: ${names}.`,
+  );
 };
 
 /**

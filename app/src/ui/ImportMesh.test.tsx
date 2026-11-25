@@ -308,13 +308,15 @@ describe("import dialog", () => {
       /^Construction mesh/,
     ) as HTMLInputElement;
     expect(construction.checked).toBe(true);
-    // without cell sets, which the body of a tool has
+    // without cell sets, which the body of a tool has, of the values of the cell
+    // tag that the tools keep
     expect(within(dialog()).queryByText("Cell sets")).toBeNull();
+    expect(within(dialog()).getByText("Cell tag")).toBeTruthy();
     expect(dialog().textContent).toContain(
-      "A construction mesh has no cell sets",
+      "A construction mesh has no cell sets: the body that a tool makes of it has them, e.g. Revolve or Expand of the Mesh tab, of the values of the cell tag that the tool keeps.",
     );
     expect(within(dialog()).getByLabelText("Will be created").textContent).toBe(
-      "Createsmesh profile quad, 12 cells, construction",
+      "Createsmesh profile quad, 12 cells, tag material, construction",
     );
     // or a mesh of a 2D model, with its cell sets
     fireEvent.click(within(dialog()).getByLabelText(/^Mesh of a 2D model/));
@@ -326,10 +328,39 @@ describe("import dialog", () => {
         command: "mesh.import",
         name: "profile",
         file: "profile.vtu",
+        tag: "material",
         cell_type: "quad",
       },
     ]);
     expect(validate(store.commands)).toEqual([]);
+  });
+
+  it("imports a construction mesh without its cell tag (#438)", async () => {
+    const { store, dialog, pick, importButton } = setup();
+    fireEvent.click(
+      within(screen.getByRole("tabpanel")).getByRole("button", {
+        name: "Import mesh",
+      }),
+    );
+    pick("profile.vtu");
+    await waitFor(() => expect(importButton().disabled).toBe(false));
+    fireEvent.click(within(dialog()).getByLabelText("None"));
+    expect(within(dialog()).queryByText("One with all cells")).toBeNull();
+    expect(dialog().textContent).toContain(
+      "e.g. Revolve or Expand of the Mesh tab.",
+    );
+    expect(within(dialog()).getByLabelText("Will be created").textContent).toBe(
+      "Createsmesh profile quad, 12 cells, construction",
+    );
+    fireEvent.click(importButton());
+    expect(store.commands).toEqual([
+      {
+        command: "mesh.import",
+        name: "profile",
+        file: "profile.vtu",
+        cell_type: "quad",
+      },
+    ]);
   });
 
   it("imports a file of 2D cells into a 2D model without the choice", async () => {

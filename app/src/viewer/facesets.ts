@@ -23,6 +23,7 @@ import {
 } from "../core/meshfiles";
 import { solidOf } from "../core/meshinfo";
 import type { MeshSurface } from "../worker/protocol";
+import { tagNames } from "../core/meshtools";
 import { cellMask } from "./layers";
 import type { Vec3 } from "./picking";
 import { ATOL, AXES, isClose } from "./pointsets";
@@ -351,10 +352,12 @@ function sectionSource(
   const cellType = "solid" in choice ? choice.solid.cell_type : undefined;
   const raw = cellType ? status.surfaces[cellType] : undefined;
   if (!cellType || !raw) return undefined;
-  const mask = cellMask(set, mesh, raw);
+  // the cell tag of its mesh, also of a mesh made by tools (#438)
+  const tag = tagNames(commands).get(mesh.name);
+  const mask = cellMask(set, tag, raw);
   if (!mask) return undefined;
   const scale = mesh.command === "mesh.import" ? mesh.scale : undefined;
-  return { set, mesh, cellType, raw, mask, scale };
+  return { set, mesh, cellType, raw, mask, scale, tag };
 }
 
 /**
@@ -372,9 +375,8 @@ export function sectionFaces(
     if (sec.command !== "section.add") continue;
     const source = sectionSource(sec, commands, files);
     if (!source) continue;
-    const { set, mesh, cellType, raw, mask, scale } = source;
-    const tag = mesh.command === "mesh.generate" ? "" : (mesh.tag ?? "");
-    const key = `${sec.name}/${set.command}/${set.command === "cellset.from_tag" ? set.value : ""}/${tag}/${scale ?? 1}`;
+    const { set, mesh, cellType, raw, mask, scale, tag } = source;
+    const key = `${sec.name}/${set.command}/${set.command === "cellset.from_tag" ? set.value : ""}/${tag ?? ""}/${scale ?? 1}`;
     let cached = CACHE.get(raw);
     if (!cached) CACHE.set(raw, (cached = new Map()));
     let faces = cached.get(key);

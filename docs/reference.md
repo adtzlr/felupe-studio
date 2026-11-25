@@ -11,7 +11,7 @@ A project file is a JSON document `{"schema_version": 3, "commands": [...]}`. Ev
 
 Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
 
-A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `BoundarySwitch`, `CONDENSED`, `CORNERS`, `CylindricalCurve`, `CylindricalCurvePlugin`, `DIMENSIONS`, `EDGES`, `Held`, `REGIONS`, `SimpleNamespace`, `base_vectors`, `boundaries`, `boundary_faces`, `boundary_switch`, `cell_volumes`, `condensed_region`, `control_points`, `embed`, `fem`, `field`, `fields_without_volume`, `has_volume`, `hold_dual_fields`, `iterative_solver`, `meshio`, `mixed_field`, `mixed_region`, `nearly_incompressible`, `np`, `pick`, `points`, `points_at`, `pypardiso`, `run_mesh_script`, `script_mesh`, `single_point`, `single_precision`, `solid_points`, `solid_types`, `spsolve`, `surface_points`, `vertex_region`, `volume_cells`, `with_volume`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
+A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `BoundarySwitch`, `CONDENSED`, `CORNERS`, `CylindricalCurve`, `CylindricalCurvePlugin`, `DIMENSIONS`, `EDGES`, `Held`, `REGIONS`, `SimpleNamespace`, `base_vectors`, `boundaries`, `boundary_faces`, `boundary_switch`, `cell_volumes`, `condensed_region`, `control_points`, `embed`, `fem`, `field`, `fields_without_volume`, `has_volume`, `hold_dual_fields`, `iterative_solver`, `meshio`, `mixed_field`, `mixed_region`, `nearly_incompressible`, `np`, `pick`, `points`, `points_at`, `pypardiso`, `run_mesh_script`, `script_mesh`, `single_point`, `single_precision`, `solid_points`, `solid_types`, `spsolve`, `surface_points`, `tags_of`, `vertex_region`, `volume_cells`, `with_volume`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
 
 ## Expressions
 
@@ -25,7 +25,7 @@ A number of a command (*or an expression* below) may be an expression of the par
 - [`mesh.script`](#meshscript): A mesh made by a Python script next to the project, e.g. with the mesh tools of FElupe.
 - [`mesh.generate`](#meshgenerate): A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes of the model before (made by tools, of files or of scripts), like expand or revolve.
 - [`mesh.merge`](#meshmerge): Merge points of the sections whose coordinates agree to the given number of decimals (fem.field.merge(..., decimals)).
-- [`cellset.from_tag`](#cellsetfrom_tag): Cell set of all cells of a mesh with the given tag value.
+- [`cellset.from_tag`](#cellsetfrom_tag): Cell set of all cells of a mesh with the given tag value: of a mesh imported with a tag, or of a mesh made by tools of such meshes, which keep their tags.
 - [`cellset.from_file`](#cellsetfrom_file): Cell set of all cells of a mesh.
 - [`material.add`](#materialadd): Add a material to the material library.
 - [`section.add`](#sectionadd): Assign a material and a formulation to a cell set.
@@ -81,7 +81,7 @@ Import a mesh file (read with meshio).
 | --- | --- | --- | --- |
 | `name` | name | yes | Name of the object. |
 | `file` | string | yes | File name of the mesh, e.g. specimen.vtu. |
-| `tag` | string |  | Name of an integer cell data array used to split the mesh into cell sets, e.g. material or gmsh:physical. |
+| `tag` | string |  | Name of an integer cell data array used to split the mesh into cell sets, e.g. material or gmsh:physical. The mesh tools keep the tags of the cells, also of a construction mesh. |
 | `cell_type` | `tetra`, `tetra10`, `hexahedron`, `hexahedron20`, `hexahedron27`, `triangle`, `triangle6`, `quad`, `quad8` or `quad9` |  | Type of the solid cells to import, if the file has more than one (one mesh per cell type). The 2D cells of a 3D model are a construction mesh, e.g. a profile to revolve or expand, without cell sets. |
 | `scale` | number > 0 (or an expression) |  | Factor of the coordinates of the points, e.g. 1000 for a mesh in m of a model in mm. The points are multiplied after reading, before the cell sets; point sets and points are in the scaled coordinates. Default `1`. |
 | `color` | string |  | An own color of a mesh, a cell set or a section in the viewport (Color by: Meshes, Cell sets or Sections) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position among the objects of its kind in the model. A property of the model, not of the script: the generated script is the same. |
@@ -96,13 +96,13 @@ A mesh made by a Python script next to the project, e.g. with the mesh tools of 
 | `file` | string | yes | File name of the script, e.g. bushing.py. |
 | `parameters` | names of parameters (unique) |  | The parameters of the model that the script gets as variables (default: all). |
 | `item` | string |  | The item of a dict of meshes, e.g. soft. |
-| `tag` | string |  | Name of an integer cell data array of a meshio.Mesh used to split the mesh into cell sets. |
+| `tag` | string |  | Name of an integer cell data array of a meshio.Mesh used to split the mesh into cell sets. The mesh tools keep the tags of the cells, also of a construction mesh. |
 | `cell_type` | `tetra`, `tetra10`, `hexahedron`, `hexahedron20`, `hexahedron27`, `triangle`, `triangle6`, `quad`, `quad8` or `quad9` |  | Type of the solid cells to take, if the mesh has more than one. The 2D cells of a 3D model are a construction mesh, e.g. a profile to revolve or expand, without cell sets. |
 | `color` | string |  | An own color of a mesh, a cell set or a section in the viewport (Color by: Meshes, Cell sets or Sections) and its legend, as #rrggbb, e.g. #7f8c8d; without it, the color of its position among the objects of its kind in the model. A property of the model, not of the script: the generated script is the same. |
 
 ### `mesh.generate`
 
-A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes of the model before (made by tools, of files or of scripts), like expand or revolve. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh.
+A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes of the model before (made by tools, of files or of scripts), like expand or revolve. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh. An operation keeps the cell tags of the meshes it takes: a stack concatenates them, expand, revolve and fill_between repeat those of their first mesh per layer of cells.
 
 Every variant has a `name`, the name of the object.
 
@@ -278,7 +278,7 @@ Merge points of the sections whose coordinates agree to the given number of deci
 
 ### `cellset.from_tag`
 
-Cell set of all cells of a mesh with the given tag value.
+Cell set of all cells of a mesh with the given tag value: of a mesh imported with a tag, or of a mesh made by tools of such meshes, which keep their tags.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |

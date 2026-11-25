@@ -79,8 +79,8 @@ def _blocks(markers):
 # surface (#222), of meshes made by scripts (#182) with the steps that leave out
 # sections without volume (#429), and of the linear solvers of jobs other than
 # SuperLU (#203) and in single precision (ADR 0016), of steps that switch
-# boundaries on and off (#393), of Cartesian constraints (#421), and of the curves
-# of cylindrical constraints (#422)
+# boundaries on and off (#393), of Cartesian constraints (#421), of the curves of
+# cylindrical constraints (#422), and of the cell tags of made meshes (#438)
 BLOCKS = _blocks(
     {
         "mixed": "\n\n# --- embedded in generated scripts with mixed fields ---\n",
@@ -105,6 +105,10 @@ BLOCKS = _blocks(
         ),
         "solvers": "\n\n# --- embedded in generated scripts with linear solvers ---\n",
         "embed": "\n\n# --- embedded in generated scripts with embedded meshes ---\n",
+        "tags": (
+            "\n\n# --- embedded in generated scripts with the cell tags of made "
+            "meshes ---\n"
+        ),
         "switch": (
             "\n\n# --- embedded in generated scripts with steps that switch "
             "boundaries ---\n"
@@ -131,6 +135,7 @@ HELPERS = (
     ("scripts", lambda context: bool(context.get("mesh.script"))),
     ("solvers", lambda context: jobs.uses_solver_helpers(context.get("job.add"))),
     ("embed", lambda context: meshtools.uses_embed(context.commands)),
+    ("tags", lambda context: meshtools.uses_tags(context.commands)),
     ("switch", lambda context: jobs.switches(context.get("step.add"))),
     ("cartesian", lambda context: bool(context.get("cartesian.add"))),
     ("cylindrical", lambda context: jobs.cylindrical_curves(context)),
@@ -386,6 +391,12 @@ class Context:
     def dimensions(self):
         """The dimensions of the meshes made by tools (ADR 0019)."""
         return meshtools.dimensions(self.commands)
+
+    @cached_property
+    def tag_names(self):
+        """The names of the cell tags of the meshes with cell tags, also of those
+        made by tools (#438)."""
+        return meshtools.tag_names(self.commands)
 
     @cached_property
     def rotations(self):
