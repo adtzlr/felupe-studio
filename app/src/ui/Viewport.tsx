@@ -11,6 +11,7 @@ import {
   cutLayers,
   cutLines,
   cutMarkers,
+  failedCuts,
   meshCuts,
   uncutPick,
   visiblePoints,
@@ -33,6 +34,7 @@ import { useOverlays } from "./useOverlays";
 import { usePicking } from "./usePicking";
 import {
   type Create,
+  FailedCuts,
   OffInStep,
   PickedFacePanel,
   PickedFacesPanel,
@@ -325,6 +327,8 @@ export function Viewport({
             more={more}
           />
         )}
+        {/* none without meshes */}
+        <FailedCuts failed={cutView.failed} />
         {settled && (
           <>
             <WarningsOf selected={selected} warnings={warnings} />
@@ -345,7 +349,8 @@ export function Viewport({
  * The cut of the view (#395): the bounds of the drawn meshes for its slider, its
  * plane, and the meshes and the construction meshes to draw. The meshes are cut in
  * Python (`MeshFiles.cutMeshes`) and drawn whole until their first cut arrives; the
- * construction meshes are clipped here.
+ * construction meshes are clipped here. The meshes whose cut failed are told
+ * (#442).
  */
 function useCutView(
   content: ReturnType<typeof viewportContent>,
@@ -366,6 +371,10 @@ function useCutView(
     // the cut surfaces arrive in place, their revision tells when
     [content, cuts, files, revision],
   );
+  const failed = useMemo(
+    () => failedCuts(cuts, files),
+    [cuts, files, revision],
+  );
   const construction = useMemo(
     () =>
       plane
@@ -379,5 +388,5 @@ function useCutView(
   const { onCut, planar } = view;
   // *Cut* of the toolbar, if the app offers it
   const toolbar = onCut && { cut: view.cut, onCut, bounds, planar };
-  return { plane, meshes, construction, toolbar };
+  return { plane, meshes, construction, toolbar, failed };
 }

@@ -4,8 +4,9 @@
 // left out, and the lines and the faces (of face sets, picked surfaces, rigid
 // surfaces and construction meshes) are clipped at the plane. A point on the plane
 // is drawn, e.g. a marker on the cut face.
-import type { Cut, MeshSource, MeshSurface } from "../worker/protocol";
-import type { MeshFiles } from "../core/meshfiles";
+import type { Cut, MeshSurface } from "../worker/protocol";
+import { exceptionOf } from "../core/jobs";
+import type { MeshCut, MeshFiles } from "../core/meshfiles";
 import { scaledSurface, type ViewportContent } from "./layers";
 import type { Highlight, Lines, Markers, MeshLayer } from "./scene";
 import type { Pick } from "./viewer";
@@ -270,13 +271,6 @@ export function clipSurface(plane: Plane, surface: MeshSurface): MeshSurface {
   return clipped;
 }
 
-/** The cut of a drawn mesh (#395): its layer, its source and its cut. */
-export interface MeshCut {
-  name: string;
-  source: MeshSource;
-  cut: Cut;
-}
-
 /**
  * The cut of every drawn mesh (#395) in the coordinates of its file: the coordinate
  * of the plane divided by the scale of the import (#135), which is positive.
@@ -309,12 +303,30 @@ export function cutLayers(
   return content.meshes.map((layer) => {
     const origin = content.origins.get(layer.name);
     const wanted = cuts.find((c) => c.name === layer.name);
-    const surfaces = wanted && files.cutSurfaces(wanted.source);
+    const surfaces = wanted && files.cutSurfaces(wanted);
     const raw = origin && surfaces?.[origin.cellType];
     return raw
       ? { ...layer, surface: scaledSurface(raw, origin.scale) }
       : layer;
   });
+}
+
+/**
+ * The meshes whose latest cut failed (#442), by the exception of Python: they are
+ * drawn whole, or with their cut before.
+ */
+export function failedCuts(
+  cuts: readonly MeshCut[],
+  files: MeshFiles,
+): { names: string[]; error: string }[] {
+  const failed = new Map<string, string[]>();
+  for (const mesh of cuts) {
+    const error = files.cutError(mesh);
+    if (error === undefined) continue;
+    const exception = exceptionOf(error);
+    failed.set(exception, [...(failed.get(exception) ?? []), mesh.name]);
+  }
+  return [...failed].map(([error, names]) => ({ names, error }));
 }
 
 /**

@@ -520,17 +520,18 @@ describe("cuts of the meshes (#395)", () => {
   it("ask for the latest cut once the one being made arrived", async () => {
     const { files, asked, arrive } = cutting();
     const source = { type: "inspect-mesh" as const, name: "a.vtu" };
+    const mesh = { name: "a", source };
     const revision = files.revision;
-    files.cutMeshes([{ source, cut: cut(1) }]);
-    files.cutMeshes([{ source, cut: cut(1) }]);
-    files.cutMeshes([{ source, cut: cut(2) }]);
-    files.cutMeshes([{ source, cut: cut(3) }]);
+    files.cutMeshes([{ ...mesh, cut: cut(1) }]);
+    files.cutMeshes([{ ...mesh, cut: cut(1) }]);
+    files.cutMeshes([{ ...mesh, cut: cut(2) }]);
+    files.cutMeshes([{ ...mesh, cut: cut(3) }]);
     expect(asked).toEqual([[source, cut(1)]]);
-    expect(files.cutSurfaces(source)).toBeUndefined();
+    expect(files.cutSurfaces(mesh)).toBeUndefined();
     await arrive();
     // the arrived cut is drawn until the latest one arrives, the one between is
     // never asked for
-    expect(files.cutSurfaces(source)!.hexahedron.positions).toEqual(
+    expect(files.cutSurfaces(mesh)!.hexahedron.positions).toEqual(
       Float32Array.from([1]),
     );
     expect(asked).toEqual([
@@ -538,49 +539,90 @@ describe("cuts of the meshes (#395)", () => {
       [source, cut(3)],
     ]);
     await arrive();
-    expect(files.cutSurfaces(source)!.hexahedron.positions[0]).toBe(3);
+    expect(files.cutSurfaces(mesh)!.hexahedron.positions[0]).toBe(3);
     expect(files.cutRevision).toBe(2);
     // a cut is no change of the files
     expect(files.revision).toBe(revision);
-    files.cutMeshes([{ source, cut: cut(3) }]);
+    files.cutMeshes([{ ...mesh, cut: cut(3) }]);
     expect(asked).toHaveLength(2);
+    expect(files.cutError(mesh)).toBeUndefined();
 
-    // an error keeps the latest surfaces, and is not asked for again
-    files.cutMeshes([{ source, cut: cut(-1) }]);
+    // an error keeps the latest surfaces, is told (#442) and is not asked for again
+    files.cutMeshes([{ ...mesh, cut: cut(-1) }]);
     await arrive();
-    expect(files.cutSurfaces(source)!.hexahedron.positions[0]).toBe(3);
-    files.cutMeshes([{ source, cut: cut(-1) }]);
+    expect(files.cutSurfaces(mesh)!.hexahedron.positions[0]).toBe(3);
+    expect(files.cutError(mesh)).toBe("no cut");
+    files.cutMeshes([{ ...mesh, cut: cut(-1) }]);
     expect(asked).toHaveLength(3);
+    // until a cut arrives
+    files.cutMeshes([{ ...mesh, cut: cut(4) }]);
+    await arrive();
+    expect(files.cutError(mesh)).toBeUndefined();
+    expect(files.cutSurfaces(mesh)!.hexahedron.positions[0]).toBe(4);
+  });
+
+  it("cut every mesh of one source, e.g. with different scales (#442)", async () => {
+    const { files, asked, arrive } = cutting();
+    const source = { type: "inspect-mesh" as const, name: "a.vtu" };
+    // two imports of a file, scaled by 1 and 2: their cuts in the coordinates of
+    // the file differ
+    const a = { name: "a", source };
+    const b = { name: "b", source };
+    files.cutMeshes([
+      { ...a, cut: cut(2) },
+      { ...b, cut: cut(1) },
+    ]);
+    expect(asked).toEqual([
+      [source, cut(2)],
+      [source, cut(1)],
+    ]);
+    await arrive();
+    await arrive();
+    expect(files.cutSurfaces(a)!.hexahedron.positions[0]).toBe(2);
+    expect(files.cutSurfaces(b)!.hexahedron.positions[0]).toBe(1);
+
+    // a mesh made anew, e.g. with other parameters, is drawn whole until its
+    // first cut arrives
+    const made = { ...a, source: { ...source, name: "c.vtu" } };
+    files.cutMeshes([{ ...made, cut: cut(2) }]);
+    expect(files.cutSurfaces(made)).toBeUndefined();
+    expect(files.cutSurfaces(a)).toBeUndefined();
   });
 
   it("forget the cuts without a cut, of other meshes and of new files", async () => {
     const { files, asked, arrive, waiting } = cutting();
-    const a = { type: "inspect-mesh" as const, name: "a.vtu" };
-    const b = { type: "inspect-mesh" as const, name: "b.vtu" };
+    const a = {
+      name: "a",
+      source: { type: "inspect-mesh" as const, name: "a.vtu" },
+    };
+    const b = {
+      name: "b",
+      source: { type: "inspect-mesh" as const, name: "b.vtu" },
+    };
     files.cutMeshes([
-      { source: a, cut: cut(1) },
-      { source: b, cut: cut(1) },
+      { ...a, cut: cut(1) },
+      { ...b, cut: cut(1) },
     ]);
     await arrive();
     await arrive();
-    files.cutMeshes([{ source: a, cut: cut(1) }]);
+    files.cutMeshes([{ ...a, cut: cut(1) }]);
     expect(files.cutSurfaces(a)).toBeDefined();
     expect(files.cutSurfaces(b)).toBeUndefined();
     files.cutMeshes([]);
     expect(files.cutSurfaces(a)).toBeUndefined();
 
     // a cut of a forgotten mesh that arrives late is dropped
-    files.cutMeshes([{ source: a, cut: cut(2) }]);
+    files.cutMeshes([{ ...a, cut: cut(2) }]);
     files.cutMeshes([]);
     await arrive();
     expect(files.cutSurfaces(a)).toBeUndefined();
 
     // a new file of the project, and a new project
-    files.cutMeshes([{ source: a, cut: cut(1) }]);
+    files.cutMeshes([{ ...a, cut: cut(1) }]);
     await arrive();
     await files.add("c.vtu", new Uint8Array([1]));
     expect(files.cutSurfaces(a)).toBeUndefined();
-    files.cutMeshes([{ source: a, cut: cut(1) }]);
+    files.cutMeshes([{ ...a, cut: cut(1) }]);
     await arrive();
     files.clear();
     expect(files.cutSurfaces(a)).toBeUndefined();
@@ -590,8 +632,12 @@ describe("cuts of the meshes (#395)", () => {
 
   it("are not made without Python", () => {
     const files = new MeshFiles();
-    const source = { type: "inspect-mesh" as const, name: "a.vtu" };
-    files.cutMeshes([{ source, cut: cut(1) }]);
-    expect(files.cutSurfaces(source)).toBeUndefined();
+    const mesh = {
+      name: "a",
+      source: { type: "inspect-mesh" as const, name: "a.vtu" },
+    };
+    files.cutMeshes([{ ...mesh, cut: cut(1) }]);
+    expect(files.cutSurfaces(mesh)).toBeUndefined();
+    expect(files.cutError(mesh)).toBe("Python is not available.");
   });
 });

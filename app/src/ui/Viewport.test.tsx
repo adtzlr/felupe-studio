@@ -1505,6 +1505,86 @@ describe("Viewport", () => {
     await act(async () => {});
     expect(drawn().positions.data).toEqual(surface.positions.map((x) => 2 * x));
     expect(points()).toEqual([3]);
-    expect(files.cutSurfaces(source as MeshSource)).toBeUndefined();
+    expect(
+      files.cutSurfaces({ name: "a", source: source as MeshSource }),
+    ).toBeUndefined();
+  });
+
+  it("tells a cut that failed, and draws the mesh whole (#442)", async () => {
+    const solid = {
+      cell_type: "tetra",
+      cells: 1,
+      bounds: [
+        [0, 0, 0],
+        [1, 1, 0],
+      ] as [number[], number[]],
+      tags: [],
+    };
+    const traceback = [
+      "Traceback (most recent call last):",
+      '  File "felupe_studio/cuts.py", line 436, in cut',
+      "ValueError: negative axis 1 index: -26780",
+    ].join("\n");
+    const files = new MeshFiles(
+      async (name) => ({
+        info: { file: name, solids: [solid] },
+        surfaces: { tetra: surface },
+      }),
+      {
+        cut: async () => {
+          throw new Error(traceback);
+        },
+      },
+    );
+    await files.add("a.vtu", new Uint8Array());
+    const store = new ModelStore();
+    store.apply([
+      { type: "add", command: mesh("a", "a.vtu") },
+      { type: "add", command: mesh("b", "a.vtu") },
+    ]);
+    const viewer = fakeViewer();
+    function Cutting() {
+      const [cut, setCut] = useState<Cut>();
+      return (
+        <Viewport
+          store={store}
+          files={files}
+          hidden={new Set()}
+          createViewer={viewer.create}
+          cut={cut}
+          onCut={setCut}
+        />
+      );
+    }
+    render(<Cutting />);
+    await act(async () => {});
+    const failed = () =>
+      screen
+        .queryAllByRole("status")
+        .filter((s) => s.textContent!.includes("the cut failed"));
+    expect(failed()).toHaveLength(0);
+
+    const select = screen.getByRole("combobox", { name: "Cut" });
+    await act(async () => {
+      fireEvent.change(select, { target: { value: "x" } });
+    });
+    await act(async () => {});
+    // one line per exception, with the meshes that it failed
+    expect(failed().map((s) => s.textContent)).toEqual([
+      "a, b: the cut failed with ValueError: negative axis 1 index: -26780",
+    ]);
+    const objects = viewer.handle.update.mock.lastCall![0].objects;
+    const drawn = objects.filter((o) => o.type === "surface");
+    expect(drawn.map((o) => o.positions.data)).toEqual([
+      surface.positions,
+      surface.positions,
+    ]);
+
+    // no cut, no message
+    await act(async () => {
+      fireEvent.change(select, { target: { value: "" } });
+    });
+    await act(async () => {});
+    expect(failed()).toHaveLength(0);
   });
 });
