@@ -1460,6 +1460,110 @@ CHANGES |= {
     ),
 }
 
+
+def cylindrical(document, index=11, **fields):
+    """A cylindrical constraint of the point set right (#422): its points turned
+    about the axis x through the middle of the specimen, unless the fields change
+    it."""
+    command = {
+        "command": "cylindrical.add",
+        "name": "turn",
+        "points": "right",
+        "center": [0, 0.5, 0.5],
+        "axis": [1, 0, 0],
+        "constrained": ["theta"],
+        **fields,
+    }
+    document["commands"].insert(index, command)
+
+
+def axisymmetric(document):
+    """An axisymmetric model of the rectangle made by a tool."""
+    tool(document, "Rectangle")
+    planar(document)
+    find(document, "settings")["analysis"] = "axisymmetric"
+
+
+# the cylindrical constraints (#422): like the Cartesian constraints, ramped by the
+# steps and the curve of a job, with their axis and their values
+CHANGES |= {
+    "cylindrical constraint ramped and recorded": lambda d: (
+        cylindrical(d, multiplier=1e4),
+        find(d, "step_1")["ramp"]["items"].append({"target": "turn", "end": 0.2}),
+        find(d, "job_1").update(curve="turn"),
+    ),
+    "cylindrical constraint ramped per direction": lambda d: (
+        cylindrical(d, constrained=["z", "r"], value=[0.1, 0.2]),
+        find(d, "step_1")["ramp"]["items"].append(
+            {"target": "turn", "start": [0, 0], "end": [0.1, "stroke"]}
+        ),
+        parameters(d),
+    ),
+    "cylindrical constraint about z through the origin": lambda d: (
+        cylindrical(d, constrained=["r"]),
+        find(d, "turn").pop("center"),
+        find(d, "turn").pop("axis"),
+    ),
+    "cylindrical constraint with an axis of zero length": lambda d: cylindrical(
+        d, axis=[0, 0, 0]
+    ),
+    "cylindrical constraint with a value per direction": lambda d: cylindrical(
+        d, value=[0.1, 0.2]
+    ),
+    "cylindrical constraint ramped with values per direction": lambda d: (
+        cylindrical(d, constrained=["r", "theta"]),
+        find(d, "step_1")["ramp"]["items"].append(
+            {"target": "turn", "end": [0.1, 0.2, 0.3]}
+        ),
+    ),
+    "cylindrical constraint off in a step that ramps it": lambda d: (
+        cylindrical(d),
+        glue(d),
+        find(d, "step_1").update(constraints=["glue"]),
+        find(d, "step_1")["ramp"]["items"].append({"target": "turn", "end": 0.1}),
+    ),
+    "cylindrical constraint of a control point": lambda d: (
+        d["commands"].insert(
+            9, {"command": "point.add", "name": "pin", "coordinates": [4, 0, 0]}
+        ),
+        cylindrical(d, 12, points="pin", constrained=["r", "theta", "z"]),
+    ),
+    "cylindrical constraint in a 2D model": lambda d: (
+        tool(d, "Rectangle"),
+        planar(d),
+        cylindrical(d, center=[0, -1, 0], constrained=["r"], value=-0.1),
+        find(d, "turn").pop("axis"),
+        find(d, "job_1").update(curve="turn"),
+    ),
+    "cylindrical constraint about z in a 2D model": lambda d: (
+        tool(d, "Rectangle"),
+        planar(d),
+        cylindrical(d, center=[0, -1, 0], axis=[0, 0, 2]),
+    ),
+    "cylindrical constraint with a center in z in a 2D model": lambda d: (
+        tool(d, "Rectangle"),
+        planar(d),
+        cylindrical(d, center=[0, -1, 1]),
+        find(d, "turn").pop("axis"),
+    ),
+    "cylindrical constraint with an axis not z in a 2D model": lambda d: (
+        tool(d, "Rectangle"),
+        planar(d),
+        cylindrical(d, center=[0, -1, 0]),
+    ),
+    "cylindrical constraint of z in a 2D model": lambda d: (
+        tool(d, "Rectangle"),
+        planar(d),
+        cylindrical(d, center=[0, -1, 0], constrained=["z"]),
+        find(d, "turn").pop("axis"),
+    ),
+    "cylindrical constraint in an axisymmetric model": lambda d: (
+        axisymmetric(d),
+        cylindrical(d, center=[0, 0, 0], constrained=["r"]),
+        find(d, "turn").pop("axis"),
+    ),
+}
+
 # every formulation of the registry with every kind of material (ADR 0024): the rule
 # that the material fits the formulation, the same in both languages
 MATERIAL_KINDS = {

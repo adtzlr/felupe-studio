@@ -559,3 +559,54 @@ def base_vectors(e1, e2=None):
         return np.array([[e1[0], -e1[1]], [e1[1], e1[0]]])
     vectors = np.column_stack([e1, e2, np.cross(e1, e2)])
     return vectors / np.linalg.norm(vectors, axis=0)
+
+
+# --- embedded in generated scripts with the curve of a cylindrical constraint ---
+class CylindricalCurvePlugin(fem.CharacteristicCurvePlugin):
+    """Record the curve of a cylindrical constraint (#422) in its directions r, theta
+    and z (of a 2D model r and theta): the displacement of its first point, around the
+    axis the arc length on its undeformed radius, and the sum of the forces of the
+    items at its points, each in the directions of its deformed position. Of points
+    on one radius R, the moment about the axis is R times the force around it."""
+
+    def after_substep(self, context, state):
+        constraint, field = self.boundary, context.substep.x
+        points, dim = constraint.points, field[0].dim
+
+        def padded(values):
+            return np.pad(values, [(0, 0), (0, 3 - dim)])
+
+        forces = sum(item.results.force for item in self.items).toarray().ravel()
+        forces = padded(np.split(forces, field.offsets)[0].reshape(-1, dim)[points])
+        dX = padded(constraint.mesh.points[points]) - constraint.center
+        dx = dX + padded(field[0].values[points])
+        axis = constraint.axis
+        radial = dx - np.outer(dx @ axis, axis)
+        rho = np.linalg.norm(radial, axis=1, keepdims=True)
+        e_r = np.divide(radial, rho, out=np.zeros_like(radial), where=rho > 0)
+        force = [np.sum(forces * e) for e in (e_r, np.cross(axis, e_r), axis)]
+        # the first point: its angle about the axis, continued over the substeps
+        e_r0, e_t0, _ = constraint.basis[0].T
+        radius = constraint.radius[0]
+        angle = np.arctan2(dx[0] @ e_t0, dx[0] @ e_r0)
+        if self.x and radius > 0:
+            before = self.x[-1][1] / radius
+            angle += 2 * np.pi * np.round((before - angle) / (2 * np.pi))
+        u = [rho[0, 0] - radius, radius * angle, (dx[0] - dX[0]) @ axis]
+        self.x.append(np.array(u[:dim]))
+        self.y.append(np.array(force[:dim]))
+        self.res = context.substep
+
+
+class CylindricalCurve(fem.CharacteristicCurve):
+    """A characteristic curve of a cylindrical constraint (#422): ``x``, ``y`` and
+    ``plot()`` in its directions r, theta and z, see ``CylindricalCurvePlugin``."""
+
+    def __init__(self, steps, boundary, items, *, plugins=None):
+        self.cylindrical = CylindricalCurvePlugin(boundary=boundary, items=items)
+        plugins = [*(plugins or []), self.cylindrical]
+        super().__init__(steps, boundary, items, plugins=plugins)
+        self.plot = self.cylindrical.plot
+
+    x = property(lambda self: self.cylindrical.x)
+    y = property(lambda self: self.cylindrical.y)

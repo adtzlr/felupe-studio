@@ -23,8 +23,11 @@ import numpy as np
 import pytest
 
 from felupe_studio import codegen
+from felupe_studio.analysis import analysis_of
 from felupe_studio.capabilities import capabilities
 from felupe_studio.codegen import TOL
+from felupe_studio.commands import MOVED
+from felupe_studio.directions import first_moved
 from felupe_studio.expressions import resolve
 from felupe_studio.materials import material_call
 from felupe_studio.runner import frames, run
@@ -116,10 +119,13 @@ def evaluate(case, tmp_path, monkeypatch, document=None):
     monkeypatch.chdir(tmp_path)
     namespace = runpy.run_path(str(script))
 
-    # the curve of a Cartesian constraint (#421) in its first constrained direction
+    # the curve of a Cartesian constraint (#421) in its directions, and of a
+    # cylindrical constraint (#422), recorded in its directions, in the direction of
+    # the app: the first constrained one that moves
     commands = resolve(document)[0]["commands"]
     local = frames(commands)
-    cartesians = {c["name"]: c for c in commands if c["command"] == "cartesian.add"}
+    moved = {c["name"]: c for c in commands if c["command"] in MOVED}
+    dim = 3 if analysis_of(commands) == "3d" else 2
     jobs = {}
     for cmd in document["commands"]:
         if cmd["command"] == "job.add" and "curve" in cmd:
@@ -129,7 +135,8 @@ def evaluate(case, tmp_path, monkeypatch, document=None):
             if cmd["name"] in local:
                 frame = np.array(local[cmd["name"]])
                 x, y = x @ frame.T, y @ frame.T
-                axis = min(int(d) - 1 for d in cartesians[cmd["curve"]]["constrained"])
+            if cmd["curve"] in moved:
+                axis = first_moved(commands, moved[cmd["curve"]], dim)
             jobs[cmd["name"]] = {
                 "displacement": x[:, axis].tolist(),
                 "force": y[:, axis].tolist(),
@@ -670,6 +677,9 @@ LARGE_ROUNDOFF = {
     # the penalty of the multi-point constraint of the rotation point: 2e-3, with an
     # estimate of 0.74
     "plate_rotation_plane_strain",
+    # the penalties of the cylindrical constraints (1000 per point and direction, of
+    # rubber with mu = 1, #422): 1.3e-3, with an estimate of 2.3e-2
+    "tube_sleeve_torsion",
 }
 # the three-field variation of steel on quadratic tetrahedrons (#420): the residual
 # of float32 stalls at about 2.5 times the estimate of its round-off by FElupe 12.1.1,

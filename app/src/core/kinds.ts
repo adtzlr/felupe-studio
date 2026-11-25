@@ -58,6 +58,8 @@ export const KINDS: Record<CommandType, Kind> = {
   // a Cartesian constraint (#421): an item of the steps like a multi-point
   // constraint, also ramped by the steps and the curve of a job
   "cartesian.add": "constraint",
+  // a cylindrical constraint (#422): like a Cartesian constraint, about an axis
+  "cylindrical.add": "constraint",
   // a contact with a rigid surface (#220): an item of the steps like a constraint
   "contact.add": "constraint",
   "load.add": "load",
@@ -80,9 +82,13 @@ export const VERTICES: Record<Vertex, string> = {
 export const RAMPED: readonly Kind[] = ["boundary", "load", "pressure"];
 
 /**
- * The constraints that a step can ramp and that can be the curve of a job (#421).
+ * The constraints that a step can ramp and that can be the curve of a job: those in
+ * local coordinates (#421, #422).
  */
-export const MOVED: readonly CommandType[] = ["cartesian.add"];
+export const MOVED: readonly CommandType[] = [
+  "cartesian.add",
+  "cylindrical.add",
+];
 
 /**
  * Whether a reference to objects of these kinds takes the object of a command: of
@@ -101,11 +107,11 @@ export function takes(kinds: readonly Kind[], command: CommandType): boolean {
 
 /**
  * The names of the kinds of references in the messages, if not the kinds
- * themselves: the curve of a job is a constraint only of a Cartesian constraint
- * (#421).
+ * themselves: the curve of a job is a constraint only of a Cartesian or cylindrical
+ * constraint (#421, #422).
  */
 export const REFERENCE_NAMES: Record<string, string> = {
-  "job.add curve": "boundary, load or Cartesian constraint",
+  "job.add curve": "boundary, load, Cartesian or cylindrical constraint",
 };
 
 /** The name of a kind in the messages (#219). */
@@ -143,6 +149,7 @@ export const REFERENCES: Partial<
     rotation: ["pointset", false],
   },
   "cartesian.add": { points: ["pointset", false] },
+  "cylindrical.add": { points: ["pointset", false] },
   "load.add": { points: [["pointset", "rigid"], false] },
   "contact.add": {
     points: [["pointset", "faceset"], false],
@@ -157,7 +164,7 @@ export const REFERENCES: Partial<
     boundaries: [["boundary", "symmetry"], true],
   },
   // the curve of a job: a boundary (force-displacement), a point load or a
-  // Cartesian constraint (#421, checked by a rule)
+  // Cartesian or cylindrical constraint (#421, #422, checked by a rule)
   "job.add": {
     steps: ["step", true],
     curve: [["boundary", "load", "constraint"], false],

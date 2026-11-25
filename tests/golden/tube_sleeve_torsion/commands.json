@@ -1,0 +1,146 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "mesh.generate",
+      "name": "profile",
+      "tool": "Rectangle",
+      "parameters": {
+        "a": [
+          0,
+          1
+        ],
+        "b": [
+          3,
+          2
+        ],
+        "n": [
+          7,
+          3
+        ]
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "tube",
+      "tool": "revolve",
+      "inputs": [
+        "profile"
+      ],
+      "parameters": {
+        "n": 25,
+        "phi": 360,
+        "axis": "x"
+      }
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "all_cells",
+      "mesh": "tube"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 1.0,
+        "bulk": 5.0
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "body",
+      "cellset": "all_cells",
+      "material": "rubber",
+      "formulation": "u"
+    },
+    {
+      "command": "pointset.add",
+      "name": "start",
+      "select": {
+        "axis": "x",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "end",
+      "select": {
+        "axis": "x",
+        "value": 3
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "outside",
+      "select": {
+        "radius": 2,
+        "axis": "x"
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "start",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "cylindrical.add",
+      "name": "sleeve",
+      "points": "outside",
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "constrained": [
+        "r"
+      ]
+    },
+    {
+      "command": "cylindrical.add",
+      "name": "twist",
+      "points": "end",
+      "axis": [
+        1,
+        0,
+        0
+      ],
+      "constrained": [
+        "r",
+        "theta",
+        "z"
+      ]
+    },
+    {
+      "command": "step.add",
+      "name": "turn",
+      "ramp": {
+        "num": 5,
+        "items": [
+          {
+            "target": "twist",
+            "end": [
+              0,
+              0.5,
+              0
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "turn"
+      ],
+      "curve": "twist",
+      "tol": 1.49e-08
+    }
+  ]
+}

@@ -18,7 +18,10 @@ export function isOn(step: Pick<Step, "boundaries">, name: string): boolean {
 type Chosen = "boundaries" | "constraints" | "loads";
 const CHOSEN: readonly [Chosen, readonly string[]][] = [
   ["boundaries", ["boundary.add", "loadcase.add", "symmetry.add"]],
-  ["constraints", ["mpc.add", "cartesian.add", "contact.add"]],
+  [
+    "constraints",
+    ["mpc.add", "cartesian.add", "cylindrical.add", "contact.add"],
+  ],
   ["loads", ["load.add", "pressure.add"]],
 ];
 

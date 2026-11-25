@@ -25,7 +25,9 @@ KIND_NAMES = {
     # a load case is referenced like a boundary
     "boundary": "boundary, load case",
     "symmetry": "symmetry plane",
-    "constraint": "multi-point constraint, Cartesian constraint, contact",
+    "constraint": (
+        "multi-point constraint, Cartesian constraint, cylindrical constraint, contact"
+    ),
     "load": "point load",
     "pressure": "pressure",
     "step": "step",
@@ -68,13 +70,14 @@ def _plural(word):
     return word[:-1] + "ies" if word.endswith("ry") else word + "s"
 
 
-# the constraints that the ramp of a step and the curve of a job take (#421)
-MOVED_NAMES = ["Cartesian constraint"]
+# the constraints that the ramp of a step and the curve of a job take (#421, #422)
+MOVED_NAMES = ["Cartesian constraint", "cylindrical constraint"]
 
 
 def _kinds(command, key, plural=False):
     """The names of the kinds that a reference field points to, if it is one: of
-    the constraints only the Cartesian ones for a ramp and a curve (#421)."""
+    the constraints only those in local coordinates for a ramp and a curve (#421,
+    #422)."""
     if command == "step.add" and key == "ramp.items[].target":
         kinds = (*RAMPED, "constraint")
     elif (reference := REFERENCES.get(command, {}).get(key)) is None:

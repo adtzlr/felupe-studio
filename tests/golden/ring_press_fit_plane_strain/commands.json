@@ -1,0 +1,101 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "model.settings",
+      "name": "settings",
+      "analysis": "plane-strain"
+    },
+    {
+      "command": "mesh.generate",
+      "name": "radius",
+      "tool": "Line",
+      "parameters": {
+        "a": 1,
+        "b": 2,
+        "n": 5
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "ring",
+      "tool": "revolve",
+      "inputs": [
+        "radius"
+      ],
+      "parameters": {
+        "n": 9,
+        "phi": 90,
+        "axis": "x"
+      }
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "all_cells",
+      "mesh": "ring"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 1.0,
+        "bulk": 5.0
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "body",
+      "cellset": "all_cells",
+      "material": "rubber",
+      "formulation": "u"
+    },
+    {
+      "command": "pointset.add",
+      "name": "inside",
+      "select": {
+        "radius": 1,
+        "axis": "z"
+      }
+    },
+    {
+      "command": "symmetry.add",
+      "name": "quarter",
+      "axes": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "command": "cylindrical.add",
+      "name": "shaft",
+      "points": "inside",
+      "constrained": [
+        "r"
+      ],
+      "multiplier": 10000
+    },
+    {
+      "command": "step.add",
+      "name": "press",
+      "ramp": {
+        "num": 4,
+        "items": [
+          {
+            "target": "shaft",
+            "end": 0.2
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "press"
+      ],
+      "curve": "shaft",
+      "tol": 1.49e-08
+    }
+  ]
+}

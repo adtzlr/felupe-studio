@@ -6701,6 +6701,206 @@
     },
     {
       "command": {
+        "command": "mesh.generate",
+        "name": "radius",
+        "tool": "Line",
+        "parameters": {
+          "a": "1",
+          "b": "2",
+          "n": "5"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "a"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "n"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "ring",
+        "tool": "revolve",
+        "inputs": [
+          "radius"
+        ],
+        "parameters": {
+          "n": "9",
+          "phi": "90",
+          "axis": "x"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "n"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "phi"
+          ],
+          "integer": false,
+          "bounds": {
+            "maximum": 360,
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "all_cells",
+        "mesh": "ring"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "inside",
+        "select": {
+          "radius": "1",
+          "axis": "z"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "radius"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "symmetry.add",
+        "name": "quarter",
+        "axes": [
+          "x",
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cylindrical.add",
+        "name": "shaft",
+        "points": "inside",
+        "constrained": [
+          "r"
+        ],
+        "multiplier": "10000"
+      },
+      "fields": [
+        {
+          "path": [
+            "multiplier"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "press",
+        "ramp": {
+          "num": "4",
+          "items": [
+            {
+              "target": "shaft",
+              "end": "0.2"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "press"
+        ],
+        "curve": "shaft",
+        "tol": "1.49e-08"
+      },
+      "fields": [
+        {
+          "path": [
+            "tol"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
         "command": "parameter.add",
         "name": "radius",
         "value": "50",
@@ -7185,6 +7385,358 @@
           ],
           "integer": false,
           "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "profile",
+        "tool": "Rectangle",
+        "parameters": {
+          "a": [
+            "0",
+            "1"
+          ],
+          "b": [
+            "3",
+            "2"
+          ],
+          "n": [
+            "7",
+            "3"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "a",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            0
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            1
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "tube",
+        "tool": "revolve",
+        "inputs": [
+          "profile"
+        ],
+        "parameters": {
+          "n": "25",
+          "phi": "360",
+          "axis": "x"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "n"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "phi"
+          ],
+          "integer": false,
+          "bounds": {
+            "maximum": 360,
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "all_cells",
+        "mesh": "tube"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "start",
+        "select": {
+          "axis": "x",
+          "value": "0"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "outside",
+        "select": {
+          "radius": "2",
+          "axis": "x"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "radius"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "fixed",
+        "pointset": "start",
+        "constrained": [
+          "x",
+          "y",
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cylindrical.add",
+        "name": "sleeve",
+        "points": "outside",
+        "axis": [
+          "1",
+          "0",
+          "0"
+        ],
+        "constrained": [
+          "r"
+        ]
+      },
+      "fields": [
+        {
+          "path": [
+            "axis",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "axis",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "axis",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "cylindrical.add",
+        "name": "twist",
+        "points": "end",
+        "axis": [
+          "1",
+          "0",
+          "0"
+        ],
+        "constrained": [
+          "r",
+          "theta",
+          "z"
+        ]
+      },
+      "fields": [
+        {
+          "path": [
+            "axis",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "axis",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "axis",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "turn",
+        "ramp": {
+          "num": "5",
+          "items": [
+            {
+              "target": "twist",
+              "end": [
+                "0",
+                "0.5",
+                "0"
+              ]
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "turn"
+        ],
+        "curve": "twist",
+        "tol": "1.49e-08"
+      },
+      "fields": [
+        {
+          "path": [
+            "tol"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
         }
       ]
     },
@@ -9851,17 +10403,6 @@
         "cellset": "plate_cells",
         "material": "steel",
         "formulation": "u"
-      },
-      "fields": []
-    },
-    {
-      "command": {
-        "command": "symmetry.add",
-        "name": "quarter",
-        "axes": [
-          "x",
-          "y"
-        ]
       },
       "fields": []
     },

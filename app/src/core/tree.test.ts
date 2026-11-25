@@ -428,6 +428,28 @@ describe("deriveTree", () => {
       )!.detail,
     ).toBe("right → plate");
     expect(find(deriveTree(commands), "group:constraint")).toBeUndefined();
+    // a cylindrical constraint (#422): its directions about its axis
+    const twist = {
+      command: "cylindrical.add",
+      name: "twist",
+      points: "right",
+      axis: [1, 0, 0],
+      constrained: ["z", "theta", "r"],
+      value: [0, 0.5, 0],
+    } as Command;
+    expect(find(deriveTree([...commands, twist]), "twist")!.detail).toBe(
+      "right · r, θ, z about (1, 0, 0) · u = (0, 0.5, 0)",
+    );
+    const sleeve = {
+      command: "cylindrical.add",
+      name: "sleeve",
+      points: "right",
+      center: [0, 0.5, 0.5],
+      constrained: ["r"],
+    } as Command;
+    expect(find(deriveTree([...commands, sleeve]), "sleeve")!.detail).toBe(
+      "right · r about z through (0, 0.5, 0.5)",
+    );
   });
 
   it("lists the point loads in a group of their own", () => {

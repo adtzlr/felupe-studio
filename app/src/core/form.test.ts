@@ -536,6 +536,33 @@ describe("new contacts (#220)", () => {
   });
 });
 
+describe("new cylindrical constraints (#422)", () => {
+  it("take the latest point set, and of one on a cylinder its axis", () => {
+    // the latest point set by a plane: points only, held radially
+    expect(initialDraft("cylindrical.add", { commands })).toMatchObject({
+      points: "right",
+      constrained: ["r"],
+    });
+    expect(initialDraft("cylindrical.add", { commands }).axis).toBeUndefined();
+    const sleeve = {
+      command: "pointset.add",
+      name: "sleeve",
+      select: { radius: 2, axis: "x", center: [0, 1, 1] },
+    } as Command;
+    expect(
+      initialDraft("cylindrical.add", { commands: [...commands, sleeve] }),
+    ).toMatchObject({ points: "sleeve", axis: [1, 0, 0], center: [0, 1, 1] });
+    // of a 2D model the center only: the axis is z
+    const planar = [
+      { command: "model.settings", name: "settings", analysis: "plane-strain" },
+      { ...sleeve, select: { radius: 2, axis: "z", center: [1, 1, 0] } },
+    ] as Command[];
+    const draft = initialDraft("cylindrical.add", { commands: planar });
+    expect(draft).toMatchObject({ points: "sleeve", center: [1, 1, 0] });
+    expect(draft.axis).toBeUndefined();
+  });
+});
+
 describe("new sections", () => {
   // the model up to its materials: two cell sets, two materials
   const model = commands.slice(0, 5);

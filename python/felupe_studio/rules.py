@@ -13,7 +13,7 @@ from functools import cached_property
 
 from . import meshtools
 from .analysis import analysis_of, analysis_problems
-from .cartesian import DIRECTIONS, norm, orthogonal, vectors
+from .cartesian import norm, orthogonal, vectors
 from .commands import (
     AXES,
     KIND_NAMES,
@@ -28,6 +28,8 @@ from .commands import (
     reserved,
     value_at,
 )
+from .cylindrical import axis
+from .directions import DIRECTIONS, NAMES, directions
 from .formulations import first, formulations, sibling
 from .loadcases import problems as loadcase_problems
 from .materials import models, strain_based
@@ -193,14 +195,23 @@ def duplicate_name(model, cmd):
 # the names of the commands of the kind constraint in the messages
 CONSTRAINTS = {
     "mpc.add": "multi-point constraint",
-    "cartesian.add": "Cartesian constraint",
+    **NAMES,
     "contact.add": "contact",
 }
+
+# what a step ramps, and what a curve is of, in the messages (#421, #422)
+RAMPS = (
+    "a boundary, a load case, a Cartesian or cylindrical constraint, a point load or "
+    "a pressure"
+)
+CURVES = (
+    "a boundary, a load case, a Cartesian or cylindrical constraint or a point load"
+)
 
 
 def moved(model, name):
     """Whether an object is a boundary, a load or a pressure, or a constraint that a
-    step ramps and that is the curve of a job (#421)."""
+    step ramps and that is the curve of a job (#421, #422)."""
     command = model.before(name)
     if command is None:
         return False
@@ -208,8 +219,8 @@ def moved(model, name):
 
 
 def ramp_targets(model, cmd):
-    """The ramped items of a step are boundaries, load cases, Cartesian constraints,
-    loads or pressures."""
+    """The ramped items of a step are boundaries, load cases, Cartesian or
+    cylindrical constraints, loads or pressures."""
     problems = []
     for item in cmd.get("ramp", {}).get("items", []):
         target = model.before(item["target"])
@@ -218,8 +229,7 @@ def ramp_targets(model, cmd):
                 problems.append(
                     f"step '{cmd['name']}' ramps the "
                     f"{CONSTRAINTS[target['command']]} '{item['target']}': a step "
-                    "ramps a boundary, a load case, a Cartesian constraint, a point "
-                    "load or a pressure."
+                    f"ramps {RAMPS}."
                 )
         elif not moved(model, item["target"]):
             problems.append(
@@ -237,16 +247,17 @@ def ramp_twice(model, cmd):
 
 
 # the commands that ramp one value per constrained component or direction, with
-# their names in the messages (#225, #421)
+# their names in the messages (#225, #421, #422)
 PER_COMPONENT = {
     "boundary.add": ("boundary", "component"),
-    "cartesian.add": ("Cartesian constraint", "direction"),
+    **{command: (name, "direction") for command, name in NAMES.items()},
 }
 
 
 def ramp_values(model, cmd):
     """The ramp of a boundary with one value per constrained component (#225), or of
-    a Cartesian constraint with one value per constrained direction (#421)."""
+    a Cartesian or cylindrical constraint with one value per constrained direction
+    (#421, #422)."""
     problems = []
     for item in cmd.get("ramp", {}).get("items", []):
         values = [v for v in (item.get("start", 0), item["end"]) if isinstance(v, list)]
@@ -256,8 +267,9 @@ def ramp_values(model, cmd):
         if target["command"] not in PER_COMPONENT:
             problems.append(
                 f"step '{cmd['name']}' ramps '{item['target']}' with "
-                f"{count(len(values[0]), 'value')}: only a boundary or a Cartesian "
-                "constraint ramps one value per constrained component."
+                f"{count(len(values[0]), 'value')}: only a boundary, a Cartesian "
+                "constraint or a cylindrical constraint ramps one value per "
+                "constrained component."
             )
             continue
         kind, word = PER_COMPONENT[target["command"]]
@@ -276,8 +288,8 @@ CHOSEN = {"boundary": "boundaries", "constraint": "constraints"}
 
 
 def ramp_off(model, cmd):
-    """A step ramps no boundary, load case or Cartesian constraint that is off in it
-    (#393, #421)."""
+    """A step ramps no boundary, load case or constraint in local coordinates that is
+    off in it (#393, #421, #422)."""
     problems = []
     for item in cmd.get("ramp", {}).get("items", []):
         field = CHOSEN.get(model.kind_of(item["target"]))
@@ -289,8 +301,8 @@ def ramp_off(model, cmd):
 
 
 def curve_kind(model, cmd):
-    """The curve of a job is a boundary, a load case, a point load or a Cartesian
-    constraint, not another constraint (#421)."""
+    """The curve of a job is a boundary, a load case, a point load or a Cartesian or
+    cylindrical constraint, not another constraint (#421, #422)."""
     target = model.before(cmd.get("curve", ""))
     if target is None or target["command"] not in CONSTRAINTS:
         return []
@@ -298,8 +310,8 @@ def curve_kind(model, cmd):
         return []
     return [
         f"job '{cmd['name']}' records the curve of the "
-        f"{CONSTRAINTS[target['command']]} '{cmd['curve']}': a curve is of a "
-        "boundary, a load case, a Cartesian constraint or a point load."
+        f"{CONSTRAINTS[target['command']]} '{cmd['curve']}': a curve is of "
+        f"{CURVES}."
     ]
 
 
@@ -332,15 +344,23 @@ def cartesian_vectors(model, cmd):
     return []
 
 
-def cartesian_values(model, cmd):
-    """A Cartesian constraint with a value per constrained direction (#421)."""
+def direction_values(model, cmd):
+    """A Cartesian or cylindrical constraint with a value per constrained direction
+    (#421, #422)."""
     value, constrained = cmd.get("value"), len(cmd["constrained"])
     if not isinstance(value, list) or len(value) == constrained:
         return []
     return [
-        f"Cartesian constraint '{cmd['name']}' has {count(len(value), 'value')}, but "
-        f"it constrains {count(constrained, 'direction')}."
+        f"{NAMES[cmd['command']]} '{cmd['name']}' has {count(len(value), 'value')}, "
+        f"but it constrains {count(constrained, 'direction')}."
     ]
+
+
+def cylindrical_axis(model, cmd):
+    """The axis of a cylindrical constraint has a length (#422)."""
+    if norm(axis(cmd)) != 0:
+        return []
+    return [f"cylindrical constraint '{cmd['name']}' has an axis of zero length."]
 
 
 def cellset_tag(model, cmd):
@@ -544,9 +564,10 @@ def fixed_components(model, vertex):
                 fixed.update(other["constrained"])
             if other.get("rotation") == vertex["name"]:
                 fixed.update(AXES)
-        elif other["command"] == "cartesian.add" and other["points"] == vertex["name"]:
-            # all directions of the model: all components
-            if set(DIRECTIONS[: len(model.axes)]) <= set(other["constrained"]):
+        elif other["command"] in DIRECTIONS and other["points"] == vertex["name"]:
+            # a constraint in local coordinates (#421, #422) of all directions of
+            # the model: all components
+            if set(directions(other, len(model.axes))) <= set(other["constrained"]):
                 fixed.update(AXES)
     return fixed
 
@@ -582,7 +603,8 @@ RULES = {
     "step.add": (ramp_targets, ramp_twice, ramp_values, ramp_off),
     "job.add": (curve_kind,),
     "boundary.add": (boundary_values,),
-    "cartesian.add": (cartesian_vectors, cartesian_values),
+    "cartesian.add": (cartesian_vectors, direction_values),
+    "cylindrical.add": (cylindrical_axis, direction_values),
     "mesh.generate": (mesh_tool, mesh_inputs),
     "cellset.from_tag": (cellset_tag, cellset_model_mesh),
     "cellset.from_file": (cellset_model_mesh,),

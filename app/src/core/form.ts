@@ -317,7 +317,8 @@ const columnKey = (key: string) =>
 
 /** Kind (or kinds) of objects a reference field points to. */
 function referenceKind(type: CommandType, key: string): RefKind {
-  // the ramped boundaries, loads and pressures, and the Cartesian constraints (#421)
+  // the ramped boundaries, loads and pressures, and the constraints in local
+  // coordinates (#421, #422)
   if (type === "step.add" && columnKey(key) === "ramp.items.target")
     return [...RAMPED, "constraint"];
   const reference = REFERENCES[type]?.[key];

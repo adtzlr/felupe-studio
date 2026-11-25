@@ -101,6 +101,7 @@ describe("ribbonGroups", () => {
       ["Rigid surface"],
       ["Multi-point constraint"],
       ["Cartesian constraint"],
+      ["Cylindrical constraint"],
       ["Contact"],
       ["Point load"],
       ["Pressure"],
@@ -222,6 +223,23 @@ describe("unavailable", () => {
         type,
       ).toBeUndefined();
     }
+  });
+
+  it("offers no cylindrical constraint in an axisymmetric model (#422)", () => {
+    const settings = (analysis: string) =>
+      ({ command: "model.settings", name: "settings", analysis }) as Command;
+    expect(
+      unavailable("cylindrical.add", {
+        commands: [settings("axisymmetric"), ...commands],
+      }),
+    ).toBe(
+      "An axisymmetric model has no direction around its axis: a boundary holds or moves its points radially (y) or axially (x).",
+    );
+    expect(
+      unavailable("cylindrical.add", {
+        commands: [settings("plane-strain"), ...commands],
+      }),
+    ).toBeUndefined();
   });
 
   it("allows one merge setting only", () => {

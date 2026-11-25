@@ -103,6 +103,30 @@ const cartesianDetail: Detail<"cartesian.add"> = (cmd, { units }) => {
   );
 };
 
+/**
+ * The detail of a cylindrical constraint (#422): its points, its constrained
+ * directions about its axis (through its center, if not the origin) and its
+ * displacement if not zero, e.g. `end · r, θ, z about (1, 0, 0) · u = (0, 0.5, 0) mm`.
+ */
+const cylindricalDetail: Detail<"cylindrical.add"> = (cmd, { units }) => {
+  const value = cmd.value ?? 0;
+  const zero = Array.isArray(value) ? !value.some((v) => v !== 0) : value === 0;
+  const unit = unitOf("displacement", units);
+  const labels = (["r", "theta", "z"] as const)
+    .filter((d) => (cmd.constrained as readonly string[]).includes(d))
+    .map((d) => (d === "theta" ? "θ" : d))
+    .join(", ");
+  const axis = cmd.axis ? `(${cmd.axis.join(", ")})` : "z";
+  const center = cmd.center?.some((v) => v !== 0)
+    ? ` through (${cmd.center.join(", ")})`
+    : "";
+  return joined(
+    cmd.points,
+    `${labels} about ${axis}${center}`,
+    !zero && `u = ${valueWithUnit(valueText(value), unit)}`,
+  );
+};
+
 /** One value, or one value per constrained component of a boundary (#225). */
 const valueText = (v: unknown) =>
   Array.isArray(v) ? `(${v.join(", ")})` : String(v);
@@ -257,6 +281,7 @@ const DETAILS: { [C in Command["command"]]: Detail<C> } = {
       cmd.rotation && `rotation ${cmd.rotation}`,
     ),
   "cartesian.add": cartesianDetail,
+  "cylindrical.add": cylindricalDetail,
   "boundary.add": boundaryDetail,
   "loadcase.add": (cmd) => describeLoadcase(cmd),
   "symmetry.add": (cmd, { length }) => describeSymmetry(cmd, length),

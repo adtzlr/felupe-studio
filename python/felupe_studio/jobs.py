@@ -5,7 +5,7 @@ steps and their evaluation with the settings of the Newton-Raphson method and of
 linear solver.
 """
 
-from .cartesian import components
+from .directions import components
 from .formatting import (
     LINE_LENGTH,
     Call,
@@ -177,10 +177,10 @@ def ramp_value(item, num):
 
 def ramped(context, name, values):
     """The entries of the ramp of a step of an item: a boundary, the moving
-    boundaries of a load case, a Cartesian constraint (its displacements, #421), a
-    point load (its force, scaled by the values) or a pressure (scaled by the
-    values)."""
-    if name in context.cartesians:
+    boundaries of a load case, a Cartesian or cylindrical constraint (its
+    displacements, #421, #422), a point load (its force, scaled by the values) or a
+    pressure (scaled by the values)."""
+    if name in context.moved:
         return [f"{name}: {values}"]
     if name in context.loads:
         load = context.loads[name]
@@ -198,9 +198,10 @@ def ramped(context, name, values):
 
 def directions(context, item):
     """The ramped item of a step with the values of all directions of a Cartesian
-    constraint (#421), whose ramp is a table of its displacements: the values of the
-    constrained directions and 0 of the free ones."""
-    command = context.cartesians.get(item["target"])
+    or cylindrical constraint (#421, #422), whose ramp is a table of its
+    displacements: the values of the constrained directions and 0 of the free
+    ones."""
+    command = context.moved.get(item["target"])
     if command is None:
         return item
     return {
@@ -253,7 +254,10 @@ def step_items(context, step):
     """The items of a step: the solid bodies of its sections, its constraints and
     its loads, all of them by default."""
     constraints = [
-        c["name"] for c in context.get("mpc.add", "cartesian.add", "contact.add")
+        c["name"]
+        for c in context.get(
+            "mpc.add", "cartesian.add", "cylindrical.add", "contact.add"
+        )
     ]
     others = step.get("constraints", constraints) + step.get(
         "loads", [*context.loads, *context.pressures]
@@ -362,24 +366,37 @@ def boundary_switch(context):
 
 def curve(context, name):
     """The boundary of a characteristic curve (of a load case: its first move), or a
-    point load or a Cartesian constraint (#421): the displacement of its first point
-    over its total force."""
-    if name in context.loads or name in context.cartesians:
+    point load or a Cartesian or cylindrical constraint (#421, #422): the
+    displacement of its first point over its total force."""
+    if name in context.loads or name in context.moved:
         return name
     if name in context.loadcases:
         name = f"{name}/{moving(context.loadcases[name])[0][0]}"
     return f"boundaries[{quote(name)}]"
 
 
+def cylindrical_curves(context):
+    """Whether a job records the curve of a cylindrical constraint (#422), with the
+    helper ``CylindricalCurve``."""
+    return any(is_cylindrical(context, job) for job in context.get("job.add"))
+
+
+def is_cylindrical(context, job):
+    """Whether the curve of a job is of a cylindrical constraint (#422)."""
+    command = context.moved.get(job.get("curve"))
+    return command is not None and command["command"] == "cylindrical.add"
+
+
 def job_add(context, job):
-    """A job, or a characteristic curve of a boundary or a point load."""
+    """A job, or a characteristic curve of a boundary, a point load or a constraint
+    in local coordinates; of a cylindrical constraint in its directions (#422)."""
     args = [List(job["steps"], prefix="steps=")]
     if "curve" in job:
         args.append(f"boundary={curve(context, job['curve'])}")
-        if job["curve"] in context.loads or job["curve"] in context.cartesians:
+        if job["curve"] in context.loads or job["curve"] in context.moved:
             # the force of a load: the sum of the internal forces at its points; of
-            # a Cartesian constraint (#421) the reaction force, those of the other
-            # items at its points
+            # a constraint in local coordinates (#421, #422) the reaction force,
+            # those of the other items at its points
             constraints = [
                 c["name"] for c in context.constraints if c["name"] != job["curve"]
             ]
@@ -394,6 +411,8 @@ def job_add(context, job):
     if plugins:
         args.append(List(plugins, prefix="plugins="))
     func = "fem.CharacteristicCurve" if "curve" in job else "fem.Job"
+    if is_cylindrical(context, job):
+        func = "CylindricalCurve"
     return [call(job["name"], func, args)]
 
 

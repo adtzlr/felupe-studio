@@ -68,6 +68,8 @@
           "BoundarySwitch",
           "CONDENSED",
           "CORNERS",
+          "CylindricalCurve",
+          "CylindricalCurvePlugin",
           "DIMENSIONS",
           "EDGES",
           "Held",
@@ -124,6 +126,11 @@
       "description": "A direction of a rotated coordinate system: 1, 2 or 3 of its base vectors e1, e2 and e3.",
       "type": "string",
       "enum": ["1", "2", "3"]
+    },
+    "CylindricalDirection": {
+      "description": "A direction of cylindrical coordinates about an axis: radial (r), around the axis (theta) or along it (z).",
+      "type": "string",
+      "enum": ["r", "theta", "z"]
     },
     "Coordinates": {
       "description": "The coordinates x, y and z of a point.",
@@ -192,6 +199,9 @@
         },
         {
           "$ref": "#/$defs/CartesianAdd"
+        },
+        {
+          "$ref": "#/$defs/CylindricalAdd"
         },
         {
           "$ref": "#/$defs/ContactAdd"
@@ -3225,6 +3235,57 @@
         }
       }
     },
+    "CylindricalAdd": {
+      "description": "A cylindrical constraint (fem.CylindricalConstraint, #422): the points of a point set held or moved radially, around and along an axis by a penalty, the other directions free, e.g. points that slide in a rigid sleeve (radially only) or the end of a bushing that is turned (around the axis). The directions r, theta and z are those of each point about the axis, evaluated in the deformed configuration; in a 2D model (plane strain), the axis is z and the directions are r and theta. An item of the steps; a ramp of a step moves the points like a boundary, and it may be the curve of a job.",
+      "type": "object",
+      "required": ["command", "name", "points", "constrained"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "cylindrical.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "points": {
+          "description": "The point set of the constrained points, none of them on the axis if they are constrained radially or around it.",
+          "$ref": "#/$defs/Name"
+        },
+        "center": {
+          "x-quantity": "length",
+          "description": "A point on the axis (default: the origin).",
+          "$ref": "#/$defs/Coordinates"
+        },
+        "axis": {
+          "description": "The direction of the axis (default 0, 0, 1; any length). In a 2D model, the axis is z.",
+          "$ref": "#/$defs/Coordinates"
+        },
+        "constrained": {
+          "description": "The constrained directions: radially (r), around the axis (theta) and along it (z); the others are free.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/CylindricalDirection"
+          }
+        },
+        "value": {
+          "x-quantity": "displacement",
+          "description": "Prescribed displacement in the constrained directions (default 0): one number for all of them, or one number per constrained direction in the order r, theta, z. Around the axis, the arc length on the undeformed radius: the points at the radius R turn by the angle value / R.",
+          "type": ["number", "string", "array"],
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "type": ["number", "string"]
+          }
+        },
+        "multiplier": {
+          "description": "The penalty per point and direction (default 1000).",
+          "type": ["number", "string"],
+          "exclusiveMinimum": 0
+        }
+      }
+    },
     "ContactAdd": {
       "description": "A contact of points with a rigid surface (#220): fem.ContactRigidPlane or fem.ContactRigidCylinder, an item of the steps like the constraints. The penalty of the contact is a factor of the mean stiffness of the solid bodies at the points.",
       "type": "object",
@@ -3331,7 +3392,7 @@
           }
         },
         "constraints": {
-          "description": "Multi-point constraints, Cartesian constraints and contacts that are items of the step (default: all).",
+          "description": "Multi-point constraints, Cartesian and cylindrical constraints and contacts that are items of the step (default: all).",
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
@@ -3385,18 +3446,18 @@
       }
     },
     "RampItem": {
-      "description": "A ramped item: a boundary (its value, e.g. a displacement, or one value per constrained component), a load case (the displacement of its moving faces), a Cartesian constraint (its displacement, or one per constrained direction), a point load (a factor of its force) or a pressure (a factor of its pressure).",
+      "description": "A ramped item: a boundary (its value, e.g. a displacement, or one value per constrained component), a load case (the displacement of its moving faces), a Cartesian or cylindrical constraint (its displacement, or one per constrained direction), a point load (a factor of its force) or a pressure (a factor of its pressure).",
       "type": "object",
       "required": ["target", "end"],
       "additionalProperties": false,
       "properties": {
         "target": {
-          "description": "The ramped boundary, load case, Cartesian constraint, point load or pressure.",
+          "description": "The ramped boundary, load case, Cartesian or cylindrical constraint, point load or pressure.",
           "$ref": "#/$defs/Name"
         },
         "start": {
           "x-quantity": "ramped",
-          "description": "Value at the start of the step (default 0); of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z (of a Cartesian constraint per direction in the order 1, 2, 3).",
+          "description": "Value at the start of the step (default 0); of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z (of a Cartesian constraint per direction in the order 1, 2, 3, of a cylindrical constraint r, theta, z).",
           "type": ["number", "string", "array"],
           "minItems": 1,
           "maxItems": 3,
@@ -3406,7 +3467,7 @@
         },
         "end": {
           "x-quantity": "ramped",
-          "description": "Value at the end of the step; of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z (of a Cartesian constraint per direction in the order 1, 2, 3).",
+          "description": "Value at the end of the step; of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z (of a Cartesian constraint per direction in the order 1, 2, 3, of a cylindrical constraint r, theta, z).",
           "type": ["number", "string", "array"],
           "minItems": 1,
           "maxItems": 3,
@@ -3417,7 +3478,7 @@
       }
     },
     "JobAdd": {
-      "description": "A job evaluating steps one after another (fem.Job). With a curve, the force-displacement curve of a boundary, a load case, a Cartesian constraint or a point load is recorded (fem.CharacteristicCurve).",
+      "description": "A job evaluating steps one after another (fem.Job). With a curve, the force-displacement curve of a boundary, a load case, a Cartesian or cylindrical constraint or a point load is recorded (fem.CharacteristicCurve).",
       "type": "object",
       "required": ["command", "name", "steps"],
       "additionalProperties": false,
@@ -3437,7 +3498,7 @@
           }
         },
         "curve": {
-          "description": "The boundary, load case, Cartesian constraint or point load of the force-displacement curve. Of a Cartesian constraint, the displacement of its first point and the force of the solid bodies at its points, in its directions 1, 2 and 3.",
+          "description": "The boundary, load case, Cartesian or cylindrical constraint or point load of the force-displacement curve. Of a Cartesian constraint, the displacement of its first point and the force of the solid bodies at its points, in its directions 1, 2 and 3. Of a cylindrical constraint, the displacement of its first point in its directions r, theta (the arc length on its undeformed radius) and z, and the sum of the forces of the solid bodies at its points, each in the directions r, theta and z of its point: of points on one radius R, the moment about the axis is R times the force around it.",
           "$ref": "#/$defs/Name"
         },
         "tol": {

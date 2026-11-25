@@ -49,6 +49,11 @@ export interface CommandInfo {
     commands: readonly Command[],
     preset: Record<string, unknown>,
   ) => Record<string, unknown>;
+  /**
+   * Why the model does not offer the command, if so, e.g. a cylindrical constraint
+   * in an axisymmetric model (#422).
+   */
+  unavailable?: (commands: readonly Command[]) => string | undefined;
 }
 
 /** The components x and y of a 2D model (#175), instead of all three. */
@@ -100,6 +105,29 @@ function initialCartesian(
       ? { e1: [1, 0, 0], constrained: ["2"] }
       : {}),
     ...(sets.length ? { points: sets.at(-1)!.name } : {}),
+  };
+}
+
+/**
+ * A new cylindrical constraint (#422) takes the latest point set, and of a point set
+ * on a cylinder its axis and center (#181, e.g. of a picked cylinder, #189); it
+ * holds the points radially, like a rigid sleeve.
+ */
+function initialCylindrical(
+  draft: Record<string, unknown>,
+  commands: readonly Command[],
+): Record<string, unknown> {
+  const set = commands.filter((c) => c.command === "pointset.add").at(-1);
+  if (!set) return draft;
+  const select = set.select;
+  if (!("radius" in select)) return { ...draft, points: set.name };
+  const axis = ["x", "y", "z"].map((a) => (a === select.axis ? 1 : 0));
+  const planar = is2d(analysisOf(commands));
+  return {
+    ...draft,
+    points: set.name,
+    ...(select.center ? { center: select.center } : {}),
+    ...(planar ? {} : { axis }),
   };
 }
 
@@ -746,6 +774,57 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     },
     options: { constrained: { "1": "1 (e1)", "2": "2 (e2)", "3": "3 (e3)" } },
     initial: initialCartesian,
+  },
+  // a cylindrical constraint (#422): points held or moved radially, around and along
+  // an axis
+  "cylindrical.add": {
+    label: "Cylindrical constraint",
+    tab: "loads",
+    prefix: "cylindrical",
+    noun: "cylindrical constraint",
+    fields: {
+      points: {
+        label: "Points",
+        hint: "The held or moved points, e.g. on a cylinder; none on the axis if held radially or around it",
+      },
+      center: {
+        label: "Center",
+        hint: "A point on the axis",
+        placeholder: "0, 0, 0",
+      },
+      axis: {
+        label: "Axis",
+        hint: "The direction of the axis; any length. In 2D, the axis is z",
+        placeholder: "0, 0, 1",
+      },
+      constrained: {
+        label: "Constrained",
+        hint: "Held or moved directions; the others are free, e.g. r of a rigid sleeve",
+        default: ["r"],
+      },
+      value: {
+        label: "Displacement",
+        hint: "In the constrained directions, 0 if empty: one value, or one per direction (r, θ, z). Around the axis, the arc length on the radius R: the points turn by u / R. A ramp of a step moves them",
+        placeholder: "0",
+      },
+      multiplier: {
+        label: "Multiplier",
+        hint: "Penalty per point and direction",
+        placeholder: "1000",
+      },
+    },
+    options: {
+      constrained: {
+        r: "r (radial)",
+        theta: "θ (around the axis)",
+        z: "z (along the axis)",
+      },
+    },
+    initial: initialCylindrical,
+    unavailable: (commands) =>
+      analysisOf(commands) === "axisymmetric"
+        ? "An axisymmetric model has no direction around its axis: a boundary holds or moves its points radially (y) or axially (x)."
+        : undefined,
   },
   "contact.add": {
     label: "Contact",

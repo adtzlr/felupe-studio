@@ -1198,3 +1198,63 @@ def test_a_cartesian_constraint_ramped_and_recorded(url, page):
     summary = page.get_by_text("substeps in").first.inner_text()
     assert "4 substeps" in summary and "Last substep: u1 = 0.3" in summary
     assert page.errors == []
+
+
+def test_a_cylindrical_constraint_turned_and_recorded(url, page):
+    """A cylindrical constraint (#422) at the end of a tube in a rigid sleeve, turned
+    around its axis and recorded by the job: the ribbon has its button, the browser
+    and the script show it, and the job panel shows the arc length and the force
+    around the axis."""
+    page.goto(url)
+    page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
+    page.get_by_role("tab", name="Loads & BCs").click()
+    page.get_by_role("button", name="Cylindrical constraint").wait_for()
+
+    def command(text):
+        name = text.split('"name": "')[1].split('"')[0]
+        line = page.get_by_label("Command", exact=True)
+        line.fill(text)
+        line.press("Enter")
+        page.get_by_text(f"Created {name}.").first.wait_for(timeout=60_000)
+
+    for text in [
+        'mesh.generate {"name": "profile", "tool": "Rectangle", '
+        '"parameters": {"a": [0, 1], "b": [3, 2], "n": [4, 2]}}',
+        'mesh.generate {"name": "tube", "tool": "revolve", "inputs": ["profile"], '
+        '"parameters": {"n": 13, "phi": 360, "axis": "x"}}',
+        'cellset.from_file {"name": "cells", "mesh": "tube"}',
+        'material.add {"name": "rubber", "model": "NeoHooke", '
+        '"parameters": {"mu": 1, "bulk": 5}}',
+        'section.add {"name": "solid", "cellset": "cells", "material": "rubber", '
+        '"formulation": "u"}',
+        'pointset.add {"name": "start", "select": {"axis": "x", "value": 0}}',
+        'pointset.add {"name": "end", "select": {"axis": "x", "value": 3}}',
+        'pointset.add {"name": "outside", "select": {"radius": 2, "axis": "x"}}',
+        'boundary.add {"name": "fixed", "pointset": "start", '
+        '"constrained": ["x", "y", "z"]}',
+        'cylindrical.add {"name": "sleeve", "points": "outside", "axis": [1, 0, 0], '
+        '"constrained": ["r"]}',
+        'cylindrical.add {"name": "twist", "points": "end", "axis": [1, 0, 0], '
+        '"constrained": ["theta"]}',
+        'step.add {"name": "turn", "ramp": {"num": 3, '
+        '"items": [{"target": "twist", "end": 0.3}]}}',
+        'job.add {"name": "job", "steps": ["turn"], "curve": "twist"}',
+    ]:
+        command(text)
+
+    tree = page.get_by_role("navigation", name="Model browser")
+    tree.get_by_text("twist", exact=True).click()
+    tree.get_by_text("end · θ about (1, 0, 0)").wait_for()
+    page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)
+
+    page.get_by_role("tab", name="Script", exact=True).click()
+    page.get_by_text("twist = fem.CylindricalConstraint(").wait_for(timeout=60_000)
+    page.get_by_text("job = CylindricalCurve(").wait_for()
+
+    page.get_by_role("button", name="Solve").click()
+    results = page.get_by_role("button", name="Show results")
+    results.wait_for(timeout=120_000)
+    summary = page.get_by_text("substeps in").first.inner_text()
+    assert "4 substeps" in summary and "Last substep: uθ = 0.3" in summary
+    assert "Fθ = " in summary
+    assert page.errors == []

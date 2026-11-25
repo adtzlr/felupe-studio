@@ -110,8 +110,8 @@ DESCRIPTIONS = {
     "solve": (
         "Solve the jobs (up to and including `job`) with FElupe. Returns per job the "
         "substeps, the time and the curve: displacements x and forces y (x, y, z each, "
-        "of a Cartesian constraint its directions 1, 2, 3) per substep. A failure "
-        "returns the message and the traceback."
+        "of a Cartesian constraint its directions 1, 2, 3, of a cylindrical constraint "
+        "r, theta, z) per substep. A failure returns the message and the traceback."
     ),
     "results": (
         "The result of a quantity at a substep (the last one by default): its range, "
@@ -533,7 +533,8 @@ class Session:
 
 def _curve(result):
     """The curve of a job: the displacements and forces (x, y, z, of a Cartesian
-    constraint its directions 1, 2, 3, #421) per substep."""
+    constraint its directions 1, 2, 3, #421, of a cylindrical constraint r, theta, z,
+    #422) per substep."""
     return {"x": result["x"], "y": result["y"]}
 
 

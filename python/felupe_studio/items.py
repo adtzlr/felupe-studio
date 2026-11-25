@@ -1,10 +1,11 @@
 """The parts of the script of the items besides the solid bodies (ADR 0018).
 
-The multi-point constraints, the Cartesian constraints, the contacts with rigid
-surfaces, the point loads and the pressures on face sets.
+The multi-point constraints, the Cartesian and cylindrical constraints, the contacts
+with rigid surfaces, the point loads and the pressures on face sets.
 """
 
-from .cartesian import DIRECTIONS, E2, components
+from .cartesian import E2
+from .directions import components, skip
 from .formatting import Call, List, call, quote, vector
 
 
@@ -39,6 +40,22 @@ def base_vectors(context, command):
     return Call("rotation=base_vectors", [List(map(repr, v)) for v in vectors])
 
 
+def local_args(context, command):
+    """The arguments of a constraint in local coordinates (#421, #422) after its
+    coordinate system: its displacement if not zero, the skipped directions and the
+    multiplier if given."""
+    args = []
+    displacement = components(command, command.get("value", 0), context.dim)
+    if any(float(v) != 0 for v in displacement):
+        args.append(f"displacement={vector(displacement)}")
+    skipped = skip(command, context.dim)
+    if any(skipped):
+        args.append(f"skip={skipped!r}")
+    if "multiplier" in command:
+        args.append(f"multiplier={command['multiplier']!r}")
+    return args
+
+
 def cartesian(context, command):
     """A Cartesian constraint (#421): the points of a point set in the directions of
     a rotated coordinate system, the skipped directions free."""
@@ -46,19 +63,23 @@ def cartesian(context, command):
         "field",
         f"points=np.flatnonzero({command['points']})",
         base_vectors(context, command),
+        *local_args(context, command),
     ]
-    value = command.get("value", 0)
-    displacement = components(command, value, context.dim)
-    if any(float(v) != 0 for v in displacement):
-        args.append(f"displacement={vector(displacement)}")
-    skip = tuple(
-        int(d not in command["constrained"]) for d in DIRECTIONS[: context.dim]
-    )
-    if any(skip):
-        args.append(f"skip={skip!r}")
-    if "multiplier" in command:
-        args.append(f"multiplier={command['multiplier']!r}")
     return [call(command["name"], "fem.CartesianConstraint", args)]
+
+
+def cylindrical(context, command):
+    """A cylindrical constraint (#422): the points of a point set radially, around
+    and along an axis, the skipped directions free. The center and the axis if
+    written (the defaults of FElupe are the origin and z); in a 2D model, the axis is
+    z."""
+    args = ["field", f"points=np.flatnonzero({command['points']})"]
+    if "center" in command:
+        args.append(f"center={vector(command['center'][: context.dim])}")
+    if "axis" in command and context.dim == 3:
+        args.append(f"axis={vector(command['axis'])}")
+    args += local_args(context, command)
+    return [call(command["name"], "fem.CylindricalConstraint", args)]
 
 
 def shape_args(context, shape):
@@ -113,6 +134,7 @@ def pressure(context, p):
 
 CONSTRAINTS = {"mpc.add": constraint}
 CARTESIANS = {"cartesian.add": cartesian}
+CYLINDRICALS = {"cylindrical.add": cylindrical}
 CONTACTS = {"contact.add": contact}
 LOADS = {"load.add": load}
 PRESSURES = {"pressure.add": pressure}
@@ -135,6 +157,16 @@ def cartesians(context):
         CARTESIANS,
         "# Cartesian constraints: the points held or moved in the directions of a\n"
         "# coordinate system (the columns of the rotation), the skipped ones free",
+    )
+
+
+def cylindricals(context):
+    """The part of the cylindrical constraints (#422)."""
+    return context.emit(
+        CYLINDRICALS,
+        "# cylindrical constraints: the points held or moved radially, around (the\n"
+        "# arc length on the undeformed radius) and along an axis, the skipped ones\n"
+        "# free",
     )
 
 

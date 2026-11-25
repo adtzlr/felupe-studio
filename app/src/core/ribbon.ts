@@ -91,6 +91,8 @@ export function unavailable(
   type: CommandType,
   context: Context,
 ): string | undefined {
+  const reason = REGISTRY[type].unavailable?.(context.commands);
+  if (reason) return reason;
   if (
     REGISTRY[type].single &&
     context.commands.some((c) => c.command === type)
