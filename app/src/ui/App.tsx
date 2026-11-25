@@ -6,6 +6,7 @@ import {
   faceSetNotes,
   formulationNotes,
   fileNotes,
+  inspectMaterials,
   makeMeshes,
   MeshFiles,
 } from "../core/meshfiles";
@@ -184,9 +185,12 @@ export function App({
     save,
   });
   // the meshes of scripts with the parameters of the model, made in the worker
-  // (#182), after the parameters of an opened project are set (#183)
+  // (#182), and the scripts of materials run once (#423), after the parameters of
+  // an opened project are set (#183)
   useEffect(() => {
-    if (!dialogs.parameters?.opening) makeMeshes(store.commands, files);
+    if (dialogs.parameters?.opening) return;
+    makeMeshes(store.commands, files);
+    inspectMaterials(store.commands, files);
   }, [store.commands, files, files.revision, dialogs.parameters]);
   // notes about the mesh files, about face sets on cells without faces (#142), about
   // sections of cells that their formulation does not take (#420), about repeated
@@ -517,6 +521,7 @@ export function App({
             selected={selected}
             onSelect={select}
             onClose={selection.closeInspector}
+            save={save}
           />
         )}
       </div>

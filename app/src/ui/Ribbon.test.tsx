@@ -183,6 +183,10 @@ describe("ribbon commands", () => {
     expect(
       within(properties).getByRole("button", { name: "Choose file…" }),
     ).toBeTruthy();
+    // a minimal script to edit and choose (#423)
+    expect(
+      within(properties).getByRole("button", { name: "Download template" }),
+    ).toBeTruthy();
   });
 
   it("create a section of the formulation of a button (ADR 0024)", () => {

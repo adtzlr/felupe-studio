@@ -1,4 +1,5 @@
 import type { MeshFiles } from "../core/meshfiles";
+import type { Save } from "../core/save";
 import type { ModelStore } from "../core/store";
 import { Properties } from "./Properties";
 
@@ -10,6 +11,8 @@ interface Props {
   selected?: string;
   onSelect: (id: string | undefined) => void;
   onClose: () => void;
+  /** Saves a file, e.g. the template of the script of a material (#423). */
+  save: Save;
 }
 
 /**
@@ -23,6 +26,7 @@ export function Inspector({
   selected,
   onSelect,
   onClose,
+  save,
 }: Props) {
   return (
     <section class="panel properties inspector" aria-label="Properties">
@@ -44,6 +48,7 @@ export function Inspector({
         notes={notes}
         selected={selected}
         onSelect={onSelect}
+        save={save}
       />
     </section>
   );

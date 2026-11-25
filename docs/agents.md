@@ -49,8 +49,9 @@ The tools are few and generic and follow the schema of the commands, like the co
 | `samples()`, `open_sample(sample, folder)` | The samples, and a copy of one in a new folder as the project. |
 | `new_project(folder, name)`, `open_project(path, folder?)`, `save_project(path?, archive?)` | A project in a folder: a project file `<name>.felupe.json` with its mesh files beside it, or an archive `*.felupe.zip` (unpacked into a folder). |
 | `list_commands()`, `add_command(command, before?)`, `update_command(name, changes)`, `delete_command(name)` | The commands. A command that does not fit its schema is not added (or not changed); every change returns the errors and notes of the validation of the app, so the agent can fix them. A new name renames a command, and the references to it follow; a command that others use is not deleted. |
-| `write_file(name, content)` | A text file in the project folder, e.g. a mesh script. |
+| `write_file(name, content)` | A text file in the project folder, e.g. a mesh script or a material script. |
 | `inspect_mesh(file, item?, parameters?)` | The cells, bounds and tags of a mesh file, or of the mesh of a mesh script. |
+| `inspect_material(file, parameters?)` | A material script run once with the parameters of the model, changed by `parameters`, like a job: the type of its `umat` and its number of state variables, or the error with the traceback of the script. |
 | `check()` | The checks that need the mesh data: cells in no or in two sections, hanging points of interfaces, sections of cells that their formulation does not take (#420). |
 | `script()` | The FElupe script, as the app exports it. |
 | `solve(job?)` | Solves the jobs (up to a job) with FElupe; progress as notifications. Returns per job the substeps, the time and the curve (displacements and forces per substep), or the message and the traceback of a failure. |
@@ -61,9 +62,9 @@ The tools are few and generic and follow the schema of the commands, like the co
 
 A number of a command may be an expression of the parameters as a string, e.g. `"end": "0.5 * layers * height"` or `"value": "height"` (see [Expressions of parameters](commands.md#expressions-of-parameters)). Its problems are errors of the validation like the others, e.g. *'layer' is not a parameter in '0.5 * layer * height'*; the script shows it as written. A renamed parameter is renamed in the expressions; a deleted one leaves them as errors.
 
-## Mesh scripts
+## Mesh scripts and material scripts
 
-A mesh script (`mesh.script`) runs Python code with your rights; in the browser, Pyodide is a sandbox, here it is not. So the server runs a script only if it wrote it itself (`write_file`) or copied it from a sample, and the script has not changed since, or if it was started with `--allow-scripts`. Before you allow the scripts of a project from elsewhere, check them.
+A mesh script (`mesh.script`) or a material script (`material.script`) runs Python code with your rights; in the browser, Pyodide is a sandbox, here it is not. So the server runs a script only if it wrote it itself (`write_file`) or copied it from a sample, and the script has not changed since, or if it was started with `--allow-scripts`. Before you allow the scripts of a project from elsewhere, check them.
 
 ## The open app: felupe-studio serve --agent
 
@@ -110,9 +111,9 @@ On Windows (PowerShell), for your user:
 
 With the variable, `felupe-studio serve --agent` prints the header of the `.mcp.json` instead of the token, and the link of the app stays the same at every start, so a bookmark works. A token that is too short or has other characters stops the start with a message. In `.vscode/mcp.json`, the header takes the variable as `${env:FELUPE_STUDIO_TOKEN}`.
 
-- The tools have the names and answers above, on the open model: `list_commands`, `add_command`, `update_command`, `delete_command` (each change is an undo step that you see in the history), `samples` and `open_sample` (only without unsaved changes), `parameters` and `set_parameters` (one undo step), `write_file`, `check`, `script`, `solve` (in the app, with its live results and progress) and `results`.
+- The tools have the names and answers above, on the open model: `list_commands`, `add_command`, `update_command`, `delete_command` (each change is an undo step that you see in the history), `samples` and `open_sample` (only without unsaved changes), `parameters` and `set_parameters` (one undo step), `write_file`, `inspect_material` (in the browser of the app), `check`, `script`, `solve` (in the app, with its live results and progress) and `results`.
 - Only with the bridge: `selection` (what you selected, and the view), `select`, `show` (the model, or the results of a job at a substep with a quantity) and `picture` (the view as an image).
-- **A mesh script of the agent runs only if you agree:** `write_file` of a `.py` asks in the app (*Show the script*, *Run it*, *Do not run it*); the tool waits for your answer. So an agent builds parametric models: it writes a script that makes `mesh` from parameters, then adds `parameter.add` and `mesh.script`, and the mesh follows `set_parameters`.
+- **A Python script of the agent runs only if you agree:** `write_file` of a `.py`, of a mesh or of a material, asks in the app (*Show the script*, *Run it*, *Do not run it*); the tool waits for your answer. So an agent builds parametric models: it writes a script that makes `mesh` from parameters, then adds `parameter.add` and `mesh.script`, and the mesh follows `set_parameters`. Likewise a material script that makes `umat`, tried with `inspect_material` before `material.script`.
 
 ## Limits
 

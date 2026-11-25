@@ -16,7 +16,6 @@ forgets them (:func:`forget`).
 """
 
 import json
-import traceback
 from collections import OrderedDict
 from pathlib import Path
 
@@ -25,6 +24,7 @@ import numpy as np
 
 from ._helpers import REGIONS, cell_volumes, script_mesh, solid_types, volume_cells
 from .scene import surface
+from .scripts import error_of
 
 # a cell data array with more distinct values is not offered as a tag
 MAX_TAG_VALUES = 64
@@ -280,13 +280,7 @@ def make(filename, parameters, item=None, cut=None):
         try:
             mesh = script_mesh(path, parameters, item)
         except (Exception, SystemExit) as error:
-            result["error"] = f"{type(error).__name__}: {error}"
-            # the frames of the script, not those of FElupe Studio
-            trace = traceback.TracebackException.from_exception(error)
-            frames = [f for f in trace.stack if Path(f.filename).name == path.name]
-            trace.stack = traceback.StackSummary.from_list(frames)
-            result["traceback"] = "".join(trace.format())
-            return result, {}, {}, None
+            return {**result, **error_of(error, path)}, {}, {}, None
         return *_summary(mesh, result), {}, mesh
 
     key = ("make", path.name, json.dumps(parameters, sort_keys=True), item)

@@ -106,6 +106,22 @@ export interface MeshInfo {
 }
 
 /**
+ * Result of `felupe_studio.scripts.inspect_material()` (#423): what the script of a
+ * material (ADR 0025) made with the parameters of the model, or its error.
+ */
+export interface MaterialInfo {
+  file: string;
+  /** The type of its `umat`, e.g. `NeoHooke` or `Hyperelastic(neo_hooke) & Volumetric`. */
+  type?: string;
+  /** The number of the state variables of `umat` per quadrature point. */
+  statevars?: number;
+  /** Why the script cannot be used. */
+  error?: string;
+  /** The traceback of the error, with the frames of the script. */
+  traceback?: string;
+}
+
+/**
  * Outer surface of the solid cells of a mesh file for the viewer, triangulated by
  * FElupe like `mesh.plot()` (`felupe_studio.scene.surface()`). Every region of cells
  * with the same tag values has a closed surface of its own.
@@ -476,6 +492,16 @@ export type ToWorker =
       /** The meshes of files and scripts that the tools take (#438). */
       sources?: readonly SourceMesh[];
       cut?: Cut;
+    }
+  /**
+   * Run the script of a material once with parameters (ADR 0025, #423): its
+   * `MaterialInfo` as JSON text.
+   */
+  | {
+      type: "inspect-material";
+      id: number;
+      file: string;
+      parameters: Record<string, number>;
     }
   | { type: "run"; id: number; document: string; live?: LiveSettings }
   | { type: "script"; id: number; document: string }

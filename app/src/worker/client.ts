@@ -22,6 +22,7 @@ import type {
   JobResult,
   LiveSettings,
   LoadTimings,
+  MaterialInfo,
   MeshFormat,
   MeshInfo,
   MeshSource,
@@ -404,6 +405,23 @@ export class RuntimeClient {
       { type: "mesh-info" }
     >;
     return { info, surfaces };
+  }
+
+  /**
+   * Run the script of a material once with parameters (ADR 0025, #423): the type of
+   * its `umat` and its state variables, or its error with the traceback.
+   */
+  async inspectMaterial(
+    file: string,
+    parameters: Record<string, number>,
+  ): Promise<MaterialInfo> {
+    const message = await this.request(
+      { type: "inspect-material", file, parameters },
+      "text",
+    );
+    return JSON.parse(
+      (message as Extract<FromWorker, { type: "text" }>).text,
+    ) as MaterialInfo;
   }
 
   /**

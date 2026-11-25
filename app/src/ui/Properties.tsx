@@ -5,6 +5,7 @@ import {
   sectionVolume,
 } from "../core/meshfiles";
 import { KIND_LABELS } from "../core/registry";
+import type { Save } from "../core/save";
 import type { ModelStore } from "../core/store";
 import { KINDS } from "../core/validate";
 import { CommandForm } from "./CommandForm";
@@ -18,9 +19,18 @@ interface Props {
   notes: Map<string, string[]>;
   selected?: string;
   onSelect: (id: string) => void;
+  /** Saves a file, e.g. the template of the script of a material (#423). */
+  save: Save;
 }
 
-export function Properties({ store, files, notes, selected, onSelect }: Props) {
+export function Properties({
+  store,
+  files,
+  notes,
+  selected,
+  onSelect,
+  save,
+}: Props) {
   const command = selected ? store.get(selected) : undefined;
   if (!command) return <p class="muted">Select an object in the browser.</p>;
 
@@ -80,7 +90,12 @@ export function Properties({ store, files, notes, selected, onSelect }: Props) {
       {(command.command === "mesh.import" ||
         command.command === "mesh.script" ||
         command.command === "material.script") && (
-        <FileStatus command={command} commands={store.commands} files={files} />
+        <FileStatus
+          command={command}
+          commands={store.commands}
+          files={files}
+          save={save}
+        />
       )}
       <CommandForm
         // a new form whenever the command changes, e.g. by undo

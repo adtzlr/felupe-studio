@@ -3,6 +3,7 @@ import fixture from "../../../tests/data/two_sections.json";
 import type {
   Command,
   CommandList,
+  MaterialScript,
   MeshGenerate,
   MeshScript,
 } from "./commands";
@@ -11,7 +12,10 @@ import {
   fileNotes,
   formulationNotes,
   generateChain,
+  inspectMaterials,
   makeMeshes,
+  materialKey,
+  materialStatus,
   MeshFiles,
   projectFileNames,
   meshSource,
@@ -21,6 +25,7 @@ import {
   sectionsWithoutVolume,
   sectionVolume,
 } from "./meshfiles";
+import type { MaterialInfo } from "../worker/protocol";
 
 const commands = (fixture as CommandList).commands;
 
@@ -351,6 +356,104 @@ describe("materials of scripts (ADR 0025)", () => {
     expect(fileNotes(model, files).get("umat_soft")).toEqual([
       "soft.py: Python is not available.",
     ]);
+  });
+
+  /** Files whose scripts of materials run in a fake of Python, by its answer. */
+  function inspected(answer: (file: string) => MaterialInfo) {
+    const runs: [string, Record<string, number>][] = [];
+    const files = new MeshFiles(undefined, {
+      write: async () => {},
+      inspect: async (file, parameters) => {
+        runs.push([file, parameters]);
+        return answer(file);
+      },
+    });
+    return { files, runs };
+  }
+
+  const material = model.find((c) => c.name === "umat_soft") as MaterialScript;
+  const withParameters = [
+    { command: "parameter.add", name: "mu", value: 1 },
+    { command: "parameter.add", name: "bulk", value: 50 },
+    ...model,
+  ] as Command[];
+
+  it("run once with the parameters of the model, before a job (#423)", async () => {
+    const { files, runs } = inspected((file) => ({
+      file,
+      type: "NeoHooke",
+      statevars: 0,
+    }));
+    await files.add("soft.py", new Uint8Array([1]));
+    inspectMaterials(withParameters, files);
+    inspectMaterials(withParameters, files);
+    expect(materialStatus(material, withParameters, files)).toEqual({
+      state: "reading",
+    });
+    const key = materialKey("soft.py", { mu: 1, bulk: 50 });
+    await files.inspectMaterial(key, "soft.py", { mu: 1, bulk: 50 });
+    expect(runs).toEqual([["soft.py", { mu: 1, bulk: 50 }]]);
+    expect(materialStatus(material, withParameters, files)).toEqual({
+      state: "ready",
+      info: { file: "soft.py", type: "NeoHooke", statevars: 0 },
+    });
+    expect(fileNotes(withParameters, files).has("umat_soft")).toBe(false);
+
+    // the listed parameters only, and again for new values of them
+    const listed = withParameters.map((c) =>
+      c.name === "umat_soft" ? ({ ...c, parameters: ["mu"] } as Command) : c,
+    );
+    inspectMaterials(listed, files);
+    const changed = listed.map((c) =>
+      c.name === "mu" ? ({ ...c, value: 2 } as Command) : c,
+    );
+    inspectMaterials(changed, files);
+    // a replaced file runs again
+    await files.add("soft.py", new Uint8Array([2]));
+    await files.inspectMaterial(materialKey("soft.py", { mu: 2 }), "soft.py", {
+      mu: 2,
+    });
+    expect(runs.slice(1)).toEqual([
+      ["soft.py", { mu: 1 }],
+      ["soft.py", { mu: 2 }],
+      ["soft.py", { mu: 2 }],
+    ]);
+  });
+
+  it("have the error of their run as a note, with its traceback (#423)", async () => {
+    const traceback = 'Traceback (most recent call last):\n  File "soft.py" …';
+    const { files } = inspected((file) => ({
+      file,
+      error: "NameError: name 'mu' is not defined",
+      traceback,
+    }));
+    await files.add("soft.py", new Uint8Array([1]));
+    inspectMaterials(model, files);
+    const key = materialKey("soft.py", {});
+    await files.inspectMaterial(key, "soft.py", {});
+    expect(materialStatus(material, model, files)).toEqual({
+      state: "error",
+      message: "NameError: name 'mu' is not defined",
+      traceback,
+    });
+    expect(fileNotes(model, files).get("umat_soft")).toEqual([
+      "soft.py: NameError: name 'mu' is not defined",
+    ]);
+    // the runs of other keys are forgotten, e.g. of a deleted material
+    inspectMaterials([], files);
+    expect(files.inspectedStatus(key)).toBeUndefined();
+  });
+
+  it("are not run without Python, or before their file is written", async () => {
+    const files = new MeshFiles(undefined, { write: async () => {} });
+    expect(materialStatus(material, model, files)).toBeUndefined();
+    await files.add("soft.py", new Uint8Array([1]));
+    inspectMaterials(model, files);
+    const key = materialKey("soft.py", {});
+    expect(await files.inspectMaterial(key, "soft.py", {})).toEqual({
+      state: "error",
+      message: "Python is not available.",
+    });
   });
 });
 

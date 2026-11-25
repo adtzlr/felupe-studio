@@ -71,6 +71,15 @@ def _make_mesh(request, send):
     _mesh_info(request, send, result)
 
 
+def _inspect_material(request, send):
+    from .scripts import inspect_material
+
+    # the script of a material (ADR 0025), run once with the parameters (#423)
+    parameters = dict(request.get("parameters") or {})
+    info = inspect_material(safe_name(request["file"]), parameters)
+    send({"type": "text", "id": request["id"], "text": json.dumps(info)})
+
+
 def _sources(request):
     """The meshes of files and scripts that the tools of a mesh take (#438), with
     plain file names."""
@@ -218,6 +227,7 @@ HANDLERS = {
     "inspect-mesh": _inspect_mesh,
     "make-mesh": _make_mesh,
     "generate-mesh": _generate_mesh,
+    "inspect-material": _inspect_material,
     "run": _run,
     "script": _script,
     "script-view": _script,

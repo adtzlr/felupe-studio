@@ -177,6 +177,44 @@ describe("the tools of the agent bridge in the app (#258)", () => {
     expect(files.get("cube.vtk")?.status.state).toBe("ready");
   });
 
+  it("run the script of a material once, like the MCP server (#423)", async () => {
+    const runs: Record<string, number>[] = [];
+    const files = new MeshFiles(undefined, {
+      write: async () => {},
+      inspect: async (file, parameters) => {
+        runs.push(parameters);
+        return parameters.bulk
+          ? { file, type: "NeoHooke", statevars: 0 }
+          : {
+              file,
+              error: "NameError: name 'bulk' is not defined",
+              traceback: "…",
+            };
+      },
+    });
+    const { call } = setup({ files });
+    await expect(call("inspect_material", { file: "soft.py" })).rejects.toThrow(
+      "No file 'soft.py' in the files of the model.",
+    );
+    await expect(
+      call("inspect_material", { file: "cube.vtk" }),
+    ).rejects.toThrow("'cube.vtk' is not a Python script.");
+    await call("write_file", { name: "soft.py", content: "umat = …" });
+    // the parameters of the model, changed by the call
+    expect(
+      await call("inspect_material", {
+        file: "soft.py",
+        parameters: { bulk: 5 },
+      }),
+    ).toEqual({ file: "soft.py", type: "NeoHooke", statevars: 0 });
+    expect(await call("inspect_material", { file: "soft.py" })).toEqual({
+      file: "soft.py",
+      error: "NameError: name 'bulk' is not defined",
+      traceback: "…",
+    });
+    expect(runs).toEqual([{ bulk: 5 }, {}]);
+  });
+
   it("open samples of an unchanged model", async () => {
     const opened = setup();
     const samples = (await opened.call("samples")) as { id: string }[];

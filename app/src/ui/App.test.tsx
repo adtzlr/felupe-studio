@@ -2521,7 +2521,9 @@ describe("solve", () => {
   it("explains why the jobs cannot be run", () => {
     render(<App store={new ModelStore(fixture as CommandList)} />);
     expect(solveButton().getAttribute("aria-disabled")).toBe("true");
-    expect(solveButton().title).toBe("Load the mesh files of the model first.");
+    expect(solveButton().title).toBe(
+      "Load the files of the model first, and fix their errors.",
+    );
   });
 
   it("shows the results of a phone in one row, without the cards (#378)", async () => {
@@ -2952,7 +2954,7 @@ describe("project archives (#149, #150)", () => {
     await waitFor(() => expect(store.commands).toEqual(fixture.commands));
     await waitFor(() =>
       expect(solve().title).toContain(
-        "Load the mesh files of the model first.",
+        "Load the files of the model first, and fix their errors.",
       ),
     );
     // saved without the missing file, with a note

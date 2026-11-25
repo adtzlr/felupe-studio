@@ -130,6 +130,13 @@ def test_the_tools_act_on_the_tab():
                 "echo": {"command": {"command": "a", "name": "b"}}
             }
             assert tab.sent[-1]["tool"] == "add_command"
+            # the script of a material, run once in the app (#423)
+            inspected = await tool(client, "inspect_material", {"file": "soft.py"})
+            assert inspected.structured_content == {"echo": {"file": "soft.py"}}
+            assert (
+                tools["inspect_material"].description
+                == (DESCRIPTIONS["inspect_material"])
+            )
 
             progress = []
 

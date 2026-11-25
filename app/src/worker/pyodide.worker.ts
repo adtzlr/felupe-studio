@@ -160,22 +160,25 @@ function schedulePersist(delay = 2000) {
 }
 
 /**
- * Load the wheels of a run that are loaded only when they are needed: the
- * tensortrax wheel for its models.
+ * Load the wheels of a request that are loaded only when they are needed: the
+ * tensortrax wheel for its models, and for the script of a material (ADR 0025),
+ * which may use `fem.Hyperelastic`.
  */
-async function loadLazyWheels(document: string) {
+async function loadLazyWheels(message: Exclude<ToWorker, { type: "init" }>) {
   if (!lazyWheels.tensortrax) return;
+  if (message.type !== "run" && message.type !== "inspect-material") return;
   const py = python();
-  const runner = py.pyimport("felupe_studio.runner");
-  try {
-    if (runner.uses_tensortrax(document)) {
-      await py.loadPackage([lazyWheels.tensortrax]);
-      // its bytecode in the cache too (ADR 0017)
-      py.runPython(REFIX_SOURCE);
+  if (message.type === "run") {
+    const runner = py.pyimport("felupe_studio.runner");
+    try {
+      if (!runner.uses_tensortrax(message.document)) return;
+    } finally {
+      runner.destroy();
     }
-  } finally {
-    runner.destroy();
   }
+  await py.loadPackage([lazyWheels.tensortrax]);
+  // its bytecode in the cache too (ADR 0017)
+  py.runPython(REFIX_SOURCE);
 }
 
 /**
@@ -196,7 +199,7 @@ function answer(text: string, buffers: PyProxy) {
  */
 async function request(message: Exclude<ToWorker, { type: "init" }>) {
   if (!handleFrame) throw new Error("Pyodide is not initialized.");
-  if (message.type === "run") await loadLazyWheels(message.document);
+  await loadLazyWheels(message);
   const frame = encodeFrame(message);
   handleFrame(
     typeof frame === "string" ? frame : new Uint8Array(frame),
