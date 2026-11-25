@@ -27,13 +27,17 @@ def url(serve):
     return f"http://127.0.0.1:{serve(token=TOKEN)}/?token={TOKEN}"
 
 
-def options():
+def options(full=False):
     """The options of the launch of Chromium: WebGL of the viewer without a GPU, and
-    ``CHROME`` as the path of a Chrome, if given."""
+    ``CHROME`` as the path of a Chrome, if given. ``full`` takes the full Chromium of
+    Playwright instead of its headless shell, e.g. for its site settings."""
     chrome = os.environ.get("CHROME")
+    browser = {"executable_path": chrome} if chrome else {}
+    if full and not chrome:
+        browser = {"channel": "chromium"}
     return {
         "args": ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-        **({"executable_path": chrome} if chrome else {}),
+        **browser,
     }
 
 
@@ -499,8 +503,10 @@ def test_downloads_where_the_browser_refuses_the_save_dialog(url, tmp_path):
     settings = {"default_content_setting_values": {"file_system_write_guard": 2}}
     (profile / "Default" / "Preferences").write_text(json.dumps({"profile": settings}))
     with sync_api.sync_playwright() as playwright:
+        # the headless shell of Playwright has no site settings: it cancels the
+        # dialog instead of refusing it
         context = playwright.chromium.launch_persistent_context(
-            str(profile), viewport=VIEWPORT, accept_downloads=True, **options()
+            str(profile), viewport=VIEWPORT, accept_downloads=True, **options(full=True)
         )
         page = new_page(context)
         # the dialog of the browser, which records its calls
