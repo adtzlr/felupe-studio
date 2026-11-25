@@ -160,12 +160,15 @@ export function useExports({
   const scriptExport = () =>
     void exportScript().catch(failed("The script could not be exported."));
 
+  // captured after the save dialog, which needs the click of the user (#439)
   const exportPicture = async () => {
     const shown = workspace === "results" && view;
-    const png = await picture();
-    if (!png) throw new Error("The view shows nothing yet.");
     const suffix = shown ? `-${view.job}-${view.substep}.png` : ".png";
-    await exportFile(exportName(fileName, suffix), () => png);
+    await exportFile(exportName(fileName, suffix), async () => {
+      const png = await picture();
+      if (!png) throw new Error("The view shows nothing yet.");
+      return png;
+    });
   };
 
   const exportResults = async (format: "vtu" | "xdmf" | "csv") => {

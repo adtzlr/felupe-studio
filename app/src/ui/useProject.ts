@@ -38,7 +38,10 @@ interface Options {
   client?: RuntimeClient;
   jobs?: JobRunner;
   session?: SessionStorage;
-  /** Save a file: with the save dialog of the system, else as a download (#400). */
+  /**
+   * Save a file: with the save dialog of the system, else as a download (#400), also
+   * if the browser refuses the dialog (#439).
+   */
   save: Save;
   fetchSample?: typeof fetch;
   /** A project was opened or started: the selection and the hidden objects go. */
@@ -423,6 +426,8 @@ export function useProject(options: Options) {
 
   return {
     fileName,
+    /** The file that *Save project* writes into again, if any (#400). */
+    savesInto: file?.name === fileName ? file.name : undefined,
     /**
      * A new name without saving: the next save and the exports take it (#205); the
      * next save asks for the file again (#400).

@@ -3352,6 +3352,67 @@ describe("the save dialog of the system (#400)", () => {
     expect(banner().textContent).toContain("untitled.felupe.json");
   });
 
+  it("downloads where the browser refuses the dialog (#439)", async () => {
+    const store = new ModelStore(fixture as CommandList);
+    const download = vi.fn();
+    // e.g. the site setting File editing of Chrome or Edge is Block
+    const picker = vi.fn(async (): Promise<SaveHandle> => {
+      throw new DOMException(
+        "The request is not allowed by the user agent or the platform in the current context.",
+        "NotAllowedError",
+      );
+    });
+    render(<App store={store} download={download} savePicker={picker} />);
+    const hint = () => {
+      fireEvent.click(screen.getByRole("button", { name: "File" }));
+      // the hint of the item, its tooltip
+      const text = within(screen.getByRole("menu", { name: "File" }))
+        .getByRole("menuitem", { name: /^Save project(?! as)/ })
+        .getAttribute("title")!;
+      fireEvent.keyDown(screen.getByRole("menu", { name: "File" }), {
+        key: "Escape",
+      });
+      return text;
+    };
+    expect(hint()).toContain("In the save dialog");
+    save();
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(1));
+    expect(download.mock.calls[0][0]).toBe("untitled.felupe.json");
+    // a note, not an error, and the project is saved
+    const note = screen.getByRole("status", { name: "Note" });
+    expect(note.textContent).toContain(
+      "The browser does not let FElupe Studio choose where files are saved, so they are downloaded.",
+    );
+    expect(note.textContent).toContain("site setting File editing");
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByLabelText("modified")).toBeNull();
+    // the next saves download without the dialog, and say so
+    expect(hint()).toContain("As a download");
+    act(() => store.apply({ type: "remove", name: "job_1" }));
+    fireEvent.keyDown(window, { key: "s", ctrlKey: true });
+    await waitFor(() => expect(download).toHaveBeenCalledTimes(2));
+    expect(picker).toHaveBeenCalledTimes(1);
+    fileMenu(/Save project as/);
+    const saveAs = screen.getByRole("dialog", { name: "Save project as" });
+    expect(saveAs.textContent).toContain("Saved as untitled.felupe.json");
+    expect(within(saveAs).getByRole("button", { name: "Save" })).toBeTruthy();
+  });
+
+  it("names the file that a save writes into again (#439)", async () => {
+    const store = new ModelStore(fixture as CommandList);
+    const { picker, next, written } = fakePicker();
+    render(<App store={store} download={vi.fn()} savePicker={picker} />);
+    next.name = "spring.felupe.json";
+    save();
+    await waitFor(() => expect(written).toHaveLength(1));
+    fireEvent.click(screen.getByRole("button", { name: "File" }));
+    expect(
+      within(screen.getByRole("menu", { name: "File" }))
+        .getByRole("menuitem", { name: /^Save project(?! as)/ })
+        .getAttribute("title"),
+    ).toBe("Into spring.felupe.json, the file of its last save");
+  });
+
   it("asks for an export with the folder of the exports", async () => {
     const store = new ModelStore(fixture as CommandList);
     const script = vi.fn(async () => "import felupe as fem\n");
