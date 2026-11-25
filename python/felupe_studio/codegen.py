@@ -77,10 +77,11 @@ def _blocks(markers):
 # formulation and of sections condensed per cell (#420), of the steps that leave out
 # sections with mixed fields (#428), of face sets (#142), of point sets on the
 # surface (#222), of meshes made by scripts (#182) with the steps that leave out
-# sections without volume (#429), and of the linear solvers of jobs other than
-# SuperLU (#203) and in single precision (ADR 0016), of steps that switch
-# boundaries on and off (#393), of Cartesian constraints (#421), of the curves of
-# cylindrical constraints (#422), and of the cell tags of made meshes (#438)
+# sections without volume (#429), of user-defined materials (ADR 0025), and of the
+# linear solvers of jobs other than SuperLU (#203) and in single precision (ADR
+# 0016), of steps that switch boundaries on and off (#393), of Cartesian constraints
+# (#421), of the curves of cylindrical constraints (#422), and of the cell tags of
+# made meshes (#438)
 BLOCKS = _blocks(
     {
         "mixed": "\n\n# --- embedded in generated scripts with mixed fields ---\n",
@@ -102,6 +103,9 @@ BLOCKS = _blocks(
         ),
         "scripts": (
             "\n\n# --- embedded in generated scripts with meshes of scripts ---\n"
+        ),
+        "materials": (
+            "\n\n# --- embedded in generated scripts with user-defined materials ---\n"
         ),
         "solvers": "\n\n# --- embedded in generated scripts with linear solvers ---\n",
         "embed": "\n\n# --- embedded in generated scripts with embedded meshes ---\n",
@@ -133,6 +137,7 @@ HELPERS = (
     ("faces", lambda context: bool(context.facesets)),
     ("surfaces", lambda context: context.surface_points),
     ("scripts", lambda context: bool(context.get("mesh.script"))),
+    ("materials", lambda context: bool(context.get("material.script"))),
     ("solvers", lambda context: jobs.uses_solver_helpers(context.get("job.add"))),
     ("embed", lambda context: meshtools.uses_embed(context.commands)),
     ("tags", lambda context: meshtools.uses_tags(context.commands)),

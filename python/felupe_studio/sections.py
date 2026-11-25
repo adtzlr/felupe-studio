@@ -23,6 +23,14 @@ from .formulations import formulation_of
 from .materials import lame_call, material_call
 
 
+def script_parameters(script, parameters=None):
+    """Return the dict of the parameters that a script of a mesh (#182) or of a
+    material (ADR 0025) gets as variables: the listed ones, or all parameters of the
+    model, each as its variable of the generated script."""
+    names = script.get("parameters", parameters or [])
+    return Dict(f"{quote(n)}: {n}" for n in names)
+
+
 def script_args(mesh, parameters=None):
     """Return the arguments of ``run_mesh_script()`` of a ``mesh.script`` command
     (#182): the file, a dict of its parameters (the listed ones, or all parameters
@@ -35,8 +43,7 @@ def script_args(mesh, parameters=None):
     ... )]
     ['"spring.py"', '{"radius": radius}', 'item="rubber"']
     """
-    names = mesh.get("parameters", parameters or [])
-    args = [quote(mesh["file"]), Dict(f"{quote(n)}: {n}" for n in names)]
+    args = [quote(mesh["file"]), script_parameters(mesh, parameters)]
     for key in ("item", "tag", "cell_type"):
         if key in mesh:
             args.append(f"{key}={quote(mesh[key])}")
@@ -98,6 +105,24 @@ def material(context, mat):
     if volumetric:
         lines.append(wrap(f"{mat['name']} &= fem.Volumetric", volumetric))
     return lines
+
+
+def material_script(context, mat):
+    """A user-defined material of a Python file (ADR 0025): its variable ``umat``,
+    made with the parameters of the model.
+
+    Examples
+    --------
+    >>> from types import SimpleNamespace
+    >>> context = SimpleNamespace(parameters=[{"name": "mu"}])
+    >>> material_script(
+    ...     context, {"name": "soft", "file": "soft.py", "kind": "constitutive"}
+    ... )
+    ['soft = run_material_script("soft.py", {"mu": mu})']
+    """
+    names = [p["name"] for p in context.parameters]
+    args = [quote(mat["file"]), script_parameters(mat, names)]
+    return [call(mat["name"], "run_material_script", args)]
 
 
 def displacement_fields(context, cellset, region, field):
@@ -344,7 +369,7 @@ MESHES = {
     "mesh.generate": mesh_generate,
 }
 CELLSETS = {"cellset.from_tag": cellset, "cellset.from_file": cellset}
-MATERIALS = {"material.add": material}
+MATERIALS = {"material.add": material, "material.script": material_script}
 SECTIONS = {"section.add": section_fields}
 SOLIDS = {"section.add": solid_body}
 

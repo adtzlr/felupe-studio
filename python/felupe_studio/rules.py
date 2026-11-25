@@ -32,7 +32,7 @@ from .cylindrical import axis
 from .directions import DIRECTIONS, NAMES, directions
 from .formulations import first, formulations, sibling
 from .loadcases import problems as loadcase_problems
-from .materials import models, strain_based
+from .materials import is_script, models, strain_based
 from .materials import problems as material_problems
 
 
@@ -197,6 +197,9 @@ def duplicate_name(model, cmd):
         ]
     return []
 
+
+# the commands of the materials: of the registry, and of files (ADR 0025)
+MATERIALS = ("material.add", "material.script")
 
 # the names of the commands of the kind constraint in the messages
 CONSTRAINTS = {
@@ -424,9 +427,10 @@ def mesh_inputs(model, cmd):
 
 
 def material_of(model, section):
-    """The material of a section, if it is defined before."""
+    """The material of a section, if it is defined before: of the registry, or of a
+    file (ADR 0025)."""
     material = model.before(section["material"])
-    if material is None or material["command"] != "material.add":
+    if material is None or material["command"] not in MATERIALS:
         return None
     return material
 
@@ -449,6 +453,8 @@ def misfit(formulation, material):
     a volumetric part (``u-isochoric``, #241). A formulation of the same menu that
     takes the material is named too, e.g. the three-field variation of a
     nearly incompressible one (#420)."""
+    if is_script(material):
+        return script_misfit(formulation, material)
     name, what = formulation.name, f"{material['model']} '{material['name']}'"
     other = sibling(formulation, material)
     if formulation.material == "volumetric" and other is not None:
@@ -485,6 +491,40 @@ def misfit(formulation, material):
     return (
         f"the {name} formulation with {what}, which is compressible. Use "
         f"{displacement}, or a nearly incompressible model without a bulk modulus."
+    )
+
+
+def script_misfit(formulation, material):
+    """Why a formulation does not take a material of a file (ADR 0025), by whether
+    it has a volumetric part of its own (``volumetric``), and the formulations that
+    take it, like :func:`misfit`."""
+    name = formulation.name
+    what = f"the material '{material['name']}' of '{material['file']}'"
+    other = sibling(formulation, material)
+    if formulation.material == "volumetric":
+        # the displacement formulation, or the three-field variation (#420)
+        start = (
+            "the displacement formulation"
+            if other is None
+            else f"the {name} formulation"
+        )
+        return (
+            f"{start} with {what} without a volumetric part. Use "
+            f"'{other or first('isochoric')}' with the bulk modulus of the section, "
+            "or set 'volumetric' to true if its umat has one."
+        )
+    if formulation.material == "none":
+        return (
+            f"the formulation {name} with {what}, which has a volumetric part. Use "
+            f"'{first('volumetric')}', or set 'volumetric' to false if its umat has "
+            "none."
+        )
+    displacement = f"the displacement formulation '{first('volumetric')}'"
+    if other is not None:
+        displacement += f" or '{other}'"
+    return (
+        f"the {name} formulation with {what}, which has a volumetric part. Use "
+        f"{displacement}, or set 'volumetric' to false if its umat has none."
     )
 
 

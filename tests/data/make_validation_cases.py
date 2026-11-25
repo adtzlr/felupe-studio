@@ -1053,6 +1053,14 @@ CHANGES = {
             "parameters": ["radius", "umat_soft"],
         },
     ),
+    # user-defined materials of files (ADR 0025), with parameters like a mesh script
+    "material script": lambda d: (
+        parameters(d),
+        material_script(d, parameters=["length"], volumetric=False),
+    ),
+    "material script with a parameter that is none": lambda d: material_script(
+        d, parameters=["length", "hard"], volumetric=False
+    ),
     "parameter with a name of the script": lambda d: d["commands"].insert(
         0, {"command": "parameter.add", "name": "field", "value": 1}
     ),
@@ -1652,10 +1660,43 @@ MATERIAL_KINDS = {
 }
 
 
+# the user-defined materials of files (ADR 0025): with a volumetric part of their own
+# (the default), and without one
+SCRIPT_KINDS = {
+    "a material of a file": {},
+    "a material of a file without a volumetric part": {"volumetric": False},
+}
+
+
+def material_script(document, **fields):
+    """The material umat_soft of a file (ADR 0025), not a model of the registry."""
+    soft = find(document, "umat_soft")
+    soft.clear()
+    soft.update(
+        command="material.script",
+        name="umat_soft",
+        kind="constitutive",
+        file="soft.py",
+        **fields,
+    )
+
+
 def formulation(document, name, model, parameters):
     """The section soft of a formulation, with the bulk modulus if the formulation
     has one, and its material of a model."""
     find(document, "umat_soft").update(model=model, parameters=parameters)
+    formulation_of_soft(document, name)
+
+
+def script_formulation(document, name, fields):
+    """The section soft of a formulation, and its material of a file."""
+    material_script(document, **fields)
+    formulation_of_soft(document, name)
+
+
+def formulation_of_soft(document, name):
+    """The section soft of a formulation, with the bulk modulus if the formulation
+    has one."""
     section = find(document, "section_soft")
     section.pop("bulk", None)
     section["formulation"] = name
@@ -1677,6 +1718,13 @@ CHANGES |= {
     )
     for name in formulations()
     for kind, material in MATERIAL_KINDS.items()
+}
+CHANGES |= {
+    f"formulation {name} with {kind}": (
+        lambda d, name=name, fields=fields: script_formulation(d, name, fields)
+    )
+    for name in formulations()
+    for kind, fields in SCRIPT_KINDS.items()
 }
 
 

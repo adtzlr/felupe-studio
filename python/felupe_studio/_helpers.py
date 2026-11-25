@@ -432,6 +432,29 @@ def fields_without_volume(*solids):
     return [solid.field for solid in solids if not has_volume(solid)]
 
 
+# --- embedded in generated scripts with user-defined materials ---
+def run_material_script(file, parameters):
+    """Run a Python script that makes a material (ADR 0025), with the parameters as
+    variables, and return its variable ``umat``: a constitutive model of FElupe with
+    the methods ``gradient`` and ``hessian``, e.g. ``fem.NeoHooke(mu=mu, bulk=bulk)``.
+    """
+    import runpy
+
+    namespace = runpy.run_path(str(file), init_globals=dict(parameters))
+    if "umat" not in namespace:
+        raise ValueError(f"The script '{file}' makes no variable 'umat'.")
+    umat = namespace["umat"]
+    missing = [m for m in ("gradient", "hessian") if not callable(getattr(umat, m, 0))]
+    if missing:
+        methods = " and ".join(missing)
+        raise TypeError(
+            f"The umat of '{file}' is a {type(umat).__name__} without the "
+            f"method{'s' if len(missing) > 1 else ''} {methods} of a constitutive "
+            "model of FElupe, e.g. fem.NeoHooke(mu=mu, bulk=bulk)."
+        )
+    return umat
+
+
 # --- embedded in generated scripts with linear solvers ---
 def spsolve(A, b):
     """Solve a linear system with ``scipy.sparse.linalg.spsolve``, the linear solver

@@ -98,6 +98,7 @@
           "points",
           "points_at",
           "pypardiso",
+          "run_material_script",
           "run_mesh_script",
           "script_mesh",
           "single_point",
@@ -170,6 +171,9 @@
         },
         {
           "$ref": "#/$defs/MaterialAdd"
+        },
+        {
+          "$ref": "#/$defs/MaterialScript"
         },
         {
           "$ref": "#/$defs/SectionAdd"
@@ -2310,6 +2314,51 @@
           "type": ["number", "string"],
           "minimum": 0,
           "default": 0.1
+        }
+      }
+    },
+    "MaterialScript": {
+      "description": "A user-defined material of a Python file next to the project (ADR 0025), like a mesh script: the file runs with the parameters of the model as variables. Every kind of user-defined material is a definition below, with its label and what the file makes.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/MaterialScriptConstitutive"
+        }
+      ]
+    },
+    "MaterialScriptConstitutive": {
+      "description": "A ready constitutive model of a Python file: the file makes a variable umat with the methods gradient and hessian of FElupe, e.g. fem.NeoHooke(mu=mu, bulk=bulk), fem.Hyperelastic(...) & fem.Volumetric(...), a fem.Material of functions of its own or an object of a class of its own.",
+      "x-label": "Constitutive model (Python)",
+      "x-group": "User-defined",
+      "type": "object",
+      "required": ["command", "name", "kind", "file"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "material.script"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "kind": {
+          "const": "constitutive"
+        },
+        "file": {
+          "description": "File name of the script, e.g. soft.py. It makes a variable umat.",
+          "type": "string",
+          "pattern": "\\.py$"
+        },
+        "parameters": {
+          "description": "The parameters of the model that the script gets as variables (default: all).",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Name"
+          }
+        },
+        "volumetric": {
+          "description": "Whether the material has a volumetric part of its own, e.g. its bulk modulus (default: true). Like a model of material.add, the displacement formulation u takes a material with one, the u-p-J formulation one without.",
+          "type": "boolean",
+          "default": true
         }
       }
     },
