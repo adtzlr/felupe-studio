@@ -16,6 +16,7 @@ import json
 import re
 import runpy
 import shutil
+from importlib.resources import files
 from pathlib import Path
 
 import felupe as fem
@@ -336,6 +337,42 @@ def test_mirrored_half_with_tags_like_the_whole():
     script = (HERE / "bar_two_materials_mirrored" / "script.py").read_text("utf-8")
     assert "other.tags = tags_of(other, half)\n" in script
     assert "bar.tags = tags_of(bar, half, other)\n" in script
+
+
+def test_material_script_like_the_registry(tmp_path, monkeypatch):
+    # the template of a constitutive model of a file (ADR 0025), fem.NeoHooke with
+    # the parameters of the model: the curve of the same model of the registry
+    document = load("bar_material_script")
+    commands = document["commands"]
+    [i] = [i for i, c in enumerate(commands) if c["command"] == "material.script"]
+    commands[i] = {
+        "command": "material.add",
+        "name": "rubber",
+        "model": "NeoHooke",
+        "parameters": {"mu": "mu", "bulk": "bulk"},
+    }
+    registry = evaluate("bar_material_script", tmp_path, monkeypatch, document)
+    script = json.loads(
+        (HERE / "bar_material_script" / "results.json").read_text(encoding="utf-8")
+    )
+    for key in ("displacement", "force"):
+        np.testing.assert_allclose(
+            script["jobs"]["job_1"][key], registry["jobs"]["job_1"][key], rtol=1e-12
+        )
+    lines = (HERE / "bar_material_script" / "script.py").read_text("utf-8")
+    args = '"material_constitutive.py", {"mu": mu, "bulk": bulk}'
+    assert f"rubber = run_material_script({args})\n" in lines
+
+
+def test_template_of_a_constitutive_model_in_the_golden_case():
+    # the golden case runs the template of the package that Download template gives
+    # (ADR 0025), so a template that no longer runs fails
+    template = files("felupe_studio").joinpath("templates/material_constitutive.py")
+    copy = HERE / "bar_material_script" / "material_constitutive.py"
+    assert copy.read_text("utf-8") == template.read_text("utf-8"), (
+        "Copy python/felupe_studio/templates/material_constitutive.py into "
+        "tests/golden/bar_material_script and run pytest tests/golden --update-golden."
+    )
 
 
 def test_pardiso_like_superlu():

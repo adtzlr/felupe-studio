@@ -12,8 +12,9 @@ Run it with ``felupe-studio-mcp`` (or ``python -m felupe_studio.mcp``), e.g. in
 Claude Code: ``claude mcp add felupe-studio -- felupe-studio-mcp``. It needs the
 optional dependency ``felupe-studio[mcp]`` (the Python SDK ``mcp``).
 
-**Mesh scripts** (``mesh.script``) run Python code with the rights of the user (in
-the browser, Pyodide is a sandbox). The server runs a script only if it wrote it
+**Scripts** of meshes (``mesh.script``) and of materials (``material.script``, ADR
+0025) run Python code with the rights of the user (in the browser, Pyodide is a
+sandbox). The server runs a script only if it wrote it
 (``write_file``) or copied it from a sample, unchanged since, or if it was started
 with ``--allow-scripts``: a project from elsewhere may have a script that nobody
 checked.
@@ -41,7 +42,7 @@ from . import results as results_
 from . import samples as samples_
 from .capabilities import capability_errors
 from .codegen import codegen
-from .commands import SCHEMA_VERSION
+from .commands import SCHEMA_VERSION, file_names, script_names
 from .expressions import parameter_values, resolve
 from .project import ProjectError, dumps, loads
 
@@ -73,9 +74,9 @@ sample (samples, open_sample) or start a project in a folder (new_project), add
 commands in the order of their references (schema shows the commands and their
 properties), fix the errors that every change returns, then solve and read the
 results (curve, extremes of a quantity). Mesh files go into the folder of the
-project; write mesh scripts with write_file. Save the project: the user opens the
-*.felupe.json in the web app FElupe Studio. Lengths, forces and stresses are in the
-units of model.settings."""
+project; write mesh scripts and material scripts with write_file. Save the project:
+the user opens the *.felupe.json in the web app FElupe Studio. Lengths, forces and
+stresses are in the units of model.settings."""
 
 
 # the descriptions of the tools that the agent bridge of felupe-studio serve has
@@ -153,14 +154,14 @@ def _digest(path):
 
 class Session:
     """The project of the server: its command list, its folder and its file, the
-    mesh scripts that may run, and the results of its last solve."""
+    scripts that may run, and the results of its last solve."""
 
     def __init__(self, allow_scripts=False):
         self.allow_scripts = allow_scripts
         self.folder = None
         self.path = None
         self.document = {"schema_version": SCHEMA_VERSION, "commands": []}
-        # the mesh scripts that the server wrote or copied: path -> SHA-256
+        # the scripts that the server wrote or copied: path -> SHA-256
         self.trusted = {}
         self.solved = None
         self.lock = threading.Lock()
@@ -318,12 +319,7 @@ class Session:
 
     def _project_files(self):
         """The mesh files and the scripts of the commands that exist."""
-        names = [
-            c["file"]
-            for c in self.commands
-            if c["command"] in ("mesh.import", "mesh.script")
-        ]
-        return sorted({n for n in names if (self.folder / n).is_file()})
+        return [n for n in file_names(self.commands) if (self.folder / n).is_file()]
 
     # the commands
 
@@ -410,10 +406,8 @@ class Session:
         return {"written": name, "bytes": len(content.encode("utf-8"))}
 
     def _scripts(self):
-        """The scripts of the meshes of the project."""
-        return sorted(
-            {c["file"] for c in self.commands if c["command"] == "mesh.script"}
-        )
+        """The scripts of the meshes and of the materials of the project."""
+        return script_names(self.commands)
 
     def _may_run(self, names):
         """Raise unless the scripts may run (see the docstring of the module)."""
@@ -425,7 +419,7 @@ class Session:
                 continue
             if self.trusted.get(path) != _digest(path):
                 raise ToolError(
-                    f"The mesh script '{name}' runs Python code, and this server did "
+                    f"The script '{name}' runs Python code, and this server did "
                     "not write it (or it changed since). Check it, then write it with "
                     "write_file, or start the server with --allow-scripts."
                 )
@@ -648,7 +642,9 @@ def server(session=None):  # noqa: C901
     def write_file(name: str, content: str) -> dict[str, Any]:
         """Write a text file into the project folder, e.g. a mesh script (a Python
         script that makes a FElupe mesh `mesh`, or a dict of meshes, with the
-        parameters of the model as variables) or a mesh file in a text format."""
+        parameters of the model as variables), a material script (a Python script
+        that makes a FElupe material `umat`, with the parameters of the model as
+        variables) or a mesh file in a text format."""
         return session.write_file(name, content)
 
     @mcp.tool()
@@ -735,7 +731,7 @@ def main(argv=None):
     parser.add_argument(
         "--allow-scripts",
         action="store_true",
-        help="run the mesh scripts of opened projects without asking",
+        help="run the mesh and material scripts of opened projects without asking",
     )
     parser.add_argument("--project", help="a project file to open at the start")
     args = parser.parse_args(argv)

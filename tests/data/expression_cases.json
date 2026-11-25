@@ -1184,6 +1184,164 @@
     },
     {
       "command": {
+        "command": "parameter.add",
+        "name": "mu",
+        "value": "1.0",
+        "quantity": "stress",
+        "description": "Shear modulus"
+      },
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "bulk",
+        "value": "50.0",
+        "quantity": "stress",
+        "description": "Bulk modulus"
+      },
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "bar",
+        "tool": "Cube",
+        "parameters": {
+          "a": [
+            "0",
+            "0",
+            "0"
+          ],
+          "b": [
+            "3",
+            "1",
+            "1"
+          ],
+          "n": [
+            "13",
+            "5",
+            "5"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "a",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            0
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            1
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            2
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "material.script",
+        "name": "rubber",
+        "kind": "constitutive",
+        "file": "material_constitutive.py"
+      },
+      "fields": []
+    },
+    {
+      "command": {
         "command": "mesh.import",
         "name": "half",
         "file": "half.vtu"

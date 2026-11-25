@@ -37,7 +37,7 @@ describe("Save project as (#205)", () => {
     expect(save.disabled).toBe(false);
     fireEvent.click(within(dialog).getByLabelText(/Include the Python script/));
     expect(dialog.textContent).toContain(
-      "bushing.py is a mesh script of the project",
+      "bushing.py is a script of the project",
     );
     expect(save.disabled).toBe(true);
     fireEvent.input(within(dialog).getByLabelText("Name"), {

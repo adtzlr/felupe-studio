@@ -12,7 +12,7 @@ import {
   SUFFIX,
 } from "../core/files";
 import type { JobRunner } from "../core/jobs";
-import { isScript, type MeshFiles, meshFileNames } from "../core/meshfiles";
+import { isScript, type MeshFiles, projectFileNames } from "../core/meshfiles";
 import { REGISTRY } from "../core/registry";
 import type { Save, SaveHandle } from "../core/save";
 import type { RibbonItem } from "../core/ribbon";
@@ -114,7 +114,7 @@ export function useProject(options: Options) {
   // a new project is a project file until its first mesh file, then an archive
   // (#150); a project that was opened, restored or saved keeps its format
   const [fresh, setFresh] = useState(() => store.commands.length === 0);
-  const meshCount = meshFileNames(store.commands).length;
+  const meshCount = projectFileNames(store.commands).length;
   const meshesBefore = useRef(meshCount);
   useEffect(() => {
     const before = meshesBefore.current;
@@ -228,7 +228,7 @@ export function useProject(options: Options) {
     // in the local runtime also its scripts, which run on this computer (#240)
     if (
       parametersOf(store.commands).length ||
-      (client?.local && meshFileNames(store.commands).some(isScript))
+      (client?.local && projectFileNames(store.commands).some(isScript))
     )
       latest.current.onParameters(name);
     await files.addFiles(meshes);
@@ -381,7 +381,7 @@ export function useProject(options: Options) {
         }
       }
       const { writeArchive } = await import("../core/archive");
-      const names = meshFileNames(commands);
+      const names = projectFileNames(commands);
       missing = names.filter((file) => !files.dataOf(file));
       const archive = writeArchive({
         name: stemOf(chosen),

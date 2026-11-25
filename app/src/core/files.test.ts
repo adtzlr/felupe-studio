@@ -75,13 +75,13 @@ describe("the name of a project (#205)", () => {
   });
 
   it("is not the name of a mesh script of an archive with the script", () => {
-    const meshFiles = ["bushing.py", "plate.vtu"];
-    expect(projectNameProblem("bushing", { meshFiles })).toBeUndefined();
-    expect(projectNameProblem("bushing", { meshFiles, script: true })).toBe(
-      "bushing.py is a mesh script of the project: the archive would have two files bushing.py. Take another name or no script.",
+    const files = ["bushing.py", "plate.vtu"];
+    expect(projectNameProblem("bushing", { files })).toBeUndefined();
+    expect(projectNameProblem("bushing", { files, script: true })).toBe(
+      "bushing.py is a script of the project: the archive would have two files bushing.py. Take another name or no script.",
     );
     expect(
-      projectNameProblem("plate", { meshFiles, script: true }),
+      projectNameProblem("plate", { files, script: true }),
     ).toBeUndefined();
   });
 });

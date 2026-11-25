@@ -59,6 +59,28 @@ describe("project archives (#148)", () => {
     expect(archive.ignored).toEqual([]);
   });
 
+  it("keep the scripts of materials, also with the name of the FElupe script (ADR 0025)", async () => {
+    const scripted = JSON.stringify({
+      schema_version: 3,
+      commands: [
+        {
+          command: "material.script",
+          name: "rubber",
+          kind: "constitutive",
+          file: "bar.py",
+        },
+      ],
+    });
+    const scripts = [{ name: "bar.py", data: text("umat = None\n") }];
+    const archive = readArchive(
+      writeArchive({ name: "bar", project: scripted, files: scripts }),
+    );
+    // bar.py is the script of a material, not the FElupe script of the project bar
+    expect(archive.script).toBeUndefined();
+    expect(archive.files.map((f) => f.name)).toEqual(["bar.py"]);
+    expect(archive.ignored).toEqual([]);
+  });
+
   it("are the same bytes for the same project", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 10, 11, 12));

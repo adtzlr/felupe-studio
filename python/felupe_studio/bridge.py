@@ -42,9 +42,9 @@ an undoable step that the user sees, and the user may change the model too. Work
 list the commands (or open a sample), add commands in the order of their references
 (schema shows the commands and their properties), fix the errors that every change
 returns, then solve and read the results. selection shows what the user selected,
-select and show change the view, picture returns an image of it. A mesh script that
-you write runs after the user agrees in the app. Lengths, forces and stresses are in
-the units of model.settings."""
+select and show change the view, picture returns an image of it. A Python script
+that you write, of a mesh or of a material, runs after the user agrees in the app.
+Lengths, forces and stresses are in the units of model.settings."""
 
 
 class Bridge:
@@ -188,8 +188,10 @@ def agent_server(bridge):  # noqa: C901
     async def write_file(name: str, content: str) -> dict[str, Any]:
         """Write a text file into the files of the open model, e.g. a mesh script (a
         Python script that makes a FElupe mesh `mesh`, or a dict of meshes, with the
-        parameters of the model as variables) or a mesh file in a text format. A
-        mesh script runs after the user agrees in the app."""
+        parameters of the model as variables), a material script (a Python script
+        that makes a FElupe material `umat`, with the parameters of the model as
+        variables) or a mesh file in a text format. A Python script runs after the
+        user agrees in the app."""
         return await bridge.call("write_file", {"name": name, "content": content})
 
     @mcp.tool(description=DESCRIPTIONS["check"])

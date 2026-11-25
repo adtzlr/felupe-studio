@@ -11,7 +11,7 @@ import {
   stemOf,
   SUFFIX,
 } from "../core/files";
-import { type MeshFiles, meshFileNames } from "../core/meshfiles";
+import { type MeshFiles, projectFileNames } from "../core/meshfiles";
 import { Dialog } from "./Dialog";
 
 export type ProjectFormat = "file" | "archive";
@@ -68,12 +68,12 @@ export function SaveAsDialog({
   const [format, setFormat] = useState<ProjectFormat>(formatOf(fileName));
   const [script, setScript] = useState(false);
   const name = stem.trim();
-  // the script of an archive is not a mesh script of the project (#205)
+  // the script of an archive is not a script of the project (#205)
   const nameError = projectNameProblem(name, {
-    meshFiles: meshFileNames(commands),
+    files: projectFileNames(commands),
     script: format === "archive" && script && scriptAvailable,
   });
-  const meshes = meshFileNames(commands).map((file) => ({
+  const meshes = projectFileNames(commands).map((file) => ({
     file,
     size: files.dataOf(file)?.byteLength,
   }));

@@ -218,10 +218,16 @@ def lame_call(material):
     return [f"{p.key}={values[p.key]!r}" for p in model.parameters if p.lame]
 
 
+def is_script(material):
+    """True if a material is user-defined, of a Python file (``material.script``,
+    ADR 0025), not a model of the registry."""
+    return material.get("command") == "material.script"
+
+
 def strain_based(material):
     """True if a material is strain-based (#191): it needs the displacement
-    formulation ``u`` of a section."""
-    return models()[material["model"]].strain
+    formulation ``u`` of a section. A constitutive model of a file is not."""
+    return not is_script(material) and models()[material["model"]].strain
 
 
 def needs_bulk(material):
@@ -235,5 +241,19 @@ def has_volumetric(material):
     """True if a material has a volumetric part of its own (#417): its bulk modulus
     is given, or its model has no optional bulk modulus (a compressible or a
     strain-based model). The u-p-J formulation adds the volumetric part of the
-    section, so it takes a material without one."""
+    section, so it takes a material without one. A material of a file says so with
+    ``volumetric`` (ADR 0025, by default it has one).
+
+    Examples
+    --------
+    >>> has_volumetric({"command": "material.script", "name": "soft",
+    ...                 "kind": "constitutive", "file": "soft.py"})
+    True
+    >>> has_volumetric({"command": "material.script", "name": "soft",
+    ...                 "kind": "constitutive", "file": "soft.py",
+    ...                 "volumetric": False})
+    False
+    """
+    if is_script(material):
+        return material.get("volumetric", True)
     return not needs_bulk(material)

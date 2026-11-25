@@ -5,7 +5,7 @@ a prefix of digits and ``_`` (e.g. ``01_``) gives the order and is not a part of
 id, so ``15_engine-mount`` is the sample ``engine-mount``. A sample folder has
 
 - ``model.felupe.json``: the project; the mesh files and scripts that it names
-  (``mesh.import``, ``mesh.script``) must be in the folder;
+  (``mesh.import``, ``mesh.script``, ``material.script``) must be in the folder;
 - ``sample.json`` (optional): its ``title``, ``description`` and ``topics``; without
   a title, the title follows from the id;
 - ``thumbnail.svg`` (optional): its picture.
@@ -22,6 +22,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from .commands import file_names
 from .project import ProjectError, loads
 
 PROJECT = "model.felupe.json"
@@ -111,9 +112,7 @@ def _files(folder, sample_id):
         raise SamplesError(
             f"the {PROJECT} of the sample '{sample_id}' is invalid: {reason}"
         ) from error
-    files = sorted(
-        {c["file"] for c in commands if c["command"] in ("mesh.import", "mesh.script")}
-    )
+    files = file_names(commands)
     for file in files:
         if not (folder / file).is_file():
             raise SamplesError(f"the sample '{sample_id}' has no file '{file}'.")

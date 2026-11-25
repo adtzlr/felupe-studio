@@ -1,8 +1,9 @@
-// State of the file of a mesh in the properties panel, with a button to choose it:
-// a mesh file, or a script that makes a mesh with the parameters of the model and
-// its error with the traceback of the script (#182).
+// State of the file of a mesh or a material in the properties panel, with a button
+// to choose it: a mesh file, a script that makes a mesh with the parameters of the
+// model and its error with the traceback of the script (#182), or the script of a
+// material (ADR 0025), which the jobs run.
 import { useRef } from "preact/hooks";
-import type { Command } from "../core/commands";
+import type { Command, MaterialScript } from "../core/commands";
 import {
   type MeshCommand,
   type MeshFiles,
@@ -11,20 +12,24 @@ import {
 import { useMeshFiles } from "./hooks";
 import { Icon } from "./icons";
 
-export function MeshFileStatus({
+export function FileStatus({
   command,
   commands,
   files,
 }: {
-  command: MeshCommand;
+  command: MeshCommand | MaterialScript;
   commands: readonly Command[];
   files: MeshFiles;
 }) {
   useMeshFiles(files);
   const input = useRef<HTMLInputElement>(null);
   const file = files.get(command.file);
-  const script = command.command === "mesh.script";
-  const status = meshStatus(command, commands, files);
+  const script = command.command !== "mesh.import";
+  // the file of a material, or the mesh of a file or a script
+  const status =
+    command.command === "material.script"
+      ? file?.status
+      : meshStatus(command, commands, files);
   const info = status?.state === "ready" ? status.info : undefined;
 
   return (
@@ -34,7 +39,9 @@ export function MeshFileStatus({
         {!file && <span class="warning">not loaded</span>}
         {status?.state === "reading" && (
           <span class="muted">
-            {script ? "making the mesh …" : "reading …"}
+            {command.command === "mesh.script"
+              ? "making the mesh …"
+              : "reading …"}
           </span>
         )}
         {info && (

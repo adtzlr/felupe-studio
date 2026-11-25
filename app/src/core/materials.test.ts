@@ -5,6 +5,7 @@ import {
   hasVolumetric,
   materialProblems,
   needsBulk,
+  strainBased,
 } from "./materials";
 import { validate } from "./validate";
 
@@ -98,6 +99,30 @@ describe("material registry", () => {
     expect(hasVolumetric(material("LinearElastic", { E: 1, nu: 0 }))).toBe(
       true,
     );
+  });
+
+  it("knows whether a material of a file has a volumetric part (ADR 0025)", () => {
+    const script = (volumetric?: boolean) =>
+      ({
+        command: "material.script",
+        name: "soft",
+        kind: "constitutive",
+        file: "soft.py",
+        ...(volumetric === undefined ? {} : { volumetric }),
+      }) as const;
+    // by default it has one, and it is not strain-based
+    expect(hasVolumetric(script())).toBe(true);
+    expect(hasVolumetric(script(true))).toBe(true);
+    expect(hasVolumetric(script(false))).toBe(false);
+    expect(strainBased(script())).toBe(false);
+    // a new section of it takes the formulation that fits it (ADR 0024)
+    const section = (volumetric?: boolean) =>
+      initialDraft("section.add", { commands: [script(volumetric)] });
+    expect(section()).toMatchObject({ material: "soft", formulation: "u" });
+    expect(section(false)).toMatchObject({
+      material: "soft",
+      formulation: "u-p-J",
+    });
   });
 
   it("gives forms the labels, hints and defaults of the schema", () => {

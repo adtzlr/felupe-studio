@@ -45,7 +45,13 @@ import {
   formulationOf,
   sibling,
 } from "./formulations";
-import { MATERIAL_MODELS, materialProblems, strainBased } from "./materials";
+import {
+  isMaterial,
+  MATERIAL_MODELS,
+  type MaterialCommand,
+  materialProblems,
+  strainBased,
+} from "./materials";
 import { parameterProblems } from "./parameters";
 import {
   NAME_MAX_LENGTH,
@@ -541,10 +547,13 @@ const meshInputs: Rule<CommandOf<"mesh.generate">> = (model, cmd) => {
   }));
 };
 
-/** The material of a section, if it is defined before. */
+/**
+ * The material of a section, if it is defined before: of the registry, or of a file
+ * (ADR 0025).
+ */
 function materialOf(model: Model, section: CommandOf<"section.add">) {
   const material = model.before(section.material);
-  return material?.command === "material.add" ? material : undefined;
+  return material && isMaterial(material) ? material : undefined;
 }
 
 /**
@@ -572,10 +581,9 @@ const sectionMaterial: Rule<CommandOf<"section.add">> = (model, cmd) => {
  * the material is named too, e.g. the three-field variation of a nearly
  * incompressible one (#420).
  */
-function misfit(
-  formulation: Formulation,
-  material: CommandOf<"material.add">,
-): string {
+function misfit(formulation: Formulation, material: MaterialCommand): string {
+  if (material.command === "material.script")
+    return scriptMisfit(formulation, material);
   const { name } = formulation;
   const what = `${material.model} '${material.name}'`;
   const other = sibling(formulation, material);
@@ -611,6 +619,41 @@ function misfit(
         `bulk modulus). Remove 'bulk' from the material, or use ${displacement}.`
     : `the ${name} formulation with ${what}, which is compressible. Use ` +
         `${displacement}, or a nearly incompressible model without a bulk modulus.`;
+}
+
+/**
+ * Why a formulation does not take a material of a file (ADR 0025), by whether it
+ * has a volumetric part of its own (`volumetric`), and the formulations that take
+ * it, like `misfit()` (like `script_misfit` in Python).
+ */
+function scriptMisfit(
+  formulation: Formulation,
+  material: CommandOf<"material.script">,
+): string {
+  const { name } = formulation;
+  const what = `the material '${material.name}' of '${material.file}'`;
+  const other = sibling(formulation, material);
+  // the displacement formulation, or the three-field variation (#420)
+  if (formulation.material === "volumetric")
+    return (
+      `${other ? `the ${name} formulation` : "the displacement formulation"} ` +
+      `with ${what} without a volumetric part. Use ` +
+      `'${other ?? first("isochoric")}' with the bulk modulus of the section, ` +
+      `or set 'volumetric' to true if its umat has one.`
+    );
+  if (formulation.material === "none")
+    return (
+      `the formulation ${name} with ${what}, which has a volumetric part. Use ` +
+      `'${first("volumetric")}', or set 'volumetric' to false if its umat has ` +
+      `none.`
+    );
+  const displacement =
+    `the displacement formulation '${first("volumetric")}'` +
+    (other ? ` or '${other}'` : "");
+  return (
+    `the ${name} formulation with ${what}, which has a volumetric part. Use ` +
+    `${displacement}, or set 'volumetric' to false if its umat has none.`
+  );
 }
 
 /** The axes of a load case, at the field of the error of the form. */

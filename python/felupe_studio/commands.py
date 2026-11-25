@@ -30,6 +30,9 @@ KINDS = {
     "cellset.from_tag": "cellset",
     "cellset.from_file": "cellset",
     "material.add": "material",
+    # a user-defined material of a Python file (ADR 0025), referenced by a section
+    # like a material of the registry
+    "material.script": "material",
     "section.add": "section",
     "pointset.add": "pointset",
     # a control point is a point set of one point (boundaries, constraints, curves)
@@ -77,6 +80,7 @@ MOVED = tuple(DIRECTIONS)
 # is a list)
 REFERENCES = {
     "mesh.script": {"parameters": ("parameter", True)},
+    "material.script": {"parameters": ("parameter", True)},
     # the meshes that an operation of the mesh tools takes (ADR 0019)
     "mesh.generate": {"inputs": ("mesh", True)},
     "cellset.from_tag": {"mesh": ("mesh", False)},
@@ -114,6 +118,36 @@ REFERENCES = {
         "curve": (("boundary", "load", "constraint"), False),
     },
 }
+
+
+# the commands of the files next to a project (ADR 0007): of the mesh files, and of
+# the Python scripts of meshes (#182) and of user-defined materials (ADR 0025)
+FILES = ("mesh.import", "mesh.script", "material.script")
+
+# the commands of the scripts, which run Python code of their own
+SCRIPTS = ("mesh.script", "material.script")
+
+
+def file_names(commands):
+    """Return the names of the files next to a project that its commands use, once
+    each and sorted: the mesh files and the scripts of meshes and materials.
+
+    Examples
+    --------
+    >>> file_names([
+    ...     {"command": "mesh.import", "name": "bar", "file": "bar.vtu"},
+    ...     {"command": "material.script", "name": "soft", "file": "soft.py"},
+    ...     {"command": "mesh.import", "name": "other", "file": "bar.vtu"},
+    ... ])
+    ['bar.vtu', 'soft.py']
+    """
+    return sorted({c["file"] for c in commands if c["command"] in FILES})
+
+
+def script_names(commands):
+    """Return the names of the scripts of a project, which run Python code of their
+    own: of meshes (#182) and of user-defined materials (ADR 0025)."""
+    return sorted({c["file"] for c in commands if c["command"] in SCRIPTS})
 
 
 # the names of the kinds of references in the messages, if not the kinds themselves:

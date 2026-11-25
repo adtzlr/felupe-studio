@@ -1,8 +1,7 @@
 // The formulation registry: the formulations of `section.add` in the command schema,
 // with their labels and what FElupe makes of them (like felupe_studio.formulations in
 // Python, ADR 0024).
-import type { Command } from "./commands";
-import { hasVolumetric, strainBased } from "./materials";
+import { hasVolumetric, type MaterialCommand, strainBased } from "./materials";
 import { schema } from "./schema";
 
 /**
@@ -67,14 +66,15 @@ export const FORMULATIONS: readonly Formulation[] = defs.SectionAdd.oneOf.map(
   },
 );
 
-type Material = Extract<Command, { command: "material.add" }>;
-
 /** The formulation of a name, e.g. `u-p-J`. */
 export const formulationOf = (name: string): Formulation | undefined =>
   FORMULATIONS.find((f) => f.name === name);
 
 /** True if a formulation takes a material (like `Formulation.fits` in Python). */
-export function fits(formulation: Formulation, material: Material): boolean {
+export function fits(
+  formulation: Formulation,
+  material: MaterialCommand,
+): boolean {
   switch (formulation.material) {
     case "volumetric":
       return hasVolumetric(material);
@@ -93,7 +93,7 @@ export const first = (material: FormulationMaterial): string =>
   FORMULATIONS.find((f) => f.material === material)!.name;
 
 /** The first formulation of the registry that takes a material. */
-export const fitting = (material: Material): Formulation | undefined =>
+export const fitting = (material: MaterialCommand): Formulation | undefined =>
   FORMULATIONS.find((f) => fits(f, material));
 
 /**
@@ -103,7 +103,7 @@ export const fitting = (material: Material): Formulation | undefined =>
  */
 export const sibling = (
   formulation: Formulation,
-  material: Material,
+  material: MaterialCommand,
 ): string | undefined =>
   FORMULATIONS.find(
     (f) =>

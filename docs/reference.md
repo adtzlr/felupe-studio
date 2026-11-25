@@ -11,7 +11,7 @@ A project file is a JSON document `{"schema_version": 3, "commands": [...]}`. Ev
 
 Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
 
-A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `BoundarySwitch`, `CONDENSED`, `CORNERS`, `CylindricalCurve`, `CylindricalCurvePlugin`, `DIMENSIONS`, `EDGES`, `Held`, `REGIONS`, `SimpleNamespace`, `base_vectors`, `boundaries`, `boundary_faces`, `boundary_switch`, `cell_volumes`, `condensed_region`, `control_points`, `embed`, `fem`, `field`, `fields_without_volume`, `has_volume`, `hold_dual_fields`, `iterative_solver`, `meshio`, `mixed_field`, `mixed_region`, `nearly_incompressible`, `np`, `pick`, `points`, `points_at`, `pypardiso`, `run_mesh_script`, `script_mesh`, `single_point`, `single_precision`, `solid_points`, `solid_types`, `spsolve`, `surface_points`, `tags_of`, `vertex_region`, `volume_cells`, `with_volume`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
+A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `BoundarySwitch`, `CONDENSED`, `CORNERS`, `CylindricalCurve`, `CylindricalCurvePlugin`, `DIMENSIONS`, `EDGES`, `Held`, `REGIONS`, `SimpleNamespace`, `base_vectors`, `boundaries`, `boundary_faces`, `boundary_switch`, `cell_volumes`, `condensed_region`, `control_points`, `embed`, `fem`, `field`, `fields_without_volume`, `has_volume`, `hold_dual_fields`, `iterative_solver`, `meshio`, `mixed_field`, `mixed_region`, `nearly_incompressible`, `np`, `pick`, `points`, `points_at`, `pypardiso`, `run_material_script`, `run_mesh_script`, `script_mesh`, `single_point`, `single_precision`, `solid_points`, `solid_types`, `spsolve`, `surface_points`, `tags_of`, `vertex_region`, `volume_cells`, `with_volume`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
 
 ## Expressions
 
@@ -28,6 +28,7 @@ A number of a command (*or an expression* below) may be an expression of the par
 - [`cellset.from_tag`](#cellsetfrom_tag): Cell set of all cells of a mesh with the given tag value: of a mesh imported with a tag, or of a mesh made by tools of such meshes, which keep their tags.
 - [`cellset.from_file`](#cellsetfrom_file): Cell set of all cells of a mesh.
 - [`material.add`](#materialadd): Add a material to the material library.
+- [`material.script`](#materialscript): A user-defined material of a Python file next to the project (ADR 0025), like a mesh script: the file runs with the parameters of the model as variables.
 - [`section.add`](#sectionadd): Assign a material and a formulation to a cell set.
 - [`pointset.add`](#pointsetadd): Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, on the outer surface, of the cells of a section, by the coordinates of points or by point ids.
 - [`point.add`](#pointadd): A control point that is not a node of the meshes, e.g. the center point of a multi-point constraint.
@@ -478,6 +479,19 @@ The Mullins effect of Ogden and Roxburgh (fem.OgdenRoxburgh): the material is so
 | `r` (r) | number > 1 | yes | Reciprocal of the largest softening: with r = 3, the stiffness is softened to 1 - 1/3 = 2/3 at most. Default `3`. |
 | `m` (m) | number > 0 | yes | Initial softening modulus, a strain energy density: the smaller, the faster the material softens below the maximum of its load history. Default `1`. |
 | `beta` (β) | number ≥ 0 | yes | The part of the softening modulus that grows with the maximum strain energy density of the load history (m + β ψmax). Default `0.1`. |
+
+### `material.script`
+
+A user-defined material of a Python file next to the project (ADR 0025), like a mesh script: the file runs with the parameters of the model as variables. Every kind of user-defined material is a definition below, with its label and what the file makes.
+
+Every variant has a `name`, the name of the object.
+
+#### Constitutive model (Python) (`kind: "constitutive"`)
+
+A ready constitutive model of a Python file: the file makes a variable umat with the methods gradient and hessian of FElupe, e.g. fem.NeoHooke(mu=mu, bulk=bulk), fem.Hyperelastic(...) & fem.Volumetric(...), a fem.Material of functions of its own or an object of a class of its own.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
 
 ### `section.add`
 

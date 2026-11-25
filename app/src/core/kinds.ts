@@ -25,6 +25,30 @@ export type Kind =
   | "step"
   | "job";
 
+/**
+ * The commands of the files next to a project (ADR 0007): of the mesh files, and of
+ * the Python scripts of meshes (#182) and of user-defined materials (ADR 0025), like
+ * `FILES` of felupe_studio.commands.
+ */
+export const FILE_COMMANDS: readonly string[] = [
+  "mesh.import",
+  "mesh.script",
+  "material.script",
+];
+
+/**
+ * The names of the files next to the project that a model uses, once each: of its
+ * meshes and of its user-defined materials (like `file_names` of
+ * felupe_studio.commands, unsorted).
+ */
+export const projectFileNames = (commands: readonly Command[]): string[] => [
+  ...new Set(
+    commands.flatMap((c) =>
+      FILE_COMMANDS.includes(c.command) && "file" in c ? [c.file] : [],
+    ),
+  ),
+];
+
 /** Commands of which a model has at most one. */
 export const SINGLE: string[] = ["model.settings", "mesh.merge"];
 
@@ -41,6 +65,9 @@ export const KINDS: Record<CommandType, Kind> = {
   "cellset.from_tag": "cellset",
   "cellset.from_file": "cellset",
   "material.add": "material",
+  // a user-defined material of a Python file (ADR 0025), referenced by a section
+  // like a material of the registry
+  "material.script": "material",
   "section.add": "section",
   "pointset.add": "pointset",
   // a control point is a point set of one point (boundaries, constraints, curves)
@@ -133,6 +160,7 @@ export const REFERENCES: Partial<
   Record<CommandType, Record<string, [RefKind, boolean]>>
 > = {
   "mesh.script": { parameters: ["parameter", true] },
+  "material.script": { parameters: ["parameter", true] },
   // the meshes that an operation of the mesh tools takes (ADR 0019)
   "mesh.generate": { inputs: ["mesh", true] },
   "cellset.from_tag": { mesh: ["mesh", false] },

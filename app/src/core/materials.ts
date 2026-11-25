@@ -89,17 +89,34 @@ export function needsBulk(material: Material): boolean {
   return !!model?.optionalBulk && parameters.bulk === undefined;
 }
 
+/** A material of the model: of the registry, or of a file (ADR 0025). */
+export type MaterialCommand = Extract<
+  Command,
+  { command: "material.add" | "material.script" }
+>;
+
+/** Whether a command is a material: of the registry, or of a file (ADR 0025). */
+export const isMaterial = (c: Command): c is MaterialCommand =>
+  c.command === "material.add" || c.command === "material.script";
+
 /**
  * True if a material has a volumetric part of its own (#417): its bulk modulus is
  * given, or its model has no optional bulk modulus (a compressible or a strain-based
  * model). The u-p-J formulation adds the volumetric part of the section, so it takes
- * a material without one (like `has_volumetric` of felupe_studio.materials).
+ * a material without one (like `has_volumetric` of felupe_studio.materials). A
+ * material of a file says so with `volumetric` (ADR 0025, by default it has one).
  */
-export const hasVolumetric = (material: Material): boolean =>
-  !needsBulk(material);
+export const hasVolumetric = (material: MaterialCommand): boolean =>
+  material.command === "material.script"
+    ? material.volumetric !== false
+    : !needsBulk(material);
 
-/** True if a material is strain-based (#191): it needs the formulation u. */
-export const strainBased = (material: Material): boolean =>
+/**
+ * True if a material is strain-based (#191): it needs the formulation u. A
+ * constitutive model of a file is not (ADR 0025).
+ */
+export const strainBased = (material: MaterialCommand): boolean =>
+  material.command === "material.add" &&
   !!MATERIAL_MODELS.find((m) => m.name === material.model)?.strain;
 
 /**

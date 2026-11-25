@@ -51,7 +51,7 @@ describe("parseLine", () => {
     ["delete a b", "Usage: delete <name>"],
     [
       "material.ad",
-      "Unknown command 'material.ad'. Did you mean material.add?",
+      "Unknown command 'material.ad'. Did you mean material.add, material.script?",
     ],
     ["xyz", "Unknown command 'xyz'. Type help"],
   ])("rejects %s", (line, message) => {
@@ -239,12 +239,13 @@ describe("complete", () => {
     complete(line, commands).items.map((i) => i.label);
 
   it("completes commands and keywords", () => {
-    expect(labels("mat")).toEqual(["material.add"]);
+    // the materials of the registry and of files (ADR 0025)
+    expect(labels("mat")).toEqual(["material.add", "material.script"]);
     expect(labels("cell")).toEqual(["cellset.from_tag", "cellset.from_file"]);
     expect(labels("de")).toEqual(["delete", "model.settings"]); // contained
     expect(labels("tag")).toEqual(["cellset.from_tag"]); // contained
     expect(labels("undo")).toEqual([]); // complete already
-    expect(labels("")).toHaveLength(30);
+    expect(labels("")).toHaveLength(31);
     expect(labels("gen")).toEqual(["mesh.generate"]); // the mesh tools (ADR 0019)
     expect(labels("param")).toEqual(["parameter.add"]);
     expect(labels("sym")).toEqual(["symmetry.add"]);

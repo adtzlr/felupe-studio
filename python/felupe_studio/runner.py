@@ -8,8 +8,9 @@ failed substeps. The fields of every substep are recorded for the results, see
 :mod:`felupe_studio.results`.
 
 The hyperelastic models of tensortrax (e.g. Mooney-Rivlin) need the package
-tensortrax, which the app loads only for these models: :func:`load_tensortrax` makes
-it available to FElupe after FElupe was imported without it.
+tensortrax, which the app loads only for these models and for the materials of files
+(ADR 0025): :func:`load_tensortrax` makes it available to FElupe after FElupe was
+imported without it.
 """
 
 import importlib
@@ -40,12 +41,14 @@ LAST = {}
 
 def uses_tensortrax(document):
     """True if a command list (or its JSON text) uses a material model of
-    tensortrax."""
+    tensortrax, or a material of a file (ADR 0025), which may use one, e.g.
+    ``fem.Hyperelastic``."""
     if isinstance(document, str):
         document = json.loads(document)
     hyperelastic = {name for name, m in models().items() if m.hyperelastic}
     return any(
-        c["command"] == "material.add" and c["model"] in hyperelastic
+        (c["command"] == "material.add" and c["model"] in hyperelastic)
+        or c["command"] == "material.script"
         for c in document["commands"]
     )
 

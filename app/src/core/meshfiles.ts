@@ -5,10 +5,18 @@
 // scripts that make meshes (#182) are kept and written the same way; the meshes
 // they make with the parameters of the model are kept by their file, item and
 // parameter values. The meshes of the tools (ADR 0019) are kept by their chain and
-// the meshes of files and scripts that they take (#438).
+// the meshes of files and scripts that they take (#438). The scripts of
+// user-defined materials (ADR 0025) are kept and written like those of meshes; the
+// jobs run them.
 import { analysisOf, CELLS_2D, is2d } from "./analysis";
 import { cellProblem, formulationOf } from "./formulations";
-import type { Command, MeshGenerate, MeshImport, MeshScript } from "./commands";
+import type {
+  Command,
+  MaterialScript,
+  MeshGenerate,
+  MeshImport,
+  MeshScript,
+} from "./commands";
 import { parameterValues, resolveCommands } from "./resolve";
 import { solidOf } from "./meshinfo";
 import {
@@ -25,6 +33,7 @@ import type {
   SourceMesh,
 } from "../worker/protocol";
 import { safeName } from "../worker/files";
+import { projectFileNames } from "./kinds";
 
 export type FileState =
   | { state: "reading" }
@@ -569,12 +578,11 @@ export function formulationNotes(
 }
 
 /**
- * The names of the files of the meshes of a model (`file` of `mesh.import` and of
- * `mesh.script`, #182), once each.
+ * The names of the files next to the project that a model uses, once each: of its
+ * meshes (`file` of `mesh.import` and of `mesh.script`, #182) and of its
+ * user-defined materials (`material.script`, ADR 0025).
  */
-export function meshFileNames(commands: readonly Command[]): string[] {
-  return [...new Set(commands.filter(isMesh).map((c) => c.file))];
-}
+export { projectFileNames };
 
 /**
  * The values of the parameters of the model (#180), an int or a float each, also of
@@ -876,7 +884,10 @@ export function makeMeshes(
   files.keepMade(keys);
 }
 
-/** Messages for meshes of the model whose file is not loaded or not usable. */
+/**
+ * Messages for meshes and materials of the model whose file is not loaded or not
+ * usable.
+ */
 export function fileNotes(
   commands: readonly Command[],
   files: MeshFiles,
@@ -888,10 +899,28 @@ export function fileNotes(
         ? toolNote(command, commands, files)
         : isMesh(command)
           ? fileNote(command, commands, files)
-          : undefined;
+          : command.command === "material.script"
+            ? scriptNote(command, files)
+            : undefined;
     if (note) notes.set(command.name, [note]);
   }
   return notes;
+}
+
+/**
+ * Why the script of a material (ADR 0025) is not loaded or not usable: the jobs run
+ * it.
+ */
+function scriptNote(
+  command: MaterialScript,
+  files: MeshFiles,
+): string | undefined {
+  const status = files.get(command.file)?.status;
+  if (!status)
+    return `The script '${command.file}' is not loaded. Choose it in the properties.`;
+  return status.state === "error"
+    ? `${command.file}: ${status.message}`
+    : undefined;
 }
 
 /**
