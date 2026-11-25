@@ -73,6 +73,7 @@
           "Held",
           "REGIONS",
           "SimpleNamespace",
+          "base_vectors",
           "boundaries",
           "boundary_faces",
           "boundary_switch",
@@ -118,6 +119,11 @@
     "Axis": {
       "type": "string",
       "enum": ["x", "y", "z"]
+    },
+    "Direction": {
+      "description": "A direction of a rotated coordinate system: 1, 2 or 3 of its base vectors e1, e2 and e3.",
+      "type": "string",
+      "enum": ["1", "2", "3"]
     },
     "Coordinates": {
       "description": "The coordinates x, y and z of a point.",
@@ -183,6 +189,9 @@
         },
         {
           "$ref": "#/$defs/MpcAdd"
+        },
+        {
+          "$ref": "#/$defs/CartesianAdd"
         },
         {
           "$ref": "#/$defs/ContactAdd"
@@ -3166,6 +3175,56 @@
         }
       }
     },
+    "CartesianAdd": {
+      "description": "A Cartesian constraint (fem.CartesianConstraint, #421): the points of a point set held or moved in the directions of a rotated coordinate system by a penalty, the other directions free, e.g. points that slide on an inclined plane. The coordinate system is fixed in space: e1, e2 and e3 = e1 × e2, normalized by the script. An item of the steps; a ramp of a step moves the points like a boundary, and it may be the curve of a job.",
+      "type": "object",
+      "required": ["command", "name", "points", "e1", "constrained"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "cartesian.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "points": {
+          "description": "The point set of the constrained points.",
+          "$ref": "#/$defs/Name"
+        },
+        "e1": {
+          "description": "The first base vector e1 of the coordinate system, e.g. the normal of an inclined plane.",
+          "$ref": "#/$defs/Coordinates"
+        },
+        "e2": {
+          "description": "The second base vector e2, orthogonal to e1 (default 0, 1, 0). None in a 2D model: there, e2 is e1 turned by 90° about z.",
+          "$ref": "#/$defs/Coordinates"
+        },
+        "constrained": {
+          "description": "The constrained directions of e1, e2 and e3 (skip the others).",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/Direction"
+          }
+        },
+        "value": {
+          "x-quantity": "displacement",
+          "description": "Prescribed displacement in the constrained directions (default 0): one number for all of them, or one number per constrained direction in the order 1, 2, 3.",
+          "type": ["number", "string", "array"],
+          "minItems": 1,
+          "maxItems": 3,
+          "items": {
+            "type": ["number", "string"]
+          }
+        },
+        "multiplier": {
+          "description": "The penalty per point and direction (default 1000).",
+          "type": ["number", "string"],
+          "exclusiveMinimum": 0
+        }
+      }
+    },
     "ContactAdd": {
       "description": "A contact of points with a rigid surface (#220): fem.ContactRigidPlane or fem.ContactRigidCylinder, an item of the steps like the constraints. The penalty of the contact is a factor of the mean stiffness of the solid bodies at the points.",
       "type": "object",
@@ -3272,7 +3331,7 @@
           }
         },
         "constraints": {
-          "description": "Multi-point constraints that are items of the step (default: all).",
+          "description": "Multi-point constraints, Cartesian constraints and contacts that are items of the step (default: all).",
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,
@@ -3326,18 +3385,18 @@
       }
     },
     "RampItem": {
-      "description": "A ramped item: a boundary (its value, e.g. a displacement, or one value per constrained component), a load case (the displacement of its moving faces), a point load (a factor of its force) or a pressure (a factor of its pressure).",
+      "description": "A ramped item: a boundary (its value, e.g. a displacement, or one value per constrained component), a load case (the displacement of its moving faces), a Cartesian constraint (its displacement, or one per constrained direction), a point load (a factor of its force) or a pressure (a factor of its pressure).",
       "type": "object",
       "required": ["target", "end"],
       "additionalProperties": false,
       "properties": {
         "target": {
-          "description": "The ramped boundary, load case, point load or pressure.",
+          "description": "The ramped boundary, load case, Cartesian constraint, point load or pressure.",
           "$ref": "#/$defs/Name"
         },
         "start": {
           "x-quantity": "ramped",
-          "description": "Value at the start of the step (default 0); of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z.",
+          "description": "Value at the start of the step (default 0); of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z (of a Cartesian constraint per direction in the order 1, 2, 3).",
           "type": ["number", "string", "array"],
           "minItems": 1,
           "maxItems": 3,
@@ -3347,7 +3406,7 @@
         },
         "end": {
           "x-quantity": "ramped",
-          "description": "Value at the end of the step; of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z.",
+          "description": "Value at the end of the step; of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z (of a Cartesian constraint per direction in the order 1, 2, 3).",
           "type": ["number", "string", "array"],
           "minItems": 1,
           "maxItems": 3,
@@ -3358,7 +3417,7 @@
       }
     },
     "JobAdd": {
-      "description": "A job evaluating steps one after another (fem.Job). With a curve, the force-displacement curve of a boundary, a load case or a point load is recorded (fem.CharacteristicCurve).",
+      "description": "A job evaluating steps one after another (fem.Job). With a curve, the force-displacement curve of a boundary, a load case, a Cartesian constraint or a point load is recorded (fem.CharacteristicCurve).",
       "type": "object",
       "required": ["command", "name", "steps"],
       "additionalProperties": false,
@@ -3378,7 +3437,7 @@
           }
         },
         "curve": {
-          "description": "The boundary, load case or point load of the force-displacement curve.",
+          "description": "The boundary, load case, Cartesian constraint or point load of the force-displacement curve. Of a Cartesian constraint, the displacement of its first point and the force of the solid bodies at its points, in its directions 1, 2 and 3.",
           "$ref": "#/$defs/Name"
         },
         "tol": {

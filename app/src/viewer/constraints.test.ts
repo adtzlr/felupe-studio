@@ -1,14 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { Command, MpcAdd } from "../core/resolved";
 import type { ResultScene } from "../worker/protocol";
-import { boundarySymbols } from "./boundaries";
+import { boundarySymbols, strokes } from "./boundaries";
 import {
+  cartesianOverlaps,
   constraintLines,
   constraintShapes,
+  frameLines,
   overConstrained,
   resultPlacement,
 } from "./constraints";
-import { FADED, VIEW_COLORS } from "./palette";
+import { AXIS_COLORS, FADED, VIEW_COLORS } from "./palette";
 
 // the nodes of a unit square in the plane z = 0 and of its face at x = 1
 const nodes = [Float64Array.from([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0])];
@@ -125,5 +127,71 @@ describe("multi-point constraints in the viewport (#99)", () => {
     expect(moved.slice(1)).toEqual([1, 0]);
     // a control point moves with its own displacement
     expect(place([1.5, 0.5, 0])).toEqual([1.9, 0.5, 0]);
+  });
+});
+
+describe("Cartesian constraints in the viewport (#421)", () => {
+  // the points at x = 1 slide on a plane normal to e1 = (1, 1, 0) / √2
+  const slide = {
+    command: "cartesian.add",
+    name: "slide",
+    points: "right",
+    e1: [1, 1, 0],
+    e2: [0, 0, 1],
+    constrained: ["1"],
+  };
+  const model = [...commands, slide] as Command[];
+
+  it("are drawn like boundaries along their base vectors", () => {
+    const symbol = boundarySymbols(model, nodes).find(
+      (s) => s.owner === "slide",
+    )!;
+    expect(symbol.components).toEqual([0]);
+    expect(symbol.values).toEqual([0]);
+    expect(symbol.points).toEqual(Float64Array.from([1, 0, 0, 1, 1, 0]));
+    const r = Math.SQRT1_2;
+    expect(symbol.axes![0][0]).toBeCloseTo(r);
+    expect(symbol.axes![0][1]).toBeCloseTo(r);
+    expect(symbol.axes![2][0]).toBeCloseTo(r);
+    expect(symbol.axes![2][1]).toBeCloseTo(-r);
+    // a stroke through every point along e1, not along x
+    const [a, b] = [
+      strokes(symbol, 0, 2).subarray(0, 3),
+      strokes(symbol, 0, 2).subarray(3, 6),
+    ];
+    expect(b[0] - a[0]).toBeCloseTo(2 * r, 6);
+    expect(b[1] - a[1]).toBeCloseTo(2 * r, 6);
+  });
+
+  it("draw the coordinate system of the selected one", () => {
+    const symbols = boundarySymbols(model, nodes);
+    expect(frameLines(symbols, undefined, 1)).toEqual([]);
+    expect(frameLines(symbols, "glue", 1)).toEqual([]);
+    const lines = frameLines(symbols, "slide", 1);
+    expect(lines.map((l) => l.color)).toEqual([...AXIS_COLORS]);
+    // from the center of the points (1, 0.5, 0) along e1
+    expect(Array.from(lines[0].positions.subarray(0, 3))).toEqual([1, 0.5, 0]);
+    expect(lines[0].positions[3]).toBeCloseTo(1 + 0.15 * Math.SQRT1_2);
+    expect(frameLines(symbols, "slide", 1, 2)).toHaveLength(2);
+  });
+
+  it("report points that a boundary prescribes in a direction not normal to theirs", () => {
+    const symbols = boundarySymbols(model, nodes);
+    // fixed prescribes y and z: y is not normal to e1, z is
+    expect(cartesianOverlaps("slide", symbols)).toEqual([
+      { boundary: "fixed", points: 2, components: ["y"] },
+    ]);
+    const normal = [
+      ...commands,
+      { ...slide, e1: [1, 0, 0], e2: [0, 1, 0] },
+    ] as Command[];
+    expect(cartesianOverlaps("slide", boundarySymbols(normal, nodes))).toEqual(
+      [],
+    );
+    // the multi-point constraint does not take the directions as components
+    const [shape] = constraintShapes(model, nodes);
+    expect(overConstrained(glue, shape, symbols)).toEqual([
+      { boundary: "fixed", points: 2, components: ["y"] },
+    ]);
   });
 });

@@ -113,11 +113,12 @@ export function CurveCard({ run, view, onChange, saveFile }: Props) {
     setSettings(next);
     saveCurve(next);
   };
-  const [defaultX, defaultY] = defaultSeries(result);
+  // the moment over the rotation of a rotation point (#98), the directions of a
+  // Cartesian constraint (#421)
+  const q = curveQuantities(run.commands, view.job);
+  const [defaultX, defaultY] = defaultSeries(result, q);
   const xSeries = view.curveX ?? defaultX;
   const ySeries = view.curveY ?? defaultY;
-  // the moment over the rotation of a rotation point (#98)
-  const q = curveQuantities(run.commands, view.job);
   const xLabel = seriesLabel(xSeries, q);
   const yLabel = seriesLabel(ySeries, q);
   const points = curveOf(result, xSeries, ySeries);

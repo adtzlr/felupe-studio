@@ -9,7 +9,7 @@ import {
 import type { Command } from "../core/resolved";
 import { curvePoint, formatValue as format } from "../core/results";
 import type { ModelStore } from "../core/store";
-import { curveQuantities } from "../core/curve";
+import { AXES, curveQuantities } from "../core/curve";
 import { describeSolver, roundoffNote } from "../core/solvers";
 import { valueWithUnit } from "../core/units";
 
@@ -201,8 +201,16 @@ export function JobPanel({
         <>
           <ul class="job-results">
             {Object.entries(run.results).map(([name, result]) => {
-              const point = curvePoint(result);
               const q = curveQuantities(run.commands, name);
+              // of a Cartesian constraint, its first constrained direction (#421)
+              const preferred = q.preferred?.[1];
+              const point = curvePoint(
+                result,
+                undefined,
+                preferred && AXES.indexOf(preferred[1] as "x"),
+              );
+              const component =
+                point && q.components["xyz".indexOf(point.axis)];
               const roundoff = roundoffNote(result.roundoff);
               return (
                 <li key={name}>
@@ -214,9 +222,9 @@ export function JobPanel({
                       <br />
                       <span class="muted">
                         Last substep: {q.u}
-                        <sub>{point.axis}</sub> ={" "}
+                        <sub>{component}</sub> ={" "}
                         {valueWithUnit(format(point.u), q.uUnit)}, {q.f}
-                        <sub>{point.axis}</sub> ={" "}
+                        <sub>{component}</sub> ={" "}
                         {valueWithUnit(format(point.f), q.fUnit)}
                       </span>
                     </>

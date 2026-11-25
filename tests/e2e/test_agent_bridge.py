@@ -10,11 +10,7 @@ with ``pytest -m e2e``.
 import asyncio
 import base64
 import os
-import socket
-import subprocess
-import sys
 import threading
-from pathlib import Path
 
 import pytest
 
@@ -28,34 +24,13 @@ import httpx2  # noqa: E402
 from mcp import Client  # noqa: E402
 from mcp.client.streamable_http import streamable_http_client  # noqa: E402
 
-DIST = Path(__file__).parents[2] / "app" / "dist"
 TOKEN = "agent-e2e-token"
 SCRIPT = "import felupe as fem\nmesh = fem.Cube(n=n)\n"
 
 
 @pytest.fixture(scope="module")
-def port():
-    if not (DIST / "index.html").is_file():
-        pytest.skip("The app is not built: npm run build in app/.")
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        port = s.getsockname()[1]
-    code = (
-        "from felupe_studio.serve import serve; "
-        f"serve(port={port}, app={str(DIST)!r}, browser=False, token={TOKEN!r}, "
-        "agent=True)"
-    )
-    server = subprocess.Popen(
-        [sys.executable, "-c", code],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
-    line = server.stdout.readline()
-    assert "FElupe Studio runs at" in line, line + server.stdout.read()
-    yield port
-    server.terminate()
-    server.wait()
+def port(serve):
+    return serve(token=TOKEN, agent=True)
 
 
 def agent(port, steps):

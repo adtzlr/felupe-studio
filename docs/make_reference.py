@@ -25,7 +25,7 @@ KIND_NAMES = {
     # a load case is referenced like a boundary
     "boundary": "boundary, load case",
     "symmetry": "symmetry plane",
-    "constraint": "multi-point constraint, contact",
+    "constraint": "multi-point constraint, Cartesian constraint, contact",
     "load": "point load",
     "pressure": "pressure",
     "step": "step",
@@ -68,16 +68,28 @@ def _plural(word):
     return word[:-1] + "ies" if word.endswith("ry") else word + "s"
 
 
+# the constraints that the ramp of a step and the curve of a job take (#421)
+MOVED_NAMES = ["Cartesian constraint"]
+
+
 def _kinds(command, key, plural=False):
-    """The names of the kinds that a reference field points to, if it is one."""
+    """The names of the kinds that a reference field points to, if it is one: of
+    the constraints only the Cartesian ones for a ramp and a curve (#421)."""
     if command == "step.add" and key == "ramp.items[].target":
-        kinds = RAMPED
+        kinds = (*RAMPED, "constraint")
     elif (reference := REFERENCES.get(command, {}).get(key)) is None:
         return None
     else:
         kinds = reference[0]
     kinds = (kinds,) if isinstance(kinds, str) else kinds
-    words = [w for k in kinds for w in KIND_NAMES[k].split(", ")]
+    moved = "boundary" in kinds and "constraint" in kinds
+    words = [
+        w
+        for k in kinds
+        for w in (
+            MOVED_NAMES if moved and k == "constraint" else KIND_NAMES[k].split(", ")
+        )
+    ]
     return _join([_plural(w) for w in words] if plural else words)
 
 

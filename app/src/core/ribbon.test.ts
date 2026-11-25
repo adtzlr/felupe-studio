@@ -100,6 +100,7 @@ describe("ribbonGroups", () => {
       ["Control point"],
       ["Rigid surface"],
       ["Multi-point constraint"],
+      ["Cartesian constraint"],
       ["Contact"],
       ["Point load"],
       ["Pressure"],

@@ -22,6 +22,7 @@ import numpy as np
 
 from . import results as results_
 from .capabilities import capability_errors
+from .cartesian import base_vectors
 from .codegen import (
     analysis_of,
     codegen,
@@ -180,6 +181,9 @@ class Live(fem.Plugin):
     rotation : bool, optional
         The curve is of a rotation point of a 2D model (default False), see
         :func:`curve_row`.
+    frame : list of list of float or None, optional
+        The base vectors of the Cartesian constraint of the curve (#421), see
+        :func:`curve_row`.
     """
 
     def __init__(
@@ -195,12 +199,14 @@ class Live(fem.Plugin):
         budget=0.1,
         clock=time.perf_counter,
         rotation=False,
+        frame=None,
     ):
         self.report = report
         self.job = job
         self.substeps = substeps
         self.curve = curve
         self.rotation = rotation
+        self.frame = frame
         self.quantity = quantity
         self.method = method
         self.cut = cut
@@ -228,8 +234,8 @@ class Live(fem.Plugin):
             "substep": results_.substeps(self.job),
         }
         if self.curve is not None and self.curve.x:
-            event["x"] = curve_row(self.curve.x[-1], self.rotation)
-            event["y"] = curve_row(self.curve.y[-1], self.rotation)
+            event["x"] = curve_row(self.curve.x[-1], self.rotation, self.frame)
+            event["y"] = curve_row(self.curve.y[-1], self.rotation, self.frame)
         now = self.clock()
         if self.due(now, state):
             event["scene"] = results_.current_scene(
@@ -241,13 +247,48 @@ class Live(fem.Plugin):
             self.report(event)
 
 
-def curve_row(values, rotation=False):
+def curve_row(values, rotation=False, frame=None):
     """Return the values of a curve at a substep as floats for JSON. Of a rotation
     point of a 2D model (#175), whose first component is the rotation (or the moment)
-    about z, the three components with the rotation about z."""
+    about z, the three components with the rotation about z. Of a Cartesian
+    constraint (#421), the components in the directions of its base vectors
+    ``frame``.
+
+    Examples
+    --------
+    >>> curve_row([1.0, 2.0], frame=[[0.0, 1.0], [-1.0, 0.0]])
+    [2.0, -1.0]
+    """
     if rotation:
         return [0.0, 0.0, _number(values[0])]
+    if frame is not None:
+        values = [
+            sum(v * e for v, e in zip(values, base, strict=True)) for base in frame
+        ]
     return [_number(v) for v in values]
+
+
+def frames(commands):
+    """Return the base vectors of the Cartesian constraints of the curves of jobs
+    (#421), by the names of the jobs: their curves are in the directions 1, 2 and 3
+    of the constraint.
+
+    Examples
+    --------
+    >>> frames([
+    ...     {"command": "cartesian.add", "name": "c", "e1": [0, 0, 1],
+    ...      "e2": [1, 0, 0], "constrained": ["1"]},
+    ...     {"command": "job.add", "name": "job_1", "curve": "c"},
+    ... ])
+    {'job_1': [[0.0, 0.0, 1.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]}
+    """
+    dim = 3 if analysis_of(commands) == "3d" else 2
+    cartesians = {c["name"]: c for c in commands if c["command"] == "cartesian.add"}
+    return {
+        c["name"]: base_vectors(cartesians[c["curve"]], dim)
+        for c in commands
+        if c["command"] == "job.add" and c.get("curve") in cartesians
+    }
 
 
 def rotation_curves(commands):
@@ -368,6 +409,7 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
         name: [step.nsubsteps for step in namespace[name].steps] for name in jobs
     }
     rotations = rotation_curves(document["commands"])
+    local = frames(document["commands"])
     report({"event": "start", "jobs": jobs, "substeps": substeps})
     results = {}
     for name in jobs:
@@ -378,7 +420,7 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
         if roundoff:
             job.dispatcher.add_plugin(roundoff)
         curve = job if isinstance(job, fem.CharacteristicCurve) else None
-        rotation = name in rotations
+        rotation, frame = name in rotations, local.get(name)
         job.dispatcher.add_plugin(
             Live(
                 report,
@@ -387,6 +429,7 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
                 curve,
                 clock=clock,
                 rotation=rotation,
+                frame=frame,
                 **(live or {}),
             )
         )
@@ -402,8 +445,8 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
             "time": time.perf_counter() - started,
         }
         if isinstance(job, fem.CharacteristicCurve):
-            result["x"] = [curve_row(x, rotation) for x in job.x]
-            result["y"] = [curve_row(y, rotation) for y in job.y]
+            result["x"] = [curve_row(x, rotation, frame) for x in job.x]
+            result["y"] = [curve_row(y, rotation, frame) for y in job.y]
         if roundoff:
             result["roundoff"] = _number(roundoff.estimate())
         results[name] = result

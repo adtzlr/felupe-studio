@@ -9,9 +9,6 @@ chromium``, or ``CHROME`` with the path of a Chrome) and the built app
 import base64
 import os
 import re
-import socket
-import subprocess
-import sys
 from pathlib import Path
 
 import pytest
@@ -21,32 +18,12 @@ pytestmark = pytest.mark.e2e
 sync_api = pytest.importorskip("playwright.sync_api")
 pytest.importorskip("uvicorn")
 
-DIST = Path(__file__).parents[2] / "app" / "dist"
 TOKEN = "e2e-token"
 
 
 @pytest.fixture(scope="module")
-def url():
-    if not (DIST / "index.html").is_file():
-        pytest.skip("The app is not built: npm run build in app/.")
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        port = s.getsockname()[1]
-    code = (
-        "from felupe_studio.serve import serve; "
-        f"serve(port={port}, app={str(DIST)!r}, browser=False, token={TOKEN!r})"
-    )
-    server = subprocess.Popen(
-        [sys.executable, "-c", code],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-    )
-    line = server.stdout.readline()
-    assert "FElupe Studio runs at" in line, line + server.stdout.read()
-    yield f"http://127.0.0.1:{port}/?token={TOKEN}"
-    server.terminate()
-    server.wait()
+def url(serve):
+    return f"http://127.0.0.1:{serve(token=TOKEN)}/?token={TOKEN}"
 
 
 @pytest.fixture
@@ -1106,4 +1083,56 @@ def test_the_results_of_a_file_without_their_model(url, page):
         page.wait_for_timeout(100)
         found += tip.inner_text().splitlines() if tip.count() else []
     assert any(line.endswith("of plate") for line in found), found
+    assert page.errors == []
+
+
+def test_a_cartesian_constraint_ramped_and_recorded(url, page):
+    """A Cartesian constraint (#421) at the end of a bar, ramped along its first
+    direction and recorded by the job: the ribbon has its button, the browser and the
+    script show it, and the job panel shows the displacement in direction 1."""
+    page.goto(url)
+    page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
+    page.get_by_role("tab", name="Loads & BCs").click()
+    page.get_by_role("button", name="Cartesian constraint").wait_for()
+
+    def command(text):
+        name = text.split('"name": "')[1].split('"')[0]
+        line = page.get_by_label("Command", exact=True)
+        line.fill(text)
+        line.press("Enter")
+        page.get_by_text(f"Created {name}.").first.wait_for(timeout=60_000)
+
+    for text in [
+        'mesh.generate {"name": "bar", "tool": "Cube", '
+        '"parameters": {"a": [0, 0, 0], "b": [3, 1, 1], "n": [4, 2, 2]}}',
+        'cellset.from_file {"name": "cells", "mesh": "bar"}',
+        'material.add {"name": "rubber", "model": "NeoHooke", '
+        '"parameters": {"mu": 1, "bulk": 5}}',
+        'section.add {"name": "solid", "cellset": "cells", "material": "rubber", '
+        '"formulation": "u"}',
+        'pointset.add {"name": "start", "select": {"axis": "x", "value": 0}}',
+        'pointset.add {"name": "end", "select": {"axis": "x", "value": 3}}',
+        'boundary.add {"name": "fixed", "pointset": "start", '
+        '"constrained": ["x", "y", "z"]}',
+        'cartesian.add {"name": "slide", "points": "end", "e1": [1, 0, 0], '
+        '"e2": [0, 1, 0], "constrained": ["1"], "multiplier": 100000}',
+        'step.add {"name": "tension", "ramp": {"num": 3, '
+        '"items": [{"target": "slide", "end": 0.3}]}}',
+        'job.add {"name": "job", "steps": ["tension"], "curve": "slide"}',
+    ]:
+        command(text)
+
+    tree = page.get_by_role("navigation", name="Model browser")
+    tree.get_by_text("slide", exact=True).click()
+    tree.get_by_text("end · 1 of e1 (1, 0, 0) e2 (0, 1, 0)").wait_for()
+    page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)
+
+    page.get_by_role("tab", name="Script", exact=True).click()
+    page.get_by_text("slide = fem.CartesianConstraint(").wait_for(timeout=60_000)
+
+    page.get_by_role("button", name="Solve").click()
+    results = page.get_by_role("button", name="Show results")
+    results.wait_for(timeout=120_000)
+    summary = page.get_by_text("substeps in").first.inner_text()
+    assert "4 substeps" in summary and "Last substep: u1 = 0.3" in summary
     assert page.errors == []

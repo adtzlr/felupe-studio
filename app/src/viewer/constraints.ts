@@ -1,12 +1,13 @@
 // Multi-point constraints in the viewport (#99): lines from the center point to the
 // connected points, in the model and displaced in the results, and the points of a
 // constraint that a boundary of the same components prescribes as well.
+import { TOLERANCE } from "../core/cartesian";
 import type { Command, MpcAdd } from "../core/resolved";
 import type { ResultScene } from "../worker/protocol";
 import { type BoundarySymbol, thinned } from "./boundaries";
-import { FADED, type ViewColors } from "./palette";
+import { AXIS_COLORS, FADED, type ViewColors } from "./palette";
 import { AXES, selectedPoints } from "./pointsets";
-import type { Lines } from "./scene";
+import { arrowSegments, type Lines } from "./scene";
 
 export type Point3 = [number, number, number];
 
@@ -132,6 +133,8 @@ export function overConstrained(
   const result: { boundary: string; points: number; components: string[] }[] =
     [];
   for (const symbol of symbols) {
+    // the components of a Cartesian constraint are its directions (#421)
+    if (symbol.axes) continue;
     const components = symbol.components
       .map((k) => AXES[k])
       .filter((a) => constraint.constrained.includes(a));
@@ -201,4 +204,64 @@ export function resultPlacement(
     return point.map((x, k) => x + scale * move[k]) as Point3;
   };
   return { nodes, place };
+}
+
+/**
+ * The coordinate system of the selected Cartesian constraint (#421): arrows of its
+ * base vectors e1, e2 and e3 from the center of its points, in the colors of the
+ * axes x, y and z (of a 2D model e1 and e2). None for another object.
+ */
+export function frameLines(
+  symbols: readonly BoundarySymbol[],
+  selected: string | undefined,
+  size: number,
+  dim = 3,
+): Lines[] {
+  const symbol = symbols.find((s) => s.owner === selected && s.axes);
+  if (!symbol?.axes || !symbol.points.length) return [];
+  const center: Point3 = [0, 0, 0];
+  const count = symbol.points.length / 3;
+  for (let p = 0; p < symbol.points.length; p += 3)
+    for (let k = 0; k < 3; k++) center[k] += symbol.points[p + k] / count;
+  return symbol.axes.slice(0, dim).map((axis, k) => ({
+    positions: arrowSegments({
+      origins: Float32Array.from(center),
+      directions: Float32Array.from(axis.map((x) => 0.15 * size * x)),
+    }),
+    color: AXIS_COLORS[k],
+    width: 3,
+  }));
+}
+
+/**
+ * The points of a Cartesian constraint (#421) that a boundary, a load case or a
+ * symmetry plane prescribes in a component that is not normal to the constrained
+ * directions (over-constrained): per boundary, the number of points and the
+ * components, like `overConstrained()` of a multi-point constraint.
+ */
+export function cartesianOverlaps(
+  constraint: string,
+  symbols: readonly BoundarySymbol[],
+): { boundary: string; points: number; components: string[] }[] {
+  const own = symbols.find((s) => s.owner === constraint && s.axes);
+  if (!own?.axes) return [];
+  const directions = own.components.map((k) => own.axes![k]);
+  const key = (a: ArrayLike<number>, p: number) =>
+    `${a[p]} ${a[p + 1]} ${a[p + 2]}`;
+  const held = new Set<string>();
+  for (let p = 0; p < own.points.length; p += 3) held.add(key(own.points, p));
+  const result: { boundary: string; points: number; components: string[] }[] =
+    [];
+  for (const symbol of symbols) {
+    if (symbol.axes) continue;
+    const components = symbol.components
+      .filter((k) => directions.some((d) => Math.abs(d[k]) > TOLERANCE))
+      .map((k) => AXES[k]);
+    if (!components.length) continue;
+    let points = 0;
+    for (let p = 0; p < symbol.points.length; p += 3)
+      if (held.has(key(symbol.points, p))) points++;
+    if (points) result.push({ boundary: symbol.owner, points, components });
+  }
+  return result;
 }

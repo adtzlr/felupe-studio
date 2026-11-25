@@ -2154,6 +2154,1489 @@
     },
     {
       "command": {
+        "command": "parameter.add",
+        "name": "angle",
+        "value": "30",
+        "description": "The inclination of the plane in degrees"
+      },
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "cube",
+        "tool": "Cube",
+        "parameters": {
+          "a": [
+            "0",
+            "0",
+            "0"
+          ],
+          "b": [
+            "1",
+            "1",
+            "1"
+          ],
+          "n": [
+            "4",
+            "4",
+            "4"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "a",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            0
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            1
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            2
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "block",
+        "tool": "rotate",
+        "inputs": [
+          "cube"
+        ],
+        "parameters": {
+          "angle_deg": "angle",
+          "axis": "y"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "angle_deg"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "rubber",
+        "model": "NeoHooke",
+        "parameters": {
+          "mu": "1.0",
+          "bulk": "5.0"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "mu"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "bottom",
+        "select": {
+          "points": [
+            [
+              "0.0",
+              "0.0",
+              "0.0"
+            ],
+            [
+              "0.28867513459481287",
+              "0.0",
+              "-0.16666666666666663"
+            ],
+            [
+              "0.5773502691896257",
+              "0.0",
+              "-0.33333333333333326"
+            ],
+            [
+              "0.8660254037844387",
+              "0.0",
+              "-0.49999999999999994"
+            ],
+            [
+              "0.0",
+              "0.3333333333333333",
+              "0.0"
+            ],
+            [
+              "0.28867513459481287",
+              "0.3333333333333333",
+              "-0.16666666666666663"
+            ],
+            [
+              "0.5773502691896257",
+              "0.3333333333333333",
+              "-0.33333333333333326"
+            ],
+            [
+              "0.8660254037844387",
+              "0.3333333333333333",
+              "-0.49999999999999994"
+            ],
+            [
+              "0.0",
+              "0.6666666666666666",
+              "0.0"
+            ],
+            [
+              "0.28867513459481287",
+              "0.6666666666666666",
+              "-0.16666666666666663"
+            ],
+            [
+              "0.5773502691896257",
+              "0.6666666666666666",
+              "-0.33333333333333326"
+            ],
+            [
+              "0.8660254037844387",
+              "0.6666666666666666",
+              "-0.49999999999999994"
+            ],
+            [
+              "0.0",
+              "1.0",
+              "0.0"
+            ],
+            [
+              "0.28867513459481287",
+              "1.0",
+              "-0.16666666666666663"
+            ],
+            [
+              "0.5773502691896257",
+              "1.0",
+              "-0.33333333333333326"
+            ],
+            [
+              "0.8660254037844387",
+              "1.0",
+              "-0.49999999999999994"
+            ]
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "points",
+            0,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            0,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            0,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            1,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            1,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            1,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            2,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            2,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            2,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            3,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            3,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            3,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            4,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            4,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            4,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            5,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            5,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            5,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            6,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            6,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            6,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            7,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            7,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            7,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            8,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            8,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            8,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            9,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            9,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            9,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            10,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            10,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            10,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            11,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            11,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            11,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            12,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            12,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            12,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            13,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            13,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            13,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            14,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            14,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            14,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            15,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            15,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            15,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "top",
+        "select": {
+          "points": [
+            [
+              "0.49999999999999994",
+              "0.0",
+              "0.8660254037844387"
+            ],
+            [
+              "0.7886751345948129",
+              "0.0",
+              "0.6993587371177721"
+            ],
+            [
+              "1.0773502691896257",
+              "0.0",
+              "0.5326920704511054"
+            ],
+            [
+              "1.3660254037844386",
+              "0.0",
+              "0.36602540378443876"
+            ],
+            [
+              "0.49999999999999994",
+              "0.3333333333333333",
+              "0.8660254037844387"
+            ],
+            [
+              "0.7886751345948129",
+              "0.3333333333333333",
+              "0.6993587371177721"
+            ],
+            [
+              "1.0773502691896257",
+              "0.3333333333333333",
+              "0.5326920704511054"
+            ],
+            [
+              "1.3660254037844386",
+              "0.3333333333333333",
+              "0.36602540378443876"
+            ],
+            [
+              "0.49999999999999994",
+              "0.6666666666666666",
+              "0.8660254037844387"
+            ],
+            [
+              "0.7886751345948129",
+              "0.6666666666666666",
+              "0.6993587371177721"
+            ],
+            [
+              "1.0773502691896257",
+              "0.6666666666666666",
+              "0.5326920704511054"
+            ],
+            [
+              "1.3660254037844386",
+              "0.6666666666666666",
+              "0.36602540378443876"
+            ],
+            [
+              "0.49999999999999994",
+              "1.0",
+              "0.8660254037844387"
+            ],
+            [
+              "0.7886751345948129",
+              "1.0",
+              "0.6993587371177721"
+            ],
+            [
+              "1.0773502691896257",
+              "1.0",
+              "0.5326920704511054"
+            ],
+            [
+              "1.3660254037844386",
+              "1.0",
+              "0.36602540378443876"
+            ]
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "points",
+            0,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            0,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            0,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            1,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            1,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            1,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            2,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            2,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            2,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            3,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            3,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            3,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            4,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            4,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            4,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            5,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            5,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            5,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            6,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            6,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            6,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            7,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            7,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            7,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            8,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            8,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            8,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            9,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            9,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            9,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            10,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            10,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            10,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            11,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            11,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            11,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            12,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            12,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            12,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            13,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            13,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            13,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            14,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            14,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            14,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            15,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            15,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            15,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "plate",
+        "pointset": "top",
+        "constrained": [
+          "x",
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "move",
+        "pointset": "top",
+        "constrained": [
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cartesian.add",
+        "name": "support",
+        "points": "bottom",
+        "e1": [
+          "cos(angle * pi / 180)",
+          "0",
+          "-sin(angle * pi / 180)"
+        ],
+        "e2": [
+          "0",
+          "1",
+          "0"
+        ],
+        "constrained": [
+          "3"
+        ]
+      },
+      "fields": [
+        {
+          "path": [
+            "e1",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "e1",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "e1",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "e2",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "e2",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "e2",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "press",
+        "ramp": {
+          "num": "5",
+          "items": [
+            {
+              "target": "move",
+              "end": "-0.3"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "press"
+        ],
+        "curve": "support",
+        "tol": "1.49e-08"
+      },
+      "fields": [
+        {
+          "path": [
+            "tol"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
         "command": "faceset.add",
         "name": "end",
         "section": "body",
@@ -4501,6 +5984,537 @@
           ],
           "integer": false,
           "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "square",
+        "tool": "Rectangle",
+        "parameters": {
+          "a": [
+            "0",
+            "0"
+          ],
+          "b": [
+            "1",
+            "1"
+          ],
+          "n": [
+            "4",
+            "4"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "a",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            0
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            1
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "plate",
+        "tool": "rotate",
+        "inputs": [
+          "square"
+        ],
+        "parameters": {
+          "angle_deg": "30",
+          "axis": "z"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "angle_deg"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "bottom",
+        "select": {
+          "points": [
+            [
+              "0.0",
+              "0.0",
+              "0.0"
+            ],
+            [
+              "0.28867513459481287",
+              "0.16666666666666663",
+              "0.0"
+            ],
+            [
+              "0.5773502691896257",
+              "0.33333333333333326",
+              "0.0"
+            ],
+            [
+              "0.8660254037844387",
+              "0.49999999999999994",
+              "0.0"
+            ]
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "points",
+            0,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            0,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            0,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            1,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            1,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            1,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            2,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            2,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            2,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            3,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            3,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            3,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "top",
+        "select": {
+          "points": [
+            [
+              "-0.49999999999999994",
+              "0.8660254037844387",
+              "0.0"
+            ],
+            [
+              "-0.21132486540518708",
+              "1.0326920704511053",
+              "0.0"
+            ],
+            [
+              "0.07735026918962579",
+              "1.1993587371177719",
+              "0.0"
+            ],
+            [
+              "0.36602540378443876",
+              "1.3660254037844386",
+              "0.0"
+            ]
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "points",
+            0,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            0,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            0,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            1,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            1,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            1,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            2,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            2,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            2,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            3,
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            3,
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "select",
+            "points",
+            3,
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "fixed",
+        "pointset": "top",
+        "constrained": [
+          "x",
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cartesian.add",
+        "name": "support",
+        "points": "bottom",
+        "e1": [
+          "0.8660254037844387",
+          "0.5",
+          "0"
+        ],
+        "constrained": [
+          "2"
+        ],
+        "multiplier": "10000"
+      },
+      "fields": [
+        {
+          "path": [
+            "e1",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "e1",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "e1",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "multiplier"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "lift",
+        "ramp": {
+          "num": "4",
+          "items": [
+            {
+              "target": "support",
+              "end": "0.2"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "lift"
+        ],
+        "curve": "support",
+        "tol": "1.49e-08"
+      },
+      "fields": [
+        {
+          "path": [
+            "tol"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
         }
       ]
     },

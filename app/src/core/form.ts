@@ -15,13 +15,13 @@ import { numberText, parameterValues } from "./resolve";
 import { schema } from "./schema";
 import {
   type CommandType,
-  KINDS,
   kindsOf,
   nameProblem,
   RAMPED,
   REFERENCES,
   type RefKind,
   references,
+  takes,
 } from "./validate";
 
 /** A command that is being edited; it may be incomplete or hold invalid values. */
@@ -317,8 +317,9 @@ const columnKey = (key: string) =>
 
 /** Kind (or kinds) of objects a reference field points to. */
 function referenceKind(type: CommandType, key: string): RefKind {
+  // the ramped boundaries, loads and pressures, and the Cartesian constraints (#421)
   if (type === "step.add" && columnKey(key) === "ramp.items.target")
-    return RAMPED;
+    return [...RAMPED, "constraint"];
   const reference = REFERENCES[type]?.[key];
   if (!reference) throw new Error(`No reference kind for ${type} ${key}.`);
   return reference[0];
@@ -332,7 +333,7 @@ export function available(context: Context, kind: RefKind): string[] {
   const { commands, editing } = context;
   const kinds = kindsOf(kind);
   return commands
-    .filter((c) => kinds.includes(KINDS[c.command]) && c.name !== editing)
+    .filter((c) => takes(kinds, c.command) && c.name !== editing)
     .map((c) => c.name);
 }
 

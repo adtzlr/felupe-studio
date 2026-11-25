@@ -125,6 +125,29 @@ const planarConstraint: PlanarRule<"mpc.add"> = (cmd, analysis) => {
     : [];
 };
 
+/**
+ * The directions of a Cartesian constraint are in the xy-plane: e1 without a z
+ * component, and e2 is e1 turned by 90° about z (#421).
+ */
+const planarCartesian: PlanarRule<"cartesian.add"> = (cmd) => {
+  if (cmd.e1[2] !== 0)
+    return problem(
+      `Cartesian constraint '${cmd.name}' has e1 with a z component: the directions of a 2D model are in the xy-plane.`,
+      "e1",
+    );
+  if (cmd.e2 !== undefined)
+    return problem(
+      `Cartesian constraint '${cmd.name}' has e2: in a 2D model, e2 is e1 turned by 90° about z.`,
+      "e2",
+    );
+  return cmd.constrained.includes("3")
+    ? problem(
+        `Cartesian constraint '${cmd.name}' constrains direction 3, which a 2D model does not have.`,
+        "constrained",
+      )
+    : [];
+};
+
 const planarSymmetry: PlanarRule<"symmetry.add"> = (cmd) =>
   cmd.axes.includes("z")
     ? problem(
@@ -186,6 +209,7 @@ export const PLANAR: { [K in Command["command"]]?: PlanarRule<K> } = {
   "point.add": planarPoint,
   "rigid.add": planarRigid,
   "mpc.add": planarConstraint,
+  "cartesian.add": planarCartesian,
   "symmetry.add": planarSymmetry,
   "loadcase.add": planarLoadcase,
   "faceset.add": planarFaceset,

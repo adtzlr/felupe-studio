@@ -2,8 +2,10 @@
 // components of every boundary of the script, with its final prescribed value, and
 // the lines that draw them. The boundaries of the load cases follow `fem.dof`
 // (`symmetry`, `uniaxial`, `biaxial`, `shear`) on the nodes of the drawn meshes; a
-// test compares them with FElupe (`boundaries.fixture.json`).
+// test compares them with FElupe (`boundaries.fixture.json`). A Cartesian constraint
+// (#421) is drawn like a boundary along the directions of its coordinate system.
 import { analysisOf, is2d } from "../core/analysis";
+import { DIRECTIONS, directions3d } from "../core/cartesian";
 import type { Command } from "../core/resolved";
 import { LOADCASE_DEFAULTS } from "../core/loadcases";
 import { type Symmetry, symmetryPlanes } from "../core/symmetry";
@@ -29,6 +31,11 @@ export interface BoundarySymbol {
    * it (else static), in the order of `components` (#225).
    */
   values: number[];
+  /**
+   * The directions of the components 0, 1 and 2 of a Cartesian constraint (#421):
+   * its base vectors e1, e2 and e3; the axes x, y and z without them.
+   */
+  axes?: number[][];
 }
 
 /**
@@ -241,14 +248,14 @@ function rampedValues(
   return values;
 }
 
-/** The boundaries of the script with their points on the nodes of the meshes. */
-export function boundarySymbols(
+/**
+ * The points of the point sets; a control point is a point set of one point (#94),
+ * and so is the reference point of a rigid surface (#219).
+ */
+function pointsOfSets(
   commands: readonly Command[],
   nodes: readonly Float64Array[],
-): BoundarySymbol[] {
-  if (!nodes.length) return [];
-  // the points of the point sets; a control point is a point set of one point (#94),
-  // and so is the reference point of a rigid surface (#219)
+): Map<string, Float64Array> {
   const points = new Map<string, Float64Array>();
   for (const c of commands) {
     if (c.command === "pointset.add")
@@ -256,6 +263,45 @@ export function boundarySymbols(
     else if (c.command === "point.add" || c.command === "rigid.add")
       points.set(c.name, Float64Array.from(c.coordinates));
   }
+  return points;
+}
+
+/**
+ * The symbol of a Cartesian constraint (#421): its constrained directions along the
+ * base vectors of its coordinate system, with their final values.
+ */
+function cartesianSymbol(
+  c: Extract<Command, { command: "cartesian.add" }>,
+  commands: readonly Command[],
+  points: ReadonlyMap<string, Float64Array>,
+  ramped: ReadonlyMap<string, number | readonly number[]>,
+): BoundarySymbol[] {
+  const at = points.get(c.points);
+  const axes = directions3d(c, analysisOf(commands));
+  if (!at || !axes) return [];
+  const components = DIRECTIONS.flatMap((d, k) =>
+    (c.constrained as readonly string[]).includes(d) ? [k] : [],
+  );
+  const value = ramped.get(c.name) ?? c.value ?? 0;
+  return [
+    {
+      owner: c.name,
+      name: c.name,
+      points: at,
+      components,
+      values: expand(value, components.length),
+      axes,
+    },
+  ];
+}
+
+/** The boundaries of the script with their points on the nodes of the meshes. */
+export function boundarySymbols(
+  commands: readonly Command[],
+  nodes: readonly Float64Array[],
+): BoundarySymbol[] {
+  if (!nodes.length) return [];
+  const points = pointsOfSets(commands, nodes);
   const ramped = rampedValues(commands);
   const symbols: BoundarySymbol[] = [];
   for (const c of commands) {
@@ -270,6 +316,8 @@ export function boundarySymbols(
         components,
         values: expand(ramped.get(c.name) ?? c.value ?? 0, components.length),
       });
+    } else if (c.command === "cartesian.add") {
+      symbols.push(...cartesianSymbol(c, commands, points, ramped));
     } else if (c.command === "symmetry.add") {
       // fem.dof.symmetry: the normal component on every plane (#186)
       for (const { axis, value } of symmetryPlanes(c)) {
@@ -360,9 +408,13 @@ export function thinned(points: Float64Array, limit = 300): Float64Array {
   return result;
 }
 
+/** The direction of a component of a symbol: an axis, or a base vector (#421). */
+const axisOf = (symbol: BoundarySymbol, component: number): number[] =>
+  symbol.axes?.[component] ?? [0, 1, 2].map((k) => (k === component ? 1 : 0));
+
 /**
  * The line segments of the fixed components of a symbol: a short stroke through
- * every point along every constrained axis.
+ * every point along every constrained axis (or direction of a Cartesian constraint).
  */
 export function strokes(
   symbol: BoundarySymbol,
@@ -370,10 +422,11 @@ export function strokes(
   length: number,
 ): Float32Array {
   const points = thinned(symbol.points);
+  const axis = axisOf(symbol, component);
   const segments = new Float32Array(2 * points.length);
   for (let p = 0; p < points.length; p += 3) {
     for (let k = 0; k < 3; k++) {
-      const offset = k === component ? length / 2 : 0;
+      const offset = (axis[k] * length) / 2;
       segments[2 * p + k] = points[p + k] - offset;
       segments[2 * p + 3 + k] = points[p + k] + offset;
     }
@@ -384,8 +437,9 @@ export function strokes(
 /** The direction of a moved boundary: the vector of the values of its components. */
 export function direction(symbol: BoundarySymbol): [number, number, number] {
   const d: [number, number, number] = [0, 0, 0];
-  symbol.components.forEach((k, i) => {
-    d[k] = symbol.values[i] ?? 0;
+  symbol.components.forEach((component, i) => {
+    const axis = axisOf(symbol, component);
+    for (let k = 0; k < 3; k++) d[k] += (symbol.values[i] ?? 0) * axis[k];
   });
   const length = Math.hypot(...d) || 1;
   return d.map((x) => x / length) as [number, number, number];

@@ -27,10 +27,15 @@ def test_reference_documents_every_command():
 def test_reference_types_and_kinds():
     text = markdown()
     target = (
-        "| `ramp.items[].target` | name of a boundary, load case, point load or "
-        "pressure |"
+        "| `ramp.items[].target` | name of a boundary, load case, point load, "
+        "pressure or Cartesian constraint |"
     )
     assert target in text
+    # of the constraints, a curve takes the Cartesian ones only (#421)
+    assert (
+        "| `curve` | name of a boundary, load case, point load or Cartesian "
+        "constraint |" in text
+    )
     # a list of unique items, and the steps of a job, which may repeat one (#331)
     assert "| `select.ids` | integers ≥ 0 (at least 1, unique) | yes |" in text
     assert "| `steps` | names of steps (at least 1) | yes |" in text

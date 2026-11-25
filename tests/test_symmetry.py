@@ -148,6 +148,6 @@ def test_symmetry_is_no_boundary_of_a_ramp_or_curve():
     document = model(symmetry)
     document["commands"][-1]["curve"] = "half"
     assert errors(document) == [
-        "commands/8: 'half' in 'curve' of 'job_1' is a symmetry, not a boundary or "
-        "load."
+        "commands/8: 'half' in 'curve' of 'job_1' is a symmetry, not a boundary, load "
+        "or Cartesian constraint."
     ]

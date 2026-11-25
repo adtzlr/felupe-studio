@@ -27,7 +27,7 @@ from felupe_studio.capabilities import capabilities
 from felupe_studio.codegen import TOL
 from felupe_studio.expressions import resolve
 from felupe_studio.materials import material_call
-from felupe_studio.runner import run
+from felupe_studio.runner import frames, run
 
 HERE = Path(__file__).parent
 CASES = sorted(p.name for p in HERE.iterdir() if (p / "commands.json").exists())
@@ -116,13 +116,23 @@ def evaluate(case, tmp_path, monkeypatch, document=None):
     monkeypatch.chdir(tmp_path)
     namespace = runpy.run_path(str(script))
 
+    # the curve of a Cartesian constraint (#421) in its first constrained direction
+    commands = resolve(document)[0]["commands"]
+    local = frames(commands)
+    cartesians = {c["name"]: c for c in commands if c["command"] == "cartesian.add"}
     jobs = {}
     for cmd in document["commands"]:
         if cmd["command"] == "job.add" and "curve" in cmd:
             job = namespace[cmd["name"]]
+            x, y = np.array(job.x), np.array(job.y)
+            axis = 0
+            if cmd["name"] in local:
+                frame = np.array(local[cmd["name"]])
+                x, y = x @ frame.T, y @ frame.T
+                axis = min(int(d) - 1 for d in cartesians[cmd["curve"]]["constrained"])
             jobs[cmd["name"]] = {
-                "displacement": np.array(job.x)[:, 0].tolist(),
-                "force": np.array(job.y)[:, 0].tolist(),
+                "displacement": x[:, axis].tolist(),
+                "force": y[:, axis].tolist(),
             }
     return {"felupe": fem.__version__, "jobs": jobs}
 
@@ -663,7 +673,8 @@ LARGE_ROUNDOFF = {
 }
 # the three-field variation of steel on quadratic tetrahedrons (#420): the residual
 # of float32 stalls at about 2.5 times the estimate of its round-off by FElupe 12.1.1,
-# above the tight tolerance of the case; with the default tolerance of the app, it
+# above the tight tolerance of the case (the estimate of mixed fields misses the
+# isochoric part, adtzlr/felupe#1305); with the default tolerance of the app, it
 # converges (test_three_field_variation_in_single_precision)
 NOT_CONVERGED = {"block_contact_friction", "plasticity_cube_three_field"}
 

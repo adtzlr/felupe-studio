@@ -20,9 +20,12 @@ import {
   emptyPlanes,
   modelSize,
 } from "../viewer/boundaries";
+import { analysisOf, is2d } from "../core/analysis";
 import {
+  cartesianOverlaps,
   constraintLines,
   constraintShapes,
+  frameLines,
   overConstrained,
 } from "../viewer/constraints";
 import {
@@ -252,6 +255,13 @@ export function useOverlays({
     return [
       ...rigid.lines,
       ...boundaryLines(symbols, options),
+      // the coordinate system of the selected Cartesian constraint (#421)
+      ...frameLines(
+        symbols,
+        selected,
+        size,
+        is2d(analysisOf(commands)) ? 2 : 3,
+      ),
       ...constraintLines(shapes, { hidden, selected, colors, faded }),
       // the point loads: arrows in the direction of the force (#100)
       ...loadLines(commands, nodes, options),
@@ -348,12 +358,14 @@ function useWarnings({
     const of = sections.get(set.section);
     return of ? missingCenters(set.select, of) : [];
   }, [commands, selected, sections]);
-  // the points of the selected constraint that a boundary prescribes as well
+  // the points of the selected constraint that a boundary prescribes as well, of a
+  // Cartesian constraint in a component not normal to its directions (#421)
   const overlaps = useMemo(() => {
     const constraint = commands.find(
       (c): c is MpcAdd => c.name === selected && c.command === "mpc.add",
     );
-    if (!constraint) return [];
+    if (!constraint)
+      return selected ? cartesianOverlaps(selected, symbols) : [];
     const shape = shapes.find((s) => s.name === constraint.name);
     return overConstrained(constraint, shape, symbols);
   }, [commands, selected, shapes, symbols]);
