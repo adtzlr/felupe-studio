@@ -25,6 +25,17 @@ export interface CurveQuantities {
   /** The units of the axes, if the model has units (#132); rotations are in rad. */
   uUnit?: string;
   fUnit?: string;
+  /**
+   * The names of the components: x, y and z, or of a Cartesian constraint the
+   * directions 1, 2 and 3 of its coordinate system (#421).
+   */
+  components: readonly string[];
+  /**
+   * The series of the axes by default, if not the largest displacement: of a
+   * Cartesian constraint its first constrained direction (#421), over the
+   * substeps if it does not move.
+   */
+  preferred?: [Series, Series];
 }
 
 const FORCE = {
@@ -46,9 +57,36 @@ const MOMENT = {
 } as const;
 
 /**
+ * The series of a Cartesian constraint by default (#421): the force over the
+ * displacement of its first constrained direction, over the substeps if neither
+ * its value nor a ramp moves it.
+ */
+function cartesianSeries(
+  commands: readonly Command[],
+  cartesian: Extract<Command, { command: "cartesian.add" }>,
+): [Series, Series] {
+  const first = Math.min(...cartesian.constrained.map((d) => Number(d) - 1));
+  const axis = AXES[first] ?? "x";
+  const nonzero = (v: unknown) =>
+    Array.isArray(v) ? v.some((x) => x !== 0) : v !== 0 && v !== undefined;
+  const moved =
+    nonzero(cartesian.value) ||
+    commands.some(
+      (c) =>
+        c.command === "step.add" &&
+        (c.ramp?.items ?? []).some(
+          (i) =>
+            i.target === cartesian.name && (nonzero(i.end) || nonzero(i.start)),
+        ),
+    );
+  return [moved ? `u${axis}` : "substep", `F${axis}`];
+}
+
+/**
  * What the curve of a job shows: the force over the displacement, or the moment
  * over the rotation for a boundary of a rotation point of a constraint (#98), with
- * the units of the model (#132).
+ * the units of the model (#132); of a Cartesian constraint in the directions 1, 2
+ * and 3 of its coordinate system (#421).
  */
 export function curveQuantities(
   commands: readonly Command[],
@@ -56,24 +94,30 @@ export function curveQuantities(
 ): CurveQuantities {
   const curve = commands.find((c) => c.command === "job.add" && c.name === job);
   const name = curve?.command === "job.add" ? curve.curve : undefined;
-  const boundary = commands.find(
-    (c) => c.command === "boundary.add" && c.name === name,
-  );
+  const target = commands.find((c) => c.name === name);
   const moment =
-    boundary?.command === "boundary.add" &&
-    rotationPoints(commands).has(boundary.pointset);
+    target?.command === "boundary.add" &&
+    rotationPoints(commands).has(target.pointset);
   const units = unitsOf(commands);
-  return moment
+  if (moment)
+    return {
+      ...MOMENT,
+      uUnit: unitOf("rotation", units),
+      fUnit: unitOf("moment", units),
+      components: AXES,
+    };
+  const force = {
+    ...FORCE,
+    uUnit: unitOf("displacement", units),
+    fUnit: unitOf("force", units),
+  };
+  return target?.command === "cartesian.add"
     ? {
-        ...MOMENT,
-        uUnit: unitOf("rotation", units),
-        fUnit: unitOf("moment", units),
+        ...force,
+        components: ["1", "2", "3"],
+        preferred: cartesianSeries(commands, target),
       }
-    : {
-        ...FORCE,
-        uUnit: unitOf("displacement", units),
-        fUnit: unitOf("force", units),
-      };
+    : { ...force, components: AXES };
 }
 
 /** The curve of a job, if it has one. */
@@ -125,7 +169,8 @@ export function seriesLabel(series: Series, q: CurveQuantities): SeriesLabel {
   if (series === "substep") {
     return { quantity: "Substep", symbol: "", component: "" };
   }
-  const component = series[1];
+  const component =
+    q.components[AXES.indexOf(series[1] as (typeof AXES)[number])];
   return series[0] === "u"
     ? { quantity: q.x, symbol: q.u, component, unit: q.uUnit }
     : { quantity: q.y, symbol: q.f, component, unit: q.fUnit };
@@ -153,9 +198,14 @@ export function seriesValue(
 
 /**
  * The quantities of the axes by default: the force over the displacement of the
- * component with the largest displacement of the last substep.
+ * component with the largest displacement of the last substep, or the preferred
+ * ones of the curve, e.g. of a Cartesian constraint (#421).
  */
-export function defaultSeries(result: JobResult): [Series, Series] {
+export function defaultSeries(
+  result: JobResult,
+  q?: Pick<CurveQuantities, "preferred">,
+): [Series, Series] {
+  if (q?.preferred) return q.preferred;
   const axis = AXES[largestAxis(result)] ?? "x";
   return [`u${axis}`, `F${axis}`];
 }
@@ -443,8 +493,9 @@ export function curveCsv(run: Finished, job: string): string {
   const result = run.results[job];
   const q = curveQuantities(run.commands, job);
   const [u, f] = q.moment ? ["phi", "M"] : ["u", "F"];
-  // two components in a 2D model (#175)
-  const axes = AXES.slice(0, result?.x?.[0]?.length ?? 3);
+  // two components in a 2D model (#175), of a Cartesian constraint its directions
+  // (#421)
+  const axes = q.components.slice(0, result?.x?.[0]?.length ?? 3);
   const header = [
     "substep",
     "step",

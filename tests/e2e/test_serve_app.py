@@ -1107,3 +1107,55 @@ def test_the_results_of_a_file_without_their_model(url, page):
         found += tip.inner_text().splitlines() if tip.count() else []
     assert any(line.endswith("of plate") for line in found), found
     assert page.errors == []
+
+
+def test_a_cartesian_constraint_ramped_and_recorded(url, page):
+    """A Cartesian constraint (#421) at the end of a bar, ramped along its first
+    direction and recorded by the job: the ribbon has its button, the browser and the
+    script show it, and the job panel shows the displacement in direction 1."""
+    page.goto(url)
+    page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
+    page.get_by_role("tab", name="Loads & BCs").click()
+    page.get_by_role("button", name="Cartesian constraint").wait_for()
+
+    def command(text):
+        name = text.split('"name": "')[1].split('"')[0]
+        line = page.get_by_label("Command", exact=True)
+        line.fill(text)
+        line.press("Enter")
+        page.get_by_text(f"Created {name}.").first.wait_for(timeout=60_000)
+
+    for text in [
+        'mesh.generate {"name": "bar", "tool": "Cube", '
+        '"parameters": {"a": [0, 0, 0], "b": [3, 1, 1], "n": [4, 2, 2]}}',
+        'cellset.from_file {"name": "cells", "mesh": "bar"}',
+        'material.add {"name": "rubber", "model": "NeoHooke", '
+        '"parameters": {"mu": 1, "bulk": 5}}',
+        'section.add {"name": "solid", "cellset": "cells", "material": "rubber", '
+        '"formulation": "u"}',
+        'pointset.add {"name": "start", "select": {"axis": "x", "value": 0}}',
+        'pointset.add {"name": "end", "select": {"axis": "x", "value": 3}}',
+        'boundary.add {"name": "fixed", "pointset": "start", '
+        '"constrained": ["x", "y", "z"]}',
+        'cartesian.add {"name": "slide", "points": "end", "e1": [1, 0, 0], '
+        '"e2": [0, 1, 0], "constrained": ["1"], "multiplier": 100000}',
+        'step.add {"name": "tension", "ramp": {"num": 3, '
+        '"items": [{"target": "slide", "end": 0.3}]}}',
+        'job.add {"name": "job", "steps": ["tension"], "curve": "slide"}',
+    ]:
+        command(text)
+
+    tree = page.get_by_role("navigation", name="Model browser")
+    tree.get_by_text("slide", exact=True).click()
+    tree.get_by_text("end · 1 of e1 (1, 0, 0) e2 (0, 1, 0)").wait_for()
+    page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)
+
+    page.get_by_role("tab", name="Script", exact=True).click()
+    page.get_by_text("slide = fem.CartesianConstraint(").wait_for(timeout=60_000)
+
+    page.get_by_role("button", name="Solve").click()
+    results = page.get_by_role("button", name="Show results")
+    results.wait_for(timeout=120_000)
+    summary = page.get_by_text("substeps in").first.inner_text()
+    assert "4 substeps" in summary and "Last substep: u1 = 0.3" in summary
+    assert page.errors == []

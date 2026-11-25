@@ -86,6 +86,23 @@ const at = (coordinates: readonly unknown[], length: string | undefined) =>
 const components = (constrained: readonly string[]) =>
   AXES.filter((a) => constrained.includes(a)).join(", ");
 
+/**
+ * The detail of a Cartesian constraint (#421): its points, its constrained
+ * directions with e1 (in 3D also e2) and its displacement if not zero, e.g.
+ * `bottom · 3 of e1 (0.87, 0, -0.5) · u = -0.1 mm`.
+ */
+const cartesianDetail: Detail<"cartesian.add"> = (cmd, { units }) => {
+  const value = cmd.value ?? 0;
+  const zero = Array.isArray(value) ? !value.some((v) => v !== 0) : value === 0;
+  const unit = unitOf("displacement", units);
+  const frame = `e1 (${cmd.e1.join(", ")})${cmd.e2 ? ` e2 (${cmd.e2.join(", ")})` : ""}`;
+  return joined(
+    cmd.points,
+    `${[...cmd.constrained].sort().join(", ")} of ${frame}`,
+    !zero && `u = ${valueWithUnit(valueText(value), unit)}`,
+  );
+};
+
 /** One value, or one value per constrained component of a boundary (#225). */
 const valueText = (v: unknown) =>
   Array.isArray(v) ? `(${v.join(", ")})` : String(v);
@@ -239,6 +256,7 @@ const DETAILS: { [C in Command["command"]]: Detail<C> } = {
       cmd.constrained.length < 3 && components(cmd.constrained),
       cmd.rotation && `rotation ${cmd.rotation}`,
     ),
+  "cartesian.add": cartesianDetail,
   "boundary.add": boundaryDetail,
   "loadcase.add": (cmd) => describeLoadcase(cmd),
   "symmetry.add": (cmd, { length }) => describeSymmetry(cmd, length),

@@ -121,6 +121,8 @@ export function rampedQuantity(
   const cmd = commands.find((c) => c.name === target);
   if (cmd?.command === "boundary.add")
     return boundaryQuantity(commands, cmd.pointset);
-  if (cmd?.command === "loadcase.add") return "displacement";
+  // a load case, or a Cartesian constraint (#421): their displacements
+  if (cmd?.command === "loadcase.add" || cmd?.command === "cartesian.add")
+    return "displacement";
   return undefined;
 }

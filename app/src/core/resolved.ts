@@ -25,6 +25,7 @@ export type Command =
   | LoadcaseAdd
   | SymmetryAdd
   | MpcAdd
+  | CartesianAdd
   | ContactAdd
   | LoadAdd
   | PressureAdd
@@ -163,6 +164,27 @@ export type LoadcaseAdd =
  * @maxItems 3
  */
 export type Coordinates6 = [number, number, number];
+/**
+ * The coordinates x, y and z of a point.
+ *
+ * @minItems 3
+ * @maxItems 3
+ */
+export type Coordinates7 = [number, number, number];
+/**
+ * A direction of a rotated coordinate system: 1, 2 or 3 of its base vectors e1, e2 and e3.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "Direction".
+ */
+export type Direction = "1" | "2" | "3";
+/**
+ * The coordinates x, y and z of a point.
+ *
+ * @minItems 3
+ * @maxItems 3
+ */
+export type Coordinates8 = [number, number, number];
 
 /**
  * A list of FElupe Studio commands. Objects are created by commands and referenced by their names.
@@ -1623,6 +1645,39 @@ export interface MpcAdd {
   rotation?: string;
 }
 /**
+ * A Cartesian constraint (fem.CartesianConstraint, #421): the points of a point set held or moved in the directions of a rotated coordinate system by a penalty, the other directions free, e.g. points that slide on an inclined plane. The coordinate system is fixed in space: e1, e2 and e3 = e1 × e2, normalized by the script. An item of the steps; a ramp of a step moves the points like a boundary, and it may be the curve of a job.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "CartesianAdd".
+ */
+export interface CartesianAdd {
+  command: "cartesian.add";
+  name: Name;
+  /**
+   * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
+   */
+  points: string;
+  e1: Coordinates6;
+  e2?: Coordinates7;
+  /**
+   * The constrained directions of e1, e2 and e3 (skip the others).
+   *
+   * @minItems 1
+   */
+  constrained: [Direction, ...Direction[]];
+  /**
+   * Prescribed displacement in the constrained directions (default 0): one number for all of them, or one number per constrained direction in the order 1, 2, 3.
+   *
+   * @minItems 1
+   * @maxItems 3
+   */
+  value?: number | [number] | [number, number] | [number, number, number];
+  /**
+   * The penalty per point and direction (default 1000).
+   */
+  multiplier?: number;
+}
+/**
  * A contact of points with a rigid surface (#220): fem.ContactRigidPlane or fem.ContactRigidCylinder, an item of the steps like the constraints. The penalty of the contact is a factor of the mean stiffness of the solid bodies at the points.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
@@ -1665,7 +1720,7 @@ export interface LoadAdd {
    * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
    */
   points: string;
-  force: Coordinates6;
+  force: Coordinates8;
 }
 /**
  * A pressure on the faces of a face set (fem.SolidBodyPressure), an item of the steps: a force per deformed area, normal to the faces. A positive pressure pushes onto the faces, a negative one pulls. A ramp of a step scales the pressure.
@@ -1701,7 +1756,7 @@ export interface StepAdd {
    */
   sections?: [Name, ...Name[]];
   /**
-   * Multi-point constraints that are items of the step (default: all).
+   * Multi-point constraints, Cartesian constraints and contacts that are items of the step (default: all).
    *
    * @minItems 1
    */
@@ -1739,7 +1794,7 @@ export interface StepAdd {
   };
 }
 /**
- * A ramped item: a boundary (its value, e.g. a displacement, or one value per constrained component), a load case (the displacement of its moving faces), a point load (a factor of its force) or a pressure (a factor of its pressure).
+ * A ramped item: a boundary (its value, e.g. a displacement, or one value per constrained component), a load case (the displacement of its moving faces), a Cartesian constraint (its displacement, or one per constrained direction), a point load (a factor of its force) or a pressure (a factor of its pressure).
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "RampItem".
@@ -1750,14 +1805,14 @@ export interface RampItem {
    */
   target: string;
   /**
-   * Value at the start of the step (default 0); of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z.
+   * Value at the start of the step (default 0); of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z (of a Cartesian constraint per direction in the order 1, 2, 3).
    *
    * @minItems 1
    * @maxItems 3
    */
   start?: number | [number] | [number, number] | [number, number, number];
   /**
-   * Value at the end of the step; of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z.
+   * Value at the end of the step; of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z (of a Cartesian constraint per direction in the order 1, 2, 3).
    *
    * @minItems 1
    * @maxItems 3
@@ -1765,7 +1820,7 @@ export interface RampItem {
   end: number | [number] | [number, number] | [number, number, number];
 }
 /**
- * A job evaluating steps one after another (fem.Job). With a curve, the force-displacement curve of a boundary, a load case or a point load is recorded (fem.CharacteristicCurve).
+ * A job evaluating steps one after another (fem.Job). With a curve, the force-displacement curve of a boundary, a load case, a Cartesian constraint or a point load is recorded (fem.CharacteristicCurve).
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "JobAdd".

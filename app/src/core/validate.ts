@@ -18,6 +18,7 @@ export {
   REFERENCES,
   type RefKind,
   SINGLE,
+  takes,
 } from "./kinds";
 export { type Issue, nameProblem } from "./rules";
 

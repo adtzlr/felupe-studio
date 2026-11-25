@@ -407,6 +407,34 @@ describe("editing in the properties panel", () => {
     );
   });
 
+  it("edits a Cartesian constraint and checks its base vectors (#421)", () => {
+    const document = structuredClone(fixture) as CommandList;
+    document.commands.splice(11, 0, {
+      command: "cartesian.add",
+      name: "slide",
+      points: "right",
+      e1: [0, 0, 1],
+      constrained: ["1"],
+    } as Command);
+    const slide = edit("slide", document);
+    // the directions with their base vectors
+    for (const label of ["1 (e1)", "2 (e2)", "3 (e3)"])
+      expect(slide.field(label)).toBeTruthy();
+    fireEvent.click(slide.field("2 (e2)"));
+    slide.type("Displacement", "0.1, 0");
+    fireEvent.click(slide.button("Apply"));
+    expect(slide.store.get("slide")).toMatchObject({
+      constrained: ["1", "2"],
+      value: [0.1, 0],
+    });
+    // e2 (0, 1, 0 by default) is not orthogonal to e1 = (0, 1, 1)
+    slide.type("e1", "0, 1, 1");
+    fireEvent.click(slide.button("Apply"));
+    expect(slide.properties.textContent).toContain(
+      "Cartesian constraint 'slide' has e1 and e2 that are not orthogonal.",
+    );
+  });
+
   it("edits checkbox groups, optional groups and variants", () => {
     const boundary = edit("fixed");
     fireEvent.click(boundary.field("y"));

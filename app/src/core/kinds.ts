@@ -55,6 +55,9 @@ export const KINDS: Record<CommandType, Kind> = {
   // symmetry planes (#186): boundaries of all steps, neither ramped nor a curve
   "symmetry.add": "symmetry",
   "mpc.add": "constraint",
+  // a Cartesian constraint (#421): an item of the steps like a multi-point
+  // constraint, also ramped by the steps and the curve of a job
+  "cartesian.add": "constraint",
   // a contact with a rigid surface (#220): an item of the steps like a constraint
   "contact.add": "constraint",
   "load.add": "load",
@@ -75,6 +78,35 @@ export const VERTICES: Record<Vertex, string> = {
 
 /** Kinds of objects that a step can ramp (a load case is a boundary). */
 export const RAMPED: readonly Kind[] = ["boundary", "load", "pressure"];
+
+/**
+ * The constraints that a step can ramp and that can be the curve of a job (#421).
+ */
+export const MOVED: readonly CommandType[] = ["cartesian.add"];
+
+/**
+ * Whether a reference to objects of these kinds takes the object of a command: of
+ * the constraints together with the boundaries (the ramp of a step and the curve of
+ * a job) only those that a step moves (#421).
+ */
+export function takes(kinds: readonly Kind[], command: CommandType): boolean {
+  const kind = KINDS[command];
+  if (!kinds.includes(kind)) return false;
+  return (
+    kind !== "constraint" ||
+    !kinds.includes("boundary") ||
+    MOVED.includes(command)
+  );
+}
+
+/**
+ * The names of the kinds of references in the messages, if not the kinds
+ * themselves: the curve of a job is a constraint only of a Cartesian constraint
+ * (#421).
+ */
+export const REFERENCE_NAMES: Record<string, string> = {
+  "job.add curve": "boundary, load or Cartesian constraint",
+};
 
 /** The name of a kind in the messages (#219). */
 export const kindName = (kind: Kind) =>
@@ -110,6 +142,7 @@ export const REFERENCES: Partial<
     center: ["pointset", false],
     rotation: ["pointset", false],
   },
+  "cartesian.add": { points: ["pointset", false] },
   "load.add": { points: [["pointset", "rigid"], false] },
   "contact.add": {
     points: [["pointset", "faceset"], false],
@@ -123,8 +156,12 @@ export const REFERENCES: Partial<
     // the boundaries, load cases and symmetry planes of a step (#393)
     boundaries: [["boundary", "symmetry"], true],
   },
-  // the curve of a job: a boundary (force-displacement) or a point load
-  "job.add": { steps: ["step", true], curve: [["boundary", "load"], false] },
+  // the curve of a job: a boundary (force-displacement), a point load or a
+  // Cartesian constraint (#421, checked by a rule)
+  "job.add": {
+    steps: ["step", true],
+    curve: [["boundary", "load", "constraint"], false],
+  },
 };
 
 /** The value of a field of a command, or of a path of fields joined by dots. */

@@ -107,7 +107,10 @@ describe("fieldSpecs", () => {
     const curve = fieldSpecs("job.add", find("job_1")).find(
       (s) => s.key === "curve",
     )!;
-    expect(curve.input).toMatchObject({ kind: ["boundary", "load"] });
+    // a curve of a Cartesian constraint (#421), not of another constraint
+    expect(curve.input).toMatchObject({
+      kind: ["boundary", "load", "constraint"],
+    });
     expect(summary("point.add", {} as Draft)).toEqual([
       "name:name*",
       "coordinates:numbers*",
@@ -420,7 +423,7 @@ describe("fieldSpecs", () => {
     ]);
     expect(columns[0]).toMatchObject({ unique: true, label: "Item" });
     expect(columns[0].input).toMatchObject({
-      kind: ["boundary", "load", "pressure"],
+      kind: ["boundary", "load", "pressure", "constraint"],
     });
   });
 
@@ -747,6 +750,35 @@ describe("drafts", () => {
       { commands: [] },
     );
     expect(none.steps).toBe("Create a step first.");
+  });
+
+  it("offers the Cartesian constraints to ramps and curves, not other constraints (#421)", () => {
+    const constraints = [
+      ...commands,
+      {
+        command: "mpc.add",
+        name: "glue",
+        points: "right",
+        center: "left",
+        constrained: ["x"],
+      },
+      {
+        command: "cartesian.add",
+        name: "slide",
+        points: "right",
+        e1: [0, 0, 1],
+        constrained: ["1"],
+      },
+    ] as Command[];
+    const context = { commands: constraints };
+    // the curve of a job and the ramp of a step: a Cartesian constraint
+    expect(available(context, ["boundary", "load", "constraint"])).toEqual([
+      "fixed",
+      "move",
+      "slide",
+    ]);
+    // the constraints of a step: all of them
+    expect(available(context, "constraint")).toEqual(["glue", "slide"]);
   });
 
   it("lets the steps of a job repeat one, in order (#331)", () => {

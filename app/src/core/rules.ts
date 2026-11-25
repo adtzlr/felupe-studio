@@ -23,13 +23,16 @@ import {
   type Kind,
   kindName,
   kindsOf,
+  MOVED,
   RAMPED,
+  REFERENCE_NAMES,
   REFERENCES,
   SINGLE,
   valueAt,
   type Vertex,
   VERTICES,
 } from "./kinds";
+import { DIRECTIONS, norm, orthogonal, vectors } from "./cartesian";
 import { loadcaseFieldErrors, loadcaseProblems } from "./loadcases";
 import {
   first,
@@ -197,7 +200,9 @@ const references: Rule = (model, cmd) => {
     const value = valueAt(cmd, field);
     if (value === undefined) continue;
     const kinds = kindsOf(refKind);
-    const text = kinds.map(kindName).join(" or ");
+    const text =
+      REFERENCE_NAMES[`${cmd.command} ${field}`] ??
+      kinds.map(kindName).join(" or ");
     // a name once, also one that a list repeats, e.g. a step of a job (#331)
     for (const ref of isList ? new Set(value as string[]) : [value as string]) {
       const other = model.kindOf(ref);
@@ -245,18 +250,42 @@ const duplicateName: Rule = (model, cmd) => {
     : [];
 };
 
-/** The ramped items of a step are boundaries, load cases, loads or pressures. */
+/** The names of the commands of the kind constraint in the messages. */
+const CONSTRAINTS: Partial<Record<CommandType, string>> = {
+  "mpc.add": "multi-point constraint",
+  "cartesian.add": "Cartesian constraint",
+  "contact.add": "contact",
+};
+
+/**
+ * Whether an object is a boundary, a load or a pressure, or a constraint that a
+ * step ramps and that is the curve of a job (#421).
+ */
+function moved(model: Model, name: string): boolean {
+  const command = model.before(name);
+  return (
+    command !== undefined &&
+    (RAMPED.includes(KINDS[command.command]) || MOVED.includes(command.command))
+  );
+}
+
+/**
+ * The ramped items of a step are boundaries, load cases, Cartesian constraints,
+ * loads or pressures.
+ */
 const rampTargets: Rule<CommandOf<"step.add">> = (model, cmd) =>
   (cmd.ramp?.items ?? []).flatMap((item) => {
-    const kind = model.kindOf(item.target);
-    return kind !== undefined && RAMPED.includes(kind)
-      ? []
-      : [
-          {
-            message: `step '${cmd.name}' ramps unknown boundary or load '${item.target}'.`,
-            field: "ramp.items",
-          },
-        ];
+    if (moved(model, item.target)) return [];
+    const target = model.before(item.target);
+    const constraint = target && CONSTRAINTS[target.command];
+    return [
+      {
+        message: constraint
+          ? `step '${cmd.name}' ramps the ${constraint} '${item.target}': a step ramps a boundary, a load case, a Cartesian constraint, a point load or a pressure.`
+          : `step '${cmd.name}' ramps unknown boundary or load '${item.target}'.`,
+        field: "ramp.items",
+      },
+    ];
   });
 
 /** An item is ramped once by a step. */
@@ -269,7 +298,19 @@ const rampTwice: Rule<CommandOf<"step.add">> = (_, cmd) => {
   }));
 };
 
-/** The ramp of a boundary with one value per constrained component (#225). */
+/**
+ * The commands that ramp one value per constrained component or direction, with
+ * their names in the messages (#225, #421).
+ */
+const PER_COMPONENT: Partial<Record<CommandType, [string, string]>> = {
+  "boundary.add": ["boundary", "component"],
+  "cartesian.add": ["Cartesian constraint", "direction"],
+};
+
+/**
+ * The ramp of a boundary with one value per constrained component (#225), or of a
+ * Cartesian constraint with one value per constrained direction (#421).
+ */
 const rampValues: Rule<CommandOf<"step.add">> = (model, cmd) => {
   const problems: Problem[] = [];
   for (const item of cmd.ramp?.items ?? []) {
@@ -278,13 +319,18 @@ const rampValues: Rule<CommandOf<"step.add">> = (model, cmd) => {
     ) as number[][];
     const target = model.before(item.target);
     if (!values.length || !target) continue;
-    if (target.command !== "boundary.add") {
+    const names = PER_COMPONENT[target.command];
+    if (
+      !names ||
+      (target.command !== "boundary.add" && target.command !== "cartesian.add")
+    ) {
       problems.push({
-        message: `step '${cmd.name}' ramps '${item.target}' with ${countOf(values[0].length, "value")}: only a boundary ramps one value per constrained component.`,
+        message: `step '${cmd.name}' ramps '${item.target}' with ${countOf(values[0].length, "value")}: only a boundary or a Cartesian constraint ramps one value per constrained component.`,
         field: "ramp.items",
       });
       continue;
     }
+    const [kind, word] = names;
     const constrained = target.constrained.length;
     const counts = [
       ...new Set(
@@ -293,7 +339,7 @@ const rampValues: Rule<CommandOf<"step.add">> = (model, cmd) => {
     ].sort((a, b) => a - b);
     for (const count of counts) {
       problems.push({
-        message: `step '${cmd.name}' ramps '${item.target}' with ${countOf(count, "value")}, but the boundary constrains ${countOf(constrained, "component")}.`,
+        message: `step '${cmd.name}' ramps '${item.target}' with ${countOf(count, "value")}, but the ${kind} constrains ${countOf(constrained, word)}.`,
         field: "ramp.items",
       });
     }
@@ -301,20 +347,43 @@ const rampValues: Rule<CommandOf<"step.add">> = (model, cmd) => {
   return problems;
 };
 
-/** A step ramps no boundary or load case that is off in it (#393). */
-const rampOff: Rule<CommandOf<"step.add">> = (model, cmd) => {
-  const boundaries = cmd.boundaries;
-  if (!boundaries) return [];
-  return (cmd.ramp?.items ?? [])
-    .filter(
-      (item) =>
-        model.kindOf(item.target) === "boundary" &&
-        !boundaries.includes(item.target),
-    )
+/** The field of a step that chooses the objects of a kind (#393). */
+const CHOSEN: Partial<Record<Kind, "boundaries" | "constraints">> = {
+  boundary: "boundaries",
+  constraint: "constraints",
+};
+
+/**
+ * A step ramps no boundary, load case or Cartesian constraint that is off in it
+ * (#393, #421).
+ */
+const rampOff: Rule<CommandOf<"step.add">> = (model, cmd) =>
+  (cmd.ramp?.items ?? [])
+    .filter((item) => {
+      const kind = model.kindOf(item.target);
+      const field = kind && CHOSEN[kind];
+      const chosen: readonly string[] | undefined = field && cmd[field];
+      return chosen !== undefined && !chosen.includes(item.target);
+    })
     .map((item) => ({
       message: `step '${cmd.name}' ramps '${item.target}', which is off in it.`,
       field: "ramp.items",
     }));
+
+/**
+ * The curve of a job is a boundary, a load case, a point load or a Cartesian
+ * constraint, not another constraint (#421).
+ */
+const curveKind: Rule<CommandOf<"job.add">> = (model, cmd) => {
+  const target = cmd.curve === undefined ? undefined : model.before(cmd.curve);
+  const constraint = target && CONSTRAINTS[target.command];
+  if (!constraint || moved(model, cmd.curve as string)) return [];
+  return [
+    {
+      message: `job '${cmd.name}' records the curve of the ${constraint} '${cmd.curve}': a curve is of a boundary, a load case, a Cartesian constraint or a point load.`,
+      field: "curve",
+    },
+  ];
 };
 
 /** A boundary with a value per constrained component (#225). */
@@ -324,6 +393,45 @@ const boundaryValues: Rule<CommandOf<"boundary.add">> = (_, cmd) => {
   return [
     {
       message: `boundary '${cmd.name}' has ${countOf(cmd.value.length, "value")}, but it constrains ${countOf(constrained, "component")}.`,
+      field: "value",
+    },
+  ];
+};
+
+/**
+ * The base vectors of a Cartesian constraint have a length and are orthogonal
+ * (#421); e2 of a 2D model is e1 turned by 90° (a rule of the analysis).
+ */
+const cartesianVectors: Rule<CommandOf<"cartesian.add">> = (model, cmd) => {
+  const [e1, e2] = vectors(cmd);
+  const zero = (
+    [
+      ["e1", e1],
+      ["e2", e2],
+    ] as const
+  ).filter(([, v]) => norm(v) === 0);
+  if (zero.length)
+    return zero.map(([name]) => ({
+      message: `Cartesian constraint '${cmd.name}' has ${name} of zero length.`,
+      field: name,
+    }));
+  return model.axes.length === 3 && !orthogonal(e1, e2)
+    ? [
+        {
+          message: `Cartesian constraint '${cmd.name}' has e1 and e2 that are not orthogonal.`,
+          field: "e2",
+        },
+      ]
+    : [];
+};
+
+/** A Cartesian constraint with a value per constrained direction (#421). */
+const cartesianValues: Rule<CommandOf<"cartesian.add">> = (_, cmd) => {
+  const constrained = cmd.constrained.length;
+  if (!Array.isArray(cmd.value) || cmd.value.length === constrained) return [];
+  return [
+    {
+      message: `Cartesian constraint '${cmd.name}' has ${countOf(cmd.value.length, "value")}, but it constrains ${countOf(constrained, "direction")}.`,
       field: "value",
     },
   ];
@@ -585,6 +693,11 @@ function fixedComponents(model: Model, vertex: CommandOf<Vertex>): Set<string> {
     } else if (c.command === "mpc.add") {
       if (c.center === vertex.name) c.constrained.forEach((a) => fixed.add(a));
       if (c.rotation === vertex.name) AXES.forEach((a) => fixed.add(a));
+    } else if (c.command === "cartesian.add" && c.points === vertex.name) {
+      // all directions of the model: all components
+      const all = DIRECTIONS.slice(0, model.axes.length);
+      if (all.every((d) => c.constrained.includes(d)))
+        AXES.forEach((a) => fixed.add(a));
     }
   }
   return fixed;
@@ -624,7 +737,9 @@ export const LAST: readonly Rule[] = [single, reservedName, duplicateName];
 /** The rules of a command type, in this order. */
 export const RULES: Rules = {
   "step.add": [rampTargets, rampTwice, rampValues, rampOff],
+  "job.add": [curveKind],
   "boundary.add": [boundaryValues],
+  "cartesian.add": [cartesianVectors, cartesianValues],
   "mesh.generate": [meshTool, meshInputs],
   "cellset.from_tag": [cellsetTag, cellsetModelMesh],
   "cellset.from_file": [cellsetModelMesh],

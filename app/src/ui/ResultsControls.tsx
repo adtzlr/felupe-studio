@@ -346,7 +346,7 @@ function ResultsInfo({ run, view }: Shown) {
   const step = stepOf(run, view.job, view.substep);
   const result = run.results[view.job];
   const q = curveQuantities(run.commands, view.job);
-  const [defaultX, defaultY] = result ? defaultSeries(result) : [];
+  const [defaultX, defaultY] = result ? defaultSeries(result, q) : [];
   const values = seriesValues(
     result,
     view.substep,

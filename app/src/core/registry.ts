@@ -85,6 +85,25 @@ function initialConstraint(
 }
 
 /**
+ * A new Cartesian constraint (#421) takes the latest point set; in a 2D model, it
+ * holds the points normal to e1 (direction 2, e.g. a support on an inclined line
+ * along e1).
+ */
+function initialCartesian(
+  draft: Record<string, unknown>,
+  commands: readonly Command[],
+): Record<string, unknown> {
+  const sets = commands.filter((c) => c.command === "pointset.add");
+  return {
+    ...draft,
+    ...(is2d(analysisOf(commands))
+      ? { e1: [1, 0, 0], constrained: ["2"] }
+      : {}),
+    ...(sets.length ? { points: sets.at(-1)!.name } : {}),
+  };
+}
+
+/**
  * A new contact (#220) takes the latest rigid surface and the latest face set (or
  * point set, without face sets).
  */
@@ -690,6 +709,43 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     },
     options: { constrained: AXES },
     initial: initialConstraint,
+  },
+  // a Cartesian constraint (#421): points held or moved in rotated directions
+  "cartesian.add": {
+    label: "Cartesian constraint",
+    tab: "loads",
+    prefix: "cartesian",
+    noun: "Cartesian constraint",
+    fields: {
+      points: { label: "Points", hint: "The held or moved points" },
+      e1: {
+        label: "e1",
+        hint: "The first direction, e.g. the normal of an inclined plane; any length",
+        default: [0, 0, 1],
+      },
+      e2: {
+        label: "e2",
+        hint: "Orthogonal to e1, and e3 = e1 × e2. None in 2D: e1 turned by 90°",
+        placeholder: "0, 1, 0",
+      },
+      constrained: {
+        label: "Constrained",
+        hint: "Held or moved directions; the others are free, e.g. 1 on a plane normal to e1",
+        default: ["1"],
+      },
+      value: {
+        label: "Displacement",
+        hint: "In the constrained directions, 0 if empty: one value, or one per direction (1, 2, 3); a ramp of a step moves them",
+        placeholder: "0",
+      },
+      multiplier: {
+        label: "Multiplier",
+        hint: "Penalty per point and direction",
+        placeholder: "1000",
+      },
+    },
+    options: { constrained: { "1": "1 (e1)", "2": "2 (e2)", "3": "3 (e3)" } },
+    initial: initialCartesian,
   },
   "contact.add": {
     label: "Contact",

@@ -171,6 +171,62 @@ describe("force-displacement curve", () => {
     ).toMatch(/^substep,step,phi_x \[rad\],.*,M_z \[N mm\]\n/);
   });
 
+  it("shows a Cartesian constraint in its directions 1, 2 and 3 (#421)", () => {
+    const support = {
+      command: "cartesian.add",
+      name: "support",
+      points: "bottom",
+      e1: [0, 0, 1],
+      constrained: ["3", "2"],
+    };
+    const commands = [
+      support,
+      { command: "job.add", name: "job_1", steps: ["load"], curve: "support" },
+    ] as unknown as Command[];
+    const q = curveQuantities(commands, "job_1");
+    expect(q.components).toEqual(["1", "2", "3"]);
+    expect(seriesLabel("Fy", q)).toMatchObject({ symbol: "F", component: "2" });
+    expect(seriesName("uz", q)).toBe("u3");
+    // a support that does not move: its first constrained direction over the
+    // substeps, also in the job panel
+    expect(defaultSeries(result, q)).toEqual(["substep", "Fy"]);
+    // moved by its value or by a ramp: the force over the displacement
+    const moved = (changes: object, ramp?: object) =>
+      curveQuantities(
+        [
+          { ...support, ...changes },
+          ...(ramp
+            ? [
+                {
+                  command: "step.add",
+                  name: "load",
+                  ramp: { num: 1, items: [ramp] },
+                },
+              ]
+            : []),
+          commands[1],
+        ] as unknown as Command[],
+        "job_1",
+      ).preferred;
+    expect(moved({ value: [0, 0.1] })).toEqual(["uy", "Fy"]);
+    expect(moved({}, { target: "support", end: 0.2 })).toEqual(["uy", "Fy"]);
+    expect(moved({}, { target: "other", end: 0.2 })).toEqual(["substep", "Fy"]);
+    // the largest displacement of other curves
+    expect(defaultSeries(result, curveQuantities(commands, "job_2"))).toEqual([
+      "uy",
+      "Fy",
+    ]);
+    const run: Finished = {
+      state: "finished",
+      commands,
+      progress: { ...startProgress(), plan: { job_1: [4] } },
+      results: { job_1: result },
+    };
+    expect(curveCsv(run, "job_1").split("\n")[0]).toBe(
+      "substep,step,u_1,u_2,u_3,F_1,F_2,F_3",
+    );
+  });
+
   it("has the units of the model (#132)", () => {
     const commands = [
       {
