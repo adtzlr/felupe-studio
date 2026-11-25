@@ -165,13 +165,14 @@ def _meshes(commands, directory, dim):
                 dim=dim,
             )
     # the meshes of the model made by tools, also of the meshes of files and scripts
-    # (#438), not the construction meshes (ADR 0019)
-    made = meshtools.generate(commands, values, meshes)
-    for name, dimension in meshtools.dimensions(commands).items():
-        if name in made and meshtools.model_mesh(dimension, dim):
-            meshes[name] = made[name]
-    order = [c["name"] for c in commands if c["name"] in meshes]
-    return {name: meshes[name] for name in order}
+    # (#438), not the construction meshes (ADR 0019), also not those of files and
+    # scripts with 2D cells in a 3D model
+    meshes.update(meshtools.generate(commands, values, meshes))
+    return {
+        name: meshes[name]
+        for name, dimension in meshtools.dimensions(commands).items()
+        if name in meshes and meshtools.model_mesh(dimension, dim)
+    }
 
 
 def _cellsets(commands, meshes):

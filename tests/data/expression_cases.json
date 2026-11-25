@@ -7469,84 +7469,12 @@
     },
     {
       "command": {
-        "command": "mesh.generate",
+        "command": "mesh.import",
         "name": "profile",
-        "tool": "Rectangle",
-        "parameters": {
-          "a": [
-            "0",
-            "1"
-          ],
-          "b": [
-            "3",
-            "2"
-          ],
-          "n": [
-            "7",
-            "3"
-          ]
-        }
+        "file": "profile.vtu",
+        "cell_type": "quad"
       },
-      "fields": [
-        {
-          "path": [
-            "parameters",
-            "a",
-            0
-          ],
-          "integer": false,
-          "bounds": {}
-        },
-        {
-          "path": [
-            "parameters",
-            "a",
-            1
-          ],
-          "integer": false,
-          "bounds": {}
-        },
-        {
-          "path": [
-            "parameters",
-            "b",
-            0
-          ],
-          "integer": false,
-          "bounds": {}
-        },
-        {
-          "path": [
-            "parameters",
-            "b",
-            1
-          ],
-          "integer": false,
-          "bounds": {}
-        },
-        {
-          "path": [
-            "parameters",
-            "n",
-            0
-          ],
-          "integer": true,
-          "bounds": {
-            "minimum": 2
-          }
-        },
-        {
-          "path": [
-            "parameters",
-            "n",
-            1
-          ],
-          "integer": true,
-          "bounds": {
-            "minimum": 2
-          }
-        }
-      ]
+      "fields": []
     },
     {
       "command": {
@@ -7815,6 +7743,87 @@
           "integer": false,
           "bounds": {
             "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "profile",
+        "tool": "Rectangle",
+        "parameters": {
+          "a": [
+            "0",
+            "1"
+          ],
+          "b": [
+            "3",
+            "2"
+          ],
+          "n": [
+            "7",
+            "3"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "a",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            0
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            1
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
           }
         }
       ]

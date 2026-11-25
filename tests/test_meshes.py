@@ -258,6 +258,11 @@ def test_2d_meshes(tmp_path):
     # the 2D cells of a 3D model and the 3D cells of a 2D model
     with pytest.raises(ValueError, match="which are 2D cells: set the analysis"):
         volume_cells(meshio.read(tmp_path / "surface.vtu"))
+    # the 2D cells of a 3D model, given by their cell type, are a construction mesh,
+    # e.g. a profile to revolve (#438)
+    profile = volume_cells(meshio.read(tmp_path / "surface.vtu"), cell_type="quad")
+    assert profile.points.shape == (9, 2) and profile.cell_type == "quad"
+    assert profile.revolve(n=3, phi=90).cell_type == "hexahedron"
     with pytest.raises(ValueError, match="which are 3D cells: a 2D model"):
         volume_cells(meshio.Mesh(cube.points, [("hexahedron", cube.cells)]), dim=2)
 

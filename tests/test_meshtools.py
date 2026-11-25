@@ -2,6 +2,7 @@
 made meshes, their lines in the script and the meshes they make."""
 
 import json
+import shutil
 from pathlib import Path
 
 import felupe as fem
@@ -544,3 +545,33 @@ def test_a_mirrored_half_of_a_file_is_checked_like_a_file(tmp_path):
     assert report["ok"]
     assert report["cells"]["total"] == 2 * 6 * 4 * 4
     assert report["cells"]["unassigned"] == []
+
+
+def test_a_profile_of_a_file_is_a_construction_mesh(tmp_path, monkeypatch):
+    # its 2D cells in a 3D model, given by the cell type, revolved into a body (#438)
+    shutil.copy(GOLDEN / "tube_revolved_profile" / "profile.vtu", tmp_path)
+    document = json.loads(
+        (GOLDEN / "tube_revolved_profile" / "commands.json").read_text()
+    )
+    profile, tube = document["commands"][:2]
+    known = meshtools.dimensions([profile, tube])
+    assert known["profile"] == {"points": 2, "cells": 2, "cell_type": "quad"}
+    assert known["tube"] == {"points": 3, "cells": 3, "cell_type": "hexahedron"}
+    # the checks take the tube, not the profile
+    report = checks.check(document, tmp_path)
+    assert report["ok"], report["messages"]
+    assert report["cells"]["total"] == 6 * 2 * 24
+    # the worker revolves the kept read
+    monkeypatch.chdir(tmp_path)
+    meshes.forget()
+    info = json.loads(meshes.load("profile.vtu")[0])
+    assert info["solids"][0]["bounds"] == [[0, 1, 0], [3, 2, 0]]
+    source = {"name": "profile", "file": "profile.vtu", "cell_type": "quad", "dim": 3}
+    info = json.loads(meshes.generate([tube], "tube", sources=[source])[0])
+    assert info["dimension"] == known["tube"]
+    assert info["solids"][0]["cells"] == 6 * 2 * 24
+    np.testing.assert_allclose(info["solids"][0]["bounds"], [[0, -2, -2], [3, 2, 2]])
+    # without the cell type, the file is a mesh of a 2D model
+    source.pop("cell_type")
+    info = json.loads(meshes.generate([tube], "tube", sources=[source])[0])
+    assert "which are 2D cells" in info["error"]
