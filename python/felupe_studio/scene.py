@@ -76,7 +76,7 @@ def surface(solid, tags=None, cut=None):
 
     Parameters
     ----------
-    solid : types.SimpleNamespace
+    solid : felupe.Mesh
         The points, the cell type and the cells of the solid cells of a mesh, see
         ``volume_cells`` in :mod:`felupe_studio._helpers`.
     tags : dict of ndarray or None, optional

@@ -164,10 +164,11 @@ def _meshes(commands, directory, dim):
                 cell_type=c.get("cell_type"),
                 dim=dim,
             )
-    # the meshes of the model made by tools, not the construction meshes (ADR 0019)
-    made = meshtools.generate(commands, values)
+    # the meshes of the model made by tools, also of the meshes of files and scripts
+    # (#438), not the construction meshes (ADR 0019)
+    made = meshtools.generate(commands, values, meshes)
     for name, dimension in meshtools.dimensions(commands).items():
-        if meshtools.model_mesh(dimension, dim):
+        if name in made and meshtools.model_mesh(dimension, dim):
             meshes[name] = made[name]
     order = [c["name"] for c in commands if c["name"] in meshes]
     return {name: meshes[name] for name in order}
@@ -321,7 +322,16 @@ def check(document, directory="."):
     cellsets = _cellsets(commands, meshes)
     sections = [c for c in commands if c["command"] == "section.add"]
     messages = []
-    cells = _assignment(meshes, cellsets, sections, messages)
+    # a mesh that a tool takes is a step of another mesh (ADR 0019), e.g. an imported
+    # half of a mirrored whole (#438): its cells need a section only with a cell set
+    steps = {
+        name
+        for c in commands
+        if c["command"] == "mesh.generate"
+        for name in c.get("inputs", [])
+    } - {c["mesh"] for c in commands if c["command"].startswith("cellset.")}
+    assigned = {name: mesh for name, mesh in meshes.items() if name not in steps}
+    cells = _assignment(assigned, cellsets, sections, messages)
     interfaces = _interfaces(commands, meshes, cellsets, sections, dim, messages)
     formulations = _formulations(meshes, cellsets, sections, messages)
     ok = (

@@ -94,6 +94,9 @@ PROFILE = [
     made("face_2", "Rectangle", a=[3, 0], b=[6, 1], n=[4, 2]),
     made("profile", "stack", ["face", "face_2"], decimals=10),
 ]
+# a mesh of a file and of a script, inputs of the tools like made meshes (#438)
+PART = {"command": "mesh.import", "name": "part", "file": "part.vtu"}
+SCRIPT_PART = {"command": "mesh.script", "name": "part", "file": "part.py"}
 LINES = [
     made("bottom", "Line", a=0, b=3, n=4),
     made("bottom_2d", "embed", ["bottom"], value=0),
@@ -1194,13 +1197,36 @@ CHANGES = {
         d, "expand", ["face"], [RECTANGLE], n=2, z=1
     ),
     "expand of a cube": lambda d: operation(d, "expand", ["block"], [CUBE], n=2, z=1),
+    # every mesh of the model is an input of the tools (#438)
     "an operation of an imported mesh": lambda d: operation(
+        d, "translate", ["part"], [PART], move=1, axis="x"
+    ),
+    "a stack of an imported half and its mirror": lambda d: operation(
         d,
-        "translate",
-        ["part"],
-        [{"command": "mesh.import", "name": "part", "file": "part.vtu"}],
-        move=1,
-        axis="x",
+        "stack",
+        ["part", "other"],
+        [PART, made("other", "mirror", ["part"], axis="x", value=0)],
+        decimals=10,
+    ),
+    "a mesh of a script moved": lambda d: operation(
+        d, "translate", ["part"], [SCRIPT_PART], move=1, axis="x"
+    ),
+    "a mesh of a script mirrored in a 2D model": lambda d: (
+        operation(d, "mirror", ["part"], [SCRIPT_PART], axis="y", value=0),
+        planar(d),
+    ),
+    "expand of an imported mesh": lambda d: operation(
+        d, "expand", ["part"], [PART], n=2, z=1
+    ),
+    "a stack of an imported mesh of tetrahedrons and a cube": lambda d: operation(
+        d,
+        "stack",
+        ["part", "block"],
+        [{**PART, "cell_type": "tetra"}, CUBE],
+        decimals=10,
+    ),
+    "a stack of an imported mesh and a rectangle": lambda d: operation(
+        d, "stack", ["part", "face"], [PART, RECTANGLE], decimals=10
     ),
     "revolve of an embedded rectangle": lambda d: operation(
         d,

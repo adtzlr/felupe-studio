@@ -1184,6 +1184,53 @@
     },
     {
       "command": {
+        "command": "mesh.import",
+        "name": "half",
+        "file": "half.vtu"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "other",
+        "tool": "mirror",
+        "inputs": [
+          "half"
+        ],
+        "parameters": {
+          "axis": "x",
+          "value": "1.5"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "bar",
+        "tool": "stack",
+        "inputs": [
+          "half",
+          "other"
+        ],
+        "parameters": {
+          "decimals": "10"
+        }
+      },
+      "fields": []
+    },
+    {
+      "command": {
         "command": "material.add",
         "name": "rubber",
         "model": "MooneyRivlin",
@@ -1468,6 +1515,38 @@
         "curve": "move"
       },
       "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.script",
+        "name": "shifted",
+        "file": "bar.py"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "bar",
+        "tool": "translate",
+        "inputs": [
+          "shifted"
+        ],
+        "parameters": {
+          "move": "1",
+          "axis": "x"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "move"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
     },
     {
       "command": {

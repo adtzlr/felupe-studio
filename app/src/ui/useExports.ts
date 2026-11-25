@@ -6,6 +6,7 @@ import { useRef, useState } from "preact/hooks";
 import { exportName, mediaType, stemOf } from "../core/files";
 import {
   generateChain,
+  generateSources,
   isMeshObject,
   type MeshFiles,
   meshStatus,
@@ -86,10 +87,16 @@ export function useExports({
     setMeshFormat(format);
     const commands = store.commands;
     await exportFile(file, async () => {
-      // a mesh made by tools: the commands of its tools (ADR 0019)
+      // a mesh made by tools: the commands of its tools (ADR 0019), and the meshes
+      // of files and scripts that they take (#438)
+      const sources =
+        mesh.command === "mesh.generate"
+          ? generateSources(mesh, commands, files)
+          : undefined;
       const data = await (mesh.command === "mesh.generate"
         ? client.exportMesh(mesh.name, format, {
             commands: generateChain(mesh, commands),
+            ...(sources?.length ? { sources } : {}),
           })
         : exportFileMesh(mesh, format));
       return new Blob([data as BlobPart], { type: mediaType(file) });
@@ -130,9 +137,9 @@ export function useExports({
     const mesh = store.get(name);
     if (!mesh || !isMeshObject(mesh)) return "Not a mesh.";
     // a construction mesh of lines or points (ADR 0019)
-    const made = dimensions([mesh]).get(name);
+    const made = dimensions(store.commands).get(name);
     if (made && made.cells < 2)
-      return `A mesh of ${made.cell_type} cells has no solid cells to export.`;
+      return `A mesh of ${made.cell_type ?? `${made.cells}D`} cells has no solid cells to export.`;
     if (!client) return "Python is not available.";
     if (runtime.state === "loading") return "Python is still loading.";
     if (runtime.state === "error") return "Python could not be loaded.";

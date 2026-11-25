@@ -4,17 +4,20 @@
 // triangulates their outer surface for the viewer (felupe_studio.scene). Python
 // scripts that make meshes (#182) are kept and written the same way; the meshes
 // they make with the parameters of the model are kept by their file, item and
-// parameter values.
+// parameter values. The meshes of the tools (ADR 0019) are kept by their chain and
+// the meshes of files and scripts that they take (#438).
 import { analysisOf, CELLS_2D, is2d } from "./analysis";
 import { cellProblem, formulationOf } from "./formulations";
 import type { Command, MeshGenerate, MeshImport, MeshScript } from "./commands";
 import { parameterValues, resolveCommands } from "./resolve";
 import { solidOf } from "./meshinfo";
+import { dimensions, inputProblems, type MeshDimension } from "./meshtools";
 import type {
   Cut,
   MeshInfo,
   MeshSource,
   MeshSurface,
+  SourceMesh,
 } from "../worker/protocol";
 import { safeName } from "../worker/files";
 
@@ -60,11 +63,13 @@ export type Maker = (
 
 /**
  * Makes a mesh with the tools of FElupe (ADR 0019): the commands of the tools that
- * make it, with the values of their expressions, and its name.
+ * make it, with the values of their expressions, its name and the meshes of files
+ * and scripts that they take (#438).
  */
 export type Generator = (
   commands: readonly unknown[],
   name: string,
+  sources: readonly SourceMesh[],
 ) => Promise<Inspection>;
 
 /**
@@ -119,8 +124,12 @@ export const isScript = (name: string) => name.toLowerCase().endsWith(".py");
 
 export class MeshFiles {
   private files = new Map<string, { data: Uint8Array; file: MeshFile }>();
-  // the meshes made by scripts (scriptKey) and by tools (generateKey), by their key
-  private made = new Map<string, { file?: string; status: FileState }>();
+  // the meshes made by scripts (scriptKey) and by tools (generateKey), by their key,
+  // with the files that they read
+  private made = new Map<
+    string,
+    { files: readonly string[]; status: FileState }
+  >();
   // the cut surfaces of the drawn meshes (#395), by their mesh (meshCutKey)
   private cuts = new Map<string, CutEntry>();
   private listeners = new Set<() => void>();
@@ -256,37 +265,40 @@ export class MeshFiles {
     const { make } = this.scripts;
     return this.produce(
       key,
-      file,
+      [file],
       make && (() => make(file, parameters, item)),
     );
   }
 
   /**
-   * Make the mesh of tools (ADR 0019), once per key (`generateKey`): resolves with
-   * its final state; an error of FElupe is part of it.
+   * Make the mesh of tools (ADR 0019), once per key (`generateKey`), of the meshes
+   * of files and scripts that they take (#438): resolves with its final state; an
+   * error of FElupe is part of it. A new version of one of their files makes it
+   * again.
    */
   async generate(
     key: string,
     commands: readonly unknown[],
     name: string,
+    sources: readonly SourceMesh[] = [],
   ): Promise<FileState> {
     const { generate } = this.scripts;
     return this.produce(
       key,
-      undefined,
-      generate && (() => generate(commands, name)),
+      sources.map((s) => s.file),
+      generate && (() => generate(commands, name, sources)),
     );
   }
 
   /** Make a mesh once per key with a maker of Python, and keep its state. */
   private async produce(
     key: string,
-    file: string | undefined,
+    files: readonly string[],
     maker: (() => Promise<Inspection>) | undefined,
   ): Promise<FileState> {
     const existing = this.made.get(key);
     if (existing) return existing.status;
-    const entry = { file, status: { state: "reading" } as FileState };
+    const entry = { files, status: { state: "reading" } as FileState };
     this.made.set(key, entry);
     this.notify();
     const set = (status: FileState) => {
@@ -344,9 +356,10 @@ export class MeshFiles {
     set({ state: "reading" });
     // the kept cells of Python are forgotten, and with them the cuts (#395)
     this.cuts.clear();
-    // the meshes of a replaced script are made again
+    // the meshes of a replaced script are made again, and the meshes of tools that
+    // take a mesh of the file (#438)
     for (const [k, entry] of [...this.made]) {
-      if (entry.file === key) this.made.delete(k);
+      if (entry.files.includes(key)) this.made.delete(k);
     }
     if (isScript(key)) {
       if (!this.scripts.write)
@@ -604,32 +617,137 @@ function resolvedOf(commands: readonly Command[]): readonly Command[] {
 }
 
 /**
- * The commands of the tools that make a mesh (ADR 0019), with the values of their
+ * The mesh objects that make a mesh of tools (ADR 0019), with the values of their
  * expressions: the mesh and the meshes that it takes, recursively, in the order of
- * the model; none if an expression of them has a problem.
+ * the model, up to the meshes of files and scripts (#438).
+ */
+function chainOf(mesh: MeshGenerate, commands: readonly Command[]) {
+  const resolved = resolvedOf(commands);
+  const meshes = new Map(
+    resolved.flatMap((c) => (isMeshObject(c) ? [[c.name, c] as const] : [])),
+  );
+  const needed = new Set<string>();
+  const visit = (name: string) => {
+    const command = meshes.get(name);
+    if (!command || needed.has(name)) return;
+    needed.add(name);
+    if (command.command === "mesh.generate")
+      for (const input of inputsOf(command)) visit(input);
+  };
+  visit(mesh.name);
+  const chain = resolved.filter(
+    (c): c is Extract<Command, MeshObject> =>
+      isMeshObject(c) && needed.has(c.name),
+  );
+  return {
+    tools: chain.filter(
+      (c): c is MeshGenerate => c.command === "mesh.generate",
+    ),
+    sources: chain.filter((c): c is MeshCommand => isMesh(c)),
+  };
+}
+
+/**
+ * The commands of the tools that make a mesh (ADR 0019), with the values of their
+ * expressions: the mesh and the meshes made by tools that it takes, recursively, in
+ * the order of the model; none if an expression of them has a problem.
  */
 export function generateChain(
   mesh: MeshGenerate,
   commands: readonly Command[],
 ): MeshGenerate[] {
-  const resolved = resolvedOf(commands);
-  const made = new Map(
-    resolved.flatMap((c) =>
-      c.command === "mesh.generate" ? [[c.name, c] as const] : [],
-    ),
-  );
-  const needed = new Set<string>();
-  const visit = (name: string) => {
-    const command = made.get(name);
-    if (!command || needed.has(name)) return;
-    needed.add(name);
-    for (const input of inputsOf(command)) visit(input);
+  const { tools } = chainOf(mesh, commands);
+  return tools.some((c) => c.name === mesh.name) ? tools : [];
+}
+
+/**
+ * A mesh of a file or of a script as the tools take it (#438), like the script: the
+ * arguments of `volume_cells()` or `run_mesh_script()`, with the values of their
+ * expressions.
+ */
+function sourceMesh(
+  mesh: MeshCommand,
+  commands: readonly Command[],
+): SourceMesh {
+  const dim = is2d(analysisOf(commands)) ? 2 : 3;
+  const own =
+    mesh.command === "mesh.script"
+      ? {
+          parameters: scriptParameters(mesh, commands),
+          ...(mesh.item ? { item: mesh.item } : {}),
+        }
+      : typeof mesh.scale === "number" && mesh.scale !== 1
+        ? { scale: mesh.scale }
+        : {};
+  return {
+    name: mesh.name,
+    file: mesh.file,
+    ...own,
+    ...(mesh.tag ? { tag: mesh.tag } : {}),
+    ...(mesh.cell_type ? { cell_type: mesh.cell_type } : {}),
+    dim,
   };
-  visit(mesh.name);
-  if (!needed.has(mesh.name)) return [];
-  return resolved.filter(
-    (c): c is MeshGenerate =>
-      c.command === "mesh.generate" && needed.has(c.name),
+}
+
+/**
+ * The meshes of files and scripts that the tools of a mesh take (#438), which the
+ * worker takes as the script does; undefined until each of them is read or made and
+ * fits the model (no file note), and their cells fit the tools (`readProblems()`).
+ */
+export function generateSources(
+  mesh: MeshGenerate,
+  commands: readonly Command[],
+  files: MeshFiles,
+): SourceMesh[] | undefined {
+  const { tools, sources } = chainOf(mesh, commands);
+  const ready = sources.every(
+    (source) =>
+      meshStatus(source, commands, files)?.state === "ready" &&
+      !fileNote(source, commands, files),
+  );
+  if (!ready || tools.some((t) => readProblems(t, commands, files).length))
+    return undefined;
+  return sources.map((source) => sourceMesh(source, commands));
+}
+
+/**
+ * The dimensions of the meshes of files and scripts of the model that are read
+ * (#438): of the type of their solid cells.
+ */
+function readDimensions(
+  commands: readonly Command[],
+  files: MeshFiles,
+): Map<string, MeshDimension> {
+  const known = new Map<string, MeshDimension>();
+  for (const mesh of commands) {
+    if (!isMesh(mesh)) continue;
+    const status = meshStatus(mesh, commands, files);
+    if (status?.state !== "ready") continue;
+    const choice = solidOf(status.info, mesh.cell_type);
+    if (!("solid" in choice)) continue;
+    const type = choice.solid.cell_type;
+    const dim = CELLS_2D.includes(type) ? 2 : 3;
+    known.set(mesh.name, { points: dim, cells: dim, cell_type: type });
+  }
+  return known;
+}
+
+/**
+ * Why the inputs of a tool do not fit it by the cell types of the read meshes of
+ * files and scripts (#438), e.g. a stack of an imported mesh of tetrahedrons and a
+ * cube: the rules of the commands do not know them (`inputProblems()` without the
+ * problems of the commands alone).
+ */
+export function readProblems(
+  mesh: MeshGenerate,
+  commands: readonly Command[],
+  files: MeshFiles,
+): string[] {
+  const read = readDimensions(commands, files);
+  if (!read.size) return [];
+  const before = new Set(inputProblems(mesh, dimensions(commands)));
+  return inputProblems(mesh, dimensions(commands, read)).filter(
+    (problem) => !before.has(problem),
   );
 }
 
@@ -637,12 +755,22 @@ export function generateChain(
 export const inputsOf = (mesh: MeshGenerate): readonly string[] =>
   "inputs" in mesh ? mesh.inputs : [];
 
-/** The key of the mesh of tools: its name and its chain with values. */
+/**
+ * The key of the mesh of tools: its name, its chain with values and the meshes of
+ * files and scripts that it takes (#438).
+ */
 export function generateKey(
   mesh: MeshGenerate,
   commands: readonly Command[],
 ): string {
-  return JSON.stringify([mesh.name, generateChain(mesh, commands)]);
+  const { sources } = chainOf(mesh, commands);
+  return JSON.stringify([
+    mesh.name,
+    generateChain(mesh, commands),
+    ...(sources.length
+      ? [sources.map((source) => sourceMesh(source, commands))]
+      : []),
+  ]);
 }
 
 /**
@@ -688,9 +816,14 @@ export function meshSource(
 ): MeshSource | undefined {
   if (mesh.command === "mesh.generate") {
     const chain = generateChain(mesh, commands);
-    return chain.length
-      ? { type: "generate-mesh", commands: chain, name: mesh.name }
-      : undefined;
+    const sources = generateSources(mesh, commands, files);
+    if (!chain.length || !sources) return undefined;
+    return {
+      type: "generate-mesh",
+      commands: chain,
+      name: mesh.name,
+      ...(sources.length ? { sources } : {}),
+    };
   }
   const state = files.get(mesh.file)?.status.state;
   if (mesh.command === "mesh.import" || state !== "script")
@@ -715,10 +848,12 @@ export function makeMeshes(
   for (const mesh of commands) {
     if (mesh.command === "mesh.generate") {
       const chain = generateChain(mesh, commands);
-      if (!chain.length) continue;
+      // once the meshes of files and scripts that it takes are read (#438)
+      const sources = generateSources(mesh, commands, files);
+      if (!chain.length || !sources) continue;
       const key = generateKey(mesh, commands);
       keys.add(key);
-      void files.generate(key, chain, mesh.name);
+      void files.generate(key, chain, mesh.name, sources);
       continue;
     }
     if (mesh.command !== "mesh.script") continue;
@@ -753,12 +888,17 @@ export function fileNotes(
   return notes;
 }
 
-/** An error of FElupe in the tool of a made mesh (ADR 0019). */
+/**
+ * An error of FElupe in the tool of a made mesh (ADR 0019), or an input that does
+ * not fit it by the cell type of its read file or script (#438).
+ */
 function toolNote(
   command: MeshGenerate,
   commands: readonly Command[],
   files: MeshFiles,
 ): string | undefined {
+  const [problem] = readProblems(command, commands, files);
+  if (problem) return problem;
   const status = meshStatus(command, commands, files);
   return status?.state === "error"
     ? `${command.tool}: ${status.message}`

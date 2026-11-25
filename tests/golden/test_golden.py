@@ -42,6 +42,9 @@ SAME_BODY = [
     "bar_sections_gmsh",
     "bar_sections_files",
     "bar_sections_files_merged",
+    # the mesh tools take the meshes of files and scripts (#438)
+    "bar_mirrored_half",
+    "bar_script_moved",
 ]
 
 # uniaxial tension of a cube (1 x 1 x 1, symmetric load case) per material model of

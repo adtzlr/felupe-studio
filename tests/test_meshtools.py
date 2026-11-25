@@ -423,3 +423,124 @@ def test_a_body_of_a_stacked_profile_is_checked_like_a_file(tmp_path):
     assert report["ok"]
     assert report["cells"]["total"] == 3 * 4 * 4
     assert report["cells"]["unassigned"] == []
+
+
+HALF = {"command": "mesh.import", "name": "half", "file": "half.vtu"}
+MIRRORED = {
+    **made("mirror", "other", axis="x", value=1.5),
+    "inputs": ["half"],
+}
+WHOLE = {**made("stack", "whole", decimals=10), "inputs": ["half", "other"]}
+
+
+def test_the_dimensions_of_the_meshes_of_files_and_scripts():
+    # those of the model, the cell type unknown before the read unless given (#438)
+    script = {"command": "mesh.script", "name": "part", "file": "part.py"}
+    known = meshtools.dimensions([HALF, script, MIRRORED, WHOLE])
+    assert known["half"] == {"points": 3, "cells": 3, "cell_type": None}
+    assert known["part"] == known["other"] == known["whole"] == known["half"]
+    settings = {"command": "model.settings", "analysis": "plane-strain"}
+    assert meshtools.dimensions([settings, HALF])["half"]["points"] == 2
+    tetra = {**HALF, "cell_type": "tetra10"}
+    assert meshtools.dimensions([tetra, MIRRORED])["other"]["cell_type"] == "tetra10"
+    # the read is known, e.g. in the worker
+    read = {"half": {"points": 3, "cells": 3, "cell_type": "hexahedron"}}
+    assert meshtools.dimensions([HALF, MIRRORED], read)["other"] == read["half"]
+    # a rule of the dimension of the cells is one of the commands
+    expand = {**made("expand", "body", n=2, z=1), "inputs": ["half"]}
+    assert meshtools.input_problems(expand, known) == [
+        "expand needs a mesh of vertex, line or quad cells; 'half' has 3D cells."
+    ]
+    # an unknown cell type of 2D cells is taken as the one that the tool takes
+    revolve = {**made("revolve", "body", n=3, phi=90, axis="x"), "inputs": ["half"]}
+    flat = meshtools.dimensions([settings, HALF, revolve])
+    assert flat["body"] == {"points": 3, "cells": 3, "cell_type": "hexahedron"}
+
+
+def write_half(folder):
+    """The left half of a bar of 6 x 4 x 4 hexahedrons, with a tag of its cells."""
+    half = fem.Cube(b=(1.5, 1, 1), n=(7, 5, 5))
+    tag = np.arange(half.ncells) % 2
+    meshio.Mesh(
+        half.points, [("hexahedron", half.cells)], cell_data={"material": [tag]}
+    ).write(folder / "half.vtu")
+    return half
+
+
+def test_a_half_of_a_file_is_mirrored_and_stacked_in_the_worker(tmp_path, monkeypatch):
+    # the worker takes the kept read of the file, with its scale (#438)
+    monkeypatch.chdir(tmp_path)
+    write_half(tmp_path)
+    meshes.forget()
+    meshes.load("half.vtu")
+    monkeypatch.setattr(meshio, "read", lambda *args: pytest.fail("read again"))
+    source = {"name": "half", "file": "half.vtu", "dim": 3}
+    info, surfaces = meshes.generate([MIRRORED, WHOLE], "whole", sources=[source])
+    info = json.loads(info)
+    assert info["dimension"] == {"points": 3, "cells": 3, "cell_type": "hexahedron"}
+    assert info["solids"][0]["cells"] == 2 * 6 * 4 * 4
+    # the bar of the golden cases, the points at x = 1.5 once
+    assert info["solids"][0]["bounds"] == [[0, 0, 0], [3, 1, 1]]
+    assert info["points"] == 13 * 5 * 5
+    assert list(surfaces) == ["hexahedron"]
+    # another scale is another mesh, of the kept read
+    scaled = {**source, "scale": 2}
+    info = json.loads(meshes.generate([MIRRORED], "other", sources=[scaled])[0])
+    assert info["solids"][0]["bounds"] == [[0, 0, 0], [3, 2, 2]]
+
+
+def test_a_mesh_of_a_file_is_read_by_the_worker_without_a_kept_read(
+    tmp_path, monkeypatch
+):
+    # e.g. after another file was written (#438); an error is the state of the mesh
+    monkeypatch.chdir(tmp_path)
+    write_half(tmp_path)
+    meshes.forget()
+    source = {"name": "half", "file": "half.vtu", "tag": "material", "dim": 3}
+    info = json.loads(meshes.generate([MIRRORED], "other", sources=[source])[0])
+    assert info["solids"][0]["bounds"] == [[1.5, 0, 0], [3, 1, 1]]
+    missing = {**source, "file": "missing.vtu"}
+    meshes.forget()
+    info = json.loads(meshes.generate([MIRRORED], "other", sources=[missing])[0])
+    assert "missing.vtu" in info["error"]
+
+
+SCRIPT = """import felupe as fem
+
+mesh = {"bar": fem.Cube(b=(length, 1, 1), n=(4, 2, 2))}
+"""
+
+
+def test_a_mesh_of_a_script_is_moved_in_the_worker(tmp_path, monkeypatch):
+    # the worker takes the kept run of the script with its parameters (#438)
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "bar.py").write_text(SCRIPT, encoding="utf-8")
+    meshes.forget()
+    meshes.make("bar.py", {"length": 3}, "bar")
+    monkeypatch.setattr(meshes, "script_mesh", lambda *args: pytest.fail("run again"))
+    moved = {**made("translate", "moved", move=1, axis="y"), "inputs": ["bar"]}
+    source = {
+        "name": "bar",
+        "file": "bar.py",
+        "parameters": {"length": 3},
+        "item": "bar",
+        "dim": 3,
+    }
+    info = json.loads(meshes.generate([moved], "moved", sources=[source])[0])
+    assert info["solids"][0]["bounds"] == [[0, 1, 0], [3, 2, 1]]
+    # exported like a made mesh
+    data = meshes.export_generated([moved], "moved", "vtu", [source])
+    (tmp_path / "moved.vtu").write_bytes(data)
+    assert meshio.read(tmp_path / "moved.vtu").points[:, 1].min() == 1
+
+
+def test_a_mirrored_half_of_a_file_is_checked_like_a_file(tmp_path):
+    # the whole is a mesh of the model, its cells in one section (#438)
+    write_half(tmp_path)
+    document = json.loads((GOLDEN / "cube_made_by_tools" / "commands.json").read_text())
+    document["commands"][1:2] = [HALF, MIRRORED, {**WHOLE, "name": "cube"}]
+    assert errors(document) == []
+    report = checks.check(document, tmp_path)
+    assert report["ok"]
+    assert report["cells"]["total"] == 2 * 6 * 4 * 4
+    assert report["cells"]["unassigned"] == []

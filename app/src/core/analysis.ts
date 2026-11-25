@@ -20,12 +20,15 @@ export const CELLS_3D = [
 /** The cell types of the cells of 2D models. */
 export const CELLS_2D = ["triangle", "triangle6", "quad", "quad8", "quad9"];
 
-/** The type of the analysis of a command list (the default is 3D). */
-export function analysisOf(commands: readonly Command[]): Analysis {
+/**
+ * The type of the analysis of a command list (the default is 3D), of the commands
+ * or of other lists of them, e.g. of the dimensions of the meshes.
+ */
+export function analysisOf(
+  commands: readonly { command: string; analysis?: Analysis }[],
+): Analysis {
   const settings = commands.find((c) => c.command === "model.settings");
-  return settings?.command === "model.settings"
-    ? (settings.analysis ?? "3d")
-    : "3d";
+  return settings?.analysis ?? "3d";
 }
 
 /** Whether a type of analysis is 2D. */

@@ -10,8 +10,9 @@ the outer surfaces for the viewer (:mod:`felupe_studio.scene`), from the same re
 
 The solid cells of the latest meshes are kept, so a cut of the view (#395) needs no
 new read of a file or run of a script: :func:`load`, :func:`make` and
-:func:`generate` with a ``cut`` cut the kept cells of their mesh. A new file of the
-project forgets them (:func:`forget`).
+:func:`generate` with a ``cut`` cut the kept cells of their mesh. A mesh made by
+tools takes the kept meshes of files and scripts (#438). A new file of the project
+forgets them (:func:`forget`).
 """
 
 import json
@@ -31,8 +32,8 @@ MAX_TAG_VALUES = 64
 # the number of meshes whose solid cells are kept for cuts (#395)
 KEPT = 16
 
-# the summary and the solid cells of the latest meshes, by their function and its
-# arguments, oldest first
+# the summary, the solid cells and the read mesh of the latest meshes, by their
+# function and its arguments, oldest first
 _kept = OrderedDict()
 
 # the formats of an exported mesh (#230): the extension, the name and the writer of
@@ -125,8 +126,8 @@ def inspect(filename):
 
 
 def _read(filename):
-    """:func:`inspect` and the solid cells with their tag arrays by cell type (empty
-    if the file cannot be used)."""
+    """:func:`inspect`, the solid cells with their tag arrays by cell type (empty if
+    the file cannot be used) and the meshio mesh (None if it cannot be read)."""
     path = Path(filename)
     result = {"file": path.name}
     try:
@@ -135,8 +136,8 @@ def _read(filename):
         # meshio raises many different errors, and calls sys.exit() if no reader fits
         reason = "" if isinstance(error, SystemExit) else f": {error}"
         result["error"] = f"meshio could not read the file{reason}".rstrip(".") + "."
-        return result, {}
-    return _summary(mesh, result)
+        return result, {}, None
+    return *_summary(mesh, result), mesh
 
 
 def _summary(mesh, result):
@@ -204,15 +205,52 @@ def _mesh(key, read, cut):
     """The summary as a JSON string and the outer surfaces of the solid cells by
     cell type of a mesh: read with ``read()`` and kept by its key, or the kept solid
     cells cut (#395). ``read()`` returns the summary, the solid cells with their tags
-    by cell type, and the surfaces of other meshes, e.g. of a construction mesh."""
+    by cell type, the surfaces of other meshes, e.g. of a construction mesh, and the
+    meshio mesh of a file or a script for the tools (None of others, #438)."""
     if cut is None or key not in _kept:
-        _kept[key] = read()
-        while len(_kept) > KEPT:
-            _kept.popitem(last=False)
+        _keep(key, read())
     _kept.move_to_end(key)
-    info, solids, others = _kept[key]
+    info, solids, others, _ = _kept[key]
     surfaces = {t: surface(solid, tags, cut) for t, (solid, tags) in solids.items()}
     return json.dumps(info), {**others, **surfaces}
+
+
+def _keep(key, entry):
+    """Keep the entry of a mesh, and forget the oldest ones beyond :data:`KEPT`."""
+    _kept[key] = entry
+    while len(_kept) > KEPT:
+        _kept.popitem(last=False)
+
+
+def source_mesh(spec):
+    """Return the mesh of a file or of a script that a mesh made by tools takes
+    (#438), like the generated script (``volume_cells()`` or ``run_mesh_script()``):
+    of the kept mesh of the latest read of the file or run of the script, else read
+    or run anew and kept.
+
+    ``spec`` has the ``file``, the ``parameters`` and the ``item`` of a script, the
+    ``tag`` and the ``cell_type``, the ``scale`` of a file and the dimension ``dim``
+    of the model. An error of the file or the script is raised."""
+    path = Path(spec["file"])
+    parameters, item = spec.get("parameters"), spec.get("item")
+    if parameters is None:
+        key = ("load", path.name)
+    else:
+        key = ("make", path.name, json.dumps(parameters, sort_keys=True), item)
+    if _kept.get(key, (None,) * 4)[3] is None:
+        if parameters is None:
+            mesh = meshio.read(path)
+        else:
+            mesh = script_mesh(path, parameters, item)
+        _keep(key, (*_summary(mesh, {"file": path.name}), {}, mesh))
+    _kept.move_to_end(key)
+    return volume_cells(
+        _kept[key][3],
+        tag=spec.get("tag"),
+        cell_type=spec.get("cell_type"),
+        scale=spec.get("scale", 1),
+        dim=spec.get("dim", 3),
+    )
 
 
 def load(filename, cut=None):
@@ -223,7 +261,8 @@ def load(filename, cut=None):
     cells of the latest read."""
 
     def read():
-        return *_read(filename), {}
+        info, solids, mesh = _read(filename)
+        return info, solids, {}, mesh
 
     return _mesh(("load", Path(filename).name), read, cut)
 
@@ -247,32 +286,44 @@ def make(filename, parameters, item=None, cut=None):
             frames = [f for f in trace.stack if Path(f.filename).name == path.name]
             trace.stack = traceback.StackSummary.from_list(frames)
             result["traceback"] = "".join(trace.format())
-            return result, {}, {}
-        return *_summary(mesh, result), {}
+            return result, {}, {}, None
+        return *_summary(mesh, result), {}, mesh
 
     key = ("make", path.name, json.dumps(parameters, sort_keys=True), item)
     return _mesh(key, read, cut)
 
 
-def generate(commands, name, cut=None):
+def made(commands, name, sources=None):
+    """Return the mesh ``name`` of the resolved commands of the tools that make it,
+    and its dimensions (ADR 0019): of the meshes of files and scripts that they take
+    (``sources``, see :func:`source_mesh`, #438), made with the lines of the script."""
+    from . import meshtools
+
+    meshes = {spec["name"]: source_mesh(spec) for spec in sources or []}
+    mesh = meshtools.generate(commands, meshes=meshes)[name]
+    known = meshtools.dimensions(commands, meshtools.measured(meshes))
+    return mesh, known[name]
+
+
+def generate(commands, name, cut=None, sources=None):
     """:func:`load` of a mesh made by the tools of FElupe (ADR 0019): the mesh
     ``name`` of the resolved commands of the tools that make it (with the values of
-    their expressions), made with the lines of the script. A mesh of 2D or 3D cells
-    is summarized like a mesh file, a mesh of lines or vertices (a construction mesh)
-    by its points and cells, with the lines for the viewer. The summary has the
-    ``dimension`` of the mesh; an error of FElupe is its ``error``. With a ``cut``,
-    the kept cells of the latest mesh of these commands are cut, not the lines."""
-    from . import meshtools
+    their expressions) and of the meshes of files and scripts that they take
+    (``sources``, see :func:`source_mesh`, #438), made with the lines of the script. A
+    mesh of 2D or 3D cells is summarized like a mesh file, a mesh of lines or
+    vertices (a construction mesh) by its points and cells, with the lines for the
+    viewer. The summary has the ``dimension`` of the mesh; an error of FElupe, of a
+    file or of a script is its ``error``. With a ``cut``, the kept cells of the
+    latest mesh of these commands and sources are cut, not the lines."""
     from .scene import wire
 
     def read():
         result = {"file": name}
         try:
-            mesh = meshtools.generate(commands)[name]
+            mesh, dimension = made(commands, name, sources)
         except Exception as error:
             result["error"] = f"{type(error).__name__}: {error}"
-            return result, {}, {}
-        dimension = meshtools.dimensions(commands)[name]
+            return result, {}, {}, None
         if dimension["cells"] < 2:
             result.update(
                 points=int(mesh.npoints),
@@ -280,18 +331,19 @@ def generate(commands, name, cut=None):
                 solids=[],
                 dimension=dimension,
             )
-            return result, {}, {mesh.cell_type: wire(mesh)}
-        made = meshio.Mesh(mesh.points, [(mesh.cell_type, mesh.cells)])
-        info, solids = _summary(made, result)
+            return result, {}, {mesh.cell_type: wire(mesh)}, None
+        made_mesh = meshio.Mesh(mesh.points, [(mesh.cell_type, mesh.cells)])
+        info, solids = _summary(made_mesh, result)
         info["dimension"] = dimension
-        return info, solids, {}
+        return info, solids, {}, None
 
-    return _mesh(("generate", json.dumps(commands, sort_keys=True), name), read, cut)
+    key = ("generate", json.dumps([commands, sources or []], sort_keys=True), name)
+    return _mesh(key, read, cut)
 
 
-def generate_json(commands, name, cut=None):
+def generate_json(commands, name, cut=None, sources=None):
     """:func:`generate` with the commands as JSON text, for the worker."""
-    return generate(json.loads(commands), name, cut)
+    return generate(json.loads(commands), name, cut, sources)
 
 
 def make_json(filename, parameters, item=None, cut=None):
@@ -322,19 +374,18 @@ def export(
     return _write(mesh, path.name, format, cell_type, scale)
 
 
-def export_generated(commands, name, format="vtu"):
+def export_generated(commands, name, format="vtu", sources=None):
     """Return a mesh made by the tools of FElupe (ADR 0019) as the bytes of a file of
     a format of :data:`EXPORT_FORMATS`, like :func:`export`: the mesh ``name`` of the
-    resolved commands of the tools that make it. A mesh of lines or vertices (a
-    construction mesh) has no solid cells to export."""
-    from . import meshtools
-
+    resolved commands of the tools that make it and of the meshes of files and
+    scripts that they take (``sources``, see :func:`source_mesh`, #438). A mesh of lines
+    or vertices (a construction mesh) has no solid cells to export."""
     if format not in EXPORT_FORMATS:
         raise ValueError(
             f"Unknown format '{format}'; use one of {', '.join(EXPORT_FORMATS)}."
         )
-    made = meshtools.generate(commands)[name]
-    mesh = meshio.Mesh(made.points, [(made.cell_type, made.cells)])
+    mesh, _ = made(commands, name, sources)
+    mesh = meshio.Mesh(mesh.points, [(mesh.cell_type, mesh.cells)])
     return _write(mesh, name, format)
 
 

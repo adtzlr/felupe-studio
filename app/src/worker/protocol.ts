@@ -159,8 +159,28 @@ export interface Cut {
 }
 
 /**
+ * A mesh of a file or of a script that the tools of a made mesh take (#438): the
+ * arguments of `volume_cells()` or `run_mesh_script()` of the script, with the
+ * dimension of the model. The worker takes its kept read or run, or reads or runs
+ * it again (`felupe_studio.meshes.source_mesh`).
+ */
+export interface SourceMesh {
+  name: string;
+  file: string;
+  /** The parameters of a script; none of a file. */
+  parameters?: Record<string, number>;
+  item?: string;
+  tag?: string;
+  cell_type?: string;
+  /** The factor of the points of a file. */
+  scale?: number;
+  dim: 2 | 3;
+}
+
+/**
  * The request that made a mesh, without its id: of a file, of a script (#182) or of
- * the tools of FElupe (ADR 0019). With a cut (#395), it cuts the kept cells.
+ * the tools of FElupe (ADR 0019), with the meshes of files and scripts that they
+ * take (#438). With a cut (#395), it cuts the kept cells.
  */
 export type MeshSource =
   | { type: "inspect-mesh"; name: string }
@@ -170,7 +190,12 @@ export type MeshSource =
       parameters: Record<string, number>;
       item?: string;
     }
-  | { type: "generate-mesh"; commands: readonly unknown[]; name: string };
+  | {
+      type: "generate-mesh";
+      commands: readonly unknown[];
+      name: string;
+      sources?: readonly SourceMesh[];
+    };
 
 /** An event of a running job (`felupe_studio.runner`). */
 export type JobEvent =
@@ -448,6 +473,8 @@ export type ToWorker =
       id: number;
       commands: readonly unknown[];
       name: string;
+      /** The meshes of files and scripts that the tools take (#438). */
+      sources?: readonly SourceMesh[];
       cut?: Cut;
     }
   | { type: "run"; id: number; document: string; live?: LiveSettings }
@@ -500,6 +527,8 @@ export type ToWorker =
        * values of their expressions; `file` is then the name of the mesh.
        */
       commands?: readonly unknown[];
+      /** The meshes of files and scripts that the tools take (#438). */
+      sources?: readonly SourceMesh[];
     }
   | {
       type: "result";

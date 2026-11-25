@@ -25,7 +25,8 @@ const files = new MeshFiles(
     write: (name, data) => client.writeFile(name, data),
     make: (file, parameters, item) => client.makeMesh(file, parameters, item),
     // the meshes of the tools of FElupe (ADR 0019)
-    generate: (commands, name) => client.generateMesh(commands, name),
+    generate: (commands, name, sources) =>
+      client.generateMesh(commands, name, sources),
     // the kept cells of a mesh, cut by the plane of a cut of the view (#395)
     cut: (source, cut) => client.cutMesh(source, cut),
   },

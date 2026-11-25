@@ -26,6 +26,7 @@ import type {
   MeshInfo,
   MeshSource,
   MeshSurface,
+  SourceMesh,
   Precision,
   Quantity,
   ResultFile,
@@ -303,6 +304,8 @@ export class RuntimeClient {
       scale?: number;
       /** The commands of the tools of a made mesh (ADR 0019). */
       commands?: readonly unknown[];
+      /** The meshes of files and scripts that its tools take (#438). */
+      sources?: readonly SourceMesh[];
     } = {},
   ): Promise<Uint8Array> {
     const message = await this.request(
@@ -405,14 +408,21 @@ export class RuntimeClient {
 
   /**
    * Make a mesh with the tools of FElupe (ADR 0019) and inspect it: the commands of
-   * the tools that make it, with the values of their expressions.
+   * the tools that make it, with the values of their expressions, and the meshes of
+   * files and scripts that they take (#438).
    */
   async generateMesh(
     commands: readonly unknown[],
     name: string,
+    sources: readonly SourceMesh[] = [],
   ): Promise<{ info: MeshInfo; surfaces: Record<string, MeshSurface> }> {
     const message = await this.request(
-      { type: "generate-mesh", commands, name },
+      {
+        type: "generate-mesh",
+        commands,
+        name,
+        ...(sources.length ? { sources } : {}),
+      },
       "mesh-info",
     );
     const { info, surfaces } = message as Extract<

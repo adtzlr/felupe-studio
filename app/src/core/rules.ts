@@ -151,7 +151,7 @@ export class Model {
   }
 
   /** The selections of the point sets, by their names. */
-  /** The dimensions of the meshes made by tools, by their names (ADR 0019). */
+  /** The dimensions of the meshes of the model, by their names (ADR 0019). */
   get dimensions(): Map<string, MeshDimension> {
     this.made ??= dimensions(this.commands);
     return this.made;
@@ -512,18 +512,13 @@ const meshTool: Rule<CommandOf<"mesh.generate">> = (_, cmd) =>
   }));
 
 /**
- * The inputs of an operation of the mesh tools are meshes made by tools before,
- * whose dimensions fit the operation (ADR 0019).
+ * The inputs of an operation of the mesh tools are meshes of the model before, made
+ * by tools, of files or of scripts (#438), whose dimensions fit the operation (ADR
+ * 0019). A rule of the cell type of a mesh of a file or a script that is not given
+ * is checked with its read (`readProblems()`).
  */
 const meshInputs: Rule<CommandOf<"mesh.generate">> = (model, cmd) => {
-  const inputs = (cmd as { inputs?: string[] }).inputs ?? [];
-  const problems = inputs.flatMap((name) => {
-    const mesh = model.before(name);
-    return mesh && mesh.command !== "mesh.generate"
-      ? [`${cmd.tool} takes meshes made by tools; '${name}' is not.`]
-      : [];
-  });
-  problems.push(...inputProblems(cmd, model.dimensions));
+  const problems = inputProblems(cmd, model.dimensions);
   return problems.map((problem) => ({
     message: `mesh '${cmd.name}': ${problem}`,
     field:
