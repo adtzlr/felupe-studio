@@ -663,7 +663,8 @@ LARGE_ROUNDOFF = {
 }
 # the three-field variation of steel on quadratic tetrahedrons (#420): the residual
 # of float32 stalls at about 2.5 times the estimate of its round-off by FElupe 12.1.1,
-# above the tight tolerance of the case; with the default tolerance of the app, it
+# above the tight tolerance of the case (the estimate of mixed fields misses the
+# isochoric part, adtzlr/felupe#1305); with the default tolerance of the app, it
 # converges (test_three_field_variation_in_single_precision)
 NOT_CONVERGED = {"block_contact_friction", "plasticity_cube_three_field"}
 
