@@ -48,7 +48,8 @@ export function suggestMeshName(
 /**
  * Whether the file may be a construction mesh of the model (#438): its solid cells
  * are 2D cells, e.g. a profile, and the model is 3D. A construction mesh is an
- * input of the mesh tools (`revolve`, `expand`), without cell sets.
+ * input of the mesh tools (`revolve`, `expand`), without cell sets; the tools keep
+ * its cell tag.
  */
 export function offersConstruction(
   info: MeshInfo,
@@ -175,7 +176,8 @@ function cellsetsOf(
  * The commands that import a mesh and create its cell sets (one undo step). With
  * more than one type of solid cells in the file, every mesh takes one cell type and
  * is named `<name>_<cell type>`. A scale other than 1 multiplies the coordinates.
- * A `construction` mesh (#438) takes its cell type, without cell sets.
+ * A `construction` mesh (#438) takes its cell type, without cell sets: with the
+ * mode `tag`, it keeps the cell tag for the body that a tool makes of it.
  */
 export function planImport(
   info: MeshInfo,
@@ -192,7 +194,7 @@ export function planImport(
     return result;
   };
 
-  const mode: CellSetMode = construction ? { mode: "none" } : cellsets;
+  const mode = cellsets;
   const solids = info.solids ?? [];
   const byType = solidTypes(info).length > 1;
   if (mode.mode === "tag" && !fileTags(info).some((t) => t.name === mode.tag)) {
@@ -217,14 +219,16 @@ export function planImport(
         : {}),
       ...(scale !== 1 ? { scale } : {}),
     };
-    plan.push(mesh, ...cellsetsOf(solid, tag, meshName, mode, types, take));
+    plan.push(mesh);
+    if (!construction)
+      plan.push(...cellsetsOf(solid, tag, meshName, mode, types, take));
   }
   return plan;
 }
 
 /**
  * What a planned command creates, e.g. `hexahedron, 96 cells`, and whether a mesh
- * is a construction mesh in the model (#438).
+ * is a construction mesh in the model, with the cell tag it keeps (#438).
  */
 export function describePlanned(
   command: Command,
@@ -245,10 +249,14 @@ export function describePlanned(
   switch (command.command) {
     case "mesh.import": {
       const s = solid(command.name);
+      if (!s) return "";
       const construction = isConstruction(command.name, [...commands, ...plan]);
-      return s
-        ? `${s.cell_type}, ${cells(s.cells)}${construction ? ", construction" : ""}`
-        : "";
+      // the cell tag that a construction mesh keeps for the tools (#438)
+      return [
+        `${s.cell_type}, ${cells(s.cells)}`,
+        ...(construction && command.tag ? [`tag ${command.tag}`] : []),
+        ...(construction ? ["construction"] : []),
+      ].join(", ");
     }
     case "cellset.from_tag": {
       const s = solid(command.mesh);

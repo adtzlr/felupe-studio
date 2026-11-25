@@ -11,7 +11,12 @@ import { cellProblem, formulationOf } from "./formulations";
 import type { Command, MeshGenerate, MeshImport, MeshScript } from "./commands";
 import { parameterValues, resolveCommands } from "./resolve";
 import { solidOf } from "./meshinfo";
-import { dimensions, inputProblems, type MeshDimension } from "./meshtools";
+import {
+  dimensions,
+  inputProblems,
+  type MeshDimension,
+  tagNames,
+} from "./meshtools";
 import type {
   Cut,
   MeshInfo,
@@ -478,7 +483,8 @@ export function sectionVolume(
   const found = sectionSolid(commands, section, files);
   if (!found) return undefined;
   const { solid, set, mesh } = found;
-  const tag = mesh.command === "mesh.generate" ? undefined : mesh.tag;
+  // the cell tag of its mesh, also of a mesh made by tools (#438)
+  const tag = tagNames(commands).get(mesh.name);
   const volume =
     set.command === "cellset.from_file"
       ? solid.volume

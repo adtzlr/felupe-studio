@@ -343,6 +343,29 @@ describe("a construction mesh of a file (#438)", () => {
       "commands/1: cell set 'profile_cells' takes mesh 'profile' of quad cells (2D), but a cell set of a 3D model needs 3D cells with 3D points.",
     ]);
   });
+
+  it("keeps its cell tag for the body that a tool makes of it", () => {
+    const tag = { name: "material", values: [{ value: 1, cells: 12 }] };
+    const info = solids("profile.vtu", {
+      cell_type: "quad",
+      cells: 12,
+      tags: [tag],
+    });
+    const mode = { mode: "tag", tag: "material" } as const;
+    const plan = planImport(info, "profile", mode, [], 1, true);
+    expect(plan).toEqual([
+      {
+        command: "mesh.import",
+        name: "profile",
+        file: "profile.vtu",
+        tag: "material",
+        cell_type: "quad",
+      },
+    ]);
+    expect(describePlanned(plan[0], plan, info)).toBe(
+      "quad, 12 cells, tag material, construction",
+    );
+  });
 });
 
 describe("solid cells of a mesh", () => {

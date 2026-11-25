@@ -11,6 +11,7 @@ import {
   meshSource,
   meshStatus,
   sectionCellType,
+  sectionVolume,
 } from "./meshfiles";
 import { resolveCommands } from "./resolve";
 import type { MeshInfo, SourceMesh } from "../worker/protocol";
@@ -259,6 +260,52 @@ describe("meshes of files and scripts as inputs of the tools (#438)", () => {
     makeMeshes(half, files);
     await settle();
     expect(made.map(([name]) => name)).toEqual(["other", "other"]);
+  });
+
+  it("have the cell tags of the meshes they take, for their cell sets", async () => {
+    const commands = [
+      {
+        command: "mesh.import",
+        name: "half",
+        file: "half.vtu",
+        tag: "material",
+      },
+      other,
+      { command: "cellset.from_tag", name: "rubber", mesh: "other", value: 1 },
+      { command: "section.add", name: "body", cellset: "rubber" },
+    ] as Command[];
+    const sources: SourceMesh[] = [];
+    const values = [1, 2].map((value) => ({ value, cells: 1, volume: 1.5 }));
+    const bounds = [
+      [0, 0, 0],
+      [3, 1, 1],
+    ] as [number[], number[]];
+    const solid = {
+      cell_type: "hexahedron",
+      cells: 2,
+      volume: 3,
+      bounds,
+      tags: [{ name: "material", values }],
+    };
+    const files = new MeshFiles(
+      async (name) => ({ info: { file: name, points: 12, solids: [solid] } }),
+      {
+        generate: async (_, name, given) => {
+          sources.push(...given);
+          const dimension = { points: 3, cells: 3, cell_type: "hexahedron" };
+          return { info: { file: name, dimension, solids: [solid] } };
+        },
+      },
+    );
+    await files.add("half.vtu", new Uint8Array([1]));
+    makeMeshes(commands, files);
+    await settle();
+    // the worker takes the tag of the file, and the section has the volume of the
+    // cells of its tag value
+    expect(sources).toEqual([
+      { name: "half", file: "half.vtu", tag: "material", dim: 3 },
+    ]);
+    expect(sectionVolume(commands, "body", files)).toBe(1.5);
   });
 
   it("note an input whose read cells do not fit the tool, and make no mesh", async () => {

@@ -875,6 +875,75 @@ def test_an_imported_half_mirrored_stacked_and_solved(url, page):
     assert page.errors == []
 
 
+def test_the_cell_sets_of_a_half_moved_to_the_whole_and_solved(url, page):
+    """The half of a bar of two materials of a file with a cell tag, imported with a
+    cell set per tag value, mirrored and stacked into the whole, which keeps the tag
+    (#438): the cell sets move to the whole in their properties."""
+    page.goto(url)
+    page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
+
+    page.get_by_role("tabpanel").get_by_role("button", name="Import mesh").click()
+    dialog = page.get_by_role("dialog")
+    golden = Path(__file__).parents[1] / "golden"
+    half = golden / "bar_two_materials_mirrored" / "half.vtu"
+    dialog.get_by_test_id("file-picker").set_input_files(str(half))
+    dialog.get_by_text("material = 2, 48 cells").wait_for(timeout=60_000)
+    dialog.get_by_role("button", name="Import", exact=True).click()
+    tree = page.get_by_role("navigation", name="Model browser")
+    tree.get_by_text("half.vtu · tag material").wait_for()
+
+    def command(text):
+        name = text.split('"name": "')[1].split('"')[0]
+        line = page.get_by_label("Command", exact=True)
+        line.fill(text)
+        line.press("Enter")
+        page.get_by_text(f"Created {name}.").first.wait_for(timeout=60_000)
+
+    command(
+        'mesh.generate {"name": "other", "tool": "mirror", "inputs": ["half"], '
+        '"parameters": {"axis": "y", "value": 0.5}}'
+    )
+    command(
+        'mesh.generate {"name": "bar", "tool": "stack", "inputs": ["half", "other"], '
+        '"parameters": {"decimals": 10}}'
+    )
+    tree.get_by_text("stack half, other · tag material").wait_for()
+    properties = page.get_by_role("region", name="Properties")
+    for name in ["material_1", "material_2"]:
+        tree.get_by_text(name, exact=True).click()
+        properties.locator("select[id$='-mesh']").select_option("bar")
+        properties.get_by_role("button", name="Apply").click()
+        properties.locator("select[id$='-mesh']").filter(has_text="bar").wait_for()
+    for text in [
+        'material.add {"name": "steel_like", "model": "LinearElasticLargeStrain", '
+        '"parameters": {"E": 10, "nu": 0.3}}',
+        'material.add {"name": "rubber", "model": "NeoHooke", "parameters": {"mu": 1}}',
+        'section.add {"name": "hard_body", "cellset": "material_1", '
+        '"material": "steel_like", "formulation": "u"}',
+        'section.add {"name": "soft_body", "cellset": "material_2", '
+        '"material": "rubber", "formulation": "u-p-J", "bulk": 5000}',
+        'pointset.add {"name": "left", "select": {"axis": "x", "value": 0}}',
+        'pointset.add {"name": "right", "select": {"axis": "x", "value": 3}}',
+        'boundary.add {"name": "fixed", "pointset": "left", '
+        '"constrained": ["x", "y", "z"]}',
+        'boundary.add {"name": "move", "pointset": "right", "constrained": ["x"]}',
+        'step.add {"name": "step_1", "ramp": {"num": 5, '
+        '"items": [{"target": "move", "end": 0.5}]}}',
+        'job.add {"name": "job_1", "steps": ["step_1"], "curve": "move"}',
+    ]:
+        command(text)
+    page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)
+
+    page.get_by_role("button", name="Solve").click()
+    results = page.get_by_role("button", name="Show results")
+    results.wait_for(timeout=120_000)
+    summary = page.get_by_text("substeps in").first.inner_text()
+    # the force of the bar of two materials of the golden cases, of one file
+    assert "6 substeps" in summary
+    assert "Last substep: ux = 0.5, Fx = 0.6632" in summary, summary
+    assert page.errors == []
+
+
 def test_a_profile_of_a_file_revolved_and_solved(url, page):
     """A profile of quads with z = 0 imported into a 3D model as a construction mesh
     with the import dialog, revolved with the ribbon and solved (#438)."""

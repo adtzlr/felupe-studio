@@ -84,6 +84,85 @@ function Summary({ info }: { info: MeshInfo }) {
   );
 }
 
+/**
+ * The choice of the cell sets of an imported mesh: one per value of a cell tag, one
+ * with all cells, or none. A construction mesh (#438) has no cell sets: it keeps
+ * its cell tag, or none, for the body that a tool makes of it.
+ */
+function CellSetChoices({
+  tags,
+  mode,
+  onMode,
+  construction,
+}: {
+  tags: ReturnType<typeof fileTags>;
+  mode: CellSetMode;
+  onMode: (mode: CellSetMode) => void;
+  construction: boolean;
+}) {
+  const tagged = mode.mode === "tag";
+  return (
+    <fieldset class="choices">
+      <legend class="form-label">
+        {construction ? "Cell tag" : "Cell sets"}
+      </legend>
+      {tags.length > 0 && (
+        <label class="check">
+          <input
+            type="radio"
+            name="cellsets"
+            checked={tagged}
+            onChange={() => onMode({ mode: "tag", tag: tags[0].name })}
+          />
+          {construction
+            ? "Keep the cell tag for the body that a tool makes of it"
+            : "One per value of the cell tag"}
+        </label>
+      )}
+      {mode.mode === "tag" && (
+        <div class="choice-detail">
+          {tags.length > 1 && (
+            <select
+              aria-label="Cell tag"
+              value={mode.tag}
+              onChange={(event) =>
+                onMode({ mode: "tag", tag: event.currentTarget.value })
+              }
+            >
+              {tags.map((t) => (
+                <option key={t.name} value={t.name}>
+                  {t.name} ({plural(t.values.length, "value")})
+                </option>
+              ))}
+            </select>
+          )}
+          {tags.length === 1 && <code>{mode.tag}</code>}
+        </div>
+      )}
+      {!construction && (
+        <label class="check">
+          <input
+            type="radio"
+            name="cellsets"
+            checked={mode.mode === "all"}
+            onChange={() => onMode({ mode: "all" })}
+          />
+          One with all cells
+        </label>
+      )}
+      <label class="check">
+        <input
+          type="radio"
+          name="cellsets"
+          checked={construction ? !tagged : mode.mode === "none"}
+          onChange={() => onMode({ mode: "none" })}
+        />
+        {construction ? "None" : "None, I create them later"}
+      </label>
+    </fieldset>
+  );
+}
+
 export function ImportMeshDialog({
   store,
   files,
@@ -317,69 +396,22 @@ export function ImportMeshDialog({
                   </label>
                 </fieldset>
               )}
-              {asConstruction ? (
+              {(!asConstruction || tags.length > 0) && (
+                <CellSetChoices
+                  tags={tags}
+                  mode={mode}
+                  onMode={setMode}
+                  construction={asConstruction}
+                />
+              )}
+              {asConstruction && (
                 <p class="muted" role="note">
                   A construction mesh has no cell sets: the body that a tool
-                  makes of it has them, e.g. Revolve or Expand of the Mesh tab.
+                  makes of it has them, e.g. Revolve or Expand of the Mesh tab
+                  {mode.mode === "tag"
+                    ? ", of the values of the cell tag that the tool keeps."
+                    : "."}
                 </p>
-              ) : (
-                <fieldset class="choices">
-                  <legend class="form-label">Cell sets</legend>
-                  {tags.length > 0 && (
-                    <label class="check">
-                      <input
-                        type="radio"
-                        name="cellsets"
-                        checked={mode.mode === "tag"}
-                        onChange={() =>
-                          setMode({ mode: "tag", tag: tags[0].name })
-                        }
-                      />
-                      One per value of the cell tag
-                    </label>
-                  )}
-                  {mode.mode === "tag" && (
-                    <div class="choice-detail">
-                      {tags.length > 1 && (
-                        <select
-                          aria-label="Cell tag"
-                          value={mode.tag}
-                          onChange={(event) =>
-                            setMode({
-                              mode: "tag",
-                              tag: event.currentTarget.value,
-                            })
-                          }
-                        >
-                          {tags.map((t) => (
-                            <option key={t.name} value={t.name}>
-                              {t.name} ({plural(t.values.length, "value")})
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                      {tags.length === 1 && <code>{mode.tag}</code>}
-                    </div>
-                  )}
-                  <label class="check">
-                    <input
-                      type="radio"
-                      name="cellsets"
-                      checked={mode.mode === "all"}
-                      onChange={() => setMode({ mode: "all" })}
-                    />
-                    One with all cells
-                  </label>
-                  <label class="check">
-                    <input
-                      type="radio"
-                      name="cellsets"
-                      checked={mode.mode === "none"}
-                      onChange={() => setMode({ mode: "none" })}
-                    />
-                    None, I create them later
-                  </label>
-                </fieldset>
               )}
               {plan && (
                 <div class="plan" aria-label="Will be created">
