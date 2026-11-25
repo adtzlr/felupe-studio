@@ -12,13 +12,14 @@ import type {
 import { analysisOf, is2d } from "../core/analysis";
 import {
   cellTypeOf,
+  type FileState,
   isMeshObject,
   type MeshFiles,
   meshSource,
   meshStatus,
 } from "../core/meshfiles";
 import { solidOf } from "../core/meshinfo";
-import { modelMesh } from "../core/meshtools";
+import { dimensions, type MeshDimension, modelMesh } from "../core/meshtools";
 import type { MeshSource, MeshSurface } from "../worker/protocol";
 import {
   categorical,
@@ -283,6 +284,37 @@ function colorGroups(
 }
 
 /**
+ * The drawing of a mesh below the dimension of the model: of tools (ADR 0019), also
+ * of a file or a script with 2D cells in a 3D model (#438). The vertices of a mesh
+ * of points, else its surface lighter than the model, none before the read;
+ * undefined of a mesh of the model.
+ */
+function constructionOf(
+  name: string,
+  status: Extract<FileState, { state: "ready" }>,
+  known: ReadonlyMap<string, MeshDimension>,
+  dim: number,
+  scale: number | undefined,
+  colors: ViewColors,
+):
+  | { markers: Markers }
+  | { layer: MeshLayer }
+  | Record<string, never>
+  | undefined {
+  const dimension = status.info.dimension ?? known.get(name);
+  if (!dimension || modelMesh(dimension, dim)) return undefined;
+  const raw = dimension.cell_type && status.surfaces[dimension.cell_type];
+  if (!raw) return {};
+  const surface = scaledSurface(raw, scale);
+  const color = colors.construction;
+  if (dimension.cells === 0)
+    return { markers: { positions: surface.positions, color } };
+  return {
+    layer: { name, surface, color, opacity: 0.35, edgeColor: color },
+  };
+}
+
+/**
  * The content of the viewport; the construction meshes take the color of the theme
  * (`colors`, #375), the model its own colors in both themes.
  */
@@ -300,6 +332,7 @@ export function viewportContent(
   const construction: MeshLayer[] = [];
   const vertices: Markers[] = [];
   const dim = is2d(analysisOf(commands)) ? 2 : 3;
+  const known = dimensions(commands);
   const reading = new Set<string>();
   // legend entries with visible cells, by their position in the model
   const shown = new Map<string, LegendEntry & { order: number }>();
@@ -310,31 +343,19 @@ export function viewportContent(
     if (status?.state === "reading")
       reading.add(mesh.command === "mesh.generate" ? mesh.name : mesh.file);
     if (hidden.has(mesh.name) || status?.state !== "ready") return;
-    // a mesh of tools below the dimension of the model (ADR 0019)
-    const { dimension } = status.info;
-    if (dimension && !modelMesh(dimension, dim)) {
-      const surface = status.surfaces[dimension.cell_type];
-      if (!surface) return;
-      if (dimension.cells === 0)
-        vertices.push({
-          positions: surface.positions,
-          color: colors.construction,
-        });
-      else
-        construction.push({
-          name: mesh.name,
-          surface,
-          color: colors.construction,
-          opacity: 0.35,
-          edgeColor: colors.construction,
-        });
+    const scale = mesh.command === "mesh.import" ? mesh.scale : undefined;
+    // a mesh of tools below the dimension of the model (ADR 0019), also of a file or
+    // a script with 2D cells in a 3D model (#438)
+    const lower = constructionOf(mesh.name, status, known, dim, scale, colors);
+    if (lower) {
+      if ("markers" in lower) vertices.push(lower.markers);
+      if ("layer" in lower) construction.push(lower.layer);
       return;
     }
     const choice = solidOf(status.info, cellTypeOf(mesh));
     const raw =
       "solid" in choice ? status.surfaces[choice.solid.cell_type] : undefined;
     if (!raw) return;
-    const scale = mesh.command === "mesh.import" ? mesh.scale : undefined;
     const surface = scaledSurface(raw, scale);
     const source = meshSource(mesh, commands, files);
     if (source && "solid" in choice) {

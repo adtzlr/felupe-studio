@@ -18,8 +18,7 @@ import {
 } from "./units";
 import { MATERIAL_MODELS } from "./materials";
 import { describeParameter } from "./parameters";
-import { analysisOf, is2d } from "./analysis";
-import { dimensions, modelMesh, usersOf } from "./meshtools";
+import { isConstruction, usersOf } from "./meshtools";
 
 export interface TreeNode {
   /** Unique id: the object name, or `group:<kind>` for a group. */
@@ -218,29 +217,29 @@ const DETAILS: { [C in Command["command"]]: Detail<C> } = {
     ),
   "parameter.add": (cmd, { commands, units }) =>
     describeParameter(cmd, units, commands),
-  "mesh.import": (cmd) =>
+  "mesh.import": (cmd, { commands }) =>
     joined(
       cmd.file,
       cmd.tag && `tag ${cmd.tag}`,
       cmd.scale !== undefined && cmd.scale !== 1 && `× ${cmd.scale}`,
+      isConstruction(cmd.name, commands) && "construction",
     ),
-  "mesh.script": (cmd) =>
+  "mesh.script": (cmd, { commands }) =>
     joined(
       cmd.item ? `${cmd.file} [${cmd.item}]` : cmd.file,
       cmd.tag && `tag ${cmd.tag}`,
+      isConstruction(cmd.name, commands) && "construction",
     ),
   // a mesh made by a tool (ADR 0019): the tool with its inputs, its points per
-  // axis, and whether it is a construction mesh below the dimension of the model
+  // axis, and whether it is a construction mesh
   "mesh.generate": (cmd, { commands }) => {
     const n = (cmd.parameters as { n?: unknown }).n;
     const points = Array.isArray(n) ? n.join(" × ") : n;
     const inputs = (cmd as { inputs?: string[] }).inputs ?? [];
-    const dimension = dimensions(commands).get(cmd.name);
-    const dim = is2d(analysisOf(commands)) ? 2 : 3;
     return joined(
       inputs.length ? `${cmd.tool} ${inputs.join(", ")}` : cmd.tool,
       points !== undefined && `n = ${points}`,
-      dimension && !modelMesh(dimension, dim) && "construction",
+      isConstruction(cmd.name, commands) && "construction",
     );
   },
   "mesh.merge": (cmd) => `decimals = ${cmd.decimals}`,

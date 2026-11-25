@@ -936,12 +936,13 @@ function cellsNote(
     command.command === "mesh.script"
       ? `The mesh of '${command.file}'${command.item ? ` ['${command.item}']` : ""}`
       : `The file '${command.file}'`;
-  // the cells of the type of the analysis (#175)
+  // the cells of the type of the analysis (#175); the 2D cells of a 3D model, given
+  // by their cell type, are a construction mesh (#438)
   const cellType = choice.solid.cell_type;
   const planar = CELLS_2D.includes(cellType);
-  if (planar !== is2d(analysisOf(commands)))
+  if (planar !== is2d(analysisOf(commands)) && !(planar && command.cell_type))
     return planar
-      ? `${source} has ${cellType} cells, which are 2D cells: set the analysis of the settings to plane strain or axisymmetric.`
+      ? `${source} has ${cellType} cells, which are 2D cells: set the analysis of the settings to plane strain or axisymmetric, or take them as a construction mesh with the cell type ${cellType}, e.g. a profile to revolve.`
       : `${source} has ${cellType} cells, but a 2D model has 2D cells (triangles or quads).`;
   if (!command.tag || choice.solid.tags.some((t) => t.name === command.tag))
     return undefined;

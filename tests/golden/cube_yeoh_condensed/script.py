@@ -51,16 +51,22 @@ def volume_cells(mesh, tag=None, cell_type=None, scale=1.0, dim=3):
     mesh with more than one type of solid cells needs the cell type to take. The
     cells are 3D cells, or 2D cells for a 2D model (plane strain or axisymmetric)
     with ``dim=2``. The points of 2D cells have the coordinates x and y only (the z
-    of a mesh file is dropped)."""
+    of a mesh file is dropped).
+
+    The 2D cells of a 3D model, given by their ``cell_type``, are a construction
+    mesh, e.g. a profile to revolve or expand into a body (#438)."""
     types = solid_types(mesh)
+    given = cell_type is not None
     if cell_type is None and len(types) == 1:
         cell_type = types[0]
     if cell_type not in types:
         raise ValueError(f"Expected the type of solid cells to take, one of {types}.")
-    if dim == 3 and DIMENSIONS[cell_type] == 2:
+    if dim == 3 and DIMENSIONS[cell_type] == 2 and not given:
         raise ValueError(
             f"The mesh has {cell_type} cells, which are 2D cells: set the analysis "
-            "of the model settings to plane strain or axisymmetric."
+            "of the model settings to plane strain or axisymmetric, or take them as "
+            f"a construction mesh with cell_type={cell_type!r}, e.g. a profile to "
+            "revolve."
         )
     if dim == 2 and DIMENSIONS[cell_type] == 3:
         raise ValueError(

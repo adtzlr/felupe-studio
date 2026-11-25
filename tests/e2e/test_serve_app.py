@@ -875,6 +875,67 @@ def test_an_imported_half_mirrored_stacked_and_solved(url, page):
     assert page.errors == []
 
 
+def test_a_profile_of_a_file_revolved_and_solved(url, page):
+    """A profile of quads with z = 0 imported into a 3D model as a construction mesh
+    with the import dialog, revolved with the ribbon and solved (#438)."""
+    page.goto(url)
+    page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
+
+    page.get_by_role("tabpanel").get_by_role("button", name="Import mesh").click()
+    dialog = page.get_by_role("dialog")
+    golden = Path(__file__).parents[1] / "golden"
+    profile = golden / "tube_revolved_profile" / "profile.vtu"
+    dialog.get_by_test_id("file-picker").set_input_files(str(profile))
+    construction = dialog.get_by_label("Construction mesh", exact=False)
+    construction.wait_for(timeout=60_000)
+    assert construction.is_checked()
+    dialog.get_by_text("quad, 12 cells, construction").wait_for()
+    dialog.get_by_role("button", name="Import", exact=True).click()
+    tree = page.get_by_role("navigation", name="Model browser")
+    tree.get_by_text("profile.vtu · construction").wait_for()
+
+    page.get_by_role("button", name="Operations").click()
+    page.get_by_role("menuitem", name="Revolve", exact=True).click()
+    dialog = page.get_by_role("dialog")
+    dialog.get_by_label("Name", exact=True).fill("body")
+    assert dialog.locator("select[id$='-inputs']").input_value() == "profile"
+    dialog.get_by_label("n", exact=True).fill("5")
+    dialog.get_by_label("φ [°]").fill("90")
+    dialog.get_by_role("button", name="Create").click()
+    tree.get_by_text("revolve profile · n = 5").wait_for()
+
+    def command(text):
+        name = text.split('"name": "')[1].split('"')[0]
+        line = page.get_by_label("Command", exact=True)
+        line.fill(text)
+        line.press("Enter")
+        page.get_by_text(f"Created {name}.").first.wait_for(timeout=60_000)
+
+    for text in [
+        'cellset.from_file {"name": "cells", "mesh": "body"}',
+        'material.add {"name": "rubber", "model": "NeoHooke", "parameters": {"mu": 1}}',
+        'section.add {"name": "solid", "cellset": "cells", "material": "rubber", '
+        '"formulation": "u-p-J", "bulk": 5000}',
+        'pointset.add {"name": "start", "select": {"axis": "x", "value": 0}}',
+        'pointset.add {"name": "end", "select": {"axis": "x", "value": 3}}',
+        'boundary.add {"name": "fixed", "pointset": "start", '
+        '"constrained": ["x", "y", "z"]}',
+        'boundary.add {"name": "pull", "pointset": "end", "constrained": ["x"]}',
+        'step.add {"name": "tension", "ramp": {"num": 3, '
+        '"items": [{"target": "pull", "end": 0.3}]}}',
+        'job.add {"name": "job", "steps": ["tension"], "curve": "pull"}',
+    ]:
+        command(text)
+    page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)
+
+    page.get_by_role("button", name="Solve").click()
+    results = page.get_by_role("button", name="Show results")
+    results.wait_for(timeout=120_000)
+    summary = page.get_by_text("substeps in").first.inner_text()
+    assert "4 substeps" in summary and "Last substep: ux = 0.3" in summary
+    assert page.errors == []
+
+
 def test_a_step_that_releases_a_boundary_solved(url, page):
     """A step without a boundary, made with its form, and solved (#393): the
     viewport fades the boundary with the step selected, the free end springs back,

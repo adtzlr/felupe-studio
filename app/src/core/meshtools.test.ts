@@ -363,6 +363,36 @@ describe("the meshes of files and scripts as inputs (#438)", () => {
     expect([...hiddenObjects(commands, new Set())]).toEqual(["half"]);
   });
 
+  it("are construction meshes of 2D cells in a 3D model, by their cell type", () => {
+    const profile = { ...half, name: "profile", cell_type: "quad" };
+    const tube = {
+      ...made("revolve", { n: 5, phi: 90, axis: "x" }, "tube"),
+      inputs: ["profile"],
+    } as MeshGenerate;
+    const known = dimensions([profile, tube]);
+    expect(known.get("profile")).toEqual({
+      points: 2,
+      cells: 2,
+      cell_type: "quad",
+    });
+    expect(known.get("tube")?.cell_type).toBe("hexahedron");
+    const tree = deriveTree([profile, tube] as Command[]);
+    const [mesh] = tree.find((g) => g.id === "group:mesh")!.children;
+    expect(mesh.children.map((c) => [c.label, c.detail])).toEqual([
+      ["profile", "half.vtu · construction"],
+    ]);
+    // a mesh of the model in a 2D model
+    const flat = {
+      command: "model.settings",
+      name: "settings",
+      analysis: "plane-strain" as const,
+    };
+    const meshes = deriveTree([flat, profile] as Command[]).find(
+      (g) => g.id === "group:mesh",
+    )!.children;
+    expect(meshes.map((c) => c.detail)).toEqual(["half.vtu"]);
+  });
+
   it("are offered by the form of a tool", () => {
     const context = { commands: [half] as Command[] };
     const draft = initialDraft("mesh.generate", context);

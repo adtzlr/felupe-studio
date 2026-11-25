@@ -6,6 +6,7 @@ import {
   defaultMode,
   describePlanned,
   meshSize,
+  offersConstruction,
   planImport,
   suggestMeshName,
   suggestScale,
@@ -95,6 +96,9 @@ export function ImportMeshDialog({
   const [name, setName] = useState("");
   const [mode, setMode] = useState<CellSetMode>({ mode: "all" });
   const [scaleText, setScaleText] = useState("1");
+  // a file of 2D cells in a 3D model: a construction mesh, e.g. a profile to
+  // revolve, or a mesh of a 2D model (#438)
+  const [construction, setConstruction] = useState(true);
   const [defaultsFor, setDefaultsFor] = useState<string | undefined>();
 
   const choose = (picked: File[]) => {
@@ -120,6 +124,7 @@ export function ImportMeshDialog({
     setName(suggestMeshName(info.file, store.commands));
     setMode(defaultMode(info));
     setScaleText("1");
+    setConstruction(true);
   }, [info, defaultsFor, store.commands]);
 
   const used = new Set(
@@ -149,9 +154,11 @@ export function ImportMeshDialog({
   const scaled = size.map(
     (x) => +(x * (scaleError ? 1 : scale)).toPrecision(4),
   );
+  const offered = info ? offersConstruction(info, store.commands) : false;
+  const asConstruction = offered && construction;
   const planned =
     info && !nameError && !scaleError
-      ? planImport(info, name, mode, store.commands, scale)
+      ? planImport(info, name, mode, store.commands, scale, asConstruction)
       : [];
   const plan = planned.length > 0 ? planned : undefined;
   const tags = info ? fileTags(info) : [];
@@ -285,63 +292,95 @@ export function ImportMeshDialog({
                   </p>
                 )}
               </div>
-              <fieldset class="choices">
-                <legend class="form-label">Cell sets</legend>
-                {tags.length > 0 && (
+              {offered && (
+                <fieldset class="choices">
+                  <legend class="form-label">2D cells in a 3D model</legend>
+                  <label class="check">
+                    <input
+                      type="radio"
+                      name="use"
+                      checked={construction}
+                      onChange={() => setConstruction(true)}
+                    />
+                    Construction mesh, e.g. a profile to revolve or expand into
+                    a body
+                  </label>
+                  <label class="check">
+                    <input
+                      type="radio"
+                      name="use"
+                      checked={!construction}
+                      onChange={() => setConstruction(false)}
+                    />
+                    Mesh of a 2D model: then set the analysis of the settings to
+                    plane strain or axisymmetric
+                  </label>
+                </fieldset>
+              )}
+              {asConstruction ? (
+                <p class="muted" role="note">
+                  A construction mesh has no cell sets: the body that a tool
+                  makes of it has them, e.g. Revolve or Expand of the Mesh tab.
+                </p>
+              ) : (
+                <fieldset class="choices">
+                  <legend class="form-label">Cell sets</legend>
+                  {tags.length > 0 && (
+                    <label class="check">
+                      <input
+                        type="radio"
+                        name="cellsets"
+                        checked={mode.mode === "tag"}
+                        onChange={() =>
+                          setMode({ mode: "tag", tag: tags[0].name })
+                        }
+                      />
+                      One per value of the cell tag
+                    </label>
+                  )}
+                  {mode.mode === "tag" && (
+                    <div class="choice-detail">
+                      {tags.length > 1 && (
+                        <select
+                          aria-label="Cell tag"
+                          value={mode.tag}
+                          onChange={(event) =>
+                            setMode({
+                              mode: "tag",
+                              tag: event.currentTarget.value,
+                            })
+                          }
+                        >
+                          {tags.map((t) => (
+                            <option key={t.name} value={t.name}>
+                              {t.name} ({plural(t.values.length, "value")})
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                      {tags.length === 1 && <code>{mode.tag}</code>}
+                    </div>
+                  )}
                   <label class="check">
                     <input
                       type="radio"
                       name="cellsets"
-                      checked={mode.mode === "tag"}
-                      onChange={() =>
-                        setMode({ mode: "tag", tag: tags[0].name })
-                      }
+                      checked={mode.mode === "all"}
+                      onChange={() => setMode({ mode: "all" })}
                     />
-                    One per value of the cell tag
+                    One with all cells
                   </label>
-                )}
-                {mode.mode === "tag" && (
-                  <div class="choice-detail">
-                    {tags.length > 1 && (
-                      <select
-                        aria-label="Cell tag"
-                        value={mode.tag}
-                        onChange={(event) =>
-                          setMode({
-                            mode: "tag",
-                            tag: event.currentTarget.value,
-                          })
-                        }
-                      >
-                        {tags.map((t) => (
-                          <option key={t.name} value={t.name}>
-                            {t.name} ({plural(t.values.length, "value")})
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    {tags.length === 1 && <code>{mode.tag}</code>}
-                  </div>
-                )}
-                <label class="check">
-                  <input
-                    type="radio"
-                    name="cellsets"
-                    checked={mode.mode === "all"}
-                    onChange={() => setMode({ mode: "all" })}
-                  />
-                  One with all cells
-                </label>
-                <label class="check">
-                  <input
-                    type="radio"
-                    name="cellsets"
-                    checked={mode.mode === "none"}
-                    onChange={() => setMode({ mode: "none" })}
-                  />
-                  None, I create them later
-                </label>
-              </fieldset>
+                  <label class="check">
+                    <input
+                      type="radio"
+                      name="cellsets"
+                      checked={mode.mode === "none"}
+                      onChange={() => setMode({ mode: "none" })}
+                    />
+                    None, I create them later
+                  </label>
+                </fieldset>
+              )}
               {plan && (
                 <div class="plan" aria-label="Will be created">
                   <span class="muted">Creates</span>
@@ -354,7 +393,7 @@ export function ImportMeshDialog({
                         {c.command === "mesh.import" ? "mesh" : "cell set"}{" "}
                         <strong>{c.name}</strong>{" "}
                         <span class="muted">
-                          {describePlanned(c, plan, info)}
+                          {describePlanned(c, plan, info, store.commands)}
                         </span>
                       </li>
                     ))}

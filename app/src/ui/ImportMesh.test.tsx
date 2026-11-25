@@ -119,6 +119,23 @@ const INFO: Record<string, MeshInfo> = {
     file: "surface.vtu",
     error: "The file needs solid cells (tetra, …); found quad.",
   },
+  // a profile of quads with z = 0, e.g. to revolve (#438)
+  "profile.vtu": {
+    file: "profile.vtu",
+    points: 21,
+    solids: [
+      {
+        cell_type: "quad",
+        cells: 12,
+        bounds: [
+          [0, 1, 0],
+          [3, 2, 0],
+        ],
+        tags: [MATERIAL],
+      },
+    ],
+    ignored: ["line"],
+  },
 };
 
 function setup(store = new ModelStore()) {
@@ -276,6 +293,66 @@ describe("import dialog", () => {
     expect(store.commands).toEqual([
       { command: "mesh.import", name: "plain", file: "plain.vtu" },
     ]);
+  });
+
+  it("offers a file of 2D cells in a 3D model as a construction mesh (#438)", async () => {
+    const { store, dialog, pick, importButton } = setup();
+    fireEvent.click(
+      within(screen.getByRole("tabpanel")).getByRole("button", {
+        name: "Import mesh",
+      }),
+    );
+    pick("profile.vtu");
+    await waitFor(() => expect(importButton().disabled).toBe(false));
+    const construction = within(dialog()).getByLabelText(
+      /^Construction mesh/,
+    ) as HTMLInputElement;
+    expect(construction.checked).toBe(true);
+    // without cell sets, which the body of a tool has
+    expect(within(dialog()).queryByText("Cell sets")).toBeNull();
+    expect(dialog().textContent).toContain(
+      "A construction mesh has no cell sets",
+    );
+    expect(within(dialog()).getByLabelText("Will be created").textContent).toBe(
+      "Createsmesh profile quad, 12 cells, construction",
+    );
+    // or a mesh of a 2D model, with its cell sets
+    fireEvent.click(within(dialog()).getByLabelText(/^Mesh of a 2D model/));
+    expect(within(dialog()).getByText("Cell sets")).toBeTruthy();
+    fireEvent.click(construction);
+    fireEvent.click(importButton());
+    expect(store.commands).toEqual([
+      {
+        command: "mesh.import",
+        name: "profile",
+        file: "profile.vtu",
+        cell_type: "quad",
+      },
+    ]);
+    expect(validate(store.commands)).toEqual([]);
+  });
+
+  it("imports a file of 2D cells into a 2D model without the choice", async () => {
+    const store = new ModelStore({
+      schema_version: 3,
+      commands: [
+        {
+          command: "model.settings",
+          name: "settings",
+          analysis: "plane-strain",
+        },
+      ],
+    });
+    const { dialog, pick, importButton } = setup(store);
+    fireEvent.click(
+      within(screen.getByRole("tabpanel")).getByRole("button", {
+        name: "Import mesh",
+      }),
+    );
+    pick("profile.vtu");
+    await waitFor(() => expect(importButton().disabled).toBe(false));
+    expect(within(dialog()).queryByLabelText(/^Construction mesh/)).toBeNull();
+    expect(within(dialog()).getByText("Cell sets")).toBeTruthy();
   });
 
   it("explains files that cannot be used and checks the name", async () => {

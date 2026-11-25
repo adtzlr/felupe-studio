@@ -304,10 +304,8 @@ def test_problems_of_2d_models():
     assert problems({"command": "mesh.import", "cell_type": "tetra"}) == [
         "mesh 'a' takes tetra cells, but a 2D model has 2D cells."
     ]
-    assert problems({"command": "mesh.import", "cell_type": "quad"}, "3d") == [
-        "mesh 'a' takes quad cells, which are 2D cells: set the analysis of the "
-        "settings to plane strain or axisymmetric."
-    ]
+    # the 2D cells of a 3D model are a construction mesh (#438)
+    assert problems({"command": "mesh.import", "cell_type": "quad"}, "3d") == []
     # the errors of a command list, with its index
     doc = document()
     doc["commands"].append(

@@ -305,7 +305,7 @@ export interface MeshImport {
    */
   tag?: string;
   /**
-   * Type of the solid cells to import, if the file has more than one (one mesh per cell type).
+   * Type of the solid cells to import, if the file has more than one (one mesh per cell type). The 2D cells of a 3D model are a construction mesh, e.g. a profile to revolve or expand, without cell sets.
    */
   cell_type?:
     | "tetra"
@@ -350,7 +350,7 @@ export interface MeshScript {
    */
   tag?: string;
   /**
-   * Type of the solid cells to take, if the mesh has more than one.
+   * Type of the solid cells to take, if the mesh has more than one. The 2D cells of a 3D model are a construction mesh, e.g. a profile to revolve or expand, without cell sets.
    */
   cell_type?:
     | "tetra"

@@ -128,8 +128,13 @@ describe("the cells of the analysis (#175)", () => {
     const quads = await files("quad");
     expect(fileNotes(settings("plane-strain"), quads).size).toBe(0);
     expect(fileNotes(mesh, quads).get("specimen")).toEqual([
-      "The file 'specimen.vtu' has quad cells, which are 2D cells: set the analysis of the settings to plane strain or axisymmetric.",
+      "The file 'specimen.vtu' has quad cells, which are 2D cells: set the analysis of the settings to plane strain or axisymmetric, or take them as a construction mesh with the cell type quad, e.g. a profile to revolve.",
     ]);
+    // a construction mesh of a 3D model, by its cell type (#438)
+    const profile = mesh.map((c) =>
+      c.command === "mesh.import" ? { ...c, cell_type: "quad" } : c,
+    ) as Command[];
+    expect(fileNotes(profile, quads).size).toBe(0);
     const hexahedrons = await files("hexahedron");
     expect(fileNotes(mesh, hexahedrons).size).toBe(0);
     expect(

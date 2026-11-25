@@ -995,7 +995,9 @@ CHANGES = {
         ),
         d["commands"].__setitem__(1, {**d["commands"][1], "cell_type": "hexahedron"}),
     ),
-    "2d cells in a 3d model": lambda d: d["commands"].__setitem__(
+    # the 2D cells of a mesh of a file in a 3D model are a construction mesh, without
+    # cell sets (#438)
+    "a cell set of 2d cells in a 3d model": lambda d: d["commands"].__setitem__(
         0, {**d["commands"][0], "cell_type": "quad"}
     ),
     "parameter out of its range": lambda d: d["commands"].insert(
@@ -1217,6 +1219,13 @@ CHANGES = {
     ),
     "expand of an imported mesh": lambda d: operation(
         d, "expand", ["part"], [PART], n=2, z=1
+    ),
+    # a construction mesh of a file: its 2D cells in a 3D model (#438)
+    "a profile of a file revolved": lambda d: operation(
+        d, "revolve", ["part"], [{**PART, "cell_type": "quad"}], n=3, phi=90, axis="x"
+    ),
+    "a profile of a script expanded": lambda d: operation(
+        d, "expand", ["part"], [{**SCRIPT_PART, "cell_type": "quad"}], n=2, z=1
     ),
     "a stack of an imported mesh of tetrahedrons and a cube": lambda d: operation(
         d,

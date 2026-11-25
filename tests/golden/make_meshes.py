@@ -70,6 +70,13 @@ def main():
     # the left half of the bar, mirrored and stacked into the whole by the mesh tools
     # (#438)
     write_vtu(HERE / "bar_mirrored_half" / "half.vtu", bar(b=(1.5, 1, 1), n=(7, 5, 5)))
+    # the profile of tube_sleeve_torsion as a file of quads with the points of a 3D
+    # mesh generator (z = 0), a construction mesh revolved into the tube (#438)
+    profile = fem.Rectangle(a=(0, 1), b=(3, 2), n=(7, 3))
+    points = np.pad(profile.points, ((0, 0), (0, 1)))
+    write_vtu(
+        HERE / "tube_revolved_profile" / "profile.vtu", profile.copy(points=points)
+    )
 
     # like before, but the coordinates of the right file differ by 1e-9 (as with
     # files of different mesh generators); merged with mesh.merge (decimals=6)

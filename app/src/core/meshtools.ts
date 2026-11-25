@@ -331,6 +331,19 @@ function axisProblems(
 export const modelMesh = (dimension: MeshDimension, dim: number): boolean =>
   dimension.points === dim && dimension.cells === dim;
 
+/**
+ * Whether a mesh is a construction mesh below the dimension of the model: made by a
+ * tool (ADR 0019), or of a file or a script with 2D cells in a 3D model (#438).
+ */
+export function isConstruction(
+  name: string,
+  commands: Parameters<typeof dimensions>[0],
+): boolean {
+  const dimension = dimensions(commands).get(name);
+  const dim = is2d(analysisOf(commands)) ? 2 : 3;
+  return dimension !== undefined && !modelMesh(dimension, dim);
+}
+
 const AXES = ["x", "y", "z"];
 
 /** The axes in a message, e.g. `x`, `x and y` or `x, y and z`. */

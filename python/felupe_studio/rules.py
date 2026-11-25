@@ -383,11 +383,11 @@ def cellset_tag(model, cmd):
 
 
 def cellset_model_mesh(model, cmd):
-    """A cell set needs a mesh of the model: of a mesh made by a tool, its points and
-    its cells have the dimension of the model; a lower mesh is a construction mesh
-    (ADR 0019)."""
+    """A cell set needs a mesh of the model: its points and its cells have the
+    dimension of the model; a lower mesh is a construction mesh (ADR 0019), also of a
+    file or a script with 2D cells in a 3D model (#438)."""
     mesh = model.before(cmd["mesh"])
-    if mesh is None or mesh["command"] != "mesh.generate":
+    if mesh is None:
         return []
     dimension = model.dimensions.get(mesh["name"])
     dim = len(model.axes)

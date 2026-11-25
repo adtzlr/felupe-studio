@@ -304,6 +304,23 @@ def test_cube_expanded_from_a_rectangle_like_the_file():
         )
 
 
+def test_revolved_profile_of_a_file_like_the_tool():
+    # the profile of tube_sleeve_torsion as a file of quads with z = 0, a
+    # construction mesh of the 3D model by its cell type, revolved (#438): the same
+    # mesh, the same curve
+    file, tool = (
+        json.loads((HERE / case / "results.json").read_text(encoding="utf-8"))
+        for case in ("tube_revolved_profile", "tube_sleeve_torsion")
+    )
+    for key in ("displacement", "force"):
+        np.testing.assert_allclose(
+            file["jobs"]["job_1"][key], tool["jobs"]["job_1"][key], rtol=1e-10
+        )
+    script = (HERE / "tube_revolved_profile" / "script.py").read_text("utf-8")
+    line = 'profile = volume_cells(meshio.read("profile.vtu"), cell_type="quad")'
+    assert line in script
+
+
 def test_pardiso_like_superlu():
     # the bar of two materials with PARDISO of Intel oneMKL (#308): the curve of
     # SuperLU, stored where pypardiso is installed
@@ -681,8 +698,10 @@ LARGE_ROUNDOFF = {
     # estimate of 0.74
     "plate_rotation_plane_strain",
     # the penalties of the cylindrical constraints (1000 per point and direction, of
-    # rubber with mu = 1, #422): 1.3e-3, with an estimate of 2.3e-2
+    # rubber with mu = 1, #422): 1.3e-3, with an estimate of 2.3e-2; the same tube
+    # of a profile of a file (#438)
     "tube_sleeve_torsion",
+    "tube_revolved_profile",
 }
 # the three-field variation of steel on quadratic tetrahedrons (#420): the residual
 # of float32 stalls at about 2.5 times the estimate of its round-off by FElupe 12.1.1,

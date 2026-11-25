@@ -223,6 +223,8 @@ def analysis_problems(cmd, analysis, rotations=()):
     """Return the problems of a command in a model of a type of analysis (#175): a
     2D model (plane strain or axisymmetric) has 2D cells and no z components, except
     the rotation about z of the ``rotations`` (the rotation points of constraints).
+    The 2D cells of a mesh of a file or of a script in a 3D model are a construction
+    mesh (#438), without cell sets.
 
     Examples
     --------
@@ -236,11 +238,6 @@ def analysis_problems(cmd, analysis, rotations=()):
     meshes = ("mesh.import", "mesh.script")
     cell_type = cmd.get("cell_type") if cmd["command"] in meshes else None
     if analysis == "3d":
-        if cell_type and cell_type not in CELLS_3D:
-            return [
-                f"mesh '{name}' takes {cell_type} cells, which are 2D cells: set the "
-                "analysis of the settings to plane strain or axisymmetric."
-            ]
         return []
     if cell_type in CELLS_3D:
         return [f"mesh '{name}' takes {cell_type} cells, but a 2D model has 2D cells."]
