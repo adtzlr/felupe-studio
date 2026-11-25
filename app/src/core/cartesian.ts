@@ -7,9 +7,6 @@ import type { Command as ResolvedCommand } from "./resolved";
 /** A Cartesian constraint with the values of its expressions (#242). */
 export type Cartesian = Extract<ResolvedCommand, { command: "cartesian.add" }>;
 
-/** The directions of a Cartesian constraint, the indices of its base vectors. */
-export const DIRECTIONS = ["1", "2", "3"] as const;
-
 /** The second base vector of a 3D model by default. */
 export const E2 = [0, 1, 0] as const;
 

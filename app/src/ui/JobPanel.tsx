@@ -202,7 +202,8 @@ export function JobPanel({
           <ul class="job-results">
             {Object.entries(run.results).map(([name, result]) => {
               const q = curveQuantities(run.commands, name);
-              // of a Cartesian constraint, its first constrained direction (#421)
+              // of a constraint in local coordinates, its first constrained
+              // direction that moves (#421, #422)
               const preferred = q.preferred?.[1];
               const point = curvePoint(
                 result,

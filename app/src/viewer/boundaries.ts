@@ -3,9 +3,12 @@
 // the lines that draw them. The boundaries of the load cases follow `fem.dof`
 // (`symmetry`, `uniaxial`, `biaxial`, `shear`) on the nodes of the drawn meshes; a
 // test compares them with FElupe (`boundaries.fixture.json`). A Cartesian constraint
-// (#421) is drawn like a boundary along the directions of its coordinate system.
+// (#421) is drawn like a boundary along the directions of its coordinate system, a
+// cylindrical constraint (#422) along r, θ and z of each of its points.
 import { analysisOf, is2d } from "../core/analysis";
-import { DIRECTIONS, directions3d } from "../core/cartesian";
+import { directions3d } from "../core/cartesian";
+import { cylinderOf, frameAt } from "../core/cylindrical";
+import { DIRECTIONS } from "../core/directions";
 import type { Command } from "../core/resolved";
 import { LOADCASE_DEFAULTS } from "../core/loadcases";
 import { type Symmetry, symmetryPlanes } from "../core/symmetry";
@@ -36,7 +39,16 @@ export interface BoundarySymbol {
    * its base vectors e1, e2 and e3; the axes x, y and z without them.
    */
   axes?: number[][];
+  /**
+   * The axis of a cylindrical constraint (#422), whose components 0, 1 and 2 are
+   * the directions r, θ and z of each point about it.
+   */
+  cylinder?: { center: number[]; axis: number[] };
 }
+
+/** Whether a symbol is of a constraint in local coordinates (#421, #422). */
+export const isLocal = (symbol: BoundarySymbol) =>
+  symbol.axes !== undefined || symbol.cylinder !== undefined;
 
 /**
  * The values of the components of a boundary: one number for all of them, or one
@@ -279,7 +291,7 @@ function cartesianSymbol(
   const at = points.get(c.points);
   const axes = directions3d(c, analysisOf(commands));
   if (!at || !axes) return [];
-  const components = DIRECTIONS.flatMap((d, k) =>
+  const components = DIRECTIONS["cartesian.add"].flatMap((d, k) =>
     (c.constrained as readonly string[]).includes(d) ? [k] : [],
   );
   const value = ramped.get(c.name) ?? c.value ?? 0;
@@ -291,6 +303,35 @@ function cartesianSymbol(
       components,
       values: expand(value, components.length),
       axes,
+    },
+  ];
+}
+
+/**
+ * The symbol of a cylindrical constraint (#422): its constrained directions r, θ
+ * and z about its axis, with their final values.
+ */
+function cylindricalSymbol(
+  c: Extract<Command, { command: "cylindrical.add" }>,
+  commands: readonly Command[],
+  points: ReadonlyMap<string, Float64Array>,
+  ramped: ReadonlyMap<string, number | readonly number[]>,
+): BoundarySymbol[] {
+  const at = points.get(c.points);
+  const cylinder = cylinderOf(c, analysisOf(commands));
+  if (!at || !cylinder) return [];
+  const components = DIRECTIONS["cylindrical.add"].flatMap((d, k) =>
+    (c.constrained as readonly string[]).includes(d) ? [k] : [],
+  );
+  const value = ramped.get(c.name) ?? c.value ?? 0;
+  return [
+    {
+      owner: c.name,
+      name: c.name,
+      points: at,
+      components,
+      values: expand(value, components.length),
+      cylinder,
     },
   ];
 }
@@ -318,6 +359,8 @@ export function boundarySymbols(
       });
     } else if (c.command === "cartesian.add") {
       symbols.push(...cartesianSymbol(c, commands, points, ramped));
+    } else if (c.command === "cylindrical.add") {
+      symbols.push(...cylindricalSymbol(c, commands, points, ramped));
     } else if (c.command === "symmetry.add") {
       // fem.dof.symmetry: the normal component on every plane (#186)
       for (const { axis, value } of symmetryPlanes(c)) {
@@ -408,13 +451,30 @@ export function thinned(points: Float64Array, limit = 300): Float64Array {
   return result;
 }
 
-/** The direction of a component of a symbol: an axis, or a base vector (#421). */
-const axisOf = (symbol: BoundarySymbol, component: number): number[] =>
-  symbol.axes?.[component] ?? [0, 1, 2].map((k) => (k === component ? 1 : 0));
+/**
+ * The direction of a component of a symbol at a point (three coordinates at `p`):
+ * an axis, a base vector (#421), or r, θ or z of the point about the axis of a
+ * cylindrical constraint (#422).
+ */
+export function axisOf(
+  symbol: BoundarySymbol,
+  component: number,
+  points: ArrayLike<number> = symbol.points,
+  p = 0,
+): number[] {
+  if (symbol.cylinder)
+    return frameAt(symbol.cylinder, [points[p], points[p + 1], points[p + 2]])[
+      component
+    ];
+  return (
+    symbol.axes?.[component] ?? [0, 1, 2].map((k) => (k === component ? 1 : 0))
+  );
+}
 
 /**
  * The line segments of the fixed components of a symbol: a short stroke through
- * every point along every constrained axis (or direction of a Cartesian constraint).
+ * every point along every constrained axis (or direction of a constraint in local
+ * coordinates).
  */
 export function strokes(
   symbol: BoundarySymbol,
@@ -422,9 +482,9 @@ export function strokes(
   length: number,
 ): Float32Array {
   const points = thinned(symbol.points);
-  const axis = axisOf(symbol, component);
   const segments = new Float32Array(2 * points.length);
   for (let p = 0; p < points.length; p += 3) {
+    const axis = axisOf(symbol, component, points, p);
     for (let k = 0; k < 3; k++) {
       const offset = (axis[k] * length) / 2;
       segments[2 * p + k] = points[p + k] - offset;
@@ -434,11 +494,18 @@ export function strokes(
   return segments;
 }
 
-/** The direction of a moved boundary: the vector of the values of its components. */
-export function direction(symbol: BoundarySymbol): [number, number, number] {
+/**
+ * The direction of a moved boundary: the vector of the values of its components (of
+ * a cylindrical constraint at the point at `p` of `points`, #422).
+ */
+export function direction(
+  symbol: BoundarySymbol,
+  points: ArrayLike<number> = symbol.points,
+  p = 0,
+): [number, number, number] {
   const d: [number, number, number] = [0, 0, 0];
   symbol.components.forEach((component, i) => {
-    const axis = axisOf(symbol, component);
+    const axis = axisOf(symbol, component, points, p);
     for (let k = 0; k < 3; k++) d[k] += (symbol.values[i] ?? 0) * axis[k];
   });
   const length = Math.hypot(...d) || 1;
@@ -490,9 +557,16 @@ export function boundaryLines(
     const opacity = faded.has(symbol.owner) ? FADED : undefined;
     if (symbol.values.some((value) => value !== 0)) {
       const origins = thinned(symbol.points);
-      const d = direction(symbol).map((x) => x * 0.1 * size);
       const directions = new Float32Array(origins.length);
-      for (let p = 0; p < origins.length; p += 3) directions.set(d, p);
+      // the same direction at every point, but of a cylindrical constraint (#422)
+      const d = direction(symbol).map((x) => x * 0.1 * size);
+      for (let p = 0; p < origins.length; p += 3)
+        directions.set(
+          symbol.cylinder
+            ? direction(symbol, origins, p).map((x) => x * 0.1 * size)
+            : d,
+          p,
+        );
       add(
         chosen ? colors.highlight : colors.marker,
         chosen ? 3 : 2,

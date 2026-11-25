@@ -32,7 +32,9 @@ import {
   type Vertex,
   VERTICES,
 } from "./kinds";
-import { DIRECTIONS, norm, orthogonal, vectors } from "./cartesian";
+import { norm, orthogonal, vectors } from "./cartesian";
+import { hasAxis } from "./cylindrical";
+import { directionsOf, isLocal, NAMES } from "./directions";
 import { loadcaseFieldErrors, loadcaseProblems } from "./loadcases";
 import {
   first,
@@ -253,13 +255,19 @@ const duplicateName: Rule = (model, cmd) => {
 /** The names of the commands of the kind constraint in the messages. */
 const CONSTRAINTS: Partial<Record<CommandType, string>> = {
   "mpc.add": "multi-point constraint",
-  "cartesian.add": "Cartesian constraint",
+  ...NAMES,
   "contact.add": "contact",
 };
 
+/** What a step ramps, and what a curve is of, in the messages (#421, #422). */
+const RAMPS =
+  "a boundary, a load case, a Cartesian or cylindrical constraint, a point load or a pressure";
+const CURVES =
+  "a boundary, a load case, a Cartesian or cylindrical constraint or a point load";
+
 /**
  * Whether an object is a boundary, a load or a pressure, or a constraint that a
- * step ramps and that is the curve of a job (#421).
+ * step ramps and that is the curve of a job (#421, #422).
  */
 function moved(model: Model, name: string): boolean {
   const command = model.before(name);
@@ -270,8 +278,8 @@ function moved(model: Model, name: string): boolean {
 }
 
 /**
- * The ramped items of a step are boundaries, load cases, Cartesian constraints,
- * loads or pressures.
+ * The ramped items of a step are boundaries, load cases, Cartesian or cylindrical
+ * constraints, loads or pressures.
  */
 const rampTargets: Rule<CommandOf<"step.add">> = (model, cmd) =>
   (cmd.ramp?.items ?? []).flatMap((item) => {
@@ -281,7 +289,7 @@ const rampTargets: Rule<CommandOf<"step.add">> = (model, cmd) =>
     return [
       {
         message: constraint
-          ? `step '${cmd.name}' ramps the ${constraint} '${item.target}': a step ramps a boundary, a load case, a Cartesian constraint, a point load or a pressure.`
+          ? `step '${cmd.name}' ramps the ${constraint} '${item.target}': a step ramps ${RAMPS}.`
           : `step '${cmd.name}' ramps unknown boundary or load '${item.target}'.`,
         field: "ramp.items",
       },
@@ -300,16 +308,18 @@ const rampTwice: Rule<CommandOf<"step.add">> = (_, cmd) => {
 
 /**
  * The commands that ramp one value per constrained component or direction, with
- * their names in the messages (#225, #421).
+ * their names in the messages (#225, #421, #422).
  */
 const PER_COMPONENT: Partial<Record<CommandType, [string, string]>> = {
   "boundary.add": ["boundary", "component"],
-  "cartesian.add": ["Cartesian constraint", "direction"],
+  "cartesian.add": [NAMES["cartesian.add"], "direction"],
+  "cylindrical.add": [NAMES["cylindrical.add"], "direction"],
 };
 
 /**
  * The ramp of a boundary with one value per constrained component (#225), or of a
- * Cartesian constraint with one value per constrained direction (#421).
+ * Cartesian or cylindrical constraint with one value per constrained direction
+ * (#421, #422).
  */
 const rampValues: Rule<CommandOf<"step.add">> = (model, cmd) => {
   const problems: Problem[] = [];
@@ -320,12 +330,9 @@ const rampValues: Rule<CommandOf<"step.add">> = (model, cmd) => {
     const target = model.before(item.target);
     if (!values.length || !target) continue;
     const names = PER_COMPONENT[target.command];
-    if (
-      !names ||
-      (target.command !== "boundary.add" && target.command !== "cartesian.add")
-    ) {
+    if (!names || !("constrained" in target)) {
       problems.push({
-        message: `step '${cmd.name}' ramps '${item.target}' with ${countOf(values[0].length, "value")}: only a boundary or a Cartesian constraint ramps one value per constrained component.`,
+        message: `step '${cmd.name}' ramps '${item.target}' with ${countOf(values[0].length, "value")}: only a boundary, a Cartesian constraint or a cylindrical constraint ramps one value per constrained component.`,
         field: "ramp.items",
       });
       continue;
@@ -354,8 +361,8 @@ const CHOSEN: Partial<Record<Kind, "boundaries" | "constraints">> = {
 };
 
 /**
- * A step ramps no boundary, load case or Cartesian constraint that is off in it
- * (#393, #421).
+ * A step ramps no boundary, load case or constraint in local coordinates that is
+ * off in it (#393, #421, #422).
  */
 const rampOff: Rule<CommandOf<"step.add">> = (model, cmd) =>
   (cmd.ramp?.items ?? [])
@@ -371,8 +378,8 @@ const rampOff: Rule<CommandOf<"step.add">> = (model, cmd) =>
     }));
 
 /**
- * The curve of a job is a boundary, a load case, a point load or a Cartesian
- * constraint, not another constraint (#421).
+ * The curve of a job is a boundary, a load case, a point load or a Cartesian or
+ * cylindrical constraint, not another constraint (#421, #422).
  */
 const curveKind: Rule<CommandOf<"job.add">> = (model, cmd) => {
   const target = cmd.curve === undefined ? undefined : model.before(cmd.curve);
@@ -380,7 +387,7 @@ const curveKind: Rule<CommandOf<"job.add">> = (model, cmd) => {
   if (!constraint || moved(model, cmd.curve as string)) return [];
   return [
     {
-      message: `job '${cmd.name}' records the curve of the ${constraint} '${cmd.curve}': a curve is of a boundary, a load case, a Cartesian constraint or a point load.`,
+      message: `job '${cmd.name}' records the curve of the ${constraint} '${cmd.curve}': a curve is of ${CURVES}.`,
       field: "curve",
     },
   ];
@@ -425,17 +432,34 @@ const cartesianVectors: Rule<CommandOf<"cartesian.add">> = (model, cmd) => {
     : [];
 };
 
-/** A Cartesian constraint with a value per constrained direction (#421). */
-const cartesianValues: Rule<CommandOf<"cartesian.add">> = (_, cmd) => {
+/**
+ * A Cartesian or cylindrical constraint with a value per constrained direction
+ * (#421, #422).
+ */
+const directionValues: Rule<CommandOf<"cartesian.add" | "cylindrical.add">> = (
+  _,
+  cmd,
+) => {
   const constrained = cmd.constrained.length;
   if (!Array.isArray(cmd.value) || cmd.value.length === constrained) return [];
   return [
     {
-      message: `Cartesian constraint '${cmd.name}' has ${countOf(cmd.value.length, "value")}, but it constrains ${countOf(constrained, "direction")}.`,
+      message: `${NAMES[cmd.command]} '${cmd.name}' has ${countOf(cmd.value.length, "value")}, but it constrains ${countOf(constrained, "direction")}.`,
       field: "value",
     },
   ];
 };
+
+/** The axis of a cylindrical constraint has a length (#422). */
+const cylindricalAxis: Rule<CommandOf<"cylindrical.add">> = (_, cmd) =>
+  hasAxis(cmd)
+    ? []
+    : [
+        {
+          message: `cylindrical constraint '${cmd.name}' has an axis of zero length.`,
+          field: "axis",
+        },
+      ];
 
 /** A cell set from tags needs a mesh imported with a tag. */
 const cellsetTag: Rule<CommandOf<"cellset.from_tag">> = (model, cmd) => {
@@ -693,10 +717,12 @@ function fixedComponents(model: Model, vertex: CommandOf<Vertex>): Set<string> {
     } else if (c.command === "mpc.add") {
       if (c.center === vertex.name) c.constrained.forEach((a) => fixed.add(a));
       if (c.rotation === vertex.name) AXES.forEach((a) => fixed.add(a));
-    } else if (c.command === "cartesian.add" && c.points === vertex.name) {
-      // all directions of the model: all components
-      const all = DIRECTIONS.slice(0, model.axes.length);
-      if (all.every((d) => c.constrained.includes(d)))
+    } else if (isLocal(c) && c.points === vertex.name) {
+      // a constraint in local coordinates (#421, #422) of all directions of the
+      // model: all components
+      const constrained: readonly string[] = c.constrained;
+      const all = directionsOf(c, model.axes.length);
+      if (all.every((d) => constrained.includes(d)))
         AXES.forEach((a) => fixed.add(a));
     }
   }
@@ -739,7 +765,8 @@ export const RULES: Rules = {
   "step.add": [rampTargets, rampTwice, rampValues, rampOff],
   "job.add": [curveKind],
   "boundary.add": [boundaryValues],
-  "cartesian.add": [cartesianVectors, cartesianValues],
+  "cartesian.add": [cartesianVectors, directionValues],
+  "cylindrical.add": [cylindricalAxis, directionValues],
   "mesh.generate": [meshTool, meshInputs],
   "cellset.from_tag": [cellsetTag, cellsetModelMesh],
   "cellset.from_file": [cellsetModelMesh],

@@ -569,6 +569,7 @@ export function WarningsOf({
     emptySymmetry,
     missingFaces,
     overlaps,
+    onAxis,
     atNode,
   } = warnings;
   const warn = (text: string) => (
@@ -596,6 +597,10 @@ export function WarningsOf({
                 `${o.points} ${o.points === 1 ? "point is" : "points are"} also in ${o.boundary} (${o.components.join(", ")})`,
             )
             .join("; ")}: over-constrained.`,
+        )}
+      {onAxis > 0 &&
+        warn(
+          `${selected}: ${onAxis} ${onAxis === 1 ? "point is" : "points are"} on the axis, which FElupe cannot hold radially or around it: constrain them along the axis only, or choose points off the axis.`,
         )}
       {atNode &&
         warn(

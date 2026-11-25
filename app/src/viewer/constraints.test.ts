@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { Command, MpcAdd } from "../core/resolved";
 import type { ResultScene } from "../worker/protocol";
-import { boundarySymbols, strokes } from "./boundaries";
+import { boundaryLines, boundarySymbols, strokes } from "./boundaries";
 import {
-  cartesianOverlaps,
   constraintLines,
   constraintShapes,
   frameLines,
+  localOverlaps,
   overConstrained,
+  pointsOnAxis,
   resultPlacement,
 } from "./constraints";
 import { AXIS_COLORS, FADED, VIEW_COLORS } from "./palette";
@@ -178,20 +179,113 @@ describe("Cartesian constraints in the viewport (#421)", () => {
   it("report points that a boundary prescribes in a direction not normal to theirs", () => {
     const symbols = boundarySymbols(model, nodes);
     // fixed prescribes y and z: y is not normal to e1, z is
-    expect(cartesianOverlaps("slide", symbols)).toEqual([
+    expect(localOverlaps("slide", symbols)).toEqual([
       { boundary: "fixed", points: 2, components: ["y"] },
     ]);
     const normal = [
       ...commands,
       { ...slide, e1: [1, 0, 0], e2: [0, 1, 0] },
     ] as Command[];
-    expect(cartesianOverlaps("slide", boundarySymbols(normal, nodes))).toEqual(
-      [],
-    );
+    expect(localOverlaps("slide", boundarySymbols(normal, nodes))).toEqual([]);
     // the multi-point constraint does not take the directions as components
     const [shape] = constraintShapes(model, nodes);
     expect(overConstrained(glue, shape, symbols)).toEqual([
       { boundary: "fixed", points: 2, components: ["y"] },
     ]);
+  });
+});
+
+describe("cylindrical constraints in the viewport (#422)", () => {
+  // the points at x = 1 in a rigid sleeve about z through the origin
+  const sleeve = {
+    command: "cylindrical.add",
+    name: "sleeve",
+    points: "right",
+    constrained: ["r"],
+  };
+  const model = [...commands, sleeve] as Command[];
+  const symbolOf = (commands: Command[]) =>
+    boundarySymbols(commands, nodes).find((s) => s.owner === "sleeve")!;
+
+  it("are drawn like boundaries along r, θ and z of every point", () => {
+    const symbol = symbolOf(model);
+    expect(symbol.components).toEqual([0]);
+    expect(symbol.cylinder).toEqual({ center: [0, 0, 0], axis: [0, 0, 1] });
+    // radially: along x at (1, 0, 0), diagonal at (1, 1, 0)
+    const segments = strokes(symbol, 0, 2);
+    expect(Array.from(segments.subarray(0, 6))).toEqual([0, 0, 0, 2, 0, 0]);
+    const r = Math.SQRT1_2;
+    expect(segments[9] - segments[6]).toBeCloseTo(2 * r, 6);
+    expect(segments[10] - segments[7]).toBeCloseTo(2 * r, 6);
+    // around the axis: along y at (1, 0, 0)
+    const around = symbolOf([
+      ...commands,
+      { ...sleeve, constrained: ["theta"] },
+    ] as Command[]);
+    expect(around.components).toEqual([1]);
+    expect(Array.from(strokes(around, 1, 2).subarray(0, 6))).toEqual([
+      1, -1, 0, 1, 1, 0,
+    ]);
+  });
+
+  it("draw a radial displacement as arrows along r of every point", () => {
+    const moved = [...commands, { ...sleeve, value: 0.1 }] as Command[];
+    const symbols = boundarySymbols(moved, nodes).filter(
+      (s) => s.owner === "sleeve",
+    );
+    const [arrows] = boundaryLines(symbols, {
+      size: 10,
+      colors: VIEW_COLORS.dark,
+    });
+    // the shaft of the first arrow from (1, 0, 0) along x, of the second along
+    // (1, 1, 0) / √2
+    expect(Array.from(arrows.positions.subarray(0, 6))).toEqual([
+      1, 0, 0, 2, 0, 0,
+    ]);
+    const second = arrows.positions.length / 2;
+    const [x0, y0, , x1, y1] = arrows.positions.subarray(second, second + 6);
+    expect(x1 - x0).toBeCloseTo(Math.SQRT1_2, 6);
+    expect(y1 - y0).toBeCloseTo(Math.SQRT1_2, 6);
+  });
+
+  it("draw the axis of the selected one", () => {
+    const symbols = boundarySymbols(
+      [...commands, { ...sleeve, center: [0, 0, -1] }] as Command[],
+      nodes,
+    );
+    const [axis] = frameLines(symbols, "sleeve", 1);
+    expect(axis.color).toBe(AXIS_COLORS[2]);
+    // from below the points along z
+    const [x, y, z] = axis.positions;
+    expect([x, y]).toEqual([0, 0]);
+    expect(z).toBeLessThan(1);
+    // of a 2D model, a cross at the center
+    const [cross] = frameLines(symbols, "sleeve", 1, 2);
+    expect(Array.from(cross.positions.subarray(0, 6))).toEqual(
+      [-0.03, 0, 0, 0.03, 0, 0].map(Math.fround),
+    );
+  });
+
+  it("report points that a boundary prescribes in a direction not normal to theirs", () => {
+    // fixed prescribes y and z: y is radial at (1, 1, 0) only
+    expect(localOverlaps("sleeve", boundarySymbols(model, nodes))).toEqual([
+      { boundary: "fixed", points: 1, components: ["y"] },
+    ]);
+  });
+
+  it("report the points on the axis that it holds radially or around it", () => {
+    const at = (changes: object) =>
+      pointsOnAxis(
+        "sleeve",
+        boundarySymbols(
+          [...commands, { ...sleeve, ...changes }] as Command[],
+          nodes,
+        ),
+      );
+    expect(at({})).toBe(0);
+    expect(at({ center: [1, 0, 0] })).toBe(1);
+    expect(at({ center: [1, 0, 0], constrained: ["theta", "z"] })).toBe(1);
+    expect(at({ center: [1, 0, 0], constrained: ["z"] })).toBe(0);
+    expect(pointsOnAxis("glue", boundarySymbols(model, nodes))).toBe(0);
   });
 });

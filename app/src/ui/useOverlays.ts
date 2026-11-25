@@ -22,11 +22,12 @@ import {
 } from "../viewer/boundaries";
 import { analysisOf, is2d } from "../core/analysis";
 import {
-  cartesianOverlaps,
   constraintLines,
   constraintShapes,
   frameLines,
+  localOverlaps,
   overConstrained,
+  pointsOnAxis,
 } from "../viewer/constraints";
 import {
   type SectionFaces,
@@ -255,7 +256,8 @@ export function useOverlays({
     return [
       ...rigid.lines,
       ...boundaryLines(symbols, options),
-      // the coordinate system of the selected Cartesian constraint (#421)
+      // the coordinate system of the selected Cartesian constraint (#421), the axis
+      // of a cylindrical constraint (#422)
       ...frameLines(
         symbols,
         selected,
@@ -359,16 +361,22 @@ function useWarnings({
     return of ? missingCenters(set.select, of) : [];
   }, [commands, selected, sections]);
   // the points of the selected constraint that a boundary prescribes as well, of a
-  // Cartesian constraint in a component not normal to its directions (#421)
+  // constraint in local coordinates in a component not normal to its directions
+  // (#421, #422)
   const overlaps = useMemo(() => {
     const constraint = commands.find(
       (c): c is MpcAdd => c.name === selected && c.command === "mpc.add",
     );
-    if (!constraint)
-      return selected ? cartesianOverlaps(selected, symbols) : [];
+    if (!constraint) return selected ? localOverlaps(selected, symbols) : [];
     const shape = shapes.find((s) => s.name === constraint.name);
     return overConstrained(constraint, shape, symbols);
   }, [commands, selected, shapes, symbols]);
+  // the points of the selected cylindrical constraint on its axis, held radially or
+  // around it: the script raises an error (#422)
+  const onAxis = useMemo(
+    () => pointsOnAxis(selected, symbols),
+    [selected, symbols],
+  );
   // a control point at a node of the meshes is merged with it (ADR 0006)
   const atNode = useMemo(() => {
     const point = controls.find((c) => c.name === selected);
@@ -381,6 +389,7 @@ function useWarnings({
     emptySymmetry,
     missingFaces,
     overlaps,
+    onAxis,
     atNode,
   };
 }

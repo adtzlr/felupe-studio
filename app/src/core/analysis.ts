@@ -148,6 +148,35 @@ const planarCartesian: PlanarRule<"cartesian.add"> = (cmd) => {
     : [];
 };
 
+/**
+ * A cylindrical constraint of a 2D model is in polar coordinates about z, not
+ * offered in an axisymmetric model (#422).
+ */
+const planarCylindrical: PlanarRule<"cylindrical.add"> = (cmd, analysis) => {
+  if (analysis === "axisymmetric")
+    return problem(
+      `cylindrical constraint '${cmd.name}' is in an axisymmetric model, whose radius is y and which has no direction around its axis: hold or move the points radially (y) or axially (x) by a boundary.`,
+      "points",
+    );
+  if ((cmd.center ?? [0, 0, 0])[2] !== 0)
+    return problem(
+      `cylindrical constraint '${cmd.name}' has a center with a z coordinate: the points of a 2D model are in the plane z = 0.`,
+      "center",
+    );
+  const axis = cmd.axis ?? [0, 0, 1];
+  if (axis[0] !== 0 || axis[1] !== 0)
+    return problem(
+      `cylindrical constraint '${cmd.name}' has an axis that is not z: the axis of a 2D model is z, with the directions r and theta in the xy-plane.`,
+      "axis",
+    );
+  return cmd.constrained.includes("z")
+    ? problem(
+        `cylindrical constraint '${cmd.name}' constrains z, which a 2D model does not have.`,
+        "constrained",
+      )
+    : [];
+};
+
 const planarSymmetry: PlanarRule<"symmetry.add"> = (cmd) =>
   cmd.axes.includes("z")
     ? problem(
@@ -210,6 +239,7 @@ export const PLANAR: { [K in Command["command"]]?: PlanarRule<K> } = {
   "rigid.add": planarRigid,
   "mpc.add": planarConstraint,
   "cartesian.add": planarCartesian,
+  "cylindrical.add": planarCylindrical,
   "symmetry.add": planarSymmetry,
   "loadcase.add": planarLoadcase,
   "faceset.add": planarFaceset,

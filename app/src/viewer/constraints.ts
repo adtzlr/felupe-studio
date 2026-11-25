@@ -2,9 +2,10 @@
 // connected points, in the model and displaced in the results, and the points of a
 // constraint that a boundary of the same components prescribes as well.
 import { TOLERANCE } from "../core/cartesian";
+import { ON_AXIS, radiusAt } from "../core/cylindrical";
 import type { Command, MpcAdd } from "../core/resolved";
 import type { ResultScene } from "../worker/protocol";
-import { type BoundarySymbol, thinned } from "./boundaries";
+import { axisOf, type BoundarySymbol, isLocal, thinned } from "./boundaries";
 import { AXIS_COLORS, FADED, type ViewColors } from "./palette";
 import { AXES, selectedPoints } from "./pointsets";
 import { arrowSegments, type Lines } from "./scene";
@@ -133,8 +134,9 @@ export function overConstrained(
   const result: { boundary: string; points: number; components: string[] }[] =
     [];
   for (const symbol of symbols) {
-    // the components of a Cartesian constraint are its directions (#421)
-    if (symbol.axes) continue;
+    // the components of a constraint in local coordinates are its directions
+    // (#421, #422)
+    if (isLocal(symbol)) continue;
     const components = symbol.components
       .map((k) => AXES[k])
       .filter((a) => constraint.constrained.includes(a));
@@ -209,7 +211,8 @@ export function resultPlacement(
 /**
  * The coordinate system of the selected Cartesian constraint (#421): arrows of its
  * base vectors e1, e2 and e3 from the center of its points, in the colors of the
- * axes x, y and z (of a 2D model e1 and e2). None for another object.
+ * axes x, y and z (of a 2D model e1 and e2); of a cylindrical constraint (#422) its
+ * axis. None for another object.
  */
 export function frameLines(
   symbols: readonly BoundarySymbol[],
@@ -217,6 +220,8 @@ export function frameLines(
   size: number,
   dim = 3,
 ): Lines[] {
+  const cylindrical = symbols.find((s) => s.owner === selected && s.cylinder);
+  if (cylindrical) return axisLines(cylindrical, size, dim);
   const symbol = symbols.find((s) => s.owner === selected && s.axes);
   if (!symbol?.axes || !symbol.points.length) return [];
   const center: Point3 = [0, 0, 0];
@@ -234,34 +239,113 @@ export function frameLines(
 }
 
 /**
- * The points of a Cartesian constraint (#421) that a boundary, a load case or a
- * symmetry plane prescribes in a component that is not normal to the constrained
- * directions (over-constrained): per boundary, the number of points and the
- * components, like `overConstrained()` of a multi-point constraint.
+ * The axis of the selected cylindrical constraint (#422): an arrow along the axial
+ * extent of its points (at least their mean radius), like FElupe plots it, in the
+ * color of the axis z; of a 2D model, whose axis is normal to the view, a cross at
+ * the center.
  */
-export function cartesianOverlaps(
+function axisLines(symbol: BoundarySymbol, size: number, dim: number): Lines[] {
+  const { center, axis } = symbol.cylinder!;
+  const color = AXIS_COLORS[2];
+  if (dim === 2) {
+    const h = 0.03 * size;
+    const [x, y] = center;
+    const positions = Float32Array.from([
+      ...[x - h, y, 0, x + h, y, 0],
+      ...[x, y - h, 0, x, y + h, 0],
+    ]);
+    return [{ positions, color, width: 3 }];
+  }
+  const count = symbol.points.length / 3;
+  let min = Infinity;
+  let max = -Infinity;
+  let radii = 0;
+  for (let p = 0; p < symbol.points.length; p += 3) {
+    const point = symbol.points.subarray(p, p + 3);
+    const z = [0, 1, 2].reduce(
+      (s, k) => s + (point[k] - center[k]) * axis[k],
+      0,
+    );
+    min = Math.min(min, z);
+    max = Math.max(max, z);
+    radii += radiusAt(symbol.cylinder!, point) / count;
+  }
+  if (!count) min = max = 0;
+  const length = Math.max(max - min, radii, 0.1 * size);
+  const start = center.map((c, k) => c + (min - 0.1 * length) * axis[k]);
+  return [
+    {
+      positions: arrowSegments({
+        origins: Float32Array.from(start),
+        directions: Float32Array.from(axis.map((a) => 1.2 * length * a)),
+      }),
+      color,
+      width: 3,
+    },
+  ];
+}
+
+/**
+ * The points of a constraint in local coordinates (#421, #422) that a boundary, a
+ * load case or a symmetry plane prescribes in a component that is not normal to
+ * the constrained directions at the point (over-constrained): per boundary, the
+ * number of points and the components, like `overConstrained()` of a multi-point
+ * constraint.
+ */
+export function localOverlaps(
   constraint: string,
   symbols: readonly BoundarySymbol[],
 ): { boundary: string; points: number; components: string[] }[] {
-  const own = symbols.find((s) => s.owner === constraint && s.axes);
-  if (!own?.axes) return [];
-  const directions = own.components.map((k) => own.axes![k]);
+  const own = symbols.find((s) => s.owner === constraint && isLocal(s));
+  if (!own) return [];
   const key = (a: ArrayLike<number>, p: number) =>
     `${a[p]} ${a[p + 1]} ${a[p + 2]}`;
-  const held = new Set<string>();
-  for (let p = 0; p < own.points.length; p += 3) held.add(key(own.points, p));
+  // the constrained directions at every point
+  const held = new Map<string, number[][]>();
+  for (let p = 0; p < own.points.length; p += 3)
+    held.set(
+      key(own.points, p),
+      own.components.map((k) => axisOf(own, k, own.points, p)),
+    );
   const result: { boundary: string; points: number; components: string[] }[] =
     [];
   for (const symbol of symbols) {
-    if (symbol.axes) continue;
-    const components = symbol.components
-      .filter((k) => directions.some((d) => Math.abs(d[k]) > TOLERANCE))
-      .map((k) => AXES[k]);
-    if (!components.length) continue;
+    if (isLocal(symbol)) continue;
+    const hit = new Set<number>();
     let points = 0;
-    for (let p = 0; p < symbol.points.length; p += 3)
-      if (held.has(key(symbol.points, p))) points++;
-    if (points) result.push({ boundary: symbol.owner, points, components });
+    for (let p = 0; p < symbol.points.length; p += 3) {
+      const directions = held.get(key(symbol.points, p));
+      if (!directions) continue;
+      const components = symbol.components.filter((k) =>
+        directions.some((d) => Math.abs(d[k]) > TOLERANCE),
+      );
+      components.forEach((k) => hit.add(k));
+      if (components.length) points++;
+    }
+    if (points)
+      result.push({
+        boundary: symbol.owner,
+        points,
+        components: [...hit].sort().map((k) => AXES[k]),
+      });
   }
   return result;
+}
+
+/**
+ * The number of points of the selected cylindrical constraint (#422) on its axis
+ * that it holds radially or around it, which FElupe cannot (its script raises an
+ * error); 0 for another object.
+ */
+export function pointsOnAxis(
+  constraint: string | undefined,
+  symbols: readonly BoundarySymbol[],
+): number {
+  const own = symbols.find((s) => s.owner === constraint && s.cylinder);
+  if (!own || !own.components.some((k) => k < 2)) return 0;
+  let count = 0;
+  for (let p = 0; p < own.points.length; p += 3)
+    if (radiusAt(own.cylinder!, own.points.subarray(p, p + 3)) <= ON_AXIS)
+      count++;
+  return count;
 }

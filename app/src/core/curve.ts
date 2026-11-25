@@ -2,6 +2,8 @@
 // its axes (#197), the scales and ticks of the chart and the values as CSV.
 import { storageKey } from "../brand";
 import type { JobResult } from "../worker/protocol";
+import { analysisOf, is2d } from "./analysis";
+import { firstMoved, isLocal, LABELS, type Local } from "./directions";
 import type { Command } from "./resolved";
 import { type Finished, largestAxis, stepOf } from "./results";
 import { rotationPoints, unitOf, unitsOf, withUnit } from "./units";
@@ -26,14 +28,15 @@ export interface CurveQuantities {
   uUnit?: string;
   fUnit?: string;
   /**
-   * The names of the components: x, y and z, or of a Cartesian constraint the
-   * directions 1, 2 and 3 of its coordinate system (#421).
+   * The names of the components: x, y and z, of a Cartesian constraint the
+   * directions 1, 2 and 3 of its coordinate system (#421), of a cylindrical
+   * constraint r, θ and z (#422).
    */
   components: readonly string[];
   /**
    * The series of the axes by default, if not the largest displacement: of a
-   * Cartesian constraint its first constrained direction (#421), over the
-   * substeps if it does not move.
+   * constraint in local coordinates its first constrained direction that moves, or
+   * its first constrained direction over the substeps (#421, #422).
    */
   preferred?: [Series, Series];
 }
@@ -57,28 +60,17 @@ const MOMENT = {
 } as const;
 
 /**
- * The series of a Cartesian constraint by default (#421): the force over the
- * displacement of its first constrained direction, over the substeps if neither
- * its value nor a ramp moves it.
+ * The series of a constraint in local coordinates by default (#421, #422): the
+ * force over the displacement of its first constrained direction that its value
+ * or a ramp moves, else of its first constrained direction over the substeps.
  */
-function cartesianSeries(
+function localSeries(
   commands: readonly Command[],
-  cartesian: Extract<Command, { command: "cartesian.add" }>,
+  local: Local,
 ): [Series, Series] {
-  const first = Math.min(...cartesian.constrained.map((d) => Number(d) - 1));
-  const axis = AXES[first] ?? "x";
-  const nonzero = (v: unknown) =>
-    Array.isArray(v) ? v.some((x) => x !== 0) : v !== 0 && v !== undefined;
-  const moved =
-    nonzero(cartesian.value) ||
-    commands.some(
-      (c) =>
-        c.command === "step.add" &&
-        (c.ramp?.items ?? []).some(
-          (i) =>
-            i.target === cartesian.name && (nonzero(i.end) || nonzero(i.start)),
-        ),
-    );
+  const dim = is2d(analysisOf(commands)) ? 2 : 3;
+  const { index, moved } = firstMoved(commands, local, dim);
+  const axis = AXES[index] ?? "x";
   return [moved ? `u${axis}` : "substep", `F${axis}`];
 }
 
@@ -86,7 +78,8 @@ function cartesianSeries(
  * What the curve of a job shows: the force over the displacement, or the moment
  * over the rotation for a boundary of a rotation point of a constraint (#98), with
  * the units of the model (#132); of a Cartesian constraint in the directions 1, 2
- * and 3 of its coordinate system (#421).
+ * and 3 of its coordinate system (#421), of a cylindrical constraint in r, θ and z
+ * (#422).
  */
 export function curveQuantities(
   commands: readonly Command[],
@@ -111,11 +104,11 @@ export function curveQuantities(
     uUnit: unitOf("displacement", units),
     fUnit: unitOf("force", units),
   };
-  return target?.command === "cartesian.add"
+  return target && isLocal(target)
     ? {
         ...force,
-        components: ["1", "2", "3"],
-        preferred: cartesianSeries(commands, target),
+        components: LABELS[target.command],
+        preferred: localSeries(commands, target),
       }
     : { ...force, components: AXES };
 }
@@ -493,9 +486,11 @@ export function curveCsv(run: Finished, job: string): string {
   const result = run.results[job];
   const q = curveQuantities(run.commands, job);
   const [u, f] = q.moment ? ["phi", "M"] : ["u", "F"];
-  // two components in a 2D model (#175), of a Cartesian constraint its directions
-  // (#421)
-  const axes = q.components.slice(0, result?.x?.[0]?.length ?? 3);
+  // two components in a 2D model (#175), of a constraint in local coordinates its
+  // directions (#421, #422), in ASCII like phi
+  const axes = q.components
+    .slice(0, result?.x?.[0]?.length ?? 3)
+    .map((a) => (a === "θ" ? "theta" : a));
   const header = [
     "substep",
     "step",

@@ -208,7 +208,8 @@ describe("force-displacement curve", () => {
         ] as unknown as Command[],
         "job_1",
       ).preferred;
-    expect(moved({ value: [0, 0.1] })).toEqual(["uy", "Fy"]);
+    // its first constrained direction that moves (#422)
+    expect(moved({ value: [0, 0.1] })).toEqual(["uz", "Fz"]);
     expect(moved({}, { target: "support", end: 0.2 })).toEqual(["uy", "Fy"]);
     expect(moved({}, { target: "other", end: 0.2 })).toEqual(["substep", "Fy"]);
     // the largest displacement of other curves
@@ -224,6 +225,39 @@ describe("force-displacement curve", () => {
     };
     expect(curveCsv(run, "job_1").split("\n")[0]).toBe(
       "substep,step,u_1,u_2,u_3,F_1,F_2,F_3",
+    );
+  });
+
+  it("shows a cylindrical constraint in its directions r, θ and z (#422)", () => {
+    const twist = {
+      command: "cylindrical.add",
+      name: "twist",
+      points: "end",
+      axis: [1, 0, 0],
+      constrained: ["r", "theta", "z"],
+    };
+    const commands = [
+      twist,
+      {
+        command: "step.add",
+        name: "load",
+        ramp: { num: 1, items: [{ target: "twist", end: [0, 0.5, 0] }] },
+      },
+      { command: "job.add", name: "job_1", steps: ["load"], curve: "twist" },
+    ] as unknown as Command[];
+    const q = curveQuantities(commands, "job_1");
+    expect(q.components).toEqual(["r", "θ", "z"]);
+    expect(seriesLabel("Fy", q)).toMatchObject({ symbol: "F", component: "θ" });
+    // the force around the axis over the arc length, which the ramp moves
+    expect(defaultSeries(result, q)).toEqual(["uy", "Fy"]);
+    const run: Finished = {
+      state: "finished",
+      commands,
+      progress: { ...startProgress(), plan: { job_1: [4] } },
+      results: { job_1: result },
+    };
+    expect(curveCsv(run, "job_1").split("\n")[0]).toBe(
+      "substep,step,u_r,u_theta,u_z,F_r,F_theta,F_z",
     );
   });
 

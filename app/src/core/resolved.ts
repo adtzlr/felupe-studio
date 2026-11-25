@@ -26,6 +26,7 @@ export type Command =
   | SymmetryAdd
   | MpcAdd
   | CartesianAdd
+  | CylindricalAdd
   | ContactAdd
   | LoadAdd
   | PressureAdd
@@ -185,6 +186,27 @@ export type Direction = "1" | "2" | "3";
  * @maxItems 3
  */
 export type Coordinates8 = [number, number, number];
+/**
+ * The coordinates x, y and z of a point.
+ *
+ * @minItems 3
+ * @maxItems 3
+ */
+export type Coordinates9 = [number, number, number];
+/**
+ * A direction of cylindrical coordinates about an axis: radial (r), around the axis (theta) or along it (z).
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "CylindricalDirection".
+ */
+export type CylindricalDirection = "r" | "theta" | "z";
+/**
+ * The coordinates x, y and z of a point.
+ *
+ * @minItems 3
+ * @maxItems 3
+ */
+export type Coordinates10 = [number, number, number];
 
 /**
  * A list of FElupe Studio commands. Objects are created by commands and referenced by their names.
@@ -1678,6 +1700,39 @@ export interface CartesianAdd {
   multiplier?: number;
 }
 /**
+ * A cylindrical constraint (fem.CylindricalConstraint, #422): the points of a point set held or moved radially, around and along an axis by a penalty, the other directions free, e.g. points that slide in a rigid sleeve (radially only) or the end of a bushing that is turned (around the axis). The directions r, theta and z are those of each point about the axis, evaluated in the deformed configuration; in a 2D model (plane strain), the axis is z and the directions are r and theta. An item of the steps; a ramp of a step moves the points like a boundary, and it may be the curve of a job.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "CylindricalAdd".
+ */
+export interface CylindricalAdd {
+  command: "cylindrical.add";
+  name: Name;
+  /**
+   * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
+   */
+  points: string;
+  center?: Coordinates8;
+  axis?: Coordinates9;
+  /**
+   * The constrained directions: radially (r), around the axis (theta) and along it (z); the others are free.
+   *
+   * @minItems 1
+   */
+  constrained: [CylindricalDirection, ...CylindricalDirection[]];
+  /**
+   * Prescribed displacement in the constrained directions (default 0): one number for all of them, or one number per constrained direction in the order r, theta, z. Around the axis, the arc length on the undeformed radius: the points at the radius R turn by the angle value / R.
+   *
+   * @minItems 1
+   * @maxItems 3
+   */
+  value?: number | [number] | [number, number] | [number, number, number];
+  /**
+   * The penalty per point and direction (default 1000).
+   */
+  multiplier?: number;
+}
+/**
  * A contact of points with a rigid surface (#220): fem.ContactRigidPlane or fem.ContactRigidCylinder, an item of the steps like the constraints. The penalty of the contact is a factor of the mean stiffness of the solid bodies at the points.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
@@ -1720,7 +1775,7 @@ export interface LoadAdd {
    * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
    */
   points: string;
-  force: Coordinates8;
+  force: Coordinates10;
 }
 /**
  * A pressure on the faces of a face set (fem.SolidBodyPressure), an item of the steps: a force per deformed area, normal to the faces. A positive pressure pushes onto the faces, a negative one pulls. A ramp of a step scales the pressure.
@@ -1756,7 +1811,7 @@ export interface StepAdd {
    */
   sections?: [Name, ...Name[]];
   /**
-   * Multi-point constraints, Cartesian constraints and contacts that are items of the step (default: all).
+   * Multi-point constraints, Cartesian and cylindrical constraints and contacts that are items of the step (default: all).
    *
    * @minItems 1
    */
@@ -1794,7 +1849,7 @@ export interface StepAdd {
   };
 }
 /**
- * A ramped item: a boundary (its value, e.g. a displacement, or one value per constrained component), a load case (the displacement of its moving faces), a Cartesian constraint (its displacement, or one per constrained direction), a point load (a factor of its force) or a pressure (a factor of its pressure).
+ * A ramped item: a boundary (its value, e.g. a displacement, or one value per constrained component), a load case (the displacement of its moving faces), a Cartesian or cylindrical constraint (its displacement, or one per constrained direction), a point load (a factor of its force) or a pressure (a factor of its pressure).
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "RampItem".
@@ -1805,14 +1860,14 @@ export interface RampItem {
    */
   target: string;
   /**
-   * Value at the start of the step (default 0); of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z (of a Cartesian constraint per direction in the order 1, 2, 3).
+   * Value at the start of the step (default 0); of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z (of a Cartesian constraint per direction in the order 1, 2, 3, of a cylindrical constraint r, theta, z).
    *
    * @minItems 1
    * @maxItems 3
    */
   start?: number | [number] | [number, number] | [number, number, number];
   /**
-   * Value at the end of the step; of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z (of a Cartesian constraint per direction in the order 1, 2, 3).
+   * Value at the end of the step; of a boundary with several constrained components one number for all of them, or one per component in the order x, y, z (of a Cartesian constraint per direction in the order 1, 2, 3, of a cylindrical constraint r, theta, z).
    *
    * @minItems 1
    * @maxItems 3
@@ -1820,7 +1875,7 @@ export interface RampItem {
   end: number | [number] | [number, number] | [number, number, number];
 }
 /**
- * A job evaluating steps one after another (fem.Job). With a curve, the force-displacement curve of a boundary, a load case, a Cartesian constraint or a point load is recorded (fem.CharacteristicCurve).
+ * A job evaluating steps one after another (fem.Job). With a curve, the force-displacement curve of a boundary, a load case, a Cartesian or cylindrical constraint or a point load is recorded (fem.CharacteristicCurve).
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "JobAdd".

@@ -435,6 +435,37 @@ describe("editing in the properties panel", () => {
     );
   });
 
+  it("edits a cylindrical constraint and checks its axis (#422)", () => {
+    const document = structuredClone(fixture) as CommandList;
+    document.commands.splice(11, 0, {
+      command: "cylindrical.add",
+      name: "sleeve",
+      points: "right",
+      axis: [1, 0, 0],
+      constrained: ["r"],
+    } as Command);
+    const sleeve = edit("sleeve", document);
+    // the directions with their meaning
+    for (const label of [
+      "r (radial)",
+      "θ (around the axis)",
+      "z (along the axis)",
+    ])
+      expect(sleeve.field(label)).toBeTruthy();
+    fireEvent.click(sleeve.field("θ (around the axis)"));
+    sleeve.type("Displacement", "0, 0.5");
+    fireEvent.click(sleeve.button("Apply"));
+    expect(sleeve.store.get("sleeve")).toMatchObject({
+      constrained: ["r", "theta"],
+      value: [0, 0.5],
+    });
+    sleeve.type("Axis", "0, 0, 0");
+    fireEvent.click(sleeve.button("Apply"));
+    expect(sleeve.properties.textContent).toContain(
+      "cylindrical constraint 'sleeve' has an axis of zero length.",
+    );
+  });
+
   it("edits checkbox groups, optional groups and variants", () => {
     const boundary = edit("fixed");
     fireEvent.click(boundary.field("y"));
