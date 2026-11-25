@@ -1,5 +1,6 @@
-// A mesh script of an agent (#258, ADR 0015): it runs with the rights of the user on
-// this computer, so the user reads it and runs it, or not.
+// A Python script of an agent (#258, ADR 0015), of a mesh or of a material (ADR
+// 0025): it runs with the rights of the user on this computer, so the user reads it
+// and runs it, or not.
 import { useState } from "preact/hooks";
 import { Dialog } from "./Dialog";
 import type { ScriptRequest } from "./useAgent";
@@ -8,12 +9,12 @@ export function ScriptConsent({ request }: { request: ScriptRequest }) {
   const [shown, setShown] = useState(false);
   return (
     <Dialog
-      title="A mesh script of the agent"
+      title="A Python script of the agent"
       onClose={() => request.answer(false)}
     >
       <div class="script-consent">
         <p>
-          The agent wrote the mesh script <code>{request.name}</code>. It runs
+          The agent wrote the Python script <code>{request.name}</code>. It runs
           on this computer with your rights, like a program that you start. Run
           it only if you trust what it does.
         </p>

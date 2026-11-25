@@ -5,6 +5,7 @@ import { BRAND } from "../app";
 import { analysisOf, is2d } from "./analysis";
 import type { Command } from "./commands";
 import { fits, fitting, formulationOf } from "./formulations";
+import { isMaterial } from "./materials";
 import type { CommandType, Kind } from "./validate";
 
 export interface FieldInfo {
@@ -189,10 +190,8 @@ function initialSection(
   );
   const next = { ...draft };
   if (free) next.cellset = free.name;
-  const materials = commands.filter(
-    (c): c is Extract<Command, { command: "material.add" }> =>
-      c.command === "material.add",
-  );
+  // of the registry and of files (ADR 0025)
+  const materials = commands.filter(isMaterial);
   const chosen =
     typeof preset.formulation === "string"
       ? formulationOf(preset.formulation)
@@ -390,6 +389,29 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         "total-lagrange": "Total Lagrange (large rotations)",
         "co-rotational": "Co-rotational (Biot strain)",
         "seth-hill": "Seth-Hill (strain exponent m)",
+      },
+    },
+  },
+  // a user-defined material of a Python file (ADR 0025): the label of its kind is
+  // in the schema (x-label), like the models of the registry
+  "material.script": {
+    label: "User-defined material",
+    tab: "materials",
+    prefix: "material",
+    fields: {
+      file: {
+        label: "Script",
+        hint: "A Python file opened with the project that makes a variable umat",
+        placeholder: "e.g. soft.py",
+      },
+      parameters: {
+        label: "Parameters",
+        hint: "The parameters the script gets as variables",
+        placeholder: "all",
+      },
+      volumetric: {
+        label: "Volumetric part",
+        hint: "The umat has a volumetric part of its own, e.g. a bulk modulus: the displacement formulation u takes it, u-p-J one without",
       },
     },
   },

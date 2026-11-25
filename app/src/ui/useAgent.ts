@@ -1,6 +1,6 @@
 // The agent bridge in the app (#258, ADR 0015): Help ▸ Connect an agent connects the
 // tab to `felupe-studio serve --agent`, whose agent then acts on the open model with
-// the tools of the app; a mesh script of the agent runs after the user agrees.
+// the tools of the app; a Python script of the agent runs after the user agrees.
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
   AgentConnection,
@@ -12,7 +12,7 @@ import type { Workspace } from "./Ribbon";
 import type { Results } from "./useResults";
 import type { Selection } from "./useSelection";
 
-/** A mesh script of the agent that waits for the user. */
+/** A Python script of the agent that waits for the user. */
 export interface ScriptRequest {
   name: string;
   content: string;
@@ -23,7 +23,7 @@ export interface Agent {
   state: AgentState;
   connect: () => void;
   disconnect: () => void;
-  /** A mesh script of the agent that the user is asked to run. */
+  /** A Python script of the agent that the user is asked to run. */
   script?: ScriptRequest;
 }
 

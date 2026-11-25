@@ -13,7 +13,7 @@ import {
   generateChain,
   makeMeshes,
   MeshFiles,
-  meshFileNames,
+  projectFileNames,
   meshSource,
   meshStatus,
   scriptParameters,
@@ -208,7 +208,7 @@ describe("meshes made by scripts (#182)", () => {
     await files.add("spring.py", new Uint8Array([1]));
     expect(written).toEqual(["spring.py"]);
     expect(files.get("spring.py")!.status).toEqual({ state: "script" });
-    expect(meshFileNames(script)).toEqual(["spring.py"]);
+    expect(projectFileNames(script)).toEqual(["spring.py"]);
 
     // all parameters, or the listed ones
     const [rubber, metal] = script.slice(2) as MeshScript[];
@@ -314,6 +314,43 @@ describe("meshes made by scripts (#182)", () => {
       state: "error",
       message: "Python is not available.",
     });
+  });
+});
+
+describe("materials of scripts (ADR 0025)", () => {
+  const model = [
+    ...(fixture.commands as Command[]).filter((c) => c.name !== "umat_soft"),
+    {
+      command: "material.script",
+      name: "umat_soft",
+      kind: "constitutive",
+      file: "soft.py",
+    },
+  ] as Command[];
+
+  it("are files of the project, written like the scripts of meshes", async () => {
+    const written: string[] = [];
+    const files = new MeshFiles(undefined, {
+      write: async (name) => {
+        written.push(name);
+      },
+    });
+    expect(projectFileNames(model)).toEqual(["specimen.vtu", "soft.py"]);
+    expect(fileNotes(model, files).get("umat_soft")).toEqual([
+      "The script 'soft.py' is not loaded. Choose it in the properties.",
+    ]);
+    await files.add("soft.py", new Uint8Array([1]));
+    expect(written).toEqual(["soft.py"]);
+    expect(files.get("soft.py")!.status).toEqual({ state: "script" });
+    expect(fileNotes(model, files).has("umat_soft")).toBe(false);
+  });
+
+  it("are not written without Python", async () => {
+    const files = new MeshFiles();
+    await files.add("soft.py", new Uint8Array([1]));
+    expect(fileNotes(model, files).get("umat_soft")).toEqual([
+      "soft.py: Python is not available.",
+    ]);
   });
 });
 

@@ -77,6 +77,8 @@ describe("ribbon commands", () => {
       "Linear elasticity ▾",
       "Hyperelasticity ▾",
       "Strain-based elasticity ▾",
+      // a material of a Python file (ADR 0025)
+      "User-defined material",
     ]);
     const hyperelasticity = command("Hyperelasticity");
     expect(hyperelasticity.getAttribute("aria-haspopup")).toBe("menu");
@@ -154,6 +156,33 @@ describe("ribbon commands", () => {
     // creating is one undo step
     fireEvent.click(screen.getByRole("button", { name: "Undo" }));
     expect(store.commands).toHaveLength(0);
+  });
+
+  it("create a material of a script, whose file is chosen in its properties (ADR 0025)", () => {
+    const { store, tab, command, dialog, field, create } = setup();
+    tab("Materials");
+    fireEvent.click(command("User-defined material"));
+    expect(within(dialog()).getByRole("heading").textContent).toBe(
+      "New material",
+    );
+    // by default with a volumetric part of its own
+    expect(field("Volumetric part").checked).toBe(true);
+    fireEvent.input(field("Script"), { target: { value: "soft.py" } });
+    create();
+    expect(store.commands).toEqual([
+      {
+        command: "material.script",
+        name: "material_1",
+        kind: "constitutive",
+        file: "soft.py",
+      },
+    ]);
+    const properties = screen.getByRole("region", { name: "Properties" });
+    expect(properties.textContent).toContain("soft.py");
+    expect(properties.textContent).toContain("not loaded");
+    expect(
+      within(properties).getByRole("button", { name: "Choose file…" }),
+    ).toBeTruthy();
   });
 
   it("create a section of the formulation of a button (ADR 0024)", () => {

@@ -5,6 +5,7 @@
 // on demand (with fflate in a chunk of its own).
 import { unzipSync, zipSync } from "fflate";
 import { SUFFIX } from "./files";
+import { FILE_COMMANDS } from "./kinds";
 
 export class ArchiveError extends Error {}
 
@@ -46,17 +47,22 @@ function checked(path: string): string {
   return parts.filter((part) => part !== ".").join("/");
 }
 
-/** The mesh files of a project file (`file` of `mesh.import`). */
-function meshFilesOf(text: string): Set<string> | undefined {
+/**
+ * The files next to the project of a project file: of its meshes and of its
+ * materials of scripts (`file` of `mesh.import`, `mesh.script` and
+ * `material.script`).
+ */
+function filesOf(text: string): Set<string> | undefined {
   try {
     const document = JSON.parse(text) as { commands?: unknown };
     if (!Array.isArray(document.commands)) return undefined;
     return new Set(
       document.commands.flatMap((command: unknown) => {
         const c = command as Record<string, unknown> | null;
-        // the files of imported meshes and of scripts that make meshes (#182)
-        return (c?.command === "mesh.import" || c?.command === "mesh.script") &&
-          typeof c.file === "string"
+        // the files of imported meshes, and of the scripts that make meshes
+        // (#182) or materials (ADR 0025)
+        return FILE_COMMANDS.includes(String(c?.command)) &&
+          typeof c?.file === "string"
           ? [c.file]
           : [];
       }),
@@ -154,9 +160,10 @@ export function readArchive(bytes: Uint8Array): Archive {
   }
 
   const name = project.path.slice(0, -SUFFIX.length);
-  const used = meshFilesOf(new TextDecoder().decode(project.data));
+  const used = filesOf(new TextDecoder().decode(project.data));
   const rest = entries.filter((e) => e !== project);
-  // a script of the model's meshes may have the name of the FElupe script (#182)
+  // a script of the model's meshes or materials may have the name of the FElupe
+  // script (#182, ADR 0025)
   const script = used?.has(`${name}.py`)
     ? undefined
     : rest.find(({ path }) => path === `${name}.py`);

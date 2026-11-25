@@ -1,6 +1,6 @@
 // Keep the session of the app in the browser and restore it after a reload (#57).
 import { useEffect, useRef, useState } from "preact/hooks";
-import { type MeshFiles, meshFileNames } from "../core/meshfiles";
+import { type MeshFiles, projectFileNames } from "../core/meshfiles";
 import { keep, type Session, type SessionStorage } from "../core/session";
 import type { ModelStore } from "../core/store";
 
@@ -82,7 +82,7 @@ export function useSession(
             project: serialize(store.document),
             fileName,
             modified,
-            files: meshFileNames(commands).flatMap((name) => {
+            files: projectFileNames(commands).flatMap((name) => {
               const data = files.dataOf(name);
               return data ? [{ name, data }] : [];
             }),

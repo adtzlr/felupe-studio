@@ -9,7 +9,7 @@ import type { ModelStore } from "../core/store";
 import { KINDS } from "../core/validate";
 import { CommandForm } from "./CommandForm";
 import { Icon, type IconName } from "./icons";
-import { MeshFileStatus } from "./MeshFileStatus";
+import { FileStatus } from "./FileStatus";
 
 interface Props {
   store: ModelStore;
@@ -78,12 +78,9 @@ export function Properties({ store, files, notes, selected, onSelect }: Props) {
         <code class="muted">{command.command}</code>
       </div>
       {(command.command === "mesh.import" ||
-        command.command === "mesh.script") && (
-        <MeshFileStatus
-          command={command}
-          commands={store.commands}
-          files={files}
-        />
+        command.command === "mesh.script" ||
+        command.command === "material.script") && (
+        <FileStatus command={command} commands={store.commands} files={files} />
       )}
       <CommandForm
         // a new form whenever the command changes, e.g. by undo

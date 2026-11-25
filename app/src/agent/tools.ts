@@ -44,7 +44,10 @@ export interface AgentHost {
   ): string | { workspace: Workspace; view?: ResultView };
   /** A picture of the view (PNG). */
   picture(): Promise<Blob | undefined>;
-  /** Ask the user to run a mesh script of the agent (Show, Run, Reject). */
+  /**
+   * Ask the user to run a Python script of the agent, of a mesh or of a material
+   * (Show, Run, Reject).
+   */
   trustScript(name: string, content: string): Promise<boolean>;
 }
 
@@ -289,10 +292,11 @@ export function agentTools(host: AgentHost): Handler {
       const name = safeName(string(args, "name"));
       const content = args.content;
       if (typeof content !== "string") throw new Error("'content' is text.");
-      // a mesh script runs on this computer: after the user agrees
+      // a script of a mesh or a material runs on this computer: after the user
+      // agrees
       if (isScript(name) && !(await host.trustScript(name, content)))
         throw new Error(
-          `The user did not accept the mesh script '${name}'; it does not run.`,
+          `The user did not accept the Python script '${name}'; it does not run.`,
         );
       const data = new TextEncoder().encode(content);
       await files.add(name, data);

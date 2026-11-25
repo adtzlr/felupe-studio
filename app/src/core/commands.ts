@@ -16,6 +16,7 @@ export type Command =
   | CellSetFromTag
   | CellSetFromFile
   | MaterialAdd
+  | MaterialScript
   | SectionAdd
   | PointSetAdd
   | PointAdd
@@ -87,6 +88,13 @@ export type MaterialAdd =
   | MaterialExtendedTube
   | MaterialLinearElastic
   | MaterialLinearElasticPlasticIsotropicHardening;
+/**
+ * A user-defined material of a Python file next to the project (ADR 0025), like a mesh script: the file runs with the parameters of the model as variables. Every kind of user-defined material is a definition below, with its label and what the file makes.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MaterialScript".
+ */
+export type MaterialScript = MaterialScriptConstitutive;
 /**
  * Assign a material and a formulation to a cell set. Each section becomes a solid body. Every formulation is a definition below (the formulation registry, ADR 0024): its label, the solid body and the fields of FElupe, the cell types and the material that it takes, and its properties.
  *
@@ -1242,6 +1250,29 @@ export interface MaterialLinearElasticPlasticIsotropicHardening {
      */
     K: number | string;
   };
+}
+/**
+ * A ready constitutive model of a Python file: the file makes a variable umat with the methods gradient and hessian of FElupe, e.g. fem.NeoHooke(mu=mu, bulk=bulk), fem.Hyperelastic(...) & fem.Volumetric(...), a fem.Material of functions of its own or an object of a class of its own.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MaterialScriptConstitutive".
+ */
+export interface MaterialScriptConstitutive {
+  command: "material.script";
+  name: Name;
+  kind: "constitutive";
+  /**
+   * File name of the script, e.g. soft.py. It makes a variable umat.
+   */
+  file: string;
+  /**
+   * The parameters of the model that the script gets as variables (default: all).
+   */
+  parameters?: Name[];
+  /**
+   * Whether the material has a volumetric part of its own, e.g. its bulk modulus (default: true). Like a model of material.add, the displacement formulation u takes a material with one, the u-p-J formulation one without.
+   */
+  volumetric?: boolean;
 }
 /**
  * The displacement formulation u: a field of the displacements only (fem.SolidBody). The material has a volumetric part of its own: its bulk modulus, or a compressible or a strain-based model.

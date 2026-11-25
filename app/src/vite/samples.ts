@@ -17,6 +17,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import type { Plugin } from "vite";
+import { projectFileNames } from "../core/kinds";
 import { parse, ProjectError } from "../core/project";
 import { INDEX, type Sample } from "../core/samples";
 
@@ -59,15 +60,8 @@ function filesOf(id: string, folder: string): string[] {
         : (error as Error).message;
     return fail(`the ${PROJECT} of the sample '${id}' is invalid: ${reason}`);
   }
-  const files = [
-    ...new Set(
-      commands.flatMap((c) =>
-        c.command === "mesh.import" || c.command === "mesh.script"
-          ? [c.file]
-          : [],
-      ),
-    ),
-  ].sort();
+  // the mesh files and the scripts of meshes and materials (ADR 0025)
+  const files = projectFileNames(commands).sort();
   for (const file of files)
     if (!existsSync(join(folder, file)))
       fail(`the sample '${id}' has no file '${file}'.`);

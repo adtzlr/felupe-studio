@@ -1,14 +1,15 @@
 // The parameters of a project (#183): when a project with parameters is opened, and
 // from the menu of a parameter. One row per parameter with its description, its value
 // with its unit and, with a range, a slider. The changed values are one undo step,
-// and the meshes of scripts follow them. A project with scripts that make meshes
-// says so, and shows the scripts before they run. A parameter shows the objects whose
-// expressions use it, and the problems of the expressions with the typed values
-// (#242). The derived parameters follow, with their expressions and their values,
-// which follow the typed values; they are computed, not set (ADR 0021).
+// and the meshes of scripts follow them. A project with scripts that make meshes or
+// materials (ADR 0025) says so, and shows the scripts before they run. A parameter
+// shows the objects whose expressions use it, and the problems of the expressions
+// with the typed values (#242). The derived parameters follow, with their
+// expressions and their values, which follow the typed values; they are computed,
+// not set (ADR 0021).
 import { useState } from "preact/hooks";
 import type { Command } from "../core/commands";
-import { type MeshFiles, meshFileNames, isScript } from "../core/meshfiles";
+import { type MeshFiles, projectFileNames, isScript } from "../core/meshfiles";
 import { type Parameter, parameterProblems } from "../core/parameters";
 import {
   numberText,
@@ -127,7 +128,14 @@ export function ParametersDialog({
     Object.fromEntries(parameters.map((p) => [p.name, String(p.value)])),
   );
   const [shown, setShown] = useState<string>();
-  const scripts = meshFileNames(store.commands).filter(isScript);
+  const scripts = projectFileNames(store.commands).filter(isScript);
+  // what the scripts make: meshes (#182) and materials (ADR 0025)
+  const made = [
+    store.commands.some((c) => c.command === "mesh.script") && "meshes",
+    store.commands.some((c) => c.command === "material.script") && "materials",
+  ]
+    .filter(Boolean)
+    .join(" and ");
 
   const rows = parameters.map((p) => {
     const text = values[p.name] ?? "";
@@ -280,7 +288,7 @@ export function ParametersDialog({
         {scripts.length > 0 && (
           <div class="plan" role="note" aria-label="Scripts of the project">
             <span>
-              The project makes its meshes with{" "}
+              The project makes its {made} with{" "}
               {scripts.length === 1
                 ? "a Python script, which runs"
                 : "Python scripts, which run"}{" "}

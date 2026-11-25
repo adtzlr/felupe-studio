@@ -160,7 +160,7 @@ describe("the tools of the agent bridge in the app (#258)", () => {
     const script = "import felupe as fem\nmesh = fem.Cube(n=n)\n";
     await expect(
       call("write_file", { name: "cube.py", content: script }),
-    ).rejects.toThrow("The user did not accept the mesh script 'cube.py'");
+    ).rejects.toThrow("The user did not accept the Python script 'cube.py'");
     expect(trust).toHaveBeenCalledWith("cube.py", script);
     expect(files.has("cube.py")).toBe(false);
     trust.mockResolvedValue(true);

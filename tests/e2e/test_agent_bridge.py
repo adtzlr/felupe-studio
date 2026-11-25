@@ -102,7 +102,7 @@ def test_an_agent_builds_and_solves_on_the_open_app(port):
             port,
             lambda c: c.call_tool("write_file", {"name": "cube.py", "content": SCRIPT}),
         )
-        consent = page.get_by_role("dialog", name="A mesh script of the agent")
+        consent = page.get_by_role("dialog", name="A Python script of the agent")
         consent.wait_for(timeout=15_000)
         consent.get_by_role("button", name="Show the script").click()
         assert "fem.Cube(n=n)" in consent.inner_text()

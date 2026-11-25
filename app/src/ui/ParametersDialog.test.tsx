@@ -203,6 +203,26 @@ describe("the parameters of a project (#183)", () => {
   });
 });
 
+describe("the scripts of the materials of a project (ADR 0025)", () => {
+  it("are shown with the scripts of the meshes", async () => {
+    const soft: Command = {
+      command: "material.script",
+      name: "soft",
+      kind: "constitutive",
+      file: "soft.py",
+    };
+    const { dialog } = await setup(false, [soft]);
+    const note = within(dialog).getByRole("note", {
+      name: "Scripts of the project",
+    });
+    expect(note.textContent).toContain(
+      "makes its meshes and materials with Python scripts, which run in this browser",
+    );
+    // the script of the material is not loaded yet
+    expect(note.textContent).toContain("soft.py not loaded");
+  });
+});
+
 describe("the parameters and the expressions (#242)", () => {
   const more: Command[] = [
     {

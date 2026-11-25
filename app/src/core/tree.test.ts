@@ -58,6 +58,23 @@ describe("deriveTree", () => {
     expect(find(deriveTree(mullins), "umat_soft")!.detail).toBe(
       "Neo-Hooke · Mullins",
     );
+    // a material of a file (ADR 0025), and whether it has a volumetric part
+    const script = (volumetric?: boolean) =>
+      commands.map((c) =>
+        c.name === "umat_soft"
+          ? {
+              command: "material.script",
+              name: "umat_soft",
+              kind: "constitutive",
+              file: "soft.py",
+              ...(volumetric === undefined ? {} : { volumetric }),
+            }
+          : c,
+      ) as Command[];
+    expect(find(deriveTree(script()), "umat_soft")!.detail).toBe("soft.py");
+    expect(find(deriveTree(script(false)), "umat_soft")!.detail).toBe(
+      "soft.py · no volumetric part",
+    );
     expect(find(tree, "left")!.detail).toBe("x == 0");
     expect(find(tree, "fixed")!.detail).toBe("left · x, y, z");
     expect(find(tree, "move")!.detail).toBe("right · x");

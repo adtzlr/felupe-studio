@@ -35,16 +35,17 @@ export const suffixOf = (project: string): string =>
 /**
  * The problem of a name (the stem) of a project, if any (#205): it is not empty, has
  * none of the characters that file systems forbid and does not start with a dot.
- * With `script`, the name of the script of an archive is not the name of a mesh
- * script of the project (`meshFiles`), e.g. `bushing` with `bushing.py`.
+ * With `script`, the name of the script of an archive is not the name of a script
+ * of the project (`files`), e.g. `bushing` with `bushing.py` of a mesh or of a
+ * material (ADR 0025).
  */
 export function projectNameProblem(
   stem: string,
   {
-    meshFiles = [],
+    files = [],
     script = false,
   }: {
-    meshFiles?: readonly string[];
+    files?: readonly string[];
     script?: boolean;
   } = {},
 ): string | undefined {
@@ -54,8 +55,8 @@ export function projectNameProblem(
   if (/[\\/:*?"<>|\u0000-\u001f]/.test(name))
     return 'A name has none of the characters \\ / : * ? " < > |.';
   if (name.startsWith(".")) return "A name does not start with a dot.";
-  if (script && meshFiles.includes(`${name}.py`))
-    return `${name}.py is a mesh script of the project: the archive would have two files ${name}.py. Take another name or no script.`;
+  if (script && files.includes(`${name}.py`))
+    return `${name}.py is a script of the project: the archive would have two files ${name}.py. Take another name or no script.`;
   return undefined;
 }
 
