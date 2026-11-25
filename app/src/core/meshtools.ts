@@ -1,16 +1,21 @@
 // The mesh tools (ADR 0019, #193): the registry of the tools of `mesh.generate` in
 // the command schema, with the dimensions of the points and the cells of the meshes
-// they make, like felupe_studio.meshtools in Python. A mesh whose points and cells
-// have the dimension of the model is a model mesh with cell sets; a lower one is a
-// construction mesh.
+// they make, like felupe_studio.meshtools in Python. Their inputs are meshes of the
+// model before: made by tools, of files or of scripts (#438). A mesh whose points
+// and cells have the dimension of the model is a model mesh with cell sets; a lower
+// one is a construction mesh.
+import { type Analysis, analysisOf, is2d } from "./analysis";
 import type { Command } from "./resolved";
 import { schema } from "./schema";
 
-/** The dimensions of a made mesh and its cell type (`x-dimension`). */
+/**
+ * The dimensions of a mesh and its cell type (`x-dimension`). The cell type of a
+ * mesh of a file or a script is unknown before its read, unless it is given (#438).
+ */
 export interface MeshDimension {
   points: number;
   cells: number;
-  cell_type: string;
+  cell_type?: string;
 }
 
 /**
@@ -33,15 +38,27 @@ interface ToolNode {
   properties: { tool: { const: string } };
 }
 
-/** The dimension of the cells of a cell type. */
+/**
+ * The dimension of the cells of a cell type: of the tools, and of the solid cells of
+ * files and scripts (#438).
+ */
 const CELLS: Record<string, number> = {
   vertex: 0,
   line: 1,
   quad: 2,
+  quad8: 2,
+  quad9: 2,
   triangle: 2,
+  triangle6: 2,
   hexahedron: 3,
+  hexahedron20: 3,
+  hexahedron27: 3,
   tetra: 3,
+  tetra10: 3,
 };
+
+/** The mesh objects of files and scripts, inputs of the tools like made meshes. */
+const SOURCES = ["mesh.import", "mesh.script"];
 
 export interface MeshTool {
   name: string;
@@ -77,35 +94,95 @@ const TOOLS = new Map(MESH_TOOLS.map((t) => [t.name, t]));
 
 type MeshGenerate = Extract<Command, { command: "mesh.generate" }>;
 
+/**
+ * The command of a tool for the rules of its inputs: its values resolved, or with
+ * expressions, whose vectors have their lengths (#438).
+ */
+interface ToolCommand {
+  tool: string;
+  parameters: object;
+}
+
 const isOperation = (
   rule: MeshDimension | OperationRule,
 ): rule is OperationRule => "inputs" in rule;
 
 /**
  * The dimensions of the mesh of an operation from those of its input, or
- * undefined if the input does not fit (like `output()` in Python).
+ * undefined if the input does not fit (like `output()` in Python). An input of an
+ * unknown cell type (of a file before its read, #438) is taken as the cell type of
+ * its dimension that the operation takes, if there is one; the app checks it with
+ * the read (`readProblems()`).
  */
 function output(
   rule: OperationRule,
   dimension: MeshDimension,
 ): MeshDimension | undefined {
-  const type = dimension.cell_type;
   const types = rule.cell_type;
-  if (types !== "same" && !(type in types)) return undefined;
-  const made = types === "same" ? type : types[type];
+  let type = dimension.cell_type;
+  if (type === undefined && types !== "same") {
+    const fitting = Object.keys(types).filter(
+      (t) => CELLS[t] === dimension.cells,
+    );
+    type = fitting.length === 1 ? fitting[0] : undefined;
+  }
+  if (types !== "same" && (type === undefined || !(type in types)))
+    return undefined;
+  const made = types === "same" ? type : types[type!];
   const added =
-    typeof rule.points === "number" ? rule.points : rule.points[type];
+    typeof rule.points === "number" ? rule.points : rule.points[type!];
   return {
     points: dimension.points + added,
-    cells: CELLS[made],
-    cell_type: made,
+    cells: made === undefined ? dimension.cells : CELLS[made],
+    ...(made === undefined ? {} : { cell_type: made }),
   };
 }
 
 /**
- * The dimensions of the points and of the cells and the cell type of every mesh
- * made by a tool, by its name, from the commands alone (like Python): of a
- * primitive from its tool, of an operation from its input (none if it does not
+ * The dimensions of a mesh of a file or of a script (#438), from its command: the
+ * points and the cells of the model of dimension `dim`, which it reads, or of the
+ * dimension of its cell type, which is unknown before the read unless it is given
+ * (like `source_dimension()` in Python).
+ */
+function sourceDimension(
+  command: { cell_type?: string },
+  dim: number,
+): MeshDimension {
+  const type = command.cell_type;
+  const cells = (type === undefined ? undefined : CELLS[type]) ?? dim;
+  return type === undefined
+    ? { points: cells, cells }
+    : { points: cells, cells, cell_type: type };
+}
+
+/**
+ * The dimensions of the inputs of an operation, if they have the same points and
+ * cells and the same cell type where it is known (with the known one), else
+ * undefined (like `same()` in Python).
+ */
+function same(inputs: readonly MeshDimension[]): MeshDimension | undefined {
+  const types = new Set(inputs.flatMap((d) => d.cell_type ?? []));
+  const sizes = new Set(inputs.map((d) => `${d.points} ${d.cells}`));
+  if (types.size > 1 || sizes.size > 1) return undefined;
+  const [type] = types;
+  const { points, cells } = inputs[0];
+  return type === undefined
+    ? { points, cells }
+    : { points, cells, cell_type: type };
+}
+
+/**
+ * The cells of a mesh in a message: its cell type, or the dimension of its cells if
+ * the cell type is unknown before the read (#438).
+ */
+const cellsOf = (dimension: MeshDimension) =>
+  dimension.cell_type ?? `${dimension.cells}D`;
+
+/**
+ * The dimensions of the points and of the cells and the cell type of every mesh of
+ * the model, by its name, from the commands alone (like Python): of a mesh of a
+ * file or a script from the model (#438) unless it is `known` (e.g. of its read),
+ * of a primitive from its tool, of an operation from its input (none if it does not
  * fit).
  */
 export function dimensions(
@@ -114,10 +191,18 @@ export function dimensions(
     name: string;
     tool?: string;
     inputs?: readonly string[];
+    cell_type?: string;
+    analysis?: Analysis;
   }[],
+  known: ReadonlyMap<string, MeshDimension> = new Map(),
 ): Map<string, MeshDimension> {
-  const result = new Map<string, MeshDimension>();
+  const dim = is2d(analysisOf(commands)) ? 2 : 3;
+  const result = new Map(known);
   for (const c of commands) {
+    if (SOURCES.includes(c.command)) {
+      if (!result.has(c.name)) result.set(c.name, sourceDimension(c, dim));
+      continue;
+    }
     const tool = c.command === "mesh.generate" && TOOLS.get(c.tool ?? "");
     if (!tool) continue;
     const rule = tool.dimension;
@@ -128,11 +213,9 @@ export function dimensions(
     const inputs = (c.inputs ?? []).map((name) => result.get(name));
     // inputs of the same cells and points, and an output of up to 3D points with
     // at least the dimension of its cells
-    const same = (d?: MeshDimension) =>
-      d?.cell_type === inputs[0]?.cell_type && d?.points === inputs[0]?.points;
-    if (!inputs.length || inputs.some((d) => !d) || !inputs.every(same))
-      continue;
-    const made = output(rule, inputs[0]!);
+    if (!inputs.length || inputs.some((d) => !d)) continue;
+    const input = same(inputs as MeshDimension[]);
+    const made = input && output(rule, input);
     if (made && made.cells <= made.points && made.points <= 3)
       result.set(c.name, made);
   }
@@ -141,10 +224,10 @@ export function dimensions(
 
 /**
  * Why the inputs of an operation do not fit it, with the dimensions of the meshes
- * made before (like `input_problems()` in Python).
+ * before (like `input_problems()` in Python).
  */
 export function inputProblems(
-  command: MeshGenerate,
+  command: ToolCommand,
   known: ReadonlyMap<string, MeshDimension>,
 ): string[] {
   const rule = TOOLS.get(command.tool)?.dimension;
@@ -160,7 +243,7 @@ export function inputProblems(
         const types = Object.keys(rule.cell_type);
         const names = `${types.slice(0, -1).join(", ")} or ${types.at(-1)}`;
         return [
-          `${command.tool} needs a mesh of ${names} cells; '${name}' has ${dimension.cell_type} cells.`,
+          `${command.tool} needs a mesh of ${names} cells; '${name}' has ${cellsOf(dimension)} cells.`,
         ];
       }
       if (made.points > 3)
@@ -177,8 +260,8 @@ export function inputProblems(
 }
 
 /**
- * The inputs of an operation of several meshes have the same cell type and the
- * same dimension of their points.
+ * The inputs of an operation of several meshes have the same cell type (where it is
+ * known, #438) and the same dimension of their points.
  */
 function sameInputs(
   tool: string,
@@ -189,11 +272,10 @@ function sameInputs(
     const d = known.get(name);
     return d ? [[name, d] as const] : [];
   });
-  const kinds = new Set(inputs.map(([, d]) => `${d.cell_type} ${d.points}`));
-  if (kinds.size < 2) return [];
+  if (inputs.length < 2 || same(inputs.map(([, d]) => d))) return [];
   const meshes = inputs
     .map(
-      ([name, d]) => `'${name}' ${d.cell_type} cells with ${d.points}D points`,
+      ([name, d]) => `'${name}' ${cellsOf(d)} cells with ${d.points}D points`,
     )
     .join(", ");
   return [`${tool} needs meshes of the same cells and points: ${meshes}.`];
@@ -204,7 +286,7 @@ function sameInputs(
  * revolve), and a rotation of 2D points turns about z.
  */
 function axisProblems(
-  command: MeshGenerate,
+  command: ToolCommand,
   name: string,
   dimension: MeshDimension,
   made: MeshDimension,

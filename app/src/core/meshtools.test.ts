@@ -61,6 +61,8 @@ describe("the mesh tools (ADR 0019)", () => {
       l: { points: 1, cells: 1, cell_type: "line" },
       r: { points: 2, cells: 2, cell_type: "quad" },
       c: { points: 3, cells: 3, cell_type: "hexahedron" },
+      // a mesh of a file: of the model, its cell type unknown before the read (#438)
+      file: { points: 3, cells: 3 },
     });
     expect(modelMesh(meshes.get("c")!, 3)).toBe(true);
     expect(modelMesh(meshes.get("r")!, 3)).toBe(false);
@@ -290,6 +292,83 @@ describe("the operations of the mesh tools (ADR 0019)", () => {
     expect([
       ...hiddenObjects([face, block], new Set(["face", "block"])),
     ]).toEqual(["block"]);
+  });
+});
+
+describe("the meshes of files and scripts as inputs (#438)", () => {
+  const half = { command: "mesh.import", name: "half", file: "half.vtu" };
+  const part = { command: "mesh.script", name: "part", file: "part.py" };
+  const other = {
+    ...made("mirror", { axis: "x", value: 1.5 }, "other"),
+    inputs: ["half"],
+  } as MeshGenerate;
+  const whole = {
+    ...made("stack", { decimals: 10 }, "whole"),
+    inputs: ["half", "other"],
+  } as MeshGenerate;
+  const tagged = {
+    command: "cellset.from_tag",
+    name: "rubber",
+    mesh: "half",
+    value: 1,
+  };
+
+  it("have the dimensions of the model, their cell type unknown before the read, like Python", () => {
+    const known = dimensions([half, part, other, whole]);
+    expect(known.get("half")).toEqual({ points: 3, cells: 3 });
+    expect(known.get("part")).toEqual({ points: 3, cells: 3 });
+    expect(known.get("whole")).toEqual({ points: 3, cells: 3 });
+    const settings = { command: "model.settings", name: "settings" };
+    const flat = { ...settings, analysis: "plane-strain" as const };
+    expect(dimensions([flat, half]).get("half")).toEqual({
+      points: 2,
+      cells: 2,
+    });
+    expect(
+      dimensions([{ ...half, cell_type: "tetra10" }, other]).get("other"),
+    ).toEqual({ points: 3, cells: 3, cell_type: "tetra10" });
+    // the read is known, e.g. of the summary of the file
+    const read = { points: 3, cells: 3, cell_type: "hexahedron" };
+    expect(
+      dimensions([half, other], new Map([["half", read]])).get("other"),
+    ).toEqual(read);
+    // a rule of the dimension of the cells is one of the commands
+    const expand = {
+      ...made("expand", { n: 2, z: 1 }, "body"),
+      inputs: ["half"],
+    } as MeshGenerate;
+    expect(inputProblems(expand, known)).toEqual([
+      "expand needs a mesh of vertex, line or quad cells; 'half' has 3D cells.",
+    ]);
+    // an unknown cell type of 2D cells is taken as the one that the tool takes
+    const revolve = {
+      ...made("revolve", { n: 3, phi: 90, axis: "x" }, "body"),
+      inputs: ["half"],
+    } as MeshGenerate;
+    expect(dimensions([flat, half, revolve]).get("body")).toEqual({
+      points: 3,
+      cells: 3,
+      cell_type: "hexahedron",
+    });
+  });
+
+  it("are shown below the mesh that uses them with their cell sets, hidden by default", () => {
+    const commands = [half, tagged, other] as Command[];
+    const tree = deriveTree(commands);
+    const [mesh] = tree.find((g) => g.id === "group:mesh")!.children;
+    expect([mesh.label, mesh.detail]).toEqual(["other", "mirror half"]);
+    const [file] = mesh.children;
+    expect([file.label, file.detail]).toEqual(["half", "half.vtu"]);
+    expect(file.children.map((c) => c.label)).toEqual(["rubber"]);
+    expect([...hiddenObjects(commands, new Set())]).toEqual(["half"]);
+  });
+
+  it("are offered by the form of a tool", () => {
+    const context = { commands: [half] as Command[] };
+    const draft = initialDraft("mesh.generate", context);
+    const form = setValue("mesh.generate", draft, ["tool"], "mirror", context);
+    expect(form.inputs).toEqual(["half"]);
+    expect(draftErrors("mesh.generate", form, context)).toEqual({});
   });
 });
 

@@ -5,13 +5,15 @@ import {
   fileNotes,
   generateChain,
   generateKey,
+  generateSources,
   makeMeshes,
   MeshFiles,
+  meshSource,
   meshStatus,
   sectionCellType,
 } from "./meshfiles";
 import { resolveCommands } from "./resolve";
-import type { MeshInfo } from "../worker/protocol";
+import type { MeshInfo, SourceMesh } from "../worker/protocol";
 import { viewportContent } from "../viewer/layers";
 
 type MeshGenerate = Extract<Command, { command: "mesh.generate" }>;
@@ -177,5 +179,112 @@ describe("meshes made by tools (ADR 0019)", () => {
       "Line: ValueError: too few points",
     ]);
     expect(fileNotes(model, files).has("block")).toBe(false);
+  });
+});
+
+describe("meshes of files and scripts as inputs of the tools (#438)", () => {
+  const half = [
+    { command: "parameter.add", name: "factor", value: 2 },
+    { command: "mesh.import", name: "half", file: "half.vtu", scale: "factor" },
+    {
+      command: "mesh.generate",
+      name: "other",
+      tool: "mirror",
+      inputs: ["half"],
+      parameters: { axis: "x", value: 3 },
+    },
+  ] as Command[];
+  const other = half[2] as MeshGenerate;
+
+  /** A file of solid cells of a type, and the worker of the tools. */
+  function worker(cellType = "hexahedron") {
+    const made: [string, readonly SourceMesh[]][] = [];
+    const files = new MeshFiles(
+      async (name) => ({
+        info: {
+          file: name,
+          points: 8,
+          solids: [
+            {
+              cell_type: cellType,
+              cells: 1,
+              bounds: [
+                [0, 0, 0],
+                [1.5, 1, 1],
+              ],
+              tags: [],
+            },
+          ],
+        },
+      }),
+      {
+        generate: async (_, name, sources) => {
+          made.push([name, sources]);
+          const dimension = { points: 3, cells: 3, cell_type: cellType };
+          return { info: { file: name, dimension, solids: [] } };
+        },
+      },
+    );
+    return { files, made };
+  }
+
+  it("are made once the file is read, with the meshes it takes", async () => {
+    const { files, made } = worker();
+    expect(generateSources(other, half, files)).toBeUndefined();
+    makeMeshes(half, files);
+    expect(made).toEqual([]);
+    expect(meshSource(other, half, files)).toBeUndefined();
+
+    await files.add("half.vtu", new Uint8Array([1]));
+    // the arguments of volume_cells() of the script, the scale of its expression
+    const sources = [{ name: "half", file: "half.vtu", scale: 2, dim: 3 }];
+    expect(generateSources(other, half, files)).toEqual(sources);
+    expect(meshSource(other, half, files)).toEqual({
+      type: "generate-mesh",
+      commands: generateChain(other, half),
+      name: "other",
+      sources,
+    });
+    makeMeshes(half, files);
+    await settle();
+    expect(made).toEqual([["other", sources]]);
+    expect(meshStatus(other, half, files)?.state).toBe("ready");
+
+    // another scale is another mesh, and a new version of the file makes it again
+    const scaled = half.map((c) =>
+      c.name === "factor" ? { ...c, value: 3 } : c,
+    ) as Command[];
+    expect(generateKey(other, scaled)).not.toBe(generateKey(other, half));
+    await files.add("half.vtu", new Uint8Array([2]));
+    makeMeshes(half, files);
+    await settle();
+    expect(made.map(([name]) => name)).toEqual(["other", "other"]);
+  });
+
+  it("note an input whose read cells do not fit the tool, and make no mesh", async () => {
+    const { files, made } = worker("tetra");
+    const stack = [
+      ...half,
+      {
+        command: "mesh.generate",
+        name: "block",
+        tool: "Cube",
+        parameters: { a: [0, 0, 0], b: [1, 1, 1], n: [2, 2, 2] },
+      },
+      {
+        command: "mesh.generate",
+        name: "whole",
+        tool: "stack",
+        inputs: ["half", "block"],
+        parameters: { decimals: 10 },
+      },
+    ] as Command[];
+    await files.add("half.vtu", new Uint8Array([1]));
+    makeMeshes(stack, files);
+    await settle();
+    expect(made.map(([name]) => name)).toEqual(["other", "block"]);
+    expect(fileNotes(stack, files).get("whole")).toEqual([
+      "stack needs meshes of the same cells and points: 'half' tetra cells with 3D points, 'block' hexahedron cells with 3D points.",
+    ]);
   });
 });

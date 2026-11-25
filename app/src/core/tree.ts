@@ -395,7 +395,8 @@ export function deriveTree(
     ]),
   );
 
-  // a made mesh below the one mesh that uses it (ADR 0019)
+  // a mesh that one tool takes below the mesh that it makes, with its cell sets:
+  // made by tools (ADR 0019), of a file or of a script (#438)
   const users = usersOf(commands);
   const placed = new Set<string>();
   for (const cmd of commands) {
@@ -404,7 +405,7 @@ export function deriveTree(
     const child = nodes.get(cmd.name)!;
     const [user, ...others] = users.get(cmd.name) ?? [];
     const parent = user && !others.length ? nodes.get(user) : undefined;
-    if (cmd.command === "mesh.generate" && parent?.kind === "mesh") {
+    if (child.kind === "mesh" && parent?.kind === "mesh") {
       parent.children.push(child);
       continue;
     }

@@ -47,7 +47,7 @@ export type Name = string;
  */
 export type Color = string;
 /**
- * A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes made by tools before, like expand or revolve. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh.
+ * A mesh made by a mesh tool of FElupe (ADR 0019): a primitive like a line, a rectangle or a cube, or an operation on meshes of the model before (made by tools, of files or of scripts), like expand or revolve. Every tool is a definition below (the registry of the mesh tools): its label, its FElupe call, the dimensions of its points and its cells and its cell type (x-dimension), and its parameters. A mesh whose points and cells have the dimension of the model can have cell sets; a lower one is a construction mesh.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "MeshGenerate".
@@ -569,7 +569,7 @@ export interface MeshExpand {
   name: Name;
   tool: "expand";
   /**
-   * The mesh that the tool takes: a mesh made by a tool before.
+   * The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.
    *
    * @minItems 1
    * @maxItems 1
@@ -598,7 +598,7 @@ export interface MeshRevolve {
   name: Name;
   tool: "revolve";
   /**
-   * The mesh that the tool takes: a mesh made by a tool before.
+   * The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.
    *
    * @minItems 1
    * @maxItems 1
@@ -631,7 +631,7 @@ export interface MeshEmbed {
   name: Name;
   tool: "embed";
   /**
-   * The mesh that the tool takes: a mesh made by a tool before.
+   * The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.
    *
    * @minItems 1
    * @maxItems 1
@@ -656,7 +656,7 @@ export interface MeshTranslate {
   name: Name;
   tool: "translate";
   /**
-   * The mesh that the tool takes: a mesh made by a tool before.
+   * The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.
    *
    * @minItems 1
    * @maxItems 1
@@ -685,7 +685,7 @@ export interface MeshRotate {
   name: Name;
   tool: "rotate";
   /**
-   * The mesh that the tool takes: a mesh made by a tool before.
+   * The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.
    *
    * @minItems 1
    * @maxItems 1
@@ -721,7 +721,7 @@ export interface MeshMirror {
   name: Name;
   tool: "mirror";
   /**
-   * The mesh that the tool takes: a mesh made by a tool before.
+   * The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.
    *
    * @minItems 1
    * @maxItems 1
@@ -750,7 +750,7 @@ export interface MeshFillBetween {
   name: Name;
   tool: "fill_between";
   /**
-   * The two meshes made by tools before, from the first to the second, of the same cell type and number of points, e.g. two lines embedded in a plane.
+   * The two meshes of the model before, from the first to the second, of the same cell type and number of points, e.g. two lines embedded in a plane.
    *
    * @minItems 2
    * @maxItems 2
@@ -775,7 +775,7 @@ export interface MeshAddRunouts {
   name: Name;
   tool: "add_runouts";
   /**
-   * The mesh that the tool takes: a mesh made by a tool before.
+   * The mesh that the tool takes: a mesh of the model before, made by a tool, of a file or of a script.
    *
    * @minItems 1
    * @maxItems 1
@@ -822,7 +822,7 @@ export interface MeshStack {
   name: Name;
   tool: "stack";
   /**
-   * The meshes that the tool stacks: two or more meshes made by tools before, of the same cell type and dimension of the points.
+   * The meshes that the tool stacks: two or more meshes of the model before, of the same cell type and dimension of the points.
    *
    * @minItems 2
    */
