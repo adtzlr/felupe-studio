@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { mediaType } from "../core/files";
-import { type SavePicker, saver, systemPicker } from "../core/save";
+import type { SavePicker } from "../core/save";
 import { JobRunner, solveBlocker } from "../core/jobs";
 import {
   faceSetNotes,
@@ -37,6 +37,7 @@ import { Sidebar } from "./Sidebar";
 import { useAppAgent } from "./useAgent";
 import { useExports } from "./useExports";
 import { useProject } from "./useProject";
+import { REFUSED, useSaver } from "./useSaver";
 import { useResults } from "./useResults";
 import { useResultsFile } from "./useResultsFile";
 import { useSamples } from "./useSamples";
@@ -56,7 +57,8 @@ interface Props {
   download?: (name: string, data: string | Blob) => void;
   /**
    * The save dialog of the system (#400); the default is that of the browser, if it
-   * has one (Chrome, Edge), else the files are downloaded.
+   * has one (Chrome, Edge), else the files are downloaded. So are they if the
+   * browser refuses the dialog (#439).
    */
   savePicker?: SavePicker;
   /** Reports a newer deployment of the app (see updates.ts). */
@@ -81,6 +83,16 @@ function downloadFile(name: string, data: string | Blob) {
   });
   link.click();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Where *Save project* saves (#439): into the file of its last save, in the save
+ * dialog, or as a download.
+ */
+export function saveHint(into: string | undefined, dialog: boolean): string {
+  if (into) return `Into ${into}, the file of its last save`;
+  const format = "in its format: a project file or an archive";
+  return dialog ? `In the save dialog, ${format}` : `As a download, ${format}`;
 }
 
 /** The windows in which the browser and the properties are drawers (#131). */
@@ -124,10 +136,15 @@ export function App({
   const results = useResults({ store, jobs, workspace, compact, cut });
   const { run } = results;
   const dialogs = useDialogs();
-  // every file is saved with the save dialog of the system where there is one,
-  // else downloaded (#400)
-  const [picker] = useState(() => savePicker ?? systemPicker());
-  const save = saver({ picker, download });
+  // every file is saved with the save dialog of the system where there is one and
+  // the browser allows it, else downloaded (#400, #439)
+  const saving = useSaver({
+    picker: savePicker,
+    download,
+    // after the render, when `project` below is there
+    onRefused: () => project.setError(REFUSED),
+  });
+  const { save } = saving;
   const project = useProject({
     store,
     files,
@@ -298,6 +315,7 @@ export function App({
           samples.list.length ? () => dialogs.setSamplesOpen(true) : undefined
         }
         onSave={() => void project.save()}
+        saveHint={saveHint(project.savesInto, saving.dialog)}
         onSaveAs={() => dialogs.setSavingAs(true)}
         onImportResults={resultsFile.choose}
         // a new name without saving: the next save and the exports take it (#205)
@@ -526,7 +544,7 @@ export function App({
         runtime={runtime}
         project={project}
         exports={exports}
-        saveDialog={!!picker}
+        saveDialog={saving.dialog}
         script={agent.script}
         samples={samples.list}
         onOpenSample={openSample}

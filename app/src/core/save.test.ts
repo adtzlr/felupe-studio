@@ -139,18 +139,38 @@ describe("saving a file (#400)", () => {
   it("throws the other errors of the dialog", async () => {
     const save = saver({
       picker: async () => {
-        throw new DOMException(
-          "Must be handling a user gesture.",
-          "SecurityError",
-        );
+        throw new TypeError("Invalid type: .felupe");
       },
       download: vi.fn(),
     });
     await expect(
       save({ name: "a.py", kind: "export" }, () => "text"),
-    ).rejects.toThrow("user gesture");
+    ).rejects.toThrow("Invalid type");
   });
 
+  it("ignores a save while the dialog of another one is open", async () => {
+    const chosen = handle("a.py");
+    let choose: (file: SaveHandle) => void = () => {};
+    const picker = vi.fn(
+      () => new Promise<SaveHandle>((resolve) => (choose = resolve)),
+    );
+    const download = vi.fn();
+    const save = saver({ picker, download });
+    // e.g. a double click: the browser would refuse the second dialog
+    const first = save({ name: "a.py", kind: "export" }, () => "text");
+    expect(
+      await save({ name: "a.py", kind: "export" }, () => "text"),
+    ).toBeUndefined();
+    choose(chosen.file);
+    expect(await first).toEqual({ name: "a.py", handle: chosen.file });
+    expect(picker).toHaveBeenCalledTimes(1);
+    expect(download).not.toHaveBeenCalled();
+    // the next save asks again
+    const next = save({ name: "b.py", kind: "export" }, () => "text");
+    await vi.waitFor(() => expect(picker).toHaveBeenCalledTimes(2));
+    choose(chosen.file);
+    await next;
+  });
   it("does not write a file that cannot be made", async () => {
     const chosen = handle("bushing.felupe.zip");
     const save = saver({ picker: async () => chosen.file, download: vi.fn() });
@@ -171,6 +191,123 @@ describe("saving a file (#400)", () => {
       save({ name: "a.vtu", kind: "export" }, () => "<VTKFile/>"),
     ).rejects.toThrow("The disk is full.");
     expect(chosen.abort).toHaveBeenCalledWith(full);
+  });
+});
+
+describe("a save dialog that the browser refuses (#439)", () => {
+  const refused = () =>
+    new DOMException(
+      "The request is not allowed by the user agent or the platform in the current context.",
+      "NotAllowedError",
+    );
+
+  it("downloads the file, and the next ones without the dialog", async () => {
+    const picker = vi.fn(async (): Promise<SaveHandle> => {
+      throw refused();
+    });
+    const download = vi.fn();
+    const onRefused = vi.fn();
+    const save = saver({ picker, download, onRefused });
+    expect(
+      await save({ name: "radial.csv", kind: "export" }, () => "x,y"),
+    ).toEqual({ name: "radial.csv" });
+    expect(download).toHaveBeenCalledWith("radial.csv", "x,y");
+    expect(onRefused).toHaveBeenCalledTimes(1);
+    // the next save downloads at once, and tells it no more
+    expect(
+      await save({ name: "spring.felupe.json", kind: "project" }, () => "{}"),
+    ).toEqual({ name: "spring.felupe.json" });
+    expect(download).toHaveBeenLastCalledWith("spring.felupe.json", "{}");
+    expect(picker).toHaveBeenCalledTimes(1);
+    expect(onRefused).toHaveBeenCalledTimes(1);
+  });
+
+  it("downloads a file of a dialog without the click of the user", async () => {
+    const chosen = handle("b.py");
+    const picker = vi
+      .fn<() => Promise<SaveHandle>>()
+      .mockRejectedValueOnce(
+        new DOMException(
+          "Must be handling a user gesture to show a file picker.",
+          "SecurityError",
+        ),
+      )
+      .mockResolvedValueOnce(chosen.file);
+    const download = vi.fn();
+    const onRefused = vi.fn();
+    const save = saver({ picker, download, onRefused });
+    expect(await save({ name: "a.py", kind: "export" }, () => "text")).toEqual({
+      name: "a.py",
+    });
+    expect(download).toHaveBeenCalledWith("a.py", "text");
+    expect(onRefused).not.toHaveBeenCalled();
+    // the dialog stays: the next click opens it
+    expect(await save({ name: "b.py", kind: "export" }, () => "text")).toEqual({
+      name: "b.py",
+      handle: chosen.file,
+    });
+  });
+});
+
+describe("the file of an earlier save (#439)", () => {
+  /** A file of an earlier save with the permission of the browser to write. */
+  function earlier(
+    permission: "granted" | "prompt",
+    asked: "granted" | "denied",
+  ) {
+    const chosen = handle("spring.felupe.json");
+    const file: SaveHandle = {
+      ...chosen.file,
+      queryPermission: vi.fn(async () => permission),
+      requestPermission: vi.fn(async () => asked),
+    };
+    return { ...chosen, file };
+  }
+
+  it("is written into while the app may", async () => {
+    const chosen = earlier("granted", "denied");
+    const save = saver({ picker: vi.fn(), download: vi.fn() });
+    await save(
+      { name: "spring.felupe.json", kind: "project", into: chosen.file },
+      () => "{}",
+    );
+    expect(chosen.written).toEqual(["{}"]);
+    expect(chosen.file.requestPermission).not.toHaveBeenCalled();
+  });
+
+  it("asks for the permission again before the file is made", async () => {
+    const chosen = earlier("prompt", "granted");
+    const make = vi.fn(() => "{}");
+    const save = saver({ picker: vi.fn(), download: vi.fn() });
+    await save(
+      { name: "spring.felupe.json", kind: "project", into: chosen.file },
+      make,
+    );
+    expect(chosen.file.requestPermission).toHaveBeenCalledWith({
+      mode: "readwrite",
+    });
+    // while the click of the user still counts
+    expect(
+      vi.mocked(chosen.file.requestPermission!).mock.invocationCallOrder[0],
+    ).toBeLessThan(make.mock.invocationCallOrder[0]);
+    expect(chosen.written).toEqual(["{}"]);
+  });
+
+  it("is saved with the dialog again without the permission", async () => {
+    const chosen = earlier("prompt", "denied");
+    const other = handle("spring-2.felupe.json");
+    const picker = vi.fn(async () => other.file);
+    const save = saver({ picker, download: vi.fn() });
+    const saved = await save(
+      { name: "spring.felupe.json", kind: "project", into: chosen.file },
+      () => "{}",
+    );
+    expect(picker).toHaveBeenCalledWith(
+      pickerOptions("spring.felupe.json", "project"),
+    );
+    expect(saved).toEqual({ name: "spring-2.felupe.json", handle: other.file });
+    expect(chosen.written).toEqual([]);
+    expect(other.written).toEqual(["{}"]);
   });
 });
 

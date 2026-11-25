@@ -7,6 +7,7 @@ chromium``, or ``CHROME`` with the path of a Chrome) and the built app
 """
 
 import base64
+import json
 import os
 import re
 from pathlib import Path
@@ -26,23 +27,37 @@ def url(serve):
     return f"http://127.0.0.1:{serve(token=TOKEN)}/?token={TOKEN}"
 
 
+def options(full=False):
+    """The options of the launch of Chromium: WebGL of the viewer without a GPU, and
+    ``CHROME`` as the path of a Chrome, if given. ``full`` takes the full Chromium of
+    Playwright instead of its headless shell, e.g. for its site settings."""
+    chrome = os.environ.get("CHROME")
+    browser = {"executable_path": chrome} if chrome else {}
+    if full and not chrome:
+        browser = {"channel": "chromium"}
+    return {
+        "args": ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+        **browser,
+    }
+
+
+VIEWPORT = {"width": 1280, "height": 800}
+
+
+def new_page(context):
+    """A page of a context, without the tip of picking, which records its errors."""
+    context.add_init_script("localStorage.setItem('felupe-studio.tip.pick', 'seen')")
+    page = context.new_page()
+    page.errors = []
+    page.on("pageerror", lambda error: page.errors.append(str(error)))
+    return page
+
+
 @pytest.fixture
 def page(url):
     with sync_api.sync_playwright() as playwright:
-        chrome = os.environ.get("CHROME")
-        browser = playwright.chromium.launch(
-            # WebGL of the viewer without a GPU
-            args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-            **({"executable_path": chrome} if chrome else {}),
-        )
-        context = browser.new_context(viewport={"width": 1280, "height": 800})
-        context.add_init_script(
-            "localStorage.setItem('felupe-studio.tip.pick', 'seen')"
-        )
-        page = context.new_page()
-        page.errors = []
-        page.on("pageerror", lambda error: page.errors.append(str(error)))
-        yield page
+        browser = playwright.chromium.launch(**options())
+        yield new_page(browser.new_context(viewport=VIEWPORT))
         browser.close()
 
 
@@ -477,6 +492,53 @@ def test_downloads_without_the_save_dialog(url, page):
         export(page, "Python script")
     assert download.value.suggested_filename == "glued-plate.py"
     assert page.errors == []
+
+
+def test_downloads_where_the_browser_refuses_the_save_dialog(url, tmp_path):
+    """Chromium with the site setting *File editing* blocked, like a policy does,
+    refuses the save dialog with a NotAllowedError (#439): the files are downloaded,
+    after a note once, and the next ones without trying the dialog."""
+    profile = tmp_path / "profile"
+    (profile / "Default").mkdir(parents=True)
+    settings = {"default_content_setting_values": {"file_system_write_guard": 2}}
+    (profile / "Default" / "Preferences").write_text(json.dumps({"profile": settings}))
+    with sync_api.sync_playwright() as playwright:
+        # the headless shell of Playwright has no site settings: it cancels the
+        # dialog instead of refusing it
+        context = playwright.chromium.launch_persistent_context(
+            str(profile), viewport=VIEWPORT, accept_downloads=True, **options(full=True)
+        )
+        page = new_page(context)
+        # the dialog of the browser, which records its calls
+        context.add_init_script(
+            """(() => {
+              const real = window.showSaveFilePicker.bind(window);
+              window.picked = 0;
+              window.showSaveFilePicker = (options) => (window.picked++, real(options));
+            })()"""
+        )
+        page.goto(url)
+        open_block(page)
+        with page.expect_download() as download:
+            page.keyboard.press("Control+s")
+        assert download.value.suggested_filename == "glued-plate.felupe.zip"
+        assert Path(download.value.path()).read_bytes().startswith(b"PK")
+        note = page.get_by_role("status", name="Note")
+        assert "so they are downloaded" in note.inner_text()
+        assert "site setting File editing" in note.inner_text()
+        assert page.get_by_role("alert").count() == 0
+        # the next save and an export download without the dialog
+        note.get_by_role("button", name="Dismiss").click()
+        with page.expect_download() as download:
+            page.keyboard.press("Control+s")
+        assert download.value.suggested_filename == "glued-plate.felupe.zip"
+        with page.expect_download() as download:
+            export(page, "Python script")
+        assert download.value.suggested_filename == "glued-plate.py"
+        assert page.evaluate("window.picked") == 1
+        assert page.get_by_role("status", name="Note").count() == 0
+        assert page.errors == []
+        context.close()
 
 
 LAYOUT = """() => {

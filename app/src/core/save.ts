@@ -3,9 +3,16 @@
 // desktop), else as a download, as before. The dialog needs the click of the user,
 // so it opens first; then the file is made, e.g. an archive with the script, and
 // written into the chosen file.
+//
+// A browser can have the dialog and still refuse it (#439): Chrome and Edge reject
+// it with a NotAllowedError if the site setting *File editing* or a policy blocks
+// the editing of files. Then the file is downloaded, and so are the next ones.
 import { ARCHIVE_SUFFIX, mediaType, SUFFIX } from "./files";
 
 export type FileData = string | Blob;
+
+/** The permission of the browser to write into a file of the save dialog. */
+type Permission = "granted" | "denied" | "prompt";
 
 /** A file chosen in the save dialog, as far as the app writes it. */
 export interface SaveHandle {
@@ -15,6 +22,11 @@ export interface SaveHandle {
     close(): Promise<void>;
     abort(reason?: unknown): Promise<void>;
   }>;
+  /** Whether the app may still write into the file, e.g. after a time in the
+   * background (Chrome, Edge). */
+  queryPermission?(descriptor: { mode: "readwrite" }): Promise<Permission>;
+  /** Ask the user to let the app write into the file again. */
+  requestPermission?(descriptor: { mode: "readwrite" }): Promise<Permission>;
 }
 
 export interface PickerOptions {
@@ -47,8 +59,8 @@ export interface Saved {
 
 /**
  * Save a file. `make` makes its content for the chosen name, after the dialog;
- * undefined if the dialog was cancelled. A file that cannot be made is not written:
- * the error of `make` is thrown.
+ * undefined if the dialog was cancelled, or if the dialog of another save is open.
+ * A file that cannot be made is not written: the error of `make` is thrown.
  */
 export type Save = (
   request: SaveRequest,
@@ -97,40 +109,79 @@ export function pickerOptions(name: string, kind: SaveKind): PickerOptions {
   };
 }
 
-/** Whether an error is the *Cancel* of the dialog. */
-const cancelled = (error: unknown) =>
-  (error as { name?: unknown } | null)?.name === "AbortError";
+/** Whether an error is a DOMException of this name, e.g. an AbortError. */
+const named = (error: unknown, name: string) =>
+  (error as { name?: unknown } | null)?.name === name;
 
-/** Saving with the save dialog of `picker`, if any, else with `download`. */
+/**
+ * Whether the app may write into a file of an earlier save: the browser may have
+ * taken the permission back, e.g. after a time in the background, and asks again.
+ * Asked before the file is made, while the click of the user still counts.
+ */
+async function writable(handle: SaveHandle): Promise<boolean> {
+  const mode = { mode: "readwrite" } as const;
+  try {
+    if (!handle.queryPermission) return true;
+    if ((await handle.queryPermission(mode)) === "granted") return true;
+    return (await handle.requestPermission?.(mode)) === "granted";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Saving with the save dialog of `picker`, if any, else with `download`.
+ *
+ * - A browser that refuses the dialog (a NotAllowedError, #439) gets a download, and
+ *   the next files too: `onRefused` is called once.
+ * - A dialog without the click of the user (a SecurityError) also gets a download.
+ * - A save while the dialog of another one is open is ignored, e.g. of a double
+ *   click: the browser would refuse a second dialog.
+ * - A file of an earlier save that the app may not write into anymore is saved
+ *   with the dialog again.
+ */
 export function saver({
   picker,
   download,
+  onRefused,
 }: {
   picker?: SavePicker;
   download: (name: string, data: FileData) => void;
+  onRefused?: () => void;
 }): Save {
+  // the dialog, until the browser refuses it
+  let dialog = picker;
+  // whether the dialog of a save is open
+  let open = false;
   return async ({ name, kind, into }, make) => {
-    let handle = into;
-    if (!handle) {
-      if (!picker) {
-        download(name, await make(name));
-        return { name };
-      }
+    let handle = into && (await writable(into)) ? into : undefined;
+    if (!handle && dialog) {
+      if (open) return undefined;
+      open = true;
       try {
-        handle = await picker(pickerOptions(name, kind));
+        handle = await dialog(pickerOptions(name, kind));
       } catch (error) {
-        if (cancelled(error)) return undefined;
-        throw error;
+        if (named(error, "AbortError")) return undefined;
+        if (named(error, "NotAllowedError")) {
+          dialog = undefined;
+          onRefused?.();
+        } else if (!named(error, "SecurityError")) throw error;
+      } finally {
+        open = false;
       }
+    }
+    if (!handle) {
+      download(name, await make(name));
+      return { name };
     }
     // made before it is opened: a file that cannot be made is not written
     const data = await make(handle.name);
-    const writable = await handle.createWritable();
+    const stream = await handle.createWritable();
     try {
-      await writable.write(data);
-      await writable.close();
+      await stream.write(data);
+      await stream.close();
     } catch (error) {
-      await writable.abort(error).catch(() => {});
+      await stream.abort(error).catch(() => {});
       throw error;
     }
     return { name: handle.name, handle };

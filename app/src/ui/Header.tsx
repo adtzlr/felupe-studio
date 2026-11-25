@@ -24,6 +24,8 @@ interface Props {
    */
   onImportResults?: () => void;
   onSave: () => void;
+  /** Where *Save project* saves (#439); the default names the formats only. */
+  saveHint?: string;
   onSaveAs: () => void;
   /** Rename the project: the new file name with the suffix of its format (#205). */
   onRename: (fileName: string) => void;
@@ -265,6 +267,7 @@ export function Header({
   onSamples,
   onImportResults,
   onSave,
+  saveHint,
   onSaveAs,
   onRename,
   onShortcuts,
@@ -312,7 +315,8 @@ export function Header({
                   {
                     id: "save",
                     label: "Save project",
-                    hint: "In its format: a project file or an archive",
+                    hint:
+                      saveHint ?? "In its format: a project file or an archive",
                     shortcut: { text: hint("save"), aria: ariaKeys("save") },
                     onSelect: onSave,
                   },
