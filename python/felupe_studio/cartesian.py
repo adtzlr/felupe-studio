@@ -9,9 +9,6 @@ computes the same matrix with ``base_vectors()`` of its helpers.
 
 from math import hypot
 
-# the directions of a Cartesian constraint, the indices of its base vectors
-DIRECTIONS = ("1", "2", "3")
-
 # the second base vector of a 3D model by default
 E2 = (0, 1, 0)
 
@@ -79,25 +76,3 @@ def base_vectors(command, dim=3):
     if e1 is None or e2 is None:
         return None
     return [e1, e2, unit(cross(e1, e2)) or [0.0, 0.0, 0.0]]
-
-
-def components(command, values, dim=3):
-    """The values of the directions of a Cartesian constraint, one per direction of
-    the model: the given values of the constrained directions (one value for all of
-    them, or one per constrained direction in the order 1, 2, 3) and 0 of the free
-    ones.
-
-    Examples
-    --------
-    >>> components({"constrained": ["3", "1"]}, 0.5)
-    [0.5, 0, 0.5]
-    >>> components({"constrained": ["1", "3"]}, [0.1, -0.2])
-    [0.1, 0, -0.2]
-    >>> components({"constrained": ["2"]}, 0.1, dim=2)
-    [0, 0.1]
-    """
-    constrained = [d for d in DIRECTIONS[:dim] if d in command["constrained"]]
-    if not isinstance(values, list):
-        values = [values] * len(constrained)
-    given = dict(zip(constrained, values, strict=True))
-    return [given.get(d, 0) for d in DIRECTIONS[:dim]]

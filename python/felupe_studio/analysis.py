@@ -126,6 +126,35 @@ def planar_cartesian(cmd, analysis, rotations):
     return []
 
 
+def planar_cylindrical(cmd, analysis, rotations):
+    """A cylindrical constraint of a 2D model is in polar coordinates about z, not
+    offered in an axisymmetric model (#422)."""
+    name = cmd["name"]
+    if analysis == "axisymmetric":
+        return [
+            f"cylindrical constraint '{name}' is in an axisymmetric model, whose "
+            "radius is y and which has no direction around its axis: hold or move the "
+            "points radially (y) or axially (x) by a boundary."
+        ]
+    if cmd.get("center", [0, 0, 0])[2] != 0:
+        return [
+            f"cylindrical constraint '{name}' has a center with a z coordinate: the "
+            "points of a 2D model are in the plane z = 0."
+        ]
+    axis = cmd.get("axis", [0, 0, 1])
+    if axis[0] != 0 or axis[1] != 0:
+        return [
+            f"cylindrical constraint '{name}' has an axis that is not z: the axis of a "
+            "2D model is z, with the directions r and theta in the xy-plane."
+        ]
+    if "z" in cmd["constrained"]:
+        return [
+            f"cylindrical constraint '{name}' constrains z, which a 2D model does not "
+            "have."
+        ]
+    return []
+
+
 def planar_symmetry(cmd, analysis, rotations):
     if "z" not in cmd["axes"]:
         return []
@@ -182,6 +211,7 @@ PLANAR = {
     "rigid.add": planar_rigid,
     "mpc.add": planar_constraint,
     "cartesian.add": planar_cartesian,
+    "cylindrical.add": planar_cylindrical,
     "symmetry.add": planar_symmetry,
     "loadcase.add": planar_loadcase,
     "faceset.add": planar_faceset,

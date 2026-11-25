@@ -13,8 +13,8 @@ commands:
    the solid bodies (created after the merge, see :func:`felupe.field.merge`)
 3. point sets, face sets, load cases and symmetry planes (``fem.dof``) and the
    boundaries on the merged field (:mod:`.sets`)
-4. multi-point and Cartesian constraints, contacts, point loads and pressures
-   (:mod:`.items`)
+4. multi-point, Cartesian and cylindrical constraints, contacts, point loads and
+   pressures (:mod:`.items`)
 5. steps and jobs (:mod:`.jobs`)
 
 Every part is a function of a :class:`Context` that returns its lines. Within a part,
@@ -29,7 +29,7 @@ from textwrap import dedent
 from . import items, jobs, meshtools, sections, sets
 from .__about__ import __version__
 from .analysis import analysis_of
-from .commands import SCHEMA_VERSION, ValidationError, validate
+from .commands import MOVED, SCHEMA_VERSION, ValidationError, validate
 from .expressions import names, resolve
 from .formatting import call, wrap
 from .jobs import TOL, evaluate_options, solver_rtol, solver_source
@@ -81,7 +81,8 @@ def _blocks(markers):
 # surface (#222), of meshes made by scripts (#182) with the steps that leave out
 # sections without volume (#429), and of the linear solvers of jobs other than
 # SuperLU (#203) and in single precision (ADR 0016), of steps that switch
-# boundaries on and off (#393), and of Cartesian constraints (#421)
+# boundaries on and off (#393), of Cartesian constraints (#421), and of the curves
+# of cylindrical constraints (#422)
 BLOCKS = _blocks(
     {
         "mixed": "\n\n# --- embedded in generated scripts with mixed fields ---\n",
@@ -113,6 +114,10 @@ BLOCKS = _blocks(
         "cartesian": (
             "\n\n# --- embedded in generated scripts with Cartesian constraints ---\n"
         ),
+        "cylindrical": (
+            "\n\n# --- embedded in generated scripts with the curve of a cylindrical "
+            "constraint ---\n"
+        ),
     }
 )
 
@@ -130,6 +135,7 @@ HELPERS = (
     ("embed", lambda context: meshtools.uses_embed(context.commands)),
     ("switch", lambda context: jobs.switches(context.get("step.add"))),
     ("cartesian", lambda context: bool(context.get("cartesian.add"))),
+    ("cylindrical", lambda context: jobs.cylindrical_curves(context)),
 )
 
 AXES = ("x", "y", "z")
@@ -367,13 +373,16 @@ class Context:
 
     @cached_property
     def constraints(self):
-        """The multi-point constraints and the Cartesian constraints (#421)."""
-        return self.get("mpc.add", "cartesian.add")
+        """The multi-point constraints and the Cartesian and cylindrical constraints
+        (#421, #422)."""
+        return self.get("mpc.add", "cartesian.add", "cylindrical.add")
 
     @cached_property
-    def cartesians(self):
-        """The Cartesian constraints by their names (#421)."""
-        return {c["name"]: c for c in self.get("cartesian.add")}
+    def moved(self):
+        """The constraints in local coordinates by their names, which a step ramps
+        and which may be the curve of a job: the Cartesian and the cylindrical
+        constraints (#421, #422)."""
+        return {c["name"]: c for c in self.get(*MOVED)}
 
     @cached_property
     def dimensions(self):
@@ -466,6 +475,7 @@ PARTS = (
     sets.boundaries,
     items.constraints,
     items.cartesians,
+    items.cylindricals,
     items.contacts,
     items.loads,
     items.pressures,

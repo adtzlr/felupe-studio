@@ -10,9 +10,10 @@ import felupe as fem
 import numpy as np
 import pytest
 
-from felupe_studio.cartesian import base_vectors, components
+from felupe_studio.cartesian import base_vectors
 from felupe_studio.codegen import codegen
 from felupe_studio.commands import errors
+from felupe_studio.directions import components
 from felupe_studio.runner import curve_row, frames, run
 
 GOLDEN = Path(__file__).parent / "golden"
@@ -184,7 +185,8 @@ def test_base_vectors():
     [(0.5, [0.5, 0, 0.5]), ([1, 2], [1, 0, 2])],
 )
 def test_components(value, expected):
-    assert components({"constrained": ["1", "3"]}, value) == expected
+    command = {"command": "cartesian.add", "constrained": ["1", "3"]}
+    assert components(command, value) == expected
 
 
 def test_curves_in_the_directions_of_the_constraint():

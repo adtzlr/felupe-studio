@@ -1346,7 +1346,7 @@ def test_pressure(tmp_path, monkeypatch):
     document["commands"][-1]["curve"] = "pull"
     with pytest.raises(
         ValidationError,
-        match="is a pressure, not a boundary, load or Cartesian constraint",
+        match="is a pressure, not a boundary, load, Cartesian or cylindrical",
     ):
         codegen(document)
 
@@ -1594,6 +1594,7 @@ def test_every_command_type_has_its_emitter():
         sets.BOUNDARIES,
         items.CONSTRAINTS,
         items.CARTESIANS,
+        items.CYLINDRICALS,
         items.CONTACTS,
         items.LOADS,
         items.PRESSURES,

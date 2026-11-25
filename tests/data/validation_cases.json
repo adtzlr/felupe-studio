@@ -822,7 +822,7 @@
       ]
     },
     "errors": [
-      "commands/12: job.add 'job_1' references unknown boundary, load or Cartesian constraint 'fixed2' in 'curve'."
+      "commands/12: job.add 'job_1' references unknown boundary, load, Cartesian or cylindrical constraint 'fixed2' in 'curve'."
     ],
     "notes": []
   },
@@ -5614,7 +5614,7 @@
     },
     "errors": [
       "commands/0: job.add 'job_1' references unknown step 'step_1' in 'steps'.",
-      "commands/0: job.add 'job_1' references unknown boundary, load or Cartesian constraint 'move' in 'curve'."
+      "commands/0: job.add 'job_1' references unknown boundary, load, Cartesian or cylindrical constraint 'move' in 'curve'."
     ],
     "notes": []
   },
@@ -7001,7 +7001,7 @@
       ]
     },
     "errors": [
-      "commands/13: 'half' in 'curve' of 'job_1' is a symmetry, not a boundary, load or Cartesian constraint."
+      "commands/13: 'half' in 'curve' of 'job_1' is a symmetry, not a boundary, load, Cartesian or cylindrical constraint."
     ],
     "notes": []
   },
@@ -13534,7 +13534,7 @@
       ]
     },
     "errors": [
-      "commands/12: step 'step_1' ramps 'tension' with 2 values: only a boundary or a Cartesian constraint ramps one value per constrained component."
+      "commands/12: step 'step_1' ramps 'tension' with 2 values: only a boundary, a Cartesian constraint or a cylindrical constraint ramps one value per constrained component."
     ],
     "notes": []
   },
@@ -21580,7 +21580,7 @@
       ]
     },
     "errors": [
-      "commands/12: step 'step_1' ramps the multi-point constraint 'glue': a step ramps a boundary, a load case, a Cartesian constraint, a point load or a pressure."
+      "commands/12: step 'step_1' ramps the multi-point constraint 'glue': a step ramps a boundary, a load case, a Cartesian or cylindrical constraint, a point load or a pressure."
     ],
     "notes": []
   },
@@ -21709,7 +21709,7 @@
       ]
     },
     "errors": [
-      "commands/13: job 'job_1' records the curve of the multi-point constraint 'glue': a curve is of a boundary, a load case, a Cartesian constraint or a point load."
+      "commands/13: job 'job_1' records the curve of the multi-point constraint 'glue': a curve is of a boundary, a load case, a Cartesian or cylindrical constraint or a point load."
     ],
     "notes": []
   },
@@ -22298,6 +22298,2038 @@
     },
     "errors": [
       "commands/11: Cartesian constraint 'slide' constrains direction 3, which a 2D model does not have."
+    ],
+    "notes": []
+  },
+  {
+    "name": "cylindrical constraint ramped and recorded",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "cylindrical.add",
+          "name": "turn",
+          "points": "right",
+          "center": [
+            0,
+            0.5,
+            0.5
+          ],
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "constrained": [
+            "theta"
+          ],
+          "multiplier": 10000.0
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              },
+              {
+                "target": "turn",
+                "end": 0.2
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "turn"
+        }
+      ]
+    },
+    "errors": [],
+    "notes": []
+  },
+  {
+    "name": "cylindrical constraint ramped per direction",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "parameter.add",
+          "name": "length",
+          "value": 3
+        },
+        {
+          "command": "parameter.add",
+          "name": "stroke",
+          "value": 0.5
+        },
+        {
+          "command": "parameter.add",
+          "name": "cells",
+          "value": 5,
+          "integer": true
+        },
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "cylindrical.add",
+          "name": "turn",
+          "points": "right",
+          "center": [
+            0,
+            0.5,
+            0.5
+          ],
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "constrained": [
+            "z",
+            "r"
+          ],
+          "value": [
+            0.1,
+            0.2
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              },
+              {
+                "target": "turn",
+                "start": [
+                  0,
+                  0
+                ],
+                "end": [
+                  0.1,
+                  "stroke"
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [],
+    "notes": []
+  },
+  {
+    "name": "cylindrical constraint about z through the origin",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "cylindrical.add",
+          "name": "turn",
+          "points": "right",
+          "constrained": [
+            "r"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [],
+    "notes": []
+  },
+  {
+    "name": "cylindrical constraint with an axis of zero length",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "cylindrical.add",
+          "name": "turn",
+          "points": "right",
+          "center": [
+            0,
+            0.5,
+            0.5
+          ],
+          "axis": [
+            0,
+            0,
+            0
+          ],
+          "constrained": [
+            "theta"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/11: cylindrical constraint 'turn' has an axis of zero length."
+    ],
+    "notes": []
+  },
+  {
+    "name": "cylindrical constraint with a value per direction",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "cylindrical.add",
+          "name": "turn",
+          "points": "right",
+          "center": [
+            0,
+            0.5,
+            0.5
+          ],
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "constrained": [
+            "theta"
+          ],
+          "value": [
+            0.1,
+            0.2
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/11: cylindrical constraint 'turn' has 2 values, but it constrains 1 direction."
+    ],
+    "notes": []
+  },
+  {
+    "name": "cylindrical constraint ramped with values per direction",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "cylindrical.add",
+          "name": "turn",
+          "points": "right",
+          "center": [
+            0,
+            0.5,
+            0.5
+          ],
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "constrained": [
+            "r",
+            "theta"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              },
+              {
+                "target": "turn",
+                "end": [
+                  0.1,
+                  0.2,
+                  0.3
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/12: step 'step_1' ramps 'turn' with 3 values, but the cylindrical constraint constrains 2 directions."
+    ],
+    "notes": []
+  },
+  {
+    "name": "cylindrical constraint off in a step that ramps it",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "mpc.add",
+          "name": "glue",
+          "points": "right",
+          "center": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "cylindrical.add",
+          "name": "turn",
+          "points": "right",
+          "center": [
+            0,
+            0.5,
+            0.5
+          ],
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "constrained": [
+            "theta"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              },
+              {
+                "target": "turn",
+                "end": 0.1
+              }
+            ]
+          },
+          "constraints": [
+            "glue"
+          ]
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/13: step 'step_1' ramps 'turn', which is off in it."
+    ],
+    "notes": []
+  },
+  {
+    "name": "cylindrical constraint of a control point",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "point.add",
+          "name": "pin",
+          "coordinates": [
+            4,
+            0,
+            0
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "cylindrical.add",
+          "name": "turn",
+          "points": "pin",
+          "center": [
+            0,
+            0.5,
+            0.5
+          ],
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "constrained": [
+            "r",
+            "theta",
+            "z"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [],
+    "notes": []
+  },
+  {
+    "name": "cylindrical constraint in a 2D model",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "model.settings",
+          "name": "settings",
+          "analysis": "plane-strain"
+        },
+        {
+          "command": "mesh.generate",
+          "name": "specimen",
+          "tool": "Rectangle",
+          "parameters": {
+            "a": [
+              0,
+              0
+            ],
+            "b": [
+              3,
+              1
+            ],
+            "n": [
+              4,
+              2
+            ]
+          }
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "hard",
+          "mesh": "specimen"
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "soft",
+          "mesh": "specimen"
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y"
+          ]
+        },
+        {
+          "command": "cylindrical.add",
+          "name": "turn",
+          "points": "right",
+          "center": [
+            0,
+            -1,
+            0
+          ],
+          "constrained": [
+            "r"
+          ],
+          "value": -0.1
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "turn"
+        }
+      ]
+    },
+    "errors": [],
+    "notes": []
+  },
+  {
+    "name": "cylindrical constraint about z in a 2D model",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "model.settings",
+          "name": "settings",
+          "analysis": "plane-strain"
+        },
+        {
+          "command": "mesh.generate",
+          "name": "specimen",
+          "tool": "Rectangle",
+          "parameters": {
+            "a": [
+              0,
+              0
+            ],
+            "b": [
+              3,
+              1
+            ],
+            "n": [
+              4,
+              2
+            ]
+          }
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "hard",
+          "mesh": "specimen"
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "soft",
+          "mesh": "specimen"
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y"
+          ]
+        },
+        {
+          "command": "cylindrical.add",
+          "name": "turn",
+          "points": "right",
+          "center": [
+            0,
+            -1,
+            0
+          ],
+          "axis": [
+            0,
+            0,
+            2
+          ],
+          "constrained": [
+            "theta"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [],
+    "notes": []
+  },
+  {
+    "name": "cylindrical constraint with a center in z in a 2D model",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "model.settings",
+          "name": "settings",
+          "analysis": "plane-strain"
+        },
+        {
+          "command": "mesh.generate",
+          "name": "specimen",
+          "tool": "Rectangle",
+          "parameters": {
+            "a": [
+              0,
+              0
+            ],
+            "b": [
+              3,
+              1
+            ],
+            "n": [
+              4,
+              2
+            ]
+          }
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "hard",
+          "mesh": "specimen"
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "soft",
+          "mesh": "specimen"
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y"
+          ]
+        },
+        {
+          "command": "cylindrical.add",
+          "name": "turn",
+          "points": "right",
+          "center": [
+            0,
+            -1,
+            1
+          ],
+          "constrained": [
+            "theta"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/11: cylindrical constraint 'turn' has a center with a z coordinate: the points of a 2D model are in the plane z = 0."
+    ],
+    "notes": []
+  },
+  {
+    "name": "cylindrical constraint with an axis not z in a 2D model",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "model.settings",
+          "name": "settings",
+          "analysis": "plane-strain"
+        },
+        {
+          "command": "mesh.generate",
+          "name": "specimen",
+          "tool": "Rectangle",
+          "parameters": {
+            "a": [
+              0,
+              0
+            ],
+            "b": [
+              3,
+              1
+            ],
+            "n": [
+              4,
+              2
+            ]
+          }
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "hard",
+          "mesh": "specimen"
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "soft",
+          "mesh": "specimen"
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y"
+          ]
+        },
+        {
+          "command": "cylindrical.add",
+          "name": "turn",
+          "points": "right",
+          "center": [
+            0,
+            -1,
+            0
+          ],
+          "axis": [
+            1,
+            0,
+            0
+          ],
+          "constrained": [
+            "theta"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/11: cylindrical constraint 'turn' has an axis that is not z: the axis of a 2D model is z, with the directions r and theta in the xy-plane."
+    ],
+    "notes": []
+  },
+  {
+    "name": "cylindrical constraint of z in a 2D model",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "model.settings",
+          "name": "settings",
+          "analysis": "plane-strain"
+        },
+        {
+          "command": "mesh.generate",
+          "name": "specimen",
+          "tool": "Rectangle",
+          "parameters": {
+            "a": [
+              0,
+              0
+            ],
+            "b": [
+              3,
+              1
+            ],
+            "n": [
+              4,
+              2
+            ]
+          }
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "hard",
+          "mesh": "specimen"
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "soft",
+          "mesh": "specimen"
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y"
+          ]
+        },
+        {
+          "command": "cylindrical.add",
+          "name": "turn",
+          "points": "right",
+          "center": [
+            0,
+            -1,
+            0
+          ],
+          "constrained": [
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/11: cylindrical constraint 'turn' constrains z, which a 2D model does not have."
+    ],
+    "notes": []
+  },
+  {
+    "name": "cylindrical constraint in an axisymmetric model",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "model.settings",
+          "name": "settings",
+          "analysis": "axisymmetric"
+        },
+        {
+          "command": "mesh.generate",
+          "name": "specimen",
+          "tool": "Rectangle",
+          "parameters": {
+            "a": [
+              0,
+              0
+            ],
+            "b": [
+              3,
+              1
+            ],
+            "n": [
+              4,
+              2
+            ]
+          }
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "hard",
+          "mesh": "specimen"
+        },
+        {
+          "command": "cellset.from_file",
+          "name": "soft",
+          "mesh": "specimen"
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y"
+          ]
+        },
+        {
+          "command": "cylindrical.add",
+          "name": "turn",
+          "points": "right",
+          "center": [
+            0,
+            0,
+            0
+          ],
+          "constrained": [
+            "r"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move"
+        }
+      ]
+    },
+    "errors": [
+      "commands/11: cylindrical constraint 'turn' is in an axisymmetric model, whose radius is y and which has no direction around its axis: hold or move the points radially (y) or axially (x) by a boundary."
     ],
     "notes": []
   },
