@@ -34,8 +34,8 @@ The material registry of the schema (#24, #136, #191, #346) has the common model
 - **The worker:**
   - The file is written into the folder of the project, like a mesh script, and the jobs run the generated script there.
   - It loads tensortrax for a model with a material of a file, which may use `fem.Hyperelastic`.
-  - A request `inspect-material` runs the file once with the parameters, so its error is an issue of the material before a job, with the traceback of the file, and its properties say what it made: the type of `umat` and the number of its state variables (#423, part 2).
-- **The templates** are files of the package (`felupe_studio/templates/`), one per kind, each a minimal file with the parameters as variables and their values for a run alone. A golden case runs each of them, so a template that no longer runs fails CI. *Download template* of the form gives them.
+  - A request `inspect-material` runs the file once with the parameters, so its error is an issue of the material before a job, with the traceback of the file, and its properties say what it made: the type of `umat` and the number of its state variables. It runs again for a new version of the file or new values of its parameters.
+- **The templates** are files of the package (`felupe_studio/templates/`), one per kind, each a minimal file with the parameters as variables and their values for a run alone. A golden case runs each of them, so a template that no longer runs fails CI. *Download template* in the properties of a material saves the template of its kind under the name of its file; the app has them in its bundle, not from Python.
 - **What a shared project may run:** a material script runs Python code, like a mesh script.
   - In the browser, Pyodide is a sandbox.
   - The local runtime (#240) shows the scripts of an opened project before they run (#183).
@@ -45,7 +45,7 @@ The material registry of the schema (#24, #136, #191, #346) has the common model
 
 - A section takes a material of a file like one of the registry, with its formulation by `volumetric`.
 - The results have the strains and the stresses as usual. The state variables of a material of a file are carried through a job, so a restored substep has its load history, but they are no contour: the contours of state variables (the equivalent plastic strain, the Mullins effect) are those of the models of the registry.
-- An error of the file is the error of a job, with the traceback of the script, until the worker inspects the file before (part 2 of #423).
+- An error of the file is an issue of the material before a job. The file runs once more in every job; a file that takes long to run, e.g. a fit of its parameters, takes that time twice.
 - Every job with a material of a file loads tensortrax in the browser, a small wheel of pure Python, whether the file needs it or not.
 - A script named like the FElupe script of a project archive (`<name>.py`) stays a script of its command when the archive is read, as for mesh scripts.
 
