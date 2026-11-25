@@ -167,6 +167,27 @@ def test_scripts_make_meshes(answers, tmp_path, monkeypatch):
     assert "traceback" in broken["info"]
 
 
+def test_scripts_of_materials_run_once(answers, tmp_path, monkeypatch):
+    # the script of a material with the parameters, before a job (#423)
+    monkeypatch.chdir(tmp_path)
+    script = "import felupe as fem\numat = fem.NeoHooke(mu=mu, bulk=bulk)\n"
+    answers({"type": "write-file", "id": 1, "name": "soft.py", "data": script.encode()})
+    request = {"type": "inspect-material", "id": 2, "file": "soft.py"}
+    [info] = answers({**request, "parameters": {"mu": 1, "bulk": 50}})
+    assert info["type"] == "text" and info["id"] == 2
+    assert json.loads(info["text"]) == {
+        "file": "soft.py",
+        "type": "NeoHooke",
+        "statevars": 0,
+    }
+    # its error is the answer, not an error of the request
+    [broken] = answers({**request, "parameters": {"mu": 1}})
+    assert broken["type"] == "text"
+    assert json.loads(broken["text"])["error"] == (
+        "NameError: name 'bulk' is not defined"
+    )
+
+
 def test_tools_make_meshes(answers):
     # the meshes of the tools of FElupe (ADR 0019): the commands of the tools with
     # the values of their expressions; a line is a construction mesh with its lines

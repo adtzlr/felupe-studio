@@ -36,7 +36,7 @@ import anyio
 from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
-from . import __version__, checks, meshes, runner
+from . import __version__, checks, meshes, runner, scripts
 from . import commands as commands_
 from . import results as results_
 from . import samples as samples_
@@ -74,9 +74,10 @@ sample (samples, open_sample) or start a project in a folder (new_project), add
 commands in the order of their references (schema shows the commands and their
 properties), fix the errors that every change returns, then solve and read the
 results (curve, extremes of a quantity). Mesh files go into the folder of the
-project; write mesh scripts and material scripts with write_file. Save the project:
-the user opens the *.felupe.json in the web app FElupe Studio. Lengths, forces and
-stresses are in the units of model.settings."""
+project; write mesh scripts and material scripts with write_file, and try them with
+inspect_mesh and inspect_material. Save the project: the user opens the
+*.felupe.json in the web app FElupe Studio. Lengths, forces and stresses are in the
+units of model.settings."""
 
 
 # the descriptions of the tools that the agent bridge of felupe-studio serve has
@@ -102,6 +103,12 @@ DESCRIPTIONS = {
         '"name" renames it, and the references to it follow.'
     ),
     "delete_command": ("Delete a command that no other command references."),
+    "inspect_material": (
+        "Run a material script (a Python file that makes a FElupe material `umat`) "
+        "once with the parameters of the model, changed by `parameters`, like a job. "
+        "Returns the type of `umat` and its number of state variables, or the error "
+        "with the traceback of the script."
+    ),
     "check": (
         "The checks that need the mesh data: cells in no or in two sections, "
         "hanging points of interfaces, and sections of cells that their formulation "
@@ -440,6 +447,17 @@ class Session:
             info, _ = meshes.make(path, values, item)
         return json.loads(info)
 
+    def inspect_material(self, file, parameters=None):
+        path = self._file(file)
+        if not path.is_file():
+            raise ToolError(f"No file '{file}' in the project folder.")
+        if path.suffix != ".py":
+            raise ToolError(f"'{file}' is not a Python script.")
+        self._may_run([file])
+        values = {**self.parameters(), **(parameters or {})}
+        with contextlib.chdir(self.folder):
+            return scripts.inspect_material(path, values)
+
     def check(self):
         self._need_folder()
         self._may_run(self._scripts())
@@ -655,6 +673,12 @@ def server(session=None):  # noqa: C901
         the mesh of a mesh script (an item of its dict of meshes, with the
         parameters of the model, changed by `parameters`)."""
         return session.inspect_mesh(file, item, parameters)
+
+    @mcp.tool(description=DESCRIPTIONS["inspect_material"])
+    def inspect_material(
+        file: str, parameters: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        return session.inspect_material(file, parameters)
 
     @mcp.tool(description=DESCRIPTIONS["check"])
     def check() -> dict[str, Any]:
