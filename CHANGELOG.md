@@ -2,6 +2,21 @@
 
 All notable changes of FElupe Studio (the web app and the Python package `felupe_studio`, released together with the same version).
 
+## [Unreleased]
+
+### Added
+
+- felupe-contact as a dependency (#461), for the contact between bodies of v0.12 (#462, roadmap #460):
+  - The package depends on `felupe-contact>=0.1,<0.2`, so the local runtime and the MCP server have it. The upper bound protects against a change of its API: felupe-contact is in alpha.
+  - CI pins its version with `FELUPE_CONTACT_VERSION`, like FElupe, and `tests/test_versions.py` checks that the wheel of the app has it.
+  - The app has its wheel of PyPI (`config.wheels`, with its SHA-256). It loads it like tensortrax, only before the run of a model with a contact between bodies, so the start of the app and of other models is unchanged.
+  - *About* shows its version, in the browser and in the local runtime.
+
+### Changed
+
+- The worker loads the lazy wheels that the runner names for a command list (`runner.lazy_wheels()`), instead of tensortrax alone.
+- The file name of a wheel of the app has the normalized name of its package, e.g. `felupe_contact-0.1.0-py3-none-any.whl` (`app/scripts/wheels.js`). The names of the other wheels are unchanged.
+
 ## [0.11.0] - 2026-11-26
 
 The physics of a section: how it is solved, with which material and how its points are held:

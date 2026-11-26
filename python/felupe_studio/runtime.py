@@ -23,6 +23,8 @@ __all__ = ["HANDLERS", "decode", "encode", "handle", "safe_name", "session", "ve
 
 def versions():
     """The versions of the runtime, like those of the Pyodide worker."""
+    from importlib.metadata import version
+
     import felupe
     import numpy
     import scipy
@@ -33,6 +35,8 @@ def versions():
         "numpy": numpy.__version__,
         "scipy": scipy.__version__,
         "felupe_studio": __version__,
+        # the contact between bodies (#461), a dependency of the package
+        "felupe_contact": version("felupe-contact"),
         "runtime": "python",
     }
 

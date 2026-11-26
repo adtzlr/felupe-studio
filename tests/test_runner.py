@@ -9,7 +9,14 @@ import numpy as np
 import pytest
 
 from felupe_studio.commands import ValidationError
-from felupe_studio.runner import LAST, run, run_json, uses_tensortrax
+from felupe_studio.runner import (
+    LAST,
+    lazy_wheels,
+    run,
+    run_json,
+    uses_contact,
+    uses_tensortrax,
+)
 
 GOLDEN = Path(__file__).parent / "golden"
 
@@ -143,6 +150,32 @@ def test_invalid_models_are_not_run():
 def test_uses_tensortrax():
     assert not uses_tensortrax(load("bar_single_body"))
     assert uses_tensortrax(load("bar_mooney_rivlin"))
+
+
+def with_contact(document):
+    """A command list with a contact between bodies (#462), which the schema does not
+    have yet: only its command is read."""
+    document = copy.deepcopy(document)
+    document["commands"].append({"command": "bodycontact.add", "name": "contact"})
+    return document
+
+
+def test_uses_contact():
+    "A contact between bodies needs felupe-contact (#461)."
+    assert not uses_contact(load("block_contact_plane"))
+    assert uses_contact(with_contact(load("bar_single_body")))
+    assert uses_contact(json.dumps(with_contact(load("bar_single_body"))))
+
+
+def test_lazy_wheels():
+    "The worker loads the lazy wheels that a command list needs (#461)."
+    assert lazy_wheels(load("bar_single_body")) == []
+    assert lazy_wheels(load("bar_mooney_rivlin")) == ["tensortrax"]
+    assert lazy_wheels(with_contact(load("bar_single_body"))) == ["felupe-contact"]
+    assert lazy_wheels(json.dumps(with_contact(load("bar_mooney_rivlin")))) == [
+        "tensortrax",
+        "felupe-contact",
+    ]
 
 
 def test_load_tensortrax_after_felupe():

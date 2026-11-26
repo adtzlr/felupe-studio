@@ -12,6 +12,8 @@ concurrency:
 env:
   # FElupe version the golden tests and the browser runtime are pinned to
   FELUPE_VERSION: "12.1.2"
+  # the pinned wheel of felupe-contact in app/package.json (#461)
+  FELUPE_CONTACT_VERSION: "0.1.0"
 
 jobs:
   # a job that hangs fails after its timeout, not after the 6 hours of GitHub;
@@ -51,7 +53,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - run: pip install -e ".[test,mcp,serve]" "felupe==${FELUPE_VERSION}"
+      - run: pip install -e ".[test,mcp,serve]" "felupe==${FELUPE_VERSION}" "felupe-contact==${FELUPE_CONTACT_VERSION}"
       - run: ruff check .
       - run: ruff format --check .
       - run: pytest -m "not golden"
@@ -85,7 +87,7 @@ jobs:
       - name: The wheel in a fresh environment
         run: |
           python -m venv /tmp/wheel
-          /tmp/wheel/bin/pip install "$(ls dist/*.whl)[mcp,serve]" "felupe==${FELUPE_VERSION}"
+          /tmp/wheel/bin/pip install "$(ls dist/*.whl)[mcp,serve]" "felupe==${FELUPE_VERSION}" "felupe-contact==${FELUPE_CONTACT_VERSION}"
           cd /tmp && /tmp/wheel/bin/python "$GITHUB_WORKSPACE/tests/check_wheel.py"
 
   local:
@@ -105,7 +107,7 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
-      - run: pip install -e ".[test,serve,mcp]" "felupe==${FELUPE_VERSION}" playwright
+      - run: pip install -e ".[test,serve,mcp]" "felupe==${FELUPE_VERSION}" "felupe-contact==${FELUPE_CONTACT_VERSION}" playwright
       - run: playwright install --with-deps chromium
       # a sample opened from felupe-studio serve, solved with CPython (#240), and an
       # agent on the open app (#258)
@@ -132,7 +134,7 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
-      - run: pip install -e ".[test,serve]" "felupe==${FELUPE_VERSION}" playwright build
+      - run: pip install -e ".[test,serve]" "felupe==${FELUPE_VERSION}" "felupe-contact==${FELUPE_CONTACT_VERSION}" playwright build
       - run: playwright install --with-deps chromium
       # its name, its manifest and its samples, solved without internet
       - run: pytest -m e2e tests/e2e/test_example_brand.py -v
@@ -143,7 +145,7 @@ jobs:
         run: |
           python -m build --wheel
           python -m venv /tmp/wheel
-          /tmp/wheel/bin/pip install "$(ls dist/*.whl)[mcp,serve]" "felupe==${FELUPE_VERSION}"
+          /tmp/wheel/bin/pip install "$(ls dist/*.whl)[mcp,serve]" "felupe==${FELUPE_VERSION}" "felupe-contact==${FELUPE_CONTACT_VERSION}"
           cd /tmp && /tmp/wheel/bin/python "$GITHUB_WORKSPACE/tests/check_wheel.py" "$GITHUB_WORKSPACE/brands/example"
         env:
           FELUPE_STUDIO_REQUIRE_APP: "1"

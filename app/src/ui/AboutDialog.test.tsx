@@ -17,6 +17,14 @@ describe("about", () => {
     expect(wheelVersion("tensortrax")).toMatch(/^\d+\.\d+/);
   });
 
+  it("reads the version of a wheel by its normalized name (#461)", () => {
+    const wheels = ["wheels/felupe_contact-0.1.0-py3-none-any.whl"];
+    expect(wheelVersion("felupe-contact", wheels)).toBe("0.1.0");
+    expect(wheelVersion("felupe_contact", wheels)).toBe("0.1.0");
+    // the pinned lazy wheel of the app
+    expect(wheelVersion("felupe-contact")).toMatch(/^\d+\.\d+/);
+  });
+
   it("describes the app (#358)", () => {
     const { unmount } = render(
       <AboutDialog runtime={{ state: "loading" }} onClose={() => {}} />,
