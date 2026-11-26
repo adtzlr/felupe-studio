@@ -2,6 +2,7 @@
 runtime of felupe-studio serve, tested in CPython on both paths."""
 
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -213,6 +214,46 @@ def test_strain_energy_functions_of_materials(answers, tmp_path, monkeypatch):
         "type": "Hyperelastic(strain_energy)",
         "statevars": 0,
     }
+
+
+def test_materials_of_files_after_felupe_without_tensortrax(tmp_path):
+    # like the worker: FElupe is imported before the wheel of tensortrax is loaded,
+    # which the worker loads before the first run of a material of a file (ADR 0025)
+    code = f"""
+import json, os, shutil, sys
+from importlib.resources import files
+sys.modules["tensortrax"] = None
+import felupe as fem
+from felupe_studio.requests import handle
+assert not hasattr(fem, "Hyperelastic")
+del sys.modules["tensortrax"]
+os.chdir({str(tmp_path)!r})
+answers = []
+for kind, arguments in [
+    ("constitutive", None),
+    ("strain", {{"E": 210000.0, "nu": 0.3}}),
+    ("hyperelastic", {{"mu": 1.0}}),
+]:
+    name = "material_" + kind + ".py"
+    shutil.copy(files("felupe_studio") / "templates" / name, name)
+    material = {{"command": "material.script", "name": kind, "kind": kind,
+        "file": name, "arguments": arguments}}
+    request = {{"type": "inspect-material", "id": 1, "file": name,
+        "parameters": {{"mu": 1.0, "bulk": 50.0}}, "material": material}}
+    handle(request, answers.append)
+print(json.dumps(answers))
+"""
+    run = subprocess.run(
+        [sys.executable, "-c", code], check=True, capture_output=True, text=True
+    )
+    answers = json.loads(run.stdout)
+    assert [a["type"] for a in answers] == ["text"] * 3
+    infos = [json.loads(a["text"]) for a in answers]
+    assert [(i["type"], "error" in i) for i in infos] == [
+        ("NeoHooke", False),
+        ("MaterialStrain(material)", False),
+        ("Hyperelastic(strain_energy)", False),
+    ]
 
 
 def test_tools_make_meshes(answers):

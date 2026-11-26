@@ -72,8 +72,15 @@ def _make_mesh(request, send):
 
 
 def _inspect_material(request, send):
+    from .runner import load_tensortrax
     from .scripts import inspect_material
 
+    # the worker loads tensortrax for this request after FElupe was imported: its
+    # models, e.g. fem.Hyperelastic, are in FElupe only after a reload (ADR 0025)
+    try:
+        load_tensortrax()
+    except ImportError:
+        pass  # a material of a file without tensortrax, e.g. fem.NeoHooke
     # the script of a material (ADR 0025), run once with the parameters (#423), or
     # the strain energy function of a file with the values of its material (#424)
     parameters = dict(request.get("parameters") or {})
