@@ -1061,6 +1061,27 @@ CHANGES = {
     "material script with a parameter that is none": lambda d: material_script(
         d, parameters=["length", "hard"], volumetric=False
     ),
+    # the arguments of a strain energy function of a file (#424): values or
+    # expressions, not those that fem.Hyperelastic gives or takes, nor those of the
+    # Mullins effect
+    "strain energy function": lambda d: (
+        parameters(d),
+        function_script(d, arguments={"mu": "length / 100", "k": 0.1}),
+    ),
+    "strain energy function with given arguments": lambda d: function_script(
+        d, arguments={"C": 1, "nstatevars": 2, "lambda": 1.0, "μ": 1.0}
+    ),
+    "strain energy function with the arguments of the Mullins effect": lambda d: (
+        function_script(
+            d,
+            arguments={"beta": 1.0, "material": 2.0},
+            mullins={"r": 3, "m": 1, "beta": 0.1},
+            nstatevars=2,
+        )
+    ),
+    "strain energy function with an unknown parameter": lambda d: function_script(
+        d, arguments={"mu": "shear / 2"}
+    ),
     "parameter with a name of the script": lambda d: d["commands"].insert(
         0, {"command": "parameter.add", "name": "field", "value": 1}
     ),
@@ -1665,6 +1686,16 @@ MATERIAL_KINDS = {
 SCRIPT_KINDS = {
     "a material of a file": {},
     "a material of a file without a volumetric part": {"volumetric": False},
+    # a strain energy function of a file (#424): with a bulk modulus, or isochoric
+    "a strain energy function of a file": {
+        "kind": "hyperelastic",
+        "arguments": {"mu": 1.0},
+    },
+    "a strain energy function of a file with a bulk modulus": {
+        "kind": "hyperelastic",
+        "arguments": {"mu": 1.0},
+        "bulk": 5000,
+    },
 }
 
 
@@ -1677,8 +1708,13 @@ def material_script(document, **fields):
         name="umat_soft",
         kind="constitutive",
         file="soft.py",
-        **fields,
     )
+    soft.update(fields)
+
+
+def function_script(document, **fields):
+    """The material umat_soft of a strain energy function of a file (#424)."""
+    material_script(document, kind="hyperelastic", **fields)
 
 
 def formulation(document, name, model, parameters):

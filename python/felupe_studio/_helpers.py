@@ -455,6 +455,29 @@ def run_material_script(file, parameters):
     return umat
 
 
+# --- embedded in generated scripts with strain energy functions of files ---
+def material_function(file, name):
+    """Return the strain energy density function ``name`` of a Python file (#424): a
+    function of the right Cauchy-Green deformation tensor ``C``, a tensor of
+    tensortrax, and of its arguments, e.g. ``strain_energy(C, mu)``, which
+    ``fem.Hyperelastic`` differentiates."""
+    import inspect
+    import runpy
+
+    namespace = runpy.run_path(str(file))
+    function = namespace.get(name)
+    if not callable(function):
+        # the functions defined in the file
+        names = [
+            key
+            for key, value in namespace.items()
+            if inspect.isfunction(value) and value.__module__ == "<run_path>"
+        ]
+        functions = f" Its functions: {', '.join(names)}." if names else ""
+        raise ValueError(f"The script '{file}' has no function '{name}'.{functions}")
+    return function
+
+
 # --- embedded in generated scripts with linear solvers ---
 def spsolve(A, b):
     """Solve a linear system with ``scipy.sparse.linalg.spsolve``, the linear solver

@@ -20,7 +20,7 @@ from .formatting import (
     wrap,
 )
 from .formulations import formulation_of
-from .materials import lame_call, material_call
+from .materials import is_function, lame_call, material_call, script_call
 
 
 def script_parameters(script, parameters=None):
@@ -94,22 +94,27 @@ def cellset(context, command):
 
 def material(context, mat):
     """A material, and its Lamé constants or its volumetric part if it has them."""
-    func, args, volumetric = material_call(mat)
     lines = []
     # the Lamé constants of a strain-based material (#191), as names that no object
     # can have (a name has ASCII letters only)
     lame = lame_call(mat)
     if lame is not None:
         lines.append(call("λ, μ", "fem.constitution.lame_converter", lame))
-    lines.append(call(mat["name"], func, args))
+    return [*lines, *made(mat["name"], *material_call(mat))]
+
+
+def made(name, func, args, volumetric):
+    """The line of a material, and the line of its volumetric part if it has one."""
+    lines = [call(name, func, args)]
     if volumetric:
-        lines.append(wrap(f"{mat['name']} &= fem.Volumetric", volumetric))
+        lines.append(wrap(f"{name} &= fem.Volumetric", volumetric))
     return lines
 
 
 def material_script(context, mat):
     """A user-defined material of a Python file (ADR 0025): its variable ``umat``,
-    made with the parameters of the model.
+    made with the parameters of the model, or ``fem.Hyperelastic`` of a strain energy
+    function of the file (#424, :func:`felupe_studio.materials.script_call`).
 
     Examples
     --------
@@ -119,7 +124,13 @@ def material_script(context, mat):
     ...     context, {"name": "soft", "file": "soft.py", "kind": "constitutive"}
     ... )
     ['soft = run_material_script("soft.py", {"mu": mu})']
+    >>> material_script(context, {"command": "material.script", "name": "soft",
+    ...                           "file": "soft.py", "kind": "hyperelastic",
+    ...                           "arguments": {"mu": 1.0}})
+    ['soft = fem.Hyperelastic(material_function("soft.py", "strain_energy"), mu=1.0)']
     """
+    if is_function(mat):
+        return made(mat["name"], *script_call(mat))
     names = [p["name"] for p in context.parameters]
     args = [quote(mat["file"]), script_parameters(mat, names)]
     return [call(mat["name"], "run_material_script", args)]

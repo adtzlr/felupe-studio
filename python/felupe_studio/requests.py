@@ -74,9 +74,11 @@ def _make_mesh(request, send):
 def _inspect_material(request, send):
     from .scripts import inspect_material
 
-    # the script of a material (ADR 0025), run once with the parameters (#423)
+    # the script of a material (ADR 0025), run once with the parameters (#423), or
+    # the strain energy function of a file with the values of its material (#424)
     parameters = dict(request.get("parameters") or {})
-    info = inspect_material(safe_name(request["file"]), parameters)
+    material = request.get("material")
+    info = inspect_material(safe_name(request["file"]), parameters, material)
     send({"type": "text", "id": request["id"], "text": json.dumps(info)})
 
 

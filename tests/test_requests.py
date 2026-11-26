@@ -188,6 +188,33 @@ def test_scripts_of_materials_run_once(answers, tmp_path, monkeypatch):
     )
 
 
+def test_strain_energy_functions_of_materials(answers, tmp_path, monkeypatch):
+    # the function of a file with the values of its material (#424)
+    monkeypatch.chdir(tmp_path)
+    script = (
+        "import tensortrax.math as tm\n\n\ndef strain_energy(C, mu):\n"
+        "    return mu / 2 * (tm.linalg.det(C) ** (-1 / 3) * tm.trace(C) - 3)\n"
+    )
+    answers({"type": "write-file", "id": 1, "name": "soft.py", "data": script.encode()})
+    material = {
+        "command": "material.script",
+        "name": "soft",
+        "kind": "hyperelastic",
+        "file": "soft.py",
+        "arguments": {"mu": 1.0},
+    }
+    request = {"type": "inspect-material", "id": 2, "file": "soft.py"}
+    [info] = answers({**request, "parameters": {}, "material": material})
+    assert json.loads(info["text"]) == {
+        "file": "soft.py",
+        "functions": {
+            "strain_energy": {"arguments": [{"name": "mu"}], "statevars": False}
+        },
+        "type": "Hyperelastic(strain_energy)",
+        "statevars": 0,
+    }
+
+
 def test_tools_make_meshes(answers):
     # the meshes of the tools of FElupe (ADR 0019): the commands of the tools with
     # the values of their expressions; a line is a construction mesh with its lines

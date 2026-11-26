@@ -10,6 +10,7 @@ by the rules of its command type (:data:`RULES`), in this order. The rules mirro
 """
 
 from functools import cached_property
+from keyword import iskeyword
 
 from . import meshtools
 from .analysis import analysis_of, analysis_problems
@@ -32,7 +33,7 @@ from .cylindrical import axis
 from .directions import DIRECTIONS, NAMES, directions
 from .formulations import first, formulations, sibling
 from .loadcases import problems as loadcase_problems
-from .materials import is_script, models, strain_based
+from .materials import MULLINS, is_function, is_script, models, strain_based
 from .materials import problems as material_problems
 
 
@@ -496,11 +497,13 @@ def misfit(formulation, material):
 
 def script_misfit(formulation, material):
     """Why a formulation does not take a material of a file (ADR 0025), by whether
-    it has a volumetric part of its own (``volumetric``), and the formulations that
-    take it, like :func:`misfit`."""
+    it has a volumetric part of its own (``volumetric`` of a constitutive model, the
+    bulk modulus of a strain energy function, #424), and the formulations that take
+    it, like :func:`misfit`."""
     name = formulation.name
     what = f"the material '{material['name']}' of '{material['file']}'"
     other = sibling(formulation, material)
+    function = is_function(material)
     if formulation.material == "volumetric":
         # the displacement formulation, or the three-field variation (#420)
         start = (
@@ -508,24 +511,72 @@ def script_misfit(formulation, material):
             if other is None
             else f"the {name} formulation"
         )
+        remedy = (
+            "add 'bulk' to the material"
+            if function
+            else "set 'volumetric' to true if its umat has one"
+        )
         return (
             f"{start} with {what} without a volumetric part. Use "
             f"'{other or first('isochoric')}' with the bulk modulus of the section, "
-            "or set 'volumetric' to true if its umat has one."
+            f"or {remedy}."
         )
+    remedy = (
+        "remove 'bulk' from the material"
+        if function
+        else "set 'volumetric' to false if its umat has none"
+    )
     if formulation.material == "none":
         return (
             f"the formulation {name} with {what}, which has a volumetric part. Use "
-            f"'{first('volumetric')}', or set 'volumetric' to false if its umat has "
-            "none."
+            f"'{first('volumetric')}', or {remedy}."
         )
     displacement = f"the displacement formulation '{first('volumetric')}'"
     if other is not None:
         displacement += f" or '{other}'"
     return (
         f"the {name} formulation with {what}, which has a volumetric part. Use "
-        f"{displacement}, or set 'volumetric' to false if its umat has none."
+        f"{displacement}, or {remedy}."
     )
+
+
+# the arguments that fem.Hyperelastic gives a strain energy function of a file or
+# takes itself (#424), and those of the Mullins effect (#346)
+GIVEN = ("C", "statevars", "fun", "nstatevars", "parallel")
+SOFTENING = (*MULLINS, "material")
+
+
+def function_arguments(model, cmd):
+    """The arguments of a strain energy function of a file (#424): not those that
+    ``fem.Hyperelastic`` gives or takes itself, nor a keyword of Python, nor those of
+    ``fem.ogden_roxburgh`` with the Mullins effect, which has a state variable of its
+    own, so the function has none."""
+    if not is_function(cmd):
+        return []
+    what = f"material '{cmd['name']}'"
+    problems = []
+    for key in cmd.get("arguments", {}):
+        if key in GIVEN:
+            problems.append(
+                f"{what}: '{key}' is not an argument of the function to give: "
+                "fem.Hyperelastic gives C and statevars, and takes fun, nstatevars "
+                "and parallel itself."
+            )
+        elif iskeyword(key):
+            problems.append(f"{what}: the argument '{key}' is a keyword of Python.")
+        elif "mullins" in cmd and key in SOFTENING:
+            problems.append(
+                f"{what}: the argument '{key}' is one of the Mullins effect "
+                "(fem.ogden_roxburgh) too. Rename it in the function, or remove the "
+                "Mullins effect."
+            )
+    if "mullins" in cmd and "nstatevars" in cmd:
+        problems.append(
+            f"{what}: a function with state variables has no Mullins effect, which "
+            "has a state variable of its own. Remove 'nstatevars' or the Mullins "
+            "effect."
+        )
+    return problems
 
 
 def loadcase(model, cmd):
@@ -659,6 +710,7 @@ RULES = {
     "contact.add": (contact_points,),
     "mpc.add": (rotation_components,),
     "material.add": (material,),
+    "material.script": (function_arguments,),
     "parameter.add": (parameter,),
 }
 

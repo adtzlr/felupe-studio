@@ -75,9 +75,9 @@ commands in the order of their references (schema shows the commands and their
 properties), fix the errors that every change returns, then solve and read the
 results (curve, extremes of a quantity). Mesh files go into the folder of the
 project; write mesh scripts and material scripts with write_file, and try them with
-inspect_mesh and inspect_material. Save the project: the user opens the
-*.felupe.json in the web app FElupe Studio. Lengths, forces and stresses are in the
-units of model.settings."""
+inspect_mesh and, once a material.script uses it, inspect_material. Save the
+project: the user opens the *.felupe.json in the web app FElupe Studio. Lengths,
+forces and stresses are in the units of model.settings."""
 
 
 # the descriptions of the tools that the agent bridge of felupe-studio serve has
@@ -104,10 +104,12 @@ DESCRIPTIONS = {
     ),
     "delete_command": ("Delete a command that no other command references."),
     "inspect_material": (
-        "Run a material script (a Python file that makes a FElupe material `umat`) "
-        "once with the parameters of the model, changed by `parameters`, like a job. "
-        "Returns the type of `umat` and its number of state variables, or the error "
-        "with the traceback of the script."
+        "Run the file of a user-defined material of the model (material.script) once "
+        "with the parameters of the model, changed by `parameters`, like a job: a "
+        "script that makes a FElupe material `umat`, or a strain energy function, "
+        "evaluated at a deformation. Returns the type of the material and its number "
+        "of state variables, or the error with the traceback of the file; of a "
+        "strain energy function also the functions of the file with their arguments."
     ),
     "check": (
         "The checks that need the mesh data: cells in no or in two sections, "
@@ -447,16 +449,35 @@ class Session:
             info, _ = meshes.make(path, values, item)
         return json.loads(info)
 
-    def inspect_material(self, file, parameters=None):
-        path = self._file(file)
-        if not path.is_file():
+    def inspect_material(self, material, parameters=None):
+        scripted = [c for c in self.commands if c["command"] == "material.script"]
+        command = next((c for c in scripted if c["name"] == material), None)
+        if command is None:
+            names = ", ".join(c["name"] for c in scripted) or "none"
+            raise ToolError(
+                f"No user-defined material '{material}' (material.script). "
+                f"User-defined materials: {names}."
+            )
+        file = command["file"]
+        if not self._file(file).is_file():
             raise ToolError(f"No file '{file}' in the project folder.")
-        if path.suffix != ".py":
-            raise ToolError(f"'{file}' is not a Python script.")
         self._may_run([file])
-        values = {**self.parameters(), **(parameters or {})}
+        # the parameters of the model, changed by the call: the values of the
+        # script, and of the expressions of the arguments of a function (#424)
+        changed = parameters or {}
+        commands = [
+            {"command": "parameter.add", "name": c["name"], "value": changed[c["name"]]}
+            if c["command"] == "parameter.add" and c["name"] in changed
+            else c
+            for c in self.commands
+        ]
+        values = {**parameter_values(commands), **changed}
+        resolved, _ = resolve({**self.document, "commands": commands})
+        command = next(c for c in resolved["commands"] if c["name"] == material)
+        # the numbers of the values, not their expressions
+        command = json.loads(json.dumps(command))
         with contextlib.chdir(self.folder):
-            return scripts.inspect_material(path, values)
+            return scripts.inspect_material(file, values, command)
 
     def check(self):
         self._need_folder()
@@ -676,9 +697,9 @@ def server(session=None):  # noqa: C901
 
     @mcp.tool(description=DESCRIPTIONS["inspect_material"])
     def inspect_material(
-        file: str, parameters: dict[str, Any] | None = None
+        material: str, parameters: dict[str, Any] | None = None
     ) -> dict[str, Any]:
-        return session.inspect_material(file, parameters)
+        return session.inspect_material(material, parameters)
 
     @mcp.tool(description=DESCRIPTIONS["check"])
     def check() -> dict[str, Any]:

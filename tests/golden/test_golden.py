@@ -375,6 +375,33 @@ def test_template_of_a_constitutive_model_in_the_golden_case():
     )
 
 
+def test_material_function_like_the_registry():
+    # the template of a strain energy function of a file (#424), Neo-Hooke with the
+    # bulk modulus of the material: the curve of the constitutive model of a file
+    # and of NeoHooke of the registry
+    function, script = (
+        json.loads((HERE / case / "results.json").read_text(encoding="utf-8"))
+        for case in ("bar_material_function", "bar_material_script")
+    )
+    for key in ("displacement", "force"):
+        np.testing.assert_allclose(
+            function["jobs"]["job_1"][key], script["jobs"]["job_1"][key], rtol=1e-12
+        )
+    lines = (HERE / "bar_material_function" / "script.py").read_text("utf-8")
+    assert 'material_function("material_hyperelastic.py", "strain_energy")' in lines
+
+
+def test_template_of_a_strain_energy_function_in_the_golden_case():
+    # the golden case runs the template that Download template gives (#424)
+    template = files("felupe_studio").joinpath("templates/material_hyperelastic.py")
+    copy = HERE / "bar_material_function" / "material_hyperelastic.py"
+    assert copy.read_text("utf-8") == template.read_text("utf-8"), (
+        "Copy python/felupe_studio/templates/material_hyperelastic.py into "
+        "tests/golden/bar_material_function and run pytest tests/golden "
+        "--update-golden."
+    )
+
+
 def test_pardiso_like_superlu():
     # the bar of two materials with PARDISO of Intel oneMKL (#308): the curve of
     # SuperLU, stored where pypardiso is installed

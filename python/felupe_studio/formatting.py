@@ -109,6 +109,21 @@ class Call:
         return f"{self.func}(\n{explode(self.args, level + 1)}{pad})"
 
 
+class Keyword:
+    """A keyword argument ``name=value`` of a value that ruff format may explode,
+    e.g. a call."""
+
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
+
+    def __str__(self):
+        return f"{self.name}={self.value}"
+
+    def exploded(self, level):
+        return f"{self.name}={self.value.exploded(level)}"
+
+
 def assign(target, expression):
     """Return an assignment of an expression, wrapped like ruff format would wrap it.
 
@@ -129,7 +144,7 @@ def explode(args, level=1):
     lines = []
     for arg in args:
         line = f"{pad}{arg},"
-        if len(line) > LINE_LENGTH and isinstance(arg, (List, Dict, Call)):
+        if len(line) > LINE_LENGTH and isinstance(arg, (List, Dict, Call, Keyword)):
             line = f"{pad}{arg.exploded(level)},"
         lines.append(line + "\n")
     return "".join(lines)
