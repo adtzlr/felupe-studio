@@ -1,4 +1,5 @@
 import type { Draft } from "../core/form";
+import { argumentFields } from "../core/functions";
 import {
   type MeshFiles,
   sectionsWithoutVolume,
@@ -106,6 +107,8 @@ export function Properties({
           commands: store.commands,
           editing: command.name,
           withoutVolume,
+          // the arguments of a strain energy function of a file (#424)
+          keys: argumentFields(files),
         }}
         submitLabel="Apply"
         requireChange

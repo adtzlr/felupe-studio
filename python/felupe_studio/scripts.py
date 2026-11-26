@@ -166,7 +166,7 @@ def _listed(names):
     )
 
 
-def function_problems(file, material, signature):
+def function_problems(material, signature):
     """What does not fit the signature of the function of a material (#424), as one
     message: the arguments without a default value and without a value, the values
     of arguments that the function does not have, and its state variables.
@@ -174,9 +174,9 @@ def function_problems(file, material, signature):
     Examples
     --------
     >>> signature = {"arguments": [{"name": "mu"}], "statevars": False}
-    >>> function_problems("soft.py", {"arguments": {"k": 1.0}}, signature)
-    "The function strain_energy of 'soft.py' needs a value of its argument 'mu'. It \
-has no argument 'k'."
+    >>> function_problems({"arguments": {"k": 1.0}}, signature)
+    "The function strain_energy needs a value of its argument 'mu'. It has no \
+argument 'k'."
     """
     given = material.get("arguments", {})
     names = [a["name"] for a in signature["arguments"]]
@@ -207,7 +207,8 @@ has no argument 'k'."
         )
     if not problems:
         return None
-    what = f"The function {material.get('function', 'strain_energy')} of '{file}'"
+    # the note of the material in the app has the name of the file before it
+    what = f"The function {material.get('function', 'strain_energy')}"
     return " ".join([f"{what} {problems[0]}", *(f"It {p}" for p in problems[1:])])
 
 
@@ -265,7 +266,7 @@ def inspect_function(file, material):
         return {**result, **error_of(error, file)}
     result["functions"] = functions
     signature = functions.get(material.get("function", "strain_energy"))
-    problem = signature and function_problems(result["file"], material, signature)
+    problem = signature and function_problems(material, signature)
     if problem:
         return {**result, "error": problem}
     try:

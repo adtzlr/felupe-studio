@@ -65,7 +65,7 @@ export function useCommandForm({
   const [touched, setTouched] = useState<ReadonlySet<string>>(new Set());
   const [submitted, setSubmitted] = useState(false);
 
-  const specs = fieldSpecs(type, draft);
+  const specs = fieldSpecs(type, draft, context);
   const errors = draftErrors(type, draft, context);
   const changed = !sameDraft(draft, start);
   const errorOf = (key: string) =>

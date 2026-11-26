@@ -77,8 +77,8 @@ describe("ribbon commands", () => {
       "Linear elasticity ▾",
       "Hyperelasticity ▾",
       "Strain-based elasticity ▾",
-      // a material of a Python file (ADR 0025)
-      "User-defined material",
+      // a material of a Python file (ADR 0025): of its kinds (#424)
+      "User-defined ▾",
     ]);
     const hyperelasticity = command("Hyperelasticity");
     expect(hyperelasticity.getAttribute("aria-haspopup")).toBe("menu");
@@ -161,7 +161,22 @@ describe("ribbon commands", () => {
   it("create a material of a script, whose file is chosen in its properties (ADR 0025)", () => {
     const { store, tab, command, dialog, field, create } = setup();
     tab("Materials");
-    fireEvent.click(command("User-defined material"));
+    fireEvent.click(command("User-defined"));
+    const menu = screen.getByRole("menu", { name: "User-defined" });
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((i) => i.textContent),
+    ).toEqual([
+      "Constitutive model (Python)",
+      // a strain energy function of a file (#424)
+      "Strain energy function (Python)",
+    ]);
+    fireEvent.click(
+      within(menu).getByRole("menuitem", {
+        name: "Constitutive model (Python)",
+      }),
+    );
     expect(within(dialog()).getByRole("heading").textContent).toBe(
       "New material",
     );
@@ -184,6 +199,37 @@ describe("ribbon commands", () => {
       within(properties).getByRole("button", { name: "Choose file…" }),
     ).toBeTruthy();
     // a minimal script to edit and choose (#423)
+    expect(
+      within(properties).getByRole("button", { name: "Download template" }),
+    ).toBeTruthy();
+  });
+
+  it("create a strain energy function of a script (#424)", () => {
+    const { store, tab, command, field, create } = setup();
+    tab("Materials");
+    fireEvent.click(command("User-defined"));
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: "Strain energy function (Python)" }),
+    );
+    // the function of the file and the options of fem.Hyperelastic; its
+    // arguments are fields once its file ran (#424)
+    expect(field("Function").placeholder).toBe("strain_energy");
+    expect(field("K")).toBeTruthy();
+    expect(field("Mullins effect")).toBeTruthy();
+    expect(field("State variables")).toBeTruthy();
+    fireEvent.input(field("Script"), { target: { value: "soft.py" } });
+    fireEvent.input(field("K"), { target: { value: "50" } });
+    create();
+    expect(store.commands).toEqual([
+      {
+        command: "material.script",
+        name: "material_1",
+        kind: "hyperelastic",
+        file: "soft.py",
+        bulk: 50,
+      },
+    ]);
+    const properties = screen.getByRole("region", { name: "Properties" });
     expect(
       within(properties).getByRole("button", { name: "Download template" }),
     ).toBeTruthy();

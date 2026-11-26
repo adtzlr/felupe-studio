@@ -208,18 +208,17 @@ def test_a_function_that_does_not_fit_its_material(extra):
         return info["error"]
 
     assert error(arguments={"k": 1.0, "c": 2.0}, nstatevars=1) == (
-        "The function strain_energy of 'soft.py' needs a value of its argument 'mu'. "
+        "The function strain_energy needs a value of its argument 'mu'. "
         "It has no argument 'c'. It takes no state variables (its second argument "
         "is not statevars). Remove nstatevars."
     )
     assert error(function="aged", arguments={"mu": 1.0}) == (
-        "The function aged of 'soft.py' takes state variables: set their number, "
-        "nstatevars."
+        "The function aged takes state variables: set their number, nstatevars."
     )
     assert error(
         function="aged", arguments={"mu": 1.0}, mullins={"r": 3, "m": 1, "beta": 0.1}
     ) == (
-        "The function aged of 'soft.py' takes state variables, which the Mullins "
+        "The function aged takes state variables, which the Mullins "
         "effect does not pass to it. Remove the Mullins effect."
     )
     # a function that the file does not have
@@ -261,9 +260,7 @@ def test_functions_run_only_if_trusted(tmp_path):
     # the arguments with the parameters of the model, changed by the call
     session.update_command("rubber", {"arguments": {"mu": "mu", "k": "mu"}})
     info = session.inspect_material("rubber", {"mu": 2.0})
-    assert info["error"] == (
-        "The function strain_energy of 'material_hyperelastic.py' has no argument 'k'."
-    )
+    assert info["error"] == ("The function strain_energy has no argument 'k'.")
     session.update_command("rubber", {"arguments": {"mu": "2 * mu"}})
     info = session.inspect_material("rubber", {"mu": -1.0})
     assert info["type"] == "Hyperelastic(strain_energy) & Volumetric"

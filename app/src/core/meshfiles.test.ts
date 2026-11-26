@@ -14,7 +14,7 @@ import {
   generateChain,
   inspectMaterials,
   makeMeshes,
-  materialKey,
+  materialRun,
   materialStatus,
   MeshFiles,
   projectFileNames,
@@ -390,7 +390,8 @@ describe("materials of scripts (ADR 0025)", () => {
     expect(materialStatus(material, withParameters, files)).toEqual({
       state: "reading",
     });
-    const key = materialKey("soft.py", { mu: 1, bulk: 50 });
+    const { key } = materialRun(material, withParameters);
+    expect(key).toBe(JSON.stringify(["soft.py", { mu: 1, bulk: 50 }]));
     await files.inspectMaterial(key, "soft.py", { mu: 1, bulk: 50 });
     expect(runs).toEqual([["soft.py", { mu: 1, bulk: 50 }]]);
     expect(materialStatus(material, withParameters, files)).toEqual({
@@ -410,9 +411,11 @@ describe("materials of scripts (ADR 0025)", () => {
     inspectMaterials(changed, files);
     // a replaced file runs again
     await files.add("soft.py", new Uint8Array([2]));
-    await files.inspectMaterial(materialKey("soft.py", { mu: 2 }), "soft.py", {
-      mu: 2,
-    });
+    const { key: again } = materialRun(
+      changed.find((c) => c.name === "umat_soft") as MaterialScript,
+      changed,
+    );
+    await files.inspectMaterial(again, "soft.py", { mu: 2 });
     expect(runs.slice(1)).toEqual([
       ["soft.py", { mu: 1 }],
       ["soft.py", { mu: 2 }],
@@ -429,7 +432,7 @@ describe("materials of scripts (ADR 0025)", () => {
     }));
     await files.add("soft.py", new Uint8Array([1]));
     inspectMaterials(model, files);
-    const key = materialKey("soft.py", {});
+    const { key } = materialRun(material, model);
     await files.inspectMaterial(key, "soft.py", {});
     expect(materialStatus(material, model, files)).toEqual({
       state: "error",
@@ -449,7 +452,7 @@ describe("materials of scripts (ADR 0025)", () => {
     expect(materialStatus(material, model, files)).toBeUndefined();
     await files.add("soft.py", new Uint8Array([1]));
     inspectMaterials(model, files);
-    const key = materialKey("soft.py", {});
+    const { key } = materialRun(material, model);
     expect(await files.inspectMaterial(key, "soft.py", {})).toEqual({
       state: "error",
       message: "Python is not available.",

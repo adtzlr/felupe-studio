@@ -30,7 +30,8 @@ const files = new MeshFiles(
     // the kept cells of a mesh, cut by the plane of a cut of the view (#395)
     cut: (source, cut) => client.cutMesh(source, cut),
     // the scripts of materials, run once with the parameters (ADR 0025, #423)
-    inspect: (file, parameters) => client.inspectMaterial(file, parameters),
+    inspect: (file, parameters, material) =>
+      client.inspectMaterial(file, parameters, material),
   },
 );
 

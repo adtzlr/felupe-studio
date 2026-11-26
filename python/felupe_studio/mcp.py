@@ -471,7 +471,10 @@ class Session:
             else c
             for c in self.commands
         ]
-        values = {**parameter_values(commands), **changed}
+        values = parameter_values(commands)
+        # the listed parameters of a constitutive model of a file, like a job
+        names = command.get("parameters", list(values))
+        values = {name: values[name] for name in names if name in values}
         resolved, _ = resolve({**self.document, "commands": commands})
         command = next(c for c in resolved["commands"] if c["name"] == material)
         # the numbers of the values, not their expressions

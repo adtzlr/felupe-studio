@@ -80,10 +80,16 @@ class FieldWalker {
     if (this.leaf(node, instance, path)) return;
     if (instance && typeof instance === "object" && !Array.isArray(instance)) {
       const object = instance as Record<string, unknown>;
-      for (const [key, child] of Object.entries(
-        (node.properties ?? {}) as Record<string, SchemaNode>,
-      ))
+      const properties = (node.properties ?? {}) as Record<string, SchemaNode>;
+      for (const [key, child] of Object.entries(properties))
         if (key in object) this.walk(child, object[key], [...path, key]);
+      // the values of keys that are not in the schema, e.g. the arguments of a
+      // strain energy function of a file (#424)
+      const other = node.additionalProperties;
+      if (other && typeof other === "object")
+        for (const key of Object.keys(object))
+          if (!(key in properties))
+            this.walk(other as SchemaNode, object[key], [...path, key]);
     } else if (Array.isArray(instance) && node.items) {
       instance.forEach((item, i) =>
         this.walk(node.items as SchemaNode, item, [...path, i]),

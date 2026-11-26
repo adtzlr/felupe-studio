@@ -253,9 +253,16 @@ const DETAILS: { [C in Command["command"]]: Detail<C> } = {
       MATERIAL_MODELS.find((m) => m.name === cmd.model)?.label ?? cmd.model,
       "mullins" in cmd && "Mullins",
     ),
-  // a material of a file (ADR 0025): its file, and if it has no volumetric part
+  // a material of a file (ADR 0025): its file, and if it has no volumetric part;
+  // of a strain energy function (#424) its function and the Mullins effect
   "material.script": (cmd) =>
-    joined(cmd.file, cmd.volumetric === false && "no volumetric part"),
+    cmd.kind === "hyperelastic"
+      ? joined(
+          cmd.file,
+          cmd.function ?? "strain_energy",
+          cmd.mullins && "Mullins",
+        )
+      : joined(cmd.file, cmd.volumetric === false && "no volumetric part"),
   "section.add": (cmd) =>
     joined(
       cmd.material,

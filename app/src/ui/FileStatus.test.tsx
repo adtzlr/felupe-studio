@@ -122,6 +122,27 @@ describe("the script of a material in its properties (#423)", () => {
     expect(content).toContain("umat = fem.NeoHooke(mu=mu, bulk=bulk)");
   });
 
+  it("downloads the template of a strain energy function (#424)", async () => {
+    let content: string | undefined;
+    const save = vi.fn<Save>(async (request, make) => {
+      content = await (make(request.name) as Blob).text();
+      return { name: request.name };
+    });
+    const files = new MeshFiles();
+    render(
+      <FileStatus
+        command={{ ...material, kind: "hyperelastic" }}
+        commands={commands}
+        files={files}
+        save={save}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Download template" }));
+    await waitFor(() => expect(save).toHaveBeenCalledOnce());
+    expect(content).toBe(TEMPLATES.hyperelastic);
+    expect(content).toContain("def strain_energy(C, mu):");
+  });
+
   it("says why its template was not saved", async () => {
     const save = vi.fn<Save>(async () => {
       throw new Error("The disk is full.");

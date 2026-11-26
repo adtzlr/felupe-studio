@@ -104,12 +104,28 @@ export const isMaterial = (c: Command): c is MaterialCommand =>
  * given, or its model has no optional bulk modulus (a compressible or a strain-based
  * model). The u-p-J formulation adds the volumetric part of the section, so it takes
  * a material without one (like `has_volumetric` of felupe_studio.materials). A
- * material of a file says so with `volumetric` (ADR 0025, by default it has one).
+ * material of a file says so with `volumetric` (ADR 0025, by default it has one), a
+ * strain energy function of a file with its bulk modulus (#424).
  */
 export const hasVolumetric = (material: MaterialCommand): boolean =>
-  material.command === "material.script"
-    ? material.volumetric !== false
-    : !needsBulk(material);
+  material.command === "material.add"
+    ? !needsBulk(material)
+    : material.kind === "hyperelastic"
+      ? material.bulk !== undefined
+      : material.volumetric !== false;
+
+/** A strain energy function of a file (`material.script` of the kind `hyperelastic`, #424). */
+export type MaterialFunction = Extract<
+  MaterialCommand,
+  { command: "material.script"; kind: "hyperelastic" }
+>;
+
+/** True if a material is a strain energy function of a file (#424). */
+export const isFunction = (material: Command): material is MaterialFunction =>
+  material.command === "material.script" && material.kind === "hyperelastic";
+
+/** The parameters of the Mullins effect, arguments of fem.ogden_roxburgh (#346). */
+export const MULLINS = ["r", "m", "beta"] as const;
 
 /**
  * True if a material is strain-based (#191): it needs the formulation u. A
@@ -130,9 +146,14 @@ export const hasStatevars = (commands: readonly Command[]): boolean =>
       !!MATERIAL_MODELS.find((m) => m.name === c.model)?.statevars,
   );
 
-/** True if a command list has a material with the Mullins effect (#346). */
+/**
+ * True if a command list has a material with the Mullins effect (#346): of the
+ * registry, or a strain energy function of a file (#424).
+ */
 export const hasMullins = (commands: readonly Command[]): boolean =>
-  commands.some((c) => c.command === "material.add" && "mullins" in c);
+  commands.some(
+    (c) => (c.command === "material.add" || isFunction(c)) && "mullins" in c,
+  );
 
 /**
  * What is wrong with the parameters of a material beyond the schema, with the field:

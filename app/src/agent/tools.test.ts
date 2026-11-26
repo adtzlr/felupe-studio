@@ -177,12 +177,19 @@ describe("the tools of the agent bridge in the app (#258)", () => {
     expect(files.get("cube.vtk")?.status.state).toBe("ready");
   });
 
-  it("run the script of a material once, like the MCP server (#423)", async () => {
-    const runs: Record<string, number>[] = [];
+  it("run the file of a material once, like the MCP server (#423, #424)", async () => {
+    const runs: unknown[] = [];
     const files = new MeshFiles(undefined, {
       write: async () => {},
-      inspect: async (file, parameters) => {
-        runs.push(parameters);
+      inspect: async (file, parameters, material) => {
+        runs.push(material ?? parameters);
+        if (material)
+          return {
+            file,
+            functions: { strain_energy: { arguments: [], statevars: false } },
+            type: "Hyperelastic(strain_energy)",
+            statevars: 0,
+          };
         return parameters.bulk
           ? { file, type: "NeoHooke", statevars: 0 }
           : {
@@ -192,27 +199,64 @@ describe("the tools of the agent bridge in the app (#258)", () => {
             };
       },
     });
-    const { call } = setup({ files });
-    await expect(call("inspect_material", { file: "soft.py" })).rejects.toThrow(
+    const { call, store } = setup({ files });
+    await expect(call("inspect_material", { material: "own" })).rejects.toThrow(
+      "No user-defined material 'own' (material.script). User-defined " +
+        "materials: none.",
+    );
+    store.apply({
+      type: "add",
+      command: { command: "parameter.add", name: "bulk", value: 0 },
+      index: 0,
+    });
+    const soft = {
+      command: "material.script",
+      name: "own",
+      kind: "constitutive",
+      file: "soft.py",
+    } as const;
+    store.apply({ type: "add", command: soft });
+    await expect(call("inspect_material", { material: "own" })).rejects.toThrow(
       "No file 'soft.py' in the files of the model.",
     );
-    await expect(
-      call("inspect_material", { file: "cube.vtk" }),
-    ).rejects.toThrow("'cube.vtk' is not a Python script.");
     await call("write_file", { name: "soft.py", content: "umat = …" });
     // the parameters of the model, changed by the call
     expect(
       await call("inspect_material", {
-        file: "soft.py",
+        material: "own",
         parameters: { bulk: 5 },
       }),
     ).toEqual({ file: "soft.py", type: "NeoHooke", statevars: 0 });
-    expect(await call("inspect_material", { file: "soft.py" })).toEqual({
+    expect(await call("inspect_material", { material: "own" })).toEqual({
       file: "soft.py",
       error: "NameError: name 'bulk' is not defined",
       traceback: "…",
     });
-    expect(runs).toEqual([{ bulk: 5 }, {}]);
+    // a strain energy function with the values of its material (#424)
+    store.update("own", {
+      command: "material.script",
+      name: "own",
+      kind: "hyperelastic",
+      file: "soft.py",
+      arguments: { mu: "2 * bulk" },
+    });
+    expect(
+      await call("inspect_material", {
+        material: "own",
+        parameters: { bulk: 3 },
+      }),
+    ).toMatchObject({ type: "Hyperelastic(strain_energy)" });
+    expect(runs).toEqual([
+      { bulk: 5 },
+      { bulk: 0 },
+      {
+        command: "material.script",
+        kind: "hyperelastic",
+        file: "soft.py",
+        arguments: { mu: 6 },
+        name: "own",
+      },
+    ]);
   });
 
   it("open samples of an unchanged model", async () => {

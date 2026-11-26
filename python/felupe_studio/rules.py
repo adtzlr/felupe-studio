@@ -10,7 +10,6 @@ by the rules of its command type (:data:`RULES`), in this order. The rules mirro
 """
 
 from functools import cached_property
-from keyword import iskeyword
 
 from . import meshtools
 from .analysis import analysis_of, analysis_problems
@@ -554,6 +553,7 @@ def function_arguments(model, cmd):
     if not is_function(cmd):
         return []
     what = f"material '{cmd['name']}'"
+    keywords, _, _ = reserved()
     problems = []
     for key in cmd.get("arguments", {}):
         if key in GIVEN:
@@ -562,7 +562,7 @@ def function_arguments(model, cmd):
                 "fem.Hyperelastic gives C and statevars, and takes fun, nstatevars "
                 "and parallel itself."
             )
-        elif iskeyword(key):
+        elif key in keywords:
             problems.append(f"{what}: the argument '{key}' is a keyword of Python.")
         elif "mullins" in cmd and key in SOFTENING:
             problems.append(
