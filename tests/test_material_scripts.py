@@ -189,25 +189,28 @@ def test_material_scripts_run_only_if_trusted(tmp_path):
     with pytest.raises(ToolError, match=message):
         session.solve()
     with pytest.raises(ToolError, match=message):
-        session.inspect_material("material_constitutive.py")
+        session.inspect_material("rubber")
     # written by the server: it runs
     text = (folder / "material_constitutive.py").read_text(encoding="utf-8")
     session.write_file("material_constitutive.py", text)
     # once, with the parameters of the model, changed by the call
-    info = session.inspect_material("material_constitutive.py", {"bulk": 2.0})
+    info = session.inspect_material("rubber", {"bulk": 2.0})
     assert info == {
         "file": "material_constitutive.py",
         "type": "NeoHooke",
         "statevars": 0,
     }
     session.write_file("soft.py", "umat = fem.NeoHooke(mu=mu)\n")
-    assert session.inspect_material("soft.py")["error"] == (
+    session.update_command("rubber", {"file": "soft.py"})
+    assert session.inspect_material("rubber")["error"] == (
         "NameError: name 'fem' is not defined"
     )
+    session.update_command("rubber", {"file": "hard.py"})
     with pytest.raises(ToolError, match="No file 'hard.py'"):
-        session.inspect_material("hard.py")
-    with pytest.raises(ToolError, match="'bar.felupe.json' is not a Python script"):
-        session.inspect_material("bar.felupe.json")
+        session.inspect_material("rubber")
+    with pytest.raises(ToolError, match="No user-defined material 'steel'"):
+        session.inspect_material("steel")
+    session.update_command("rubber", {"file": "material_constitutive.py"})
     assert session.solve()["job_1"]["substeps"] == 6
     # the files of the project, also in an archive
     saved = session.save_project(folder / "bar.felupe.zip")

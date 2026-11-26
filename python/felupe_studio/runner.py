@@ -384,11 +384,12 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
     sections = [
         c["name"] for c in document["commands"] if c["command"] == "section.add"
     ]
-    # the sections whose material has the Mullins effect (#346)
+    # the sections whose material has the Mullins effect (#346): of the registry,
+    # or a strain energy function of a file (#424)
     softened = {
         c["name"]
         for c in document["commands"]
-        if c["command"] == "material.add" and "mullins" in c
+        if c["command"] in ("material.add", "material.script") and "mullins" in c
     }
     mullins = [
         c["name"]

@@ -8,12 +8,15 @@
 // the meshes of files and scripts that they take (#438). The scripts of
 // user-defined materials (ADR 0025) are kept and written like those of meshes; they
 // are run once with the parameters of the model (#423), so their errors are notes
-// before a job, and the jobs run them again.
+// before a job, and the jobs run them again. A strain energy function of a file
+// (#424) is run with the values of its material, and its run gives the functions of
+// the file with their arguments, the fields of the material.
 import { analysisOf, CELLS_2D, is2d } from "./analysis";
 import { cellProblem, formulationOf } from "./formulations";
 import type {
   Command,
   MaterialScript,
+  MaterialScriptConstitutive as MaterialConstitutive,
   MeshGenerate,
   MeshImport,
   MeshScript,
@@ -32,6 +35,7 @@ import type {
   MeshInfo,
   MeshSource,
   MeshSurface,
+  Signature,
   SourceMesh,
 } from "../worker/protocol";
 import { safeName } from "../worker/files";
@@ -56,7 +60,13 @@ export type FileState =
 export type MaterialState =
   | { state: "reading" }
   | { state: "ready"; info: MaterialInfo }
-  | { state: "error"; message: string; traceback?: string };
+  | {
+      state: "error";
+      message: string;
+      traceback?: string;
+      /** The functions of a file that runs, with an error of its material (#424). */
+      functions?: Record<string, Signature>;
+    };
 
 export interface MeshFile {
   name: string;
@@ -93,6 +103,8 @@ export type Maker = (
 export type MaterialInspector = (
   file: string,
   parameters: Record<string, number>,
+  /** The command of a strain energy function, with its values (#424). */
+  material?: Record<string, unknown>,
 ) => Promise<MaterialInfo>;
 
 /**
@@ -182,9 +194,17 @@ const meshState = ({ info, surfaces = {} }: Inspection): FileState =>
     ? failed(info.error, info.traceback)
     : { state: "ready", info, surfaces };
 
-/** The final state of the script of a material: what it made, or its error. */
+/**
+ * The final state of the script of a material: what it made, or its error, with the
+ * functions of a file that runs (#424).
+ */
 const materialState = (info: MaterialInfo): MaterialState =>
-  info.error ? failed(info.error, info.traceback) : { state: "ready", info };
+  info.error
+    ? {
+        ...failed(info.error, info.traceback),
+        ...(info.functions ? { functions: info.functions } : {}),
+      }
+    : { state: "ready", info };
 
 export class MeshFiles {
   private files = new Map<string, { data: Uint8Array; file: MeshFile }>();
@@ -365,21 +385,43 @@ export class MeshFiles {
   }
 
   /**
-   * Run the script of a material once per key with parameters (#423): resolves with
-   * its final state; errors of the script (with their traceback) are part of it. A
-   * new version of the file runs it again.
+   * The functions of a file of strain energy functions with their signatures
+   * (#424), of its latest run that has them, or undefined.
+   */
+  functionsOf(file: string): Record<string, Signature> | undefined {
+    let functions: Record<string, Signature> | undefined;
+    for (const { files, status } of this.materials.values()) {
+      if (!files.includes(file)) continue;
+      const found =
+        status.state === "ready"
+          ? status.info.functions
+          : status.state === "error"
+            ? status.functions
+            : undefined;
+      functions = found ?? functions;
+    }
+    return functions;
+  }
+
+  /**
+   * Run the script of a material once per key (`materialRun`) with parameters
+   * (#423), or a strain energy function of a file with the values of its material
+   * (#424): resolves with its final state; errors of the script (with their
+   * traceback) are part of it. A new version of the file runs it again.
    */
   async inspectMaterial(
     key: string,
     file: string,
     parameters: Record<string, number>,
+    material?: Record<string, unknown>,
   ): Promise<MaterialState> {
     const { inspect } = this.scripts;
     return this.produce(
       this.materials,
       key,
       [file],
-      inspect && (async () => materialState(await inspect(file, parameters))),
+      inspect &&
+        (async () => materialState(await inspect(file, parameters, material))),
     );
   }
 
@@ -681,11 +723,11 @@ export { projectFileNames };
 export { parameterValues };
 
 /**
- * The parameters of a script of a mesh (#182) or of a material (ADR 0025): the
- * listed ones, or all parameters of the model.
+ * The parameters of a script of a mesh (#182) or of a constitutive model of a file
+ * (ADR 0025): the listed ones, or all parameters of the model.
  */
 export function scriptParameters(
-  script: MeshScript | MaterialScript,
+  script: MeshScript | MaterialConstitutive,
   commands: readonly Command[],
 ): Record<string, number> {
   const values = parameterValues(commands);
@@ -708,13 +750,50 @@ export function scriptKey(
 }
 
 /**
- * The key of a run of the script of a material (#423): its file and the values of
- * its parameters.
+ * The commands with other values of their free parameters, e.g. of a run of a tool
+ * of an agent (#423): a value of a derived parameter makes it free.
  */
-export const materialKey = (
-  file: string,
-  parameters: Record<string, number>,
-): string => JSON.stringify([file, parameters]);
+export function withParameters(
+  commands: readonly Command[],
+  values: Readonly<Record<string, number>>,
+): Command[] {
+  return commands.map((c) =>
+    c.command === "parameter.add" && c.name in values
+      ? { command: "parameter.add", name: c.name, value: values[c.name] }
+      : c,
+  );
+}
+
+/** The run of the file of a material before a job (#423, #424). */
+export interface MaterialRun {
+  /** The key of the run: its file and what it runs with. */
+  key: string;
+  /** The parameters that a constitutive model of a file gets as variables. */
+  parameters: Record<string, number>;
+  /** The command of a strain energy function with the values of its expressions. */
+  material?: Record<string, unknown>;
+}
+
+/**
+ * The run of the file of a material before a job: a constitutive model of a file
+ * with the values of its parameters (#423), a strain energy function of a file with
+ * the values of its material (#424). The key is its file and these values.
+ */
+export function materialRun(
+  material: MaterialScript,
+  commands: readonly Command[],
+): MaterialRun {
+  if (material.kind === "constitutive") {
+    const parameters = scriptParameters(material, commands);
+    return { key: JSON.stringify([material.file, parameters]), parameters };
+  }
+  const resolved = (resolvedOf(commands).find(
+    (c) => c.name === material.name,
+  ) ?? material) as unknown as Record<string, unknown>;
+  // without its name, so a renamed material keeps its run
+  const key = JSON.stringify([material.file, { ...resolved, name: null }]);
+  return { key, parameters: {}, material: resolved };
+}
 
 /**
  * The state of the script of a material (#423): of its file, or of its run with the
@@ -728,9 +807,7 @@ export function materialStatus(
 ): MaterialState | undefined {
   const status = files.get(material.file)?.status;
   if (status?.state === "script")
-    return files.inspectedStatus(
-      materialKey(material.file, scriptParameters(material, commands)),
-    );
+    return files.inspectedStatus(materialRun(material, commands).key);
   // a mesh file named like a script
   if (status?.state === "ready")
     return failed(`'${material.file}' is not a Python script.`);
@@ -1016,10 +1093,14 @@ export function inspectMaterials(
   for (const material of commands) {
     if (material.command !== "material.script") continue;
     if (files.get(material.file)?.status.state !== "script") continue;
-    const parameters = scriptParameters(material, commands);
-    const key = materialKey(material.file, parameters);
-    keys.add(key);
-    void files.inspectMaterial(key, material.file, parameters);
+    const run = materialRun(material, commands);
+    keys.add(run.key);
+    void files.inspectMaterial(
+      run.key,
+      material.file,
+      run.parameters,
+      run.material,
+    );
   }
   files.keepMaterials(keys);
 }

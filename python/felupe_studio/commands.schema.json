@@ -89,6 +89,7 @@
           "has_volume",
           "hold_dual_fields",
           "iterative_solver",
+          "material_function",
           "meshio",
           "mixed_field",
           "mixed_region",
@@ -2318,10 +2319,13 @@
       }
     },
     "MaterialScript": {
-      "description": "A user-defined material of a Python file next to the project (ADR 0025), like a mesh script: the file runs with the parameters of the model as variables. Every kind of user-defined material is a definition below, with its label and what the file makes.",
+      "description": "A user-defined material of a Python file next to the project (ADR 0025), like a mesh script. Every kind of user-defined material is a definition below, with its label and what the file makes.",
       "oneOf": [
         {
           "$ref": "#/$defs/MaterialScriptConstitutive"
+        },
+        {
+          "$ref": "#/$defs/MaterialScriptHyperelastic"
         }
       ]
     },
@@ -2359,6 +2363,61 @@
           "description": "Whether the material has a volumetric part of its own, e.g. its bulk modulus (default: true). Like a model of material.add, the displacement formulation u takes a material with one, the u-p-J formulation one without.",
           "type": "boolean",
           "default": true
+        }
+      }
+    },
+    "MaterialScriptHyperelastic": {
+      "description": "A strain energy density function of a Python file, e.g. def strain_energy(C, mu): a function of the right Cauchy-Green deformation tensor C, whose derivatives tensortrax computes like those of the hyperelastic models of the registry. The material is fem.Hyperelastic of the function with the values of its other arguments. Without a bulk modulus, the function is the isochoric part of the strain energy (of the unimodular det(C)^(-1/3) C) and the material needs the u-p-J formulation. A function with state variables takes them as its second argument statevars and returns the strain energy and their new values.",
+      "x-label": "Strain energy function (Python)",
+      "x-group": "User-defined",
+      "type": "object",
+      "required": ["command", "name", "kind", "file"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "material.script"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "kind": {
+          "const": "hyperelastic"
+        },
+        "file": {
+          "description": "File name of the script, e.g. soft.py. It defines the function.",
+          "type": "string",
+          "pattern": "\\.py$"
+        },
+        "function": {
+          "description": "The name of the strain energy function of the file (default: strain_energy).",
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$",
+          "default": "strain_energy"
+        },
+        "arguments": {
+          "description": "The values of the arguments of the function after C (and statevars) by their names, numbers or expressions of the parameters of the model. An argument with a default value in the function may be left out.",
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[A-Za-z_\\u0370-\\u03ff][A-Za-z0-9_\\u0370-\\u03ff]*$"
+          },
+          "additionalProperties": {
+            "type": ["number", "string"]
+          }
+        },
+        "bulk": {
+          "x-label": "K",
+          "x-quantity": "stress",
+          "description": "Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.",
+          "type": ["number", "string"],
+          "exclusiveMinimum": 0
+        },
+        "mullins": {
+          "$ref": "#/$defs/Mullins"
+        },
+        "nstatevars": {
+          "description": "The number of the state variables of a function with the argument statevars.",
+          "type": "integer",
+          "minimum": 1
         }
       }
     },

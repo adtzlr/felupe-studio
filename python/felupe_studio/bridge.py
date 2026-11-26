@@ -44,8 +44,8 @@ list the commands (or open a sample), add commands in the order of their referen
 returns, then solve and read the results. selection shows what the user selected,
 select and show change the view, picture returns an image of it. A Python script
 that you write, of a mesh or of a material, runs after the user agrees in the app;
-try a material script with inspect_material. Lengths, forces and stresses are in
-the units of model.settings."""
+try the material.script of a file with inspect_material. Lengths, forces and
+stresses are in the units of model.settings."""
 
 
 class Bridge:
@@ -197,9 +197,9 @@ def agent_server(bridge):  # noqa: C901
 
     @mcp.tool(description=DESCRIPTIONS["inspect_material"])
     async def inspect_material(
-        file: str, parameters: dict[str, Any] | None = None
+        material: str, parameters: dict[str, Any] | None = None
     ) -> dict[str, Any]:
-        arguments = {"file": file, "parameters": parameters}
+        arguments = {"material": material, "parameters": parameters}
         return await bridge.call("inspect_material", arguments)
 
     @mcp.tool(description=DESCRIPTIONS["check"])

@@ -1335,6 +1335,37 @@
       "command": {
         "command": "material.script",
         "name": "rubber",
+        "kind": "hyperelastic",
+        "file": "material_hyperelastic.py",
+        "arguments": {
+          "mu": "mu"
+        },
+        "bulk": "bulk"
+      },
+      "fields": [
+        {
+          "path": [
+            "arguments",
+            "mu"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "material.script",
+        "name": "rubber",
         "kind": "constitutive",
         "file": "material_constitutive.py"
       },

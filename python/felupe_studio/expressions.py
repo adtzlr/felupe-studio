@@ -399,9 +399,16 @@ class _Fields:
         if self.leaf(node, instance, path):
             return
         if isinstance(instance, dict):
-            for key, child in node.get("properties", {}).items():
+            properties = node.get("properties", {})
+            for key, child in properties.items():
                 if key in instance:
                     self.walk(child, instance[key], [*path, key])
+            # the values of keys that are not in the schema, e.g. the arguments of a
+            # strain energy function of a file (#424)
+            other = node.get("additionalProperties")
+            if isinstance(other, dict):
+                for key in [k for k in instance if k not in properties]:
+                    self.walk(other, instance[key], [*path, key])
         elif isinstance(instance, list) and isinstance(node.get("items"), dict):
             for i, item in enumerate(instance):
                 self.walk(node["items"], item, [*path, i])

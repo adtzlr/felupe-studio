@@ -30,12 +30,18 @@ A strain-based model (#191, ``x-felupe``: a ``strain`` function like
 Lamé constants λ and μ of the function; ``x-argument`` is the name of a parameter of
 the function, e.g. ``σy``. A strain-based material needs the displacement
 formulation ``u``.
+
+A user-defined material of a Python file (``material.script``, ADR 0025) is not a
+model of the registry: a constitutive model that the file makes, or a strain energy
+function of the file (#424), which is a ``fem.Hyperelastic`` like a model of
+tensortrax (:func:`script_call`).
 """
 
 from dataclasses import dataclass
 from functools import cache
 
 from .commands import schema
+from .formatting import Call, Keyword, quote
 
 
 @dataclass(frozen=True)
@@ -184,19 +190,79 @@ def material_call(material):
     return model.call, args, volumetric
 
 
+# the parameters of the Mullins effect, arguments of fem.ogden_roxburgh (#346)
+MULLINS = ("r", "m", "beta")
+
+
 def _mullins_call(model, mullins, args):
     """The callable and the arguments of a material with the Mullins effect (#346)."""
-    softening = [f"{key}={mullins[key]!r}" for key in ("r", "m", "beta")]
+    softening = _softening(mullins)
     if model.hyperelastic:
         function = f"functools.partial(fem.ogden_roxburgh, material={model.call})"
         return "fem.Hyperelastic", [function, *softening, *args, "nstatevars=1"]
     return "fem.OgdenRoxburgh", [f"{model.call}({', '.join(args)})", *softening]
 
 
+def _softening(mullins):
+    """The arguments of the Mullins effect of ``fem.ogden_roxburgh`` (#346)."""
+    return [f"{key}={mullins[key]!r}" for key in MULLINS]
+
+
+def script_call(material):
+    """Return how a strain energy function of a file (``material.script`` of the kind
+    ``hyperelastic``, #424) creates its material, like :func:`material_call`: the
+    function of the file (``material_function()``) in ``fem.Hyperelastic`` with the
+    values of its arguments, and the arguments of an added ``fem.Volumetric``.
+
+    Examples
+    --------
+    >>> func, args, volumetric = script_call(
+    ...     {"file": "soft.py", "kind": "hyperelastic",
+    ...      "arguments": {"mu": 1.0, "k": 0.1}, "bulk": 50}
+    ... )
+    >>> func, args[1:], volumetric
+    ('fem.Hyperelastic', ['mu=1.0', 'k=0.1'], ['bulk=50'])
+    >>> print(args[0])
+    material_function("soft.py", "strain_energy")
+
+    A function with state variables, and one with the Mullins effect:
+
+    >>> [str(a) for a in script_call({"file": "soft.py", "kind": "hyperelastic",
+    ...                               "function": "aged", "nstatevars": 2})[1]]
+    ['material_function("soft.py", "aged")', 'nstatevars=2']
+    >>> _, args, _ = script_call({"file": "soft.py", "kind": "hyperelastic",
+    ...                           "mullins": {"r": 3, "m": 1, "beta": 0.1}})
+    >>> print(args[0])
+    functools.partial(fem.ogden_roxburgh, material=material_function("soft.py", \
+"strain_energy"))
+    >>> args[1:]
+    ['r=3', 'm=1', 'beta=0.1', 'nstatevars=1']
+    """
+    name = material.get("function", "strain_energy")
+    function = Call("material_function", [quote(material["file"]), quote(name)])
+    args = [f"{k}={v!r}" for k, v in material.get("arguments", {}).items()]
+    volumetric = [f"bulk={material['bulk']!r}"] if "bulk" in material else []
+    if "mullins" in material:
+        # fem.ogden_roxburgh with the function as its material, as of a model of
+        # tensortrax (#346), wrapped like ruff format
+        softened = Keyword("material", function)
+        partial = Call("functools.partial", ["fem.ogden_roxburgh", softened])
+        softening = _softening(material["mullins"])
+        args = [partial, *softening, *args, "nstatevars=1"]
+        return "fem.Hyperelastic", args, volumetric
+    nstatevars = material.get("nstatevars")
+    statevars = [f"nstatevars={nstatevars}"] if nstatevars else []
+    return "fem.Hyperelastic", [function, *statevars, *args], volumetric
+
+
 def uses_functools(materials):
     """True if a material of tensortrax has the Mullins effect, whose function the
-    script passes with ``functools.partial`` (#346)."""
-    return any("mullins" in m and models()[m["model"]].hyperelastic for m in materials)
+    script passes with ``functools.partial`` (#346): a model of the registry, or a
+    strain energy function of a file (#424)."""
+    return any(
+        "mullins" in m and (is_script(m) or models()[m["model"]].hyperelastic)
+        for m in materials
+    )
 
 
 def lame_call(material):
@@ -222,6 +288,12 @@ def is_script(material):
     """True if a material is user-defined, of a Python file (``material.script``,
     ADR 0025), not a model of the registry."""
     return material.get("command") == "material.script"
+
+
+def is_function(material):
+    """True if a material is a strain energy function of a file (``material.script``
+    of the kind ``hyperelastic``, #424)."""
+    return is_script(material) and material["kind"] == "hyperelastic"
 
 
 def strain_based(material):
@@ -253,7 +325,15 @@ def has_volumetric(material):
     ...                 "kind": "constitutive", "file": "soft.py",
     ...                 "volumetric": False})
     False
+
+    A strain energy function of a file has one with its bulk modulus (#424):
+
+    >>> has_volumetric({"command": "material.script", "name": "soft",
+    ...                 "kind": "hyperelastic", "file": "soft.py"})
+    False
     """
+    if is_function(material):
+        return "bulk" in material
     if is_script(material):
         return material.get("volumetric", True)
     return not needs_bulk(material)

@@ -1,0 +1,119 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "parameter.add",
+      "name": "mu",
+      "value": 1.0,
+      "quantity": "stress",
+      "description": "Shear modulus"
+    },
+    {
+      "command": "parameter.add",
+      "name": "bulk",
+      "value": 50.0,
+      "quantity": "stress",
+      "description": "Bulk modulus"
+    },
+    {
+      "command": "mesh.generate",
+      "name": "bar",
+      "tool": "Cube",
+      "parameters": {
+        "a": [
+          0,
+          0,
+          0
+        ],
+        "b": [
+          3,
+          1,
+          1
+        ],
+        "n": [
+          13,
+          5,
+          5
+        ]
+      }
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "all_cells",
+      "mesh": "bar"
+    },
+    {
+      "command": "material.script",
+      "name": "rubber",
+      "kind": "hyperelastic",
+      "file": "material_hyperelastic.py",
+      "arguments": {
+        "mu": "mu"
+      },
+      "bulk": "bulk"
+    },
+    {
+      "command": "section.add",
+      "name": "body",
+      "cellset": "all_cells",
+      "material": "rubber",
+      "formulation": "u"
+    },
+    {
+      "command": "pointset.add",
+      "name": "left",
+      "select": {
+        "axis": "x",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "right",
+      "select": {
+        "axis": "x",
+        "value": 3
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "left",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "move",
+      "pointset": "right",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "step.add",
+      "name": "step_1",
+      "ramp": {
+        "num": 5,
+        "items": [
+          {
+            "target": "move",
+            "start": 0,
+            "end": 0.5
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "step_1"
+      ],
+      "curve": "move"
+    }
+  ]
+}

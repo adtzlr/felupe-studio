@@ -77,11 +77,11 @@ def _blocks(markers):
 # formulation and of sections condensed per cell (#420), of the steps that leave out
 # sections with mixed fields (#428), of face sets (#142), of point sets on the
 # surface (#222), of meshes made by scripts (#182) with the steps that leave out
-# sections without volume (#429), of user-defined materials (ADR 0025), and of the
-# linear solvers of jobs other than SuperLU (#203) and in single precision (ADR
-# 0016), of steps that switch boundaries on and off (#393), of Cartesian constraints
-# (#421), of the curves of cylindrical constraints (#422), and of the cell tags of
-# made meshes (#438)
+# sections without volume (#429), of user-defined materials (ADR 0025) and of the
+# strain energy functions of files (#424), and of the linear solvers of jobs other
+# than SuperLU (#203) and in single precision (ADR 0016), of steps that switch
+# boundaries on and off (#393), of Cartesian constraints (#421), of the curves of
+# cylindrical constraints (#422), and of the cell tags of made meshes (#438)
 BLOCKS = _blocks(
     {
         "mixed": "\n\n# --- embedded in generated scripts with mixed fields ---\n",
@@ -106,6 +106,10 @@ BLOCKS = _blocks(
         ),
         "materials": (
             "\n\n# --- embedded in generated scripts with user-defined materials ---\n"
+        ),
+        "functions": (
+            "\n\n# --- embedded in generated scripts with strain energy functions of "
+            "files ---\n"
         ),
         "solvers": "\n\n# --- embedded in generated scripts with linear solvers ---\n",
         "embed": "\n\n# --- embedded in generated scripts with embedded meshes ---\n",
@@ -137,7 +141,8 @@ HELPERS = (
     ("faces", lambda context: bool(context.facesets)),
     ("surfaces", lambda context: context.surface_points),
     ("scripts", lambda context: bool(context.get("mesh.script"))),
-    ("materials", lambda context: bool(context.get("material.script"))),
+    ("materials", lambda context: "constitutive" in context.material_kinds),
+    ("functions", lambda context: "hyperelastic" in context.material_kinds),
     ("solvers", lambda context: jobs.uses_solver_helpers(context.get("job.add"))),
     ("embed", lambda context: meshtools.uses_embed(context.commands)),
     ("tags", lambda context: meshtools.uses_tags(context.commands)),
@@ -328,6 +333,12 @@ class Context:
         return bool(self.get("mesh.script"))
 
     @cached_property
+    def material_kinds(self):
+        """The kinds of the user-defined materials (ADR 0025), e.g. ``hyperelastic``
+        of a strain energy function of a file (#424)."""
+        return {m["kind"] for m in self.get("material.script")}
+
+    @cached_property
     def section_helpers(self):
         """The blocks of the helpers of the fields and the solid bodies of the
         sections (ADR 0024), e.g. ``mixed`` of mixed fields."""
@@ -428,8 +439,8 @@ def header(context):
     files = context.get("mesh.import") or context.get("mesh.script")
     pardiso = jobs.uses_pardiso(context.get("job.add"))
     # functools only in scripts with the Mullins effect of a material of tensortrax
-    # (#346)
-    partial = uses_functools(context.get("material.add"))
+    # (#346), also of a strain energy function of a file (#424)
+    partial = uses_functools(context.get("material.add", "material.script"))
     lines = [
         HEADER.format(
             version=__version__,

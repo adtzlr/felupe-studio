@@ -170,6 +170,9 @@ def _type(node, command="", key=""):
         return _array(node, command, key)
     if kind in ("number", "integer"):
         return " ".join([kind, *_bounds(node)])
+    if kind == "object" and isinstance(node.get("additionalProperties"), dict):
+        # the values by names, e.g. the arguments of a function (#424)
+        return f"object: name → {_type(node['additionalProperties'], command, key)}"
     if kind == "object":
         return "object"
     if "oneOf" in node:

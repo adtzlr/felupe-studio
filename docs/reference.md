@@ -11,7 +11,7 @@ A project file is a JSON document `{"schema_version": 3, "commands": [...]}`. Ev
 
 Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
 
-A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `BoundarySwitch`, `CONDENSED`, `CORNERS`, `CylindricalCurve`, `CylindricalCurvePlugin`, `DIMENSIONS`, `EDGES`, `Held`, `REGIONS`, `SimpleNamespace`, `base_vectors`, `boundaries`, `boundary_faces`, `boundary_switch`, `cell_volumes`, `condensed_region`, `control_points`, `embed`, `fem`, `field`, `fields_without_volume`, `has_volume`, `hold_dual_fields`, `iterative_solver`, `meshio`, `mixed_field`, `mixed_region`, `nearly_incompressible`, `np`, `pick`, `points`, `points_at`, `pypardiso`, `run_material_script`, `run_mesh_script`, `script_mesh`, `single_point`, `single_precision`, `solid_points`, `solid_types`, `spsolve`, `surface_points`, `tags_of`, `vertex_region`, `volume_cells`, `with_volume`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
+A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `BoundarySwitch`, `CONDENSED`, `CORNERS`, `CylindricalCurve`, `CylindricalCurvePlugin`, `DIMENSIONS`, `EDGES`, `Held`, `REGIONS`, `SimpleNamespace`, `base_vectors`, `boundaries`, `boundary_faces`, `boundary_switch`, `cell_volumes`, `condensed_region`, `control_points`, `embed`, `fem`, `field`, `fields_without_volume`, `has_volume`, `hold_dual_fields`, `iterative_solver`, `material_function`, `meshio`, `mixed_field`, `mixed_region`, `nearly_incompressible`, `np`, `pick`, `points`, `points_at`, `pypardiso`, `run_material_script`, `run_mesh_script`, `script_mesh`, `single_point`, `single_precision`, `solid_points`, `solid_types`, `spsolve`, `surface_points`, `tags_of`, `vertex_region`, `volume_cells`, `with_volume`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
 
 ## Expressions
 
@@ -28,7 +28,7 @@ A number of a command (*or an expression* below) may be an expression of the par
 - [`cellset.from_tag`](#cellsetfrom_tag): Cell set of all cells of a mesh with the given tag value: of a mesh imported with a tag, or of a mesh made by tools of such meshes, which keep their tags.
 - [`cellset.from_file`](#cellsetfrom_file): Cell set of all cells of a mesh.
 - [`material.add`](#materialadd): Add a material to the material library.
-- [`material.script`](#materialscript): A user-defined material of a Python file next to the project (ADR 0025), like a mesh script: the file runs with the parameters of the model as variables.
+- [`material.script`](#materialscript): A user-defined material of a Python file next to the project (ADR 0025), like a mesh script.
 - [`section.add`](#sectionadd): Assign a material and a formulation to a cell set.
 - [`pointset.add`](#pointsetadd): Points of the merged mesh selected by a plane, at a bound of the meshes, on a cylinder, on the outer surface, of the cells of a section, by the coordinates of points or by point ids.
 - [`point.add`](#pointadd): A control point that is not a node of the meshes, e.g. the center point of a multi-point constraint.
@@ -482,7 +482,7 @@ The Mullins effect of Ogden and Roxburgh (fem.OgdenRoxburgh): the material is so
 
 ### `material.script`
 
-A user-defined material of a Python file next to the project (ADR 0025), like a mesh script: the file runs with the parameters of the model as variables. Every kind of user-defined material is a definition below, with its label and what the file makes.
+A user-defined material of a Python file next to the project (ADR 0025), like a mesh script. Every kind of user-defined material is a definition below, with its label and what the file makes.
 
 Every variant has a `name`, the name of the object.
 
@@ -492,6 +492,23 @@ A ready constitutive model of a Python file: the file makes a variable umat with
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
+
+#### Strain energy function (Python) (`kind: "hyperelastic"`)
+
+A strain energy density function of a Python file, e.g. def strain_energy(C, mu): a function of the right Cauchy-Green deformation tensor C, whose derivatives tensortrax computes like those of the hyperelastic models of the registry. The material is fem.Hyperelastic of the function with the values of its other arguments. Without a bulk modulus, the function is the isochoric part of the strain energy (of the unimodular det(C)^(-1/3) C) and the material needs the u-p-J formulation. A function with state variables takes them as its second argument statevars and returns the strain energy and their new values.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `kind` | `hyperelastic` | yes |  |
+| `file` | string | yes | File name of the script, e.g. soft.py. It defines the function. |
+| `function` | string |  | The name of the strain energy function of the file (default: strain_energy). Default `strain_energy`. |
+| `arguments` | object: name → number (or an expression) |  | The values of the arguments of the function after C (and statevars) by their names, numbers or expressions of the parameters of the model. An argument with a default value in the function may be left out. |
+| `bulk` | number > 0 (or an expression) |  | Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation. |
+| `mullins` | object |  | The Mullins effect of Ogden and Roxburgh (fem.OgdenRoxburgh): the material is softer after it was loaded, when it is unloaded and loaded again up to the largest strain energy density of its load history, and stiff again above it. The stress is scaled by a softening of the strain energy density and of its maximum, a state variable of every quadrature point; the bulk modulus is not softened. |
+| `mullins.r` | number > 1 (or an expression) | yes | Reciprocal of the largest softening: with r = 3, the stiffness is softened to 1 - 1/3 = 2/3 at most. Default `3`. |
+| `mullins.m` | number > 0 (or an expression) | yes | Initial softening modulus, a strain energy density: the smaller, the faster the material softens below the maximum of its load history. Default `1`. |
+| `mullins.beta` | number ≥ 0 (or an expression) | yes | The part of the softening modulus that grows with the maximum strain energy density of the load history (m + β ψmax). Default `0.1`. |
+| `nstatevars` | integer ≥ 1 |  | The number of the state variables of a function with the argument statevars. |
 
 ### `section.add`
 

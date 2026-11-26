@@ -399,10 +399,27 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     tab: "materials",
     prefix: "material",
     fields: {
+      // the kinds of user-defined materials, with the labels of the schema (#424)
+      kind: { label: "Kind", default: "constitutive" },
       file: {
         label: "Script",
-        hint: "A Python file opened with the project that makes a variable umat",
+        hint: "A Python file opened with the project, e.g. of Download template",
         placeholder: "e.g. soft.py",
+      },
+      // a strain energy function of a file (#424): its arguments are fields of
+      // their own, from the run of the file
+      function: {
+        label: "Function",
+        hint: "The strain energy function of the file, of C and its arguments",
+        placeholder: "strain_energy",
+      },
+      mullins: {
+        label: "Mullins effect",
+        hint: "Softer after the first loading, up to the largest strain energy density of the load history (Ogden-Roxburgh)",
+      },
+      nstatevars: {
+        label: "State variables",
+        hint: "Their number, of a function with the argument statevars",
       },
       parameters: {
         label: "Parameters",

@@ -122,6 +122,18 @@ export interface FieldSpec {
   quantity?: Quantity;
 }
 
+/**
+ * A field of an object of values whose keys are not in the schema, e.g. an argument
+ * of the strain energy function of a file (#424).
+ */
+export interface KeyField {
+  name: string;
+  required?: boolean;
+  /** E.g. the default value of an optional argument. */
+  placeholder?: string;
+  hint?: string;
+}
+
 export interface Context {
   /** Commands of the model. */
   commands: readonly Command[];
@@ -132,6 +144,17 @@ export interface Context {
    * the sections of a step.
    */
   withoutVolume?: ReadonlySet<string>;
+  /**
+   * The fields of an object of values whose keys are not in the schema, by the
+   * key of the object, e.g. the arguments of the strain energy function of a file
+   * (#424) from its run: undefined if they are not known. The keys of the draft
+   * are fields too.
+   */
+  keys?: (
+    type: CommandType,
+    key: string,
+    draft: Draft,
+  ) => readonly KeyField[] | undefined;
 }
 
 interface Node {
@@ -142,6 +165,8 @@ interface Node {
   enum?: string[];
   oneOf?: Node[];
   properties?: Record<string, Node>;
+  /** The values of the keys that are not properties, e.g. of arguments (#424). */
+  additionalProperties?: Node | boolean;
   required?: string[];
   items?: Node;
   minimum?: number;
@@ -570,8 +595,40 @@ function specOf(
   };
 }
 
+/** The node of the values of an object whose keys are not in the schema (#424). */
+const valuesOf = (property: Node): Node | undefined =>
+  property.type === "object" &&
+  typeof property.additionalProperties === "object"
+    ? property.additionalProperties
+    : undefined;
+
+/**
+ * The fields of an object of values whose keys are not in the schema (#424): those
+ * of the context, then the other keys of the draft.
+ */
+function keyFields(
+  type: CommandType,
+  key: string,
+  draft: Draft,
+  value: Draft,
+  context?: Context,
+): KeyField[] {
+  const known = context?.keys?.(type, key, draft) ?? [];
+  const names = new Set(known.map((k) => k.name));
+  return [
+    ...known,
+    ...Object.keys(value)
+      .filter((name) => !names.has(name))
+      .map((name) => ({ name })),
+  ];
+}
+
 /** Fields of the form of a command, for the current state of the draft. */
-export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
+export function fieldSpecs(
+  type: CommandType,
+  draft: Draft,
+  context?: Context,
+): FieldSpec[] {
   const { node, nodes, discriminator } = definition(type, draft);
   const specs: FieldSpec[] = [];
   const push = (
@@ -618,6 +675,25 @@ export function fieldSpecs(type: CommandType, draft: Draft): FieldSpec[] {
     if (property.oneOf) {
       push(path, true, variantInput(type, key, property), raw.description);
       return walk(variantOf(property, child), child, path);
+    }
+    const values = valuesOf(property);
+    if (values) {
+      // a field per key, e.g. per argument of a function (#424)
+      const node = resolve(values);
+      for (const field of keyFields(type, key, draft, child, context)) {
+        const leaf = scalarLeaf(type, `${key}.${field.name}`, values, node);
+        if (!leaf) continue;
+        specs.push({
+          path: [...path, field.name],
+          key: `${key}.${field.name}`,
+          label: field.name,
+          hint: field.hint,
+          placeholder: field.placeholder,
+          required: !!field.required,
+          input: leaf.input,
+        });
+      }
+      return;
     }
     if (property.type !== "object") return;
     if (!required) {
@@ -725,6 +801,10 @@ export function normalize(
     for (const name of Object.keys(object.properties ?? {})) {
       if (value[name] !== undefined) result[name] = value[name];
     }
+    // the values of keys that are not in the schema, e.g. of arguments (#424)
+    if (valuesOf(object))
+      for (const [name, item] of Object.entries(value))
+        if (item !== undefined && item !== "") result[name] ??= item;
     for (const [name, raw] of Object.entries(object.properties ?? {})) {
       const { required, hidden } = conditions(object, result);
       const path = [...prefix, name];
@@ -749,8 +829,12 @@ export function normalize(
   const nested = (child: unknown, property: Node, path: string[]) => {
     if (!isObject(child)) return child;
     if (property.oneOf) return fill(variantOf(property, child), child, path);
-    if (property.type === "object") return fill(property, child, path);
-    return child;
+    if (property.type !== "object") return child;
+    const filled = fill(property, child, path);
+    // no values of keys that are not in the schema: none (#424)
+    return valuesOf(property) && Object.keys(filled).length === 0
+      ? undefined
+      : filled;
   };
 
   return fill(definition(type, source).node, source, []);
@@ -936,8 +1020,8 @@ export function getValue(draft: Draft, path: string[]): unknown {
   return value;
 }
 
-const keysOf = (type: CommandType, draft: Draft) =>
-  new Set(fieldSpecs(type, draft).map((spec) => spec.key));
+const keysOf = (type: CommandType, draft: Draft, context: Context) =>
+  new Set(fieldSpecs(type, draft, context).map((spec) => spec.key));
 
 /**
  * Set (or with undefined: remove) the value at a path. Fields that appear by the
@@ -952,7 +1036,7 @@ export function setValue(
 ): Draft {
   const next = structuredClone(draft);
   assign(next, path, value);
-  const known = keysOf(type, draft);
+  const known = keysOf(type, draft, context);
   // another definition, e.g. another mesh tool: lists that do not fit it get its
   // defaults, e.g. the corners of a rectangle after those of a cube (ADR 0019)
   const { discriminator } = definition(type, draft);
@@ -1320,7 +1404,7 @@ export function draftErrors(
   context: Context,
 ): Record<string, string> {
   const errors: Record<string, string> = {};
-  for (const spec of fieldSpecs(type, draft)) {
+  for (const spec of fieldSpecs(type, draft, context)) {
     const error = fieldError(spec, getValue(draft, spec.path), context);
     if (error) errors[spec.key] = error;
     for (const row of cells(spec, draft)) {
@@ -1365,7 +1449,7 @@ export function toCommand(
   draft: Draft,
   context: Context,
 ): Command {
-  const known = keysOf(type, draft);
+  const known = keysOf(type, draft, context);
   return normalize(type, draft, context, known) as unknown as Command;
 }
 

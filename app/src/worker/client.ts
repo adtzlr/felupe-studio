@@ -414,9 +414,10 @@ export class RuntimeClient {
   async inspectMaterial(
     file: string,
     parameters: Record<string, number>,
+    material?: Record<string, unknown>,
   ): Promise<MaterialInfo> {
     const message = await this.request(
-      { type: "inspect-material", file, parameters },
+      { type: "inspect-material", file, parameters, material },
       "text",
     );
     return JSON.parse(

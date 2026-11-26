@@ -89,12 +89,13 @@ export type MaterialAdd =
   | MaterialLinearElastic
   | MaterialLinearElasticPlasticIsotropicHardening;
 /**
- * A user-defined material of a Python file next to the project (ADR 0025), like a mesh script: the file runs with the parameters of the model as variables. Every kind of user-defined material is a definition below, with its label and what the file makes.
+ * A user-defined material of a Python file next to the project (ADR 0025), like a mesh script. Every kind of user-defined material is a definition below, with its label and what the file makes.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "MaterialScript".
  */
-export type MaterialScript = MaterialScriptConstitutive;
+export type MaterialScript =
+  MaterialScriptConstitutive | MaterialScriptHyperelastic;
 /**
  * Assign a material and a formulation to a cell set. Each section becomes a solid body. Every formulation is a definition below (the formulation registry, ADR 0024): its label, the solid body and the fields of FElupe, the cell types and the material that it takes, and its properties.
  *
@@ -1263,6 +1264,40 @@ export interface MaterialScriptConstitutive {
    * Whether the material has a volumetric part of its own, e.g. its bulk modulus (default: true). Like a model of material.add, the displacement formulation u takes a material with one, the u-p-J formulation one without.
    */
   volumetric?: boolean;
+}
+/**
+ * A strain energy density function of a Python file, e.g. def strain_energy(C, mu): a function of the right Cauchy-Green deformation tensor C, whose derivatives tensortrax computes like those of the hyperelastic models of the registry. The material is fem.Hyperelastic of the function with the values of its other arguments. Without a bulk modulus, the function is the isochoric part of the strain energy (of the unimodular det(C)^(-1/3) C) and the material needs the u-p-J formulation. A function with state variables takes them as its second argument statevars and returns the strain energy and their new values.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MaterialScriptHyperelastic".
+ */
+export interface MaterialScriptHyperelastic {
+  command: "material.script";
+  name: Name;
+  kind: "hyperelastic";
+  /**
+   * File name of the script, e.g. soft.py. It defines the function.
+   */
+  file: string;
+  /**
+   * The name of the strain energy function of the file (default: strain_energy).
+   */
+  function?: string;
+  /**
+   * The values of the arguments of the function after C (and statevars) by their names, numbers or expressions of the parameters of the model. An argument with a default value in the function may be left out.
+   */
+  arguments?: {
+    [k: string]: number;
+  };
+  /**
+   * Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation.
+   */
+  bulk?: number;
+  mullins?: Mullins;
+  /**
+   * The number of the state variables of a function with the argument statevars.
+   */
+  nstatevars?: number;
 }
 /**
  * The displacement formulation u: a field of the displacements only (fem.SolidBody). The material has a volumetric part of its own: its bulk modulus, or a compressible or a strain-based model.

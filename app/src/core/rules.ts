@@ -46,10 +46,12 @@ import {
   sibling,
 } from "./formulations";
 import {
+  isFunction,
   isMaterial,
   MATERIAL_MODELS,
   type MaterialCommand,
   materialProblems,
+  MULLINS,
   strainBased,
 } from "./materials";
 import { parameterProblems } from "./parameters";
@@ -623,38 +625,92 @@ function misfit(formulation: Formulation, material: MaterialCommand): string {
 
 /**
  * Why a formulation does not take a material of a file (ADR 0025), by whether it
- * has a volumetric part of its own (`volumetric`), and the formulations that take
- * it, like `misfit()` (like `script_misfit` in Python).
+ * has a volumetric part of its own (`volumetric` of a constitutive model, the bulk
+ * modulus of a strain energy function, #424), and the formulations that take it,
+ * like `misfit()` (like `script_misfit` in Python).
  */
 function scriptMisfit(
   formulation: Formulation,
-  material: CommandOf<"material.script">,
+  material: Extract<MaterialCommand, { command: "material.script" }>,
 ): string {
   const { name } = formulation;
   const what = `the material '${material.name}' of '${material.file}'`;
   const other = sibling(formulation, material);
+  const fn = isFunction(material);
   // the displacement formulation, or the three-field variation (#420)
   if (formulation.material === "volumetric")
     return (
       `${other ? `the ${name} formulation` : "the displacement formulation"} ` +
       `with ${what} without a volumetric part. Use ` +
       `'${other ?? first("isochoric")}' with the bulk modulus of the section, ` +
-      `or set 'volumetric' to true if its umat has one.`
+      `or ${fn ? "add 'bulk' to the material" : "set 'volumetric' to true if its umat has one"}.`
     );
+  const remedy = fn
+    ? "remove 'bulk' from the material"
+    : "set 'volumetric' to false if its umat has none";
   if (formulation.material === "none")
     return (
       `the formulation ${name} with ${what}, which has a volumetric part. Use ` +
-      `'${first("volumetric")}', or set 'volumetric' to false if its umat has ` +
-      `none.`
+      `'${first("volumetric")}', or ${remedy}.`
     );
   const displacement =
     `the displacement formulation '${first("volumetric")}'` +
     (other ? ` or '${other}'` : "");
   return (
     `the ${name} formulation with ${what}, which has a volumetric part. Use ` +
-    `${displacement}, or set 'volumetric' to false if its umat has none.`
+    `${displacement}, or ${remedy}.`
   );
 }
+
+// the arguments that fem.Hyperelastic gives a strain energy function of a file or
+// takes itself (#424), and those of the Mullins effect (#346)
+const GIVEN = ["C", "statevars", "fun", "nstatevars", "parallel"];
+const SOFTENING: readonly string[] = [...MULLINS, "material"];
+
+/**
+ * The arguments of a strain energy function of a file (#424): not those that
+ * fem.Hyperelastic gives or takes itself, nor a keyword of Python, nor those of
+ * fem.ogden_roxburgh with the Mullins effect, which has a state variable of its own,
+ * so the function has none.
+ */
+const functionArguments: Rule<CommandOf<"material.script">> = (_, cmd) => {
+  if (cmd.kind !== "hyperelastic") return [];
+  const what = `material '${cmd.name}'`;
+  const problems: Problem[] = [];
+  for (const key of Object.keys(cmd.arguments ?? {})) {
+    const field = `arguments.${key}`;
+    if (GIVEN.includes(key))
+      problems.push({
+        message:
+          `${what}: '${key}' is not an argument of the function to give: ` +
+          "fem.Hyperelastic gives C and statevars, and takes fun, nstatevars " +
+          "and parallel itself.",
+        field,
+      });
+    else if (RESERVED_KEYWORDS.has(key))
+      problems.push({
+        message: `${what}: the argument '${key}' is a keyword of Python.`,
+        field,
+      });
+    else if (cmd.mullins && SOFTENING.includes(key))
+      problems.push({
+        message:
+          `${what}: the argument '${key}' is one of the Mullins effect ` +
+          "(fem.ogden_roxburgh) too. Rename it in the function, or remove the " +
+          "Mullins effect.",
+        field,
+      });
+  }
+  if (cmd.mullins && cmd.nstatevars !== undefined)
+    problems.push({
+      message:
+        `${what}: a function with state variables has no Mullins effect, which ` +
+        "has a state variable of its own. Remove 'nstatevars' or the Mullins " +
+        "effect.",
+      field: "nstatevars",
+    });
+  return problems;
+};
 
 /** The axes of a load case, at the field of the error of the form. */
 const loadcase: Rule<CommandOf<"loadcase.add">> = (_, cmd) => {
@@ -828,6 +884,7 @@ export const RULES: Rules = {
   "contact.add": [contactPoints],
   "mpc.add": [rotationComponents],
   "material.add": [material],
+  "material.script": [functionArguments],
   "parameter.add": [parameter],
 };
 

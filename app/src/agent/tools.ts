@@ -5,7 +5,12 @@
 // the agent gets.
 import type { Command } from "../core/commands";
 import type { JobRun, JobRunner } from "../core/jobs";
-import { isScript, materialKey, type MeshFiles } from "../core/meshfiles";
+import {
+  isScript,
+  materialRun,
+  type MeshFiles,
+  withParameters,
+} from "../core/meshfiles";
 import { parameterValues } from "../core/resolve";
 import { type ResultView, substepsOf } from "../core/results";
 import type { Sample } from "../core/samples";
@@ -303,25 +308,48 @@ export function agentTools(host: AgentHost): Handler {
       return { written: name, bytes: data.length };
     },
 
-    // the script of a material run once, like inspect_material of the MCP server
-    // (#423): with the parameters of the model, changed by `parameters`
+    // the file of a material of the model run once, like inspect_material of the
+    // MCP server (#423, #424): with the parameters of the model, changed by
+    // `parameters`
     inspect_material: async (args) => {
-      const file = safeName(string(args, "file"));
-      if (!isScript(file)) throw new Error(`'${file}' is not a Python script.`);
+      const name = string(args, "material");
+      const scripted = store.commands.filter(
+        (c) => c.command === "material.script",
+      );
+      const material = scripted.find((c) => c.name === name);
+      if (!material)
+        throw new Error(
+          `No user-defined material '${name}' (material.script). User-defined ` +
+            `materials: ${scripted.map((c) => c.name).join(", ") || "none"}.`,
+        );
+      const { file } = material;
       const loaded = files.get(file)?.status;
       if (!loaded)
         throw new Error(`No file '${file}' in the files of the model.`);
       if (loaded.state === "error")
         throw new Error(`${file}: ${loaded.message}`);
-      const parameters = {
-        ...parameterValues(store.commands),
-        ...(optional<Record<string, number>>(args, "parameters") ?? {}),
-      };
-      const key = materialKey(file, parameters);
-      const run = await files.inspectMaterial(key, file, parameters);
-      if (run.state === "ready") return run.info;
-      if (run.state === "error")
-        return { file, error: run.message, traceback: run.traceback ?? "" };
+      if (loaded.state !== "script")
+        throw new Error(`'${file}' is not a Python script.`);
+      const changed =
+        optional<Record<string, number>>(args, "parameters") ?? {};
+      const run = materialRun(
+        material,
+        withParameters(store.commands, changed),
+      );
+      const state = await files.inspectMaterial(
+        run.key,
+        file,
+        run.parameters,
+        run.material,
+      );
+      if (state.state === "ready") return state.info;
+      if (state.state === "error")
+        return {
+          file,
+          error: state.message,
+          ...(state.traceback ? { traceback: state.traceback } : {}),
+          ...(state.functions ? { functions: state.functions } : {}),
+        };
       throw new Error(`The script '${file}' did not run.`);
     },
 

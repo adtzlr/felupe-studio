@@ -1483,7 +1483,8 @@ def test_a_material_of_a_script_solved(url, page, tmp_path):
         command(text)
 
     page.get_by_role("tab", name="Materials").click()
-    page.get_by_role("button", name="User-defined material").click()
+    page.get_by_role("button", name="User-defined").click()
+    page.get_by_role("menuitem", name="Constitutive model (Python)").click()
     dialog = page.get_by_role("dialog")
     dialog.get_by_label("Name", exact=True).fill("rubber")
     dialog.get_by_label("Script", exact=True).fill("material_constitutive.py")
@@ -1548,5 +1549,87 @@ def test_a_material_of_a_script_solved(url, page, tmp_path):
     summary = page.get_by_text("substeps in").first.inner_text()
     # the force of the golden case bar_material_script
     assert "6 substeps" in summary
+    assert "Last substep: ux = 0.5, Fx = 0.4725" in summary
+    assert page.errors == []
+
+
+def test_a_strain_energy_function_of_a_script_solved(url, page):
+    """A strain energy function of a Python file (#424): the template, created with
+    the ribbon, downloaded and chosen in its properties, whose argument mu is a field
+    of the material once the file ran, an expression of a parameter; solved: the
+    curve of the golden case."""
+    page.context.add_init_script(RECORD_SAVES)
+    page.goto(url)
+    page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
+
+    def command(text):
+        name = text.split('"name": "')[1].split('"')[0]
+        line = page.get_by_label("Command", exact=True)
+        line.fill(text)
+        line.press("Enter")
+        page.get_by_text(f"Created {name}.").first.wait_for(timeout=60_000)
+
+    for text in [
+        'parameter.add {"name": "mu", "value": 1.0}',
+        'parameter.add {"name": "bulk", "value": 50.0}',
+        'mesh.generate {"name": "bar", "tool": "Cube", '
+        '"parameters": {"a": [0, 0, 0], "b": [3, 1, 1], "n": [13, 5, 5]}}',
+        'cellset.from_file {"name": "cells", "mesh": "bar"}',
+    ]:
+        command(text)
+
+    page.get_by_role("tab", name="Materials").click()
+    page.get_by_role("button", name="User-defined").click()
+    page.get_by_role("menuitem", name="Strain energy function (Python)").click()
+    dialog = page.get_by_role("dialog")
+    dialog.get_by_label("Name", exact=True).fill("rubber")
+    dialog.get_by_label("Script", exact=True).fill("material_hyperelastic.py")
+    dialog.get_by_label("K", exact=True).fill("bulk")
+    dialog.get_by_role("button", name="Create").click()
+    properties = page.get_by_role("region", name="Properties")
+    properties.get_by_text("not loaded").wait_for()
+    template = (
+        Path(__file__).parents[2]
+        / "python"
+        / "felupe_studio"
+        / "templates"
+        / "material_hyperelastic.py"
+    )
+    download = properties.get_by_role("button", name="Download template")
+    name, data = saved(page, download.click)
+    assert (name, data) == ("material_hyperelastic.py", template.read_bytes())
+
+    # the file runs: its argument mu is a field, which needs a value
+    page.get_by_test_id("mesh-file").set_input_files(str(template))
+    properties.get_by_text(
+        "material_hyperelastic.py: The function strain_energy needs a value of its "
+        "argument 'mu'."
+    ).wait_for(timeout=60_000)
+    field = properties.get_by_label("mu", exact=True)
+    field.fill("mu")
+    properties.get_by_role("button", name="Apply").click()
+    properties.get_by_text(
+        "umat: Hyperelastic(strain_energy) & Volumetric · no state variables"
+    ).wait_for(timeout=60_000)
+
+    for text in [
+        'section.add {"name": "body", "cellset": "cells", "material": "rubber", '
+        '"formulation": "u"}',
+        'pointset.add {"name": "left", "select": {"axis": "x", "value": 0}}',
+        'pointset.add {"name": "right", "select": {"axis": "x", "value": 3}}',
+        'boundary.add {"name": "fixed", "pointset": "left", '
+        '"constrained": ["x", "y", "z"]}',
+        'boundary.add {"name": "move", "pointset": "right", "constrained": ["x"]}',
+        'step.add {"name": "step_1", "ramp": {"num": 5, '
+        '"items": [{"target": "move", "end": 0.5}]}}',
+        'job.add {"name": "job_1", "steps": ["step_1"], "curve": "move"}',
+    ]:
+        command(text)
+    page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)
+
+    page.get_by_role("button", name="Solve").click()
+    page.get_by_role("button", name="Show results").wait_for(timeout=120_000)
+    summary = page.get_by_text("substeps in").first.inner_text()
+    # the force of the golden case bar_material_function, that of NeoHooke
     assert "Last substep: ux = 0.5, Fx = 0.4725" in summary
     assert page.errors == []

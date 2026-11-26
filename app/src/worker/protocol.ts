@@ -119,6 +119,24 @@ export interface MaterialInfo {
   error?: string;
   /** The traceback of the error, with the frames of the script. */
   traceback?: string;
+  /**
+   * The functions of the file of a strain energy function (#424) with their
+   * signatures, by name, if the file runs.
+   */
+  functions?: Record<string, Signature>;
+}
+
+/** The signature of a strain energy function of a file (#424). */
+export interface Signature {
+  /**
+   * The arguments after C (and statevars), with their default value if they have
+   * one (null if it is not a number).
+   */
+  arguments: { name: string; default?: number | null }[];
+  /** The function takes state variables, its second argument `statevars`. */
+  statevars: boolean;
+  /** The function takes any keyword argument (`**kwargs`). */
+  kwargs?: boolean;
 }
 
 /**
@@ -502,6 +520,11 @@ export type ToWorker =
       id: number;
       file: string;
       parameters: Record<string, number>;
+      /**
+       * The command of a strain energy function of the file (#424), with the
+       * values of its expressions.
+       */
+      material?: Record<string, unknown>;
     }
   | { type: "run"; id: number; document: string; live?: LiveSettings }
   | { type: "script"; id: number; document: string }
