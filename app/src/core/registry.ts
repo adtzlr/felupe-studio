@@ -41,6 +41,12 @@ export interface CommandInfo {
   /** Noun of a new object in dialogs, if not its kind (a load case is a boundary). */
   noun?: string;
   /**
+   * A menu of the ribbon of this command and the next ones of its tab with the same
+   * menu, e.g. *Constraints* (#454), like the variants of a command of the same
+   * `x-group` of the schema. A command of a menu has no variants of its own groups.
+   */
+  menu?: string;
+  /**
    * Adjust the defaults of a new object to the model, e.g. a section takes a cell
    * set without a section. Values of a preset (e.g. of a button of the ribbon) are
    * applied afterwards.
@@ -763,6 +769,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
   "mpc.add": {
     label: "Multi-point constraint",
     tab: "loads",
+    menu: "Constraints",
     prefix: "mpc",
     noun: "constraint",
     fields: {
@@ -794,6 +801,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
   "cartesian.add": {
     label: "Cartesian constraint",
     tab: "loads",
+    menu: "Constraints",
     prefix: "cartesian",
     noun: "Cartesian constraint",
     fields: {
@@ -832,6 +840,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
   "cylindrical.add": {
     label: "Cylindrical constraint",
     tab: "loads",
+    menu: "Constraints",
     prefix: "cylindrical",
     noun: "cylindrical constraint",
     fields: {

@@ -1347,12 +1347,15 @@ def test_the_results_of_a_file_without_their_model(url, page):
 
 def test_a_cartesian_constraint_ramped_and_recorded(url, page):
     """A Cartesian constraint (#421) at the end of a bar, ramped along its first
-    direction and recorded by the job: the ribbon has its button, the browser and the
-    script show it, and the job panel shows the displacement in direction 1."""
+    direction and recorded by the job: the ribbon has it, the browser and the script
+    show it, and the job panel shows the displacement in direction 1."""
     page.goto(url)
     page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
     page.get_by_role("tab", name="Loads & BCs").click()
-    page.get_by_role("button", name="Cartesian constraint").wait_for()
+    # in the menu Constraints of the ribbon (#454)
+    page.get_by_role("button", name="Constraints").click()
+    page.get_by_role("menuitem", name=re.compile("^Cartesian constraint")).wait_for()
+    page.keyboard.press("Escape")
 
     def command(text):
         name = text.split('"name": "')[1].split('"')[0]
@@ -1399,13 +1402,16 @@ def test_a_cartesian_constraint_ramped_and_recorded(url, page):
 
 def test_a_cylindrical_constraint_turned_and_recorded(url, page):
     """A cylindrical constraint (#422) at the end of a tube in a rigid sleeve, turned
-    around its axis and recorded by the job: the ribbon has its button, the browser
-    and the script show it, and the job panel shows the arc length and the force
-    around the axis."""
+    around its axis and recorded by the job: the ribbon has it, the browser and the
+    script show it, and the job panel shows the arc length and the force around the
+    axis."""
     page.goto(url)
     page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
     page.get_by_role("tab", name="Loads & BCs").click()
-    page.get_by_role("button", name="Cylindrical constraint").wait_for()
+    # in the menu Constraints of the ribbon (#454)
+    page.get_by_role("button", name="Constraints").click()
+    page.get_by_role("menuitem", name=re.compile("^Cylindrical constraint")).wait_for()
+    page.keyboard.press("Escape")
 
     def command(text):
         name = text.split('"name": "')[1].split('"')[0]

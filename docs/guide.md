@@ -222,7 +222,7 @@ A **face set** (Mesh tab) selects faces of the boundary of a section, e.g. for a
 
 A **Boundary** prescribes displacement components of a point set: *Constrained* are the components, *Value* is the displacement (default 0; of a rotation point a rotation in rad): one number for all constrained components, or one per component separated by commas, e.g. `0.5, -0.1` for x and z, so one boundary moves a point set diagonally. Components that are not constrained are free. To fix some components and move others, use two boundaries, e.g. `hold` with y and z and `move` with x.
 
-A **Load case** creates the boundaries of a standard test at once (uniaxial, biaxial, planar, shear), optionally with symmetry planes. A step ramps the displacement of its moving end faces.
+A **Load case** (the menu *Load case ▾* of the Loads & BCs tab) creates the boundaries of a standard test at once: *Uniaxial*, *Biaxial*, *Planar* or *Shear*, optionally with symmetry planes. A step ramps the displacement of its moving end faces.
 
 A **Symmetry** (*Loads & BCs* › *Symmetry*) is a set of symmetry planes normal to x, y or z, like `fem.dof.symmetry`: on a plane, the displacement normal to it is zero and the displacements in the plane are free. *Planes normal to* chooses the planes, each at its coordinate (default 0). It holds in all steps and is neither ramped nor a curve. Use a load case for a homogeneous test of a cube or a bar (it has its own symmetry planes at x, y, z = 0), and a symmetry for a part: a half of a spring, a quarter of a bushing under a radial load, or a bar clamped at its ends (a load case without symmetry planes and a symmetry at the planes through its axis). A plane that a load case or another symmetry already has does no harm; the browser notes it. The viewport draws the planes like the boundaries and warns about a plane without nodes, e.g. a wrong coordinate.
 
@@ -235,6 +235,8 @@ A **Rigid surface** (Loads & BCs) is a plane or a cylinder through a reference p
 A **Contact** (Loads & BCs) lets the points of a face set (or a point set, e.g. *On the outer surface*) touch a rigid surface: they cannot pass it, and with a *Friction* coefficient they stick until the tangential force exceeds the friction. The penalty of the contact follows the stiffness of the sections at the points; a larger *Multiplier* lets them penetrate less, and an *Elastic slip* (a small length, about 1 % of a cell) sets how far sticking points may move before they slide. Move the rigid surface by a ramped boundary of its reference point and choose that boundary as the curve of the job: the curve is the contact force over the displacement of the surface, and the card *Control points* of the results shows the force at the reference point. A selected contact highlights its points and its surface. The sample *Hyperelastic spring with end stops* has two of them.
 
 ![The results of the sample "Hyperelastic spring with end stops" at the end of its compression: the largest principal strain of the half spring, the two rigid plates and the force of the lower plate over its displacement](images/contact.png)
+
+The menu *Constraints ▾* of the Loads & BCs tab has the constraints of the points of a point set: a multi-point, a Cartesian and a cylindrical constraint.
 
 A **Multi-point constraint** connects the points of a point set rigidly to a center point (a control point or a point set of one point). *Connected* are the components that follow the center point. With a **rotation point**, the points also rotate about the center point: the values of the rotation point are the rotations about x, y and z in rad, so a boundary of its y component with the value 0.1 tilts the points by 0.1 rad about the y axis. The viewport draws lines from the center point to the connected points.
 
@@ -377,7 +379,7 @@ The sample *Hyperelastic block with a rigid plate* glues the top face of a hyper
 4. **Point sets:** click the bottom face and create the point set `base` (`z == 0`), click the top face and create `top` (`z == 20`). The viewport suggests names; change them in the properties.
 5. **Control points:** select `top`, click *Control point at center*, name the new control point `plate` and move it above the face to (20, 20, 25): this is the center of the plate. Create a second control point `tilt` at (20, 20, 30): its values are the rotations of the plate. Two control points at the same coordinates would be merged, therefore they are apart.
 6. **Boundaries:** `fixed` holds x, y and z of `base`. `shift` constrains x of `plate`, `hold` its y and z. `tilt_y` constrains the rotation y of `tilt`, `tilt_lock` its rotations x and z.
-7. **Multi-point constraint:** `glue` connects `top` to the center point `plate` in x, y and z, with the rotation point `tilt`.
+7. **Multi-point constraint** (*Constraints ▾*): `glue` connects `top` to the center point `plate` in x, y and z, with the rotation point `tilt`.
 8. **Step:** `shift_and_tilt` with 8 increments ramps `shift` to 8 and `tilt_y` to 0.1.
 9. **Job:** `job` evaluates `shift_and_tilt` with the curve boundary `shift`.
 

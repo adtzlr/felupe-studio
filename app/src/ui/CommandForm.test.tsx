@@ -788,7 +788,9 @@ describe("load cases", () => {
     const store = new ModelStore(fixture as CommandList);
     render(<App store={store} />);
     fireEvent.click(screen.getByRole("tab", { name: "Loads & BCs" }));
-    fireEvent.click(screen.getByRole("button", { name: "Planar" }));
+    // the menu Load case of the ribbon (#454)
+    fireEvent.click(screen.getByRole("button", { name: "Load case" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Planar" }));
     const dialog = screen.getByRole("dialog");
     const symmetry = within(dialog).getByLabelText(
       "Symmetry planes",
@@ -806,6 +808,10 @@ describe("load cases", () => {
       ].map((o) => o.text);
     expect(options("Axis")).toEqual(["x (default)", "y", "z"]);
     expect(options("Second axis")).toEqual(["y (default)", "x", "z"]);
+    // the types of the menu, without a group of all of them
+    const type = within(dialog).getByLabelText("Type") as HTMLSelectElement;
+    expect(options("Type")).toEqual(["Uniaxial", "Biaxial", "Planar", "Shear"]);
+    expect(type.querySelector("optgroup")).toBeNull();
     fireEvent.click(clamped);
     fireEvent.click(symmetry);
     fireEvent.click(within(dialog).getByRole("button", { name: "Create" }));

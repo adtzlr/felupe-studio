@@ -3149,6 +3149,7 @@
     "LoadcaseUniaxial": {
       "description": "Uniaxial tension or compression along an axis (fem.dof.uniaxial). The end face at the largest coordinate moves.",
       "x-label": "Uniaxial",
+      "x-group": "Load case",
       "x-felupe": {
         "function": "fem.dof.uniaxial"
       },
@@ -3184,6 +3185,7 @@
     "LoadcaseBiaxial": {
       "description": "Equi-biaxial tension along two axes (fem.dof.biaxial). The end faces at the largest coordinates move.",
       "x-label": "Biaxial",
+      "x-group": "Load case",
       "x-felupe": {
         "function": "fem.dof.biaxial"
       },
@@ -3223,6 +3225,7 @@
     "LoadcasePlanar": {
       "description": "Planar (pure shear) tension along an axis with a constant width along a second axis (fem.dof.biaxial without a move of the second axis).",
       "x-label": "Planar",
+      "x-group": "Load case",
       "x-felupe": {
         "function": "fem.dof.biaxial"
       },
@@ -3262,6 +3265,7 @@
     "LoadcaseShear": {
       "description": "Simple shear between the end faces normal to an axis (fem.dof.shear). The face at the largest coordinate moves along the shear direction.",
       "x-label": "Shear",
+      "x-group": "Load case",
       "x-felupe": {
         "function": "fem.dof.shear"
       },
