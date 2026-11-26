@@ -89,6 +89,7 @@
           "has_volume",
           "hold_dual_fields",
           "iterative_solver",
+          "material_function",
           "meshio",
           "mixed_field",
           "mixed_region",

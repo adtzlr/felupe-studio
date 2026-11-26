@@ -167,7 +167,8 @@ def test_an_empty_mesh_of_a_script(folder, metal):
         "one degenerate cell of its cell type, e.g. fem.Mesh("
     )
     assert message.endswith("): its section has no volume and is off in every step.")
-    assert info["traceback"].endswith(message + "\n")
+    # raised by FElupe Studio, without a frame of the script: no traceback (#424)
+    assert "traceback" not in info
     assert "solids" not in info
     with pytest.raises(ValueError, match="has no cells"):
         run_mesh_script("parts.py", {}, "metal")
