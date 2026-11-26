@@ -53,7 +53,8 @@ def describe(umat):
     if isinstance(umat, fem.CompositeMaterial):
         return " & ".join(describe(m) for m in umat.materials)
     name = type(umat).__name__
-    if isinstance(umat, fem.Hyperelastic):
+    # fem.Hyperelastic is there only with tensortrax
+    if isinstance(umat, getattr(fem, "Hyperelastic", ())):
         function = umat.fun
     elif isinstance(umat, fem.MaterialStrain):
         function = umat.material
