@@ -23,7 +23,10 @@ the contour of the rubber of the bushing with steel sleeves, and the same in the
 light theme, for a report, with the own colors of its sections, and two of version
 0.10: the profile of a buffer stacked from three rectangles with the mesh tools and
 revolved, and the bushing with steel sleeves cut through its axis, with the sleeves
-in one color.
+in one color, and three of version 0.11: the elastic-plastic plate with a hole with
+the plasticity of FElupe as a strain-based function of a file (the code of the
+guide), the menu *Nearly incompressible* of the bushing with steel sleeves, and the
+bushing turned about its axis by a cylindrical constraint of its inner sleeve.
 
 A second browser context of a phone in portrait (390 × 844) makes the picture of the
 compact layout of version 0.9: the model and the results with the curve, side by
@@ -51,6 +54,7 @@ import http.server
 import json
 import os
 import re
+import tempfile
 import threading
 from pathlib import Path
 
@@ -59,6 +63,7 @@ SAMPLE = "Hyperelastic block with a rigid plate"
 SIZE = {"width": 1280, "height": 800}
 PHONE = {"width": 390, "height": 844}
 READY = "text=/FElupe [0-9.]+ ready/"
+GUIDE = ROOT / "docs" / "guide.md"
 THEMES = ("dark", "light")
 
 
@@ -221,10 +226,7 @@ def capture(context, url, out, theme="dark"):
     open_sample("Engine mount (FElupe ex07)", "engine-mount.felupe.zip")
     page.wait_for_selector("text=engine-mount.felupe.zip")
     solve(substep=9, quantity="stress_mises", job="horizontal")
-    page.get_by_role("button", name="Contour settings").click()
-    page.get_by_role("dialog", name="Contour settings").get_by_label(
-        "Values at"
-    ).select_option("mean")
+    contour_settings(page).get_by_label("Values at").select_option("mean")
     page.keyboard.press("Escape")
     page.get_by_label("Curve", exact=True).set_checked(True)
     shot("engine-mount")
@@ -273,13 +275,14 @@ def capture(context, url, out, theme="dark"):
     ).click()
     page.wait_for_selector("text=plastic-plate.felupe.zip")
     solve(quantity="plastic_strain")
-    page.get_by_role("button", name="Contour settings").click()
-    page.get_by_role("dialog", name="Contour settings").get_by_label(
-        "Values at"
-    ).select_option("cells")
+    contour_settings(page).get_by_label("Values at").select_option("cells")
     page.keyboard.press("Escape")
     page.get_by_label("Curve", exact=True).set_checked(True)
     shot("plasticity")
+
+    # v0.11: the plasticity of FElupe as a strain-based function of a file (#425),
+    # the file of the guide, whose arguments are fields of the material
+    shot_material_script(page, shot)
 
     # v0.8: the Mullins effect, the bushing in filled rubber back at the start after
     # its first load cycle: the maximum strain energy density that the rubber keeps,
@@ -306,8 +309,7 @@ def capture(context, url, out, theme="dark"):
     page.get_by_label("Undeformed", exact=True).set_checked(False)
     # the extremes of the rubber, which match the scale
     set_pressed(page.get_by_role("button", name="Min/Max"), True)
-    page.get_by_role("button", name="Contour settings").click()
-    settings = page.get_by_role("dialog", name="Contour settings")
+    settings = contour_settings(page)
     settings.get_by_label("soft_body", exact=True).check()
     shot("range-of-sections")
 
@@ -337,13 +339,129 @@ def capture(context, url, out, theme="dark"):
     shot("section-colors")
 
     # v0.10: a profile stacked into one mesh with the mesh tools (#394), in the theme
-    # of the pictures again; the last one, as the message of its command line stays
+    # of the pictures again; the last ones made with the command line, as its
+    # message stays
     page.get_by_role("button", name="Theme", exact=True).click()
     page.get_by_role("menuitemradio", name=re.compile(f"^{theme.title()}")).click()
     shot_stack(page, shot)
 
+    # v0.11: the ways of u-p-J (#420), the menu Nearly incompressible with the
+    # section of the rubber of the bushing, and the bushing turned about its axis by
+    # a cylindrical constraint of its inner sleeve (#422)
+    open_sample("Bushing with steel sleeves (FElupe ex05)", "bushing.felupe.zip")
+    page.get_by_role("dialog", name=re.compile("^Parameters")).get_by_role(
+        "button", name="Open", exact=True
+    ).click()
+    page.wait_for_selector("text=bushing.felupe.zip")
+    page.get_by_role("button", name="Model", exact=True).click()
+    browser = page.get_by_role("navigation", name="Model browser")
+    browser.get_by_text("soft_body", exact=True).click()
+    page.get_by_role("tab", name="Sections").click()
+    page.get_by_role("button", name="Nearly incompressible").click()
+    page.get_by_role("menu", name="Nearly incompressible").wait_for()
+    shot("formulations")
+    page.keyboard.press("Escape")
+    shot_torsion(page, shot, solve)
+
     if errors:
         raise RuntimeError(f"Errors of the page: {errors}")
+
+
+def command(page, kind, done="Created", **fields):
+    """A command of the command line, and wait until it is done, e.g. its object is
+    made."""
+    line = page.get_by_label("Command", exact=True)
+    line.fill(f"{kind} {json.dumps(fields)}" if fields else kind)
+    line.press("Enter")
+    name = fields.get("name", kind.split()[-1])
+    page.get_by_text(f"{done} {name}.").first.wait_for(timeout=60_000)
+
+
+def guide_code(phrase):
+    """The first block of Python code of the guide after a phrase."""
+    text = GUIDE.read_text(encoding="utf-8")
+    code = re.search(r"```python\n(.*?)```", text[text.index(phrase) :], re.S)
+    return code.group(1)
+
+
+def shot_material_script(page, shot):
+    """The plasticity of FElupe as a strain-based function of a file (#425), the
+    code of the guide, in the sample *Elastic-plastic plate with a hole*: the
+    properties of the material with the arguments of the function as fields, its
+    state variables and what the file made."""
+    folder = tempfile.TemporaryDirectory()
+    path = Path(folder.name) / "plasticity.py"
+    path.write_text(guide_code("the plasticity of FElupe as a file"), encoding="utf-8")
+    page.get_by_role("button", name="Model", exact=True).click()
+    page.get_by_role("tab", name="Materials").click()
+    page.get_by_role("button", name="User-defined").click()
+    page.get_by_role("menuitem", name="Strain-based function (Python)").click()
+    dialog = page.get_by_role("dialog")
+    dialog.get_by_label("Name", exact=True).fill("steel_file")
+    dialog.get_by_label("Script", exact=True).fill("plasticity.py")
+    dialog.get_by_role("button", name="Create").click()
+    properties = page.get_by_role("region", name="Properties")
+    properties.get_by_text("not loaded").wait_for()
+    page.get_by_test_id("mesh-file").set_input_files(str(path))
+    properties.get_by_label("E", exact=True).wait_for(timeout=60_000)
+    values = {"E": "210000", "nu": "0.3", "σy": "250", "K": "1000"}
+    for name, value in values.items():
+        properties.get_by_label(name, exact=True).fill(value)
+    properties.get_by_label("State variables", exact=True).fill("(1, (3, 3))")
+    properties.get_by_role("button", name="Apply").click()
+    properties.get_by_text(
+        "umat: MaterialStrain(material) · 10 state variables"
+    ).wait_for(timeout=60_000)
+    folder.cleanup()
+    # the whole properties, from what the file made to the framework
+    page.set_viewport_size({**SIZE, "height": 1120})
+    properties.hover()
+    page.mouse.wheel(0, -5000)
+    page.mouse.move(500, 20)
+    shot("material-script")
+    page.set_viewport_size(SIZE)
+
+
+def shot_torsion(page, shot, solve):
+    """The bushing with steel sleeves turned by 30° about its axis by a cylindrical
+    constraint of its inner sleeve (#422), held radially and along the axis, instead
+    of its multi-point constraint: the von Mises stress of the rubber cut through the
+    axis, the sleeves in one color, and the curve of the force around the axis over
+    the arc length on the radius 25 of the sleeve."""
+    for name in ["job", "loading", "radial", "hold", "torsion", "cardanic", "lock"]:
+        command(page, f"delete {name}", done="Deleted")
+    for name in ["connect", "center", "turn"]:
+        command(page, f"delete {name}", done="Deleted")
+    command(
+        page,
+        "cylindrical.add",
+        name="twist",
+        points="inner",
+        axis=[1, 0, 0],
+        constrained=["r", "theta", "z"],
+        multiplier=100000,
+    )
+    # 30° on the radius 25: the arc length 25 π / 6
+    ramp = {"num": 6, "items": [{"target": "twist", "end": [0, 13.09, 0]}]}
+    command(page, "step.add", name="turning", ramp=ramp)
+    command(page, "job.add", name="job", steps=["turning"], curve="twist")
+    solve(quantity="stress_mises")
+    page.get_by_label("Curve", exact=True).set_checked(True)
+    page.get_by_label("Undeformed", exact=True).set_checked(False)
+    for name in ["Min/Max", "Constraints", "Points"]:
+        toggle = page.get_by_role("button", name=name, exact=True)
+        if toggle.count():
+            set_pressed(toggle, False)
+    settings = contour_settings(page)
+    settings.get_by_label("soft_body", exact=True).check()
+    page.keyboard.press("Escape")
+    others(page, "One color")
+    view = page.get_by_role("main", name="Results")
+    view.get_by_role("combobox", name="Cut").select_option("z")
+    page.evaluate("document.activeElement.blur()")
+    page.keyboard.press("1")
+    page.mouse.move(500, 20)
+    shot("torsion")
 
 
 def shot_stack(page, shot):
@@ -359,14 +477,8 @@ def shot_stack(page, shot):
     if confirm.is_visible():
         confirm.get_by_role("button", name="New project").click()
 
-    def command(kind, **fields):
-        """A command of the command line, and wait until its object is made."""
-        line = page.get_by_label("Command", exact=True)
-        line.fill(f"{kind} {json.dumps(fields)}")
-        line.press("Enter")
-        page.get_by_text(f"Created {fields['name']}.").first.wait_for()
-
-    command("model.settings", name="settings", units={"length": "mm", "force": "N"})
+    units = {"length": "mm", "force": "N"}
+    command(page, "model.settings", name="settings", units=units)
     # the stem along the axis x, the flange at its end and the rim above it
     for name, a, b, n in [
         ("stem", [0, 10], [30, 20], [7, 3]),
@@ -374,7 +486,9 @@ def shot_stack(page, shot):
         ("rim", [30, 20], [40, 35], [3, 4]),
     ]:
         parameters = {"a": a, "b": b, "n": n}
-        command("mesh.generate", name=name, tool="Rectangle", parameters=parameters)
+        command(
+            page, "mesh.generate", name=name, tool="Rectangle", parameters=parameters
+        )
     page.get_by_role("button", name="Operations").click()
     page.get_by_role("menuitem", name="Stack", exact=True).click()
     dialog = page.get_by_role("dialog")
@@ -387,6 +501,7 @@ def shot_stack(page, shot):
     profile.wait_for()
     revolve = {"n": 19, "phi": 270, "axis": "x"}
     command(
+        page,
         "mesh.generate",
         name="buffer",
         tool="revolve",
@@ -426,12 +541,23 @@ def shot_cut(page, shot):
         set_pressed(toggle, was)
 
 
+def contour_settings(page):
+    """Open the contour settings, once they close with Escape: they take the focus
+    when they listen for it, also when what follows changes nothing, e.g. the range
+    of a section that an earlier picture chose."""
+    page.get_by_role("button", name="Contour settings").click()
+    settings = page.get_by_role("dialog", name="Contour settings")
+    page.wait_for_function(
+        "document.activeElement?.closest('[role=dialog]')?.getAttribute('aria-label')"
+        " === 'Contour settings'"
+    )
+    return settings
+
+
 def others(page, mode):
     """Draw the other sections of a range of chosen sections with their contour, in
     one color or not at all (*Other sections* of the contour settings, #396)."""
-    page.get_by_role("button", name="Contour settings").click()
-    settings = page.get_by_role("dialog", name="Contour settings")
-    group = settings.get_by_role("group", name="Other sections")
+    group = contour_settings(page).get_by_role("group", name="Other sections")
     group.get_by_role("radio", name=mode).check()
     page.keyboard.press("Escape")
 
@@ -565,7 +691,7 @@ def capture_agent(browser, dist, out, port, theme="dark"):
         # the agent waits for the user, so it runs beside Playwright
         thread = threading.Thread(target=lambda: asyncio.run(steps()))
         thread.start()
-        consent = page.get_by_role("dialog", name="A mesh script of the agent")
+        consent = page.get_by_role("dialog", name="A Python script of the agent")
         consent.wait_for(timeout=60_000)
         consent.get_by_role("button", name="Show the script").click()
         page.wait_for_timeout(800)
