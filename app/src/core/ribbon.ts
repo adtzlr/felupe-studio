@@ -53,29 +53,45 @@ export function ribbonEntries(items: readonly RibbonItem[]): RibbonEntry[] {
 
 const TYPES = Object.keys(REGISTRY) as CommandType[];
 
-/** Buttons of a ribbon tab, grouped by command. */
+/**
+ * Buttons of a ribbon tab, grouped by command; consecutive commands of the same menu
+ * of the registry are one group of the items of that menu, e.g. the constraints
+ * (#454).
+ */
 export function ribbonGroups(tab: Tab): RibbonItem[][] {
-  return TYPES.filter((type) => REGISTRY[type].tab === tab).map((type) => {
-    const draft = initialDraft(type, { commands: [] });
-    const variant = fieldSpecs(type, draft).find(
-      (spec) =>
-        spec.path.length === 1 &&
-        spec.input.type === "variant" &&
-        Object.values(spec.input.seeds).every(
-          (seed) => typeof seed === "string",
-        ),
+  const groups: RibbonItem[][] = [];
+  for (const type of TYPES.filter((t) => REGISTRY[t].tab === tab)) {
+    const { menu } = REGISTRY[type];
+    const items = commandItems(type).map((item) =>
+      menu ? { ...item, group: menu } : item,
     );
-    if (!variant || variant.input.type !== "variant") {
-      return [{ id: type, type, label: REGISTRY[type].label, preset: {} }];
-    }
-    return variant.input.options.map((option) => ({
-      id: `${type}:${option.value}`,
-      type,
-      label: option.label,
-      preset: { [variant.key]: option.value },
-      ...(option.group ? { group: option.group } : {}),
-    }));
-  });
+    const last = groups.at(-1);
+    if (menu && last && REGISTRY[last[0].type].menu === menu)
+      last.push(...items);
+    else groups.push(items);
+  }
+  return groups;
+}
+
+/** The items of a command: one, or one per variant of its schema definition. */
+function commandItems(type: CommandType): RibbonItem[] {
+  const draft = initialDraft(type, { commands: [] });
+  const variant = fieldSpecs(type, draft).find(
+    (spec) =>
+      spec.path.length === 1 &&
+      spec.input.type === "variant" &&
+      Object.values(spec.input.seeds).every((seed) => typeof seed === "string"),
+  );
+  if (!variant || variant.input.type !== "variant") {
+    return [{ id: type, type, label: REGISTRY[type].label, preset: {} }];
+  }
+  return variant.input.options.map((option) => ({
+    id: `${type}:${option.value}`,
+    type,
+    label: option.label,
+    preset: { [variant.key]: option.value },
+    ...(option.group ? { group: option.group } : {}),
+  }));
 }
 
 const article = (word: string) => (/^[aeiou]/i.test(word) ? "an" : "a");

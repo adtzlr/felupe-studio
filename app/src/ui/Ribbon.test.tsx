@@ -105,6 +105,66 @@ describe("ribbon commands", () => {
     ).toBeTruthy();
   });
 
+  it("have the load cases and the constraints in menus (#454)", () => {
+    const { tab, panel, command } = setup();
+    tab("Loads & BCs");
+    expect(
+      within(panel())
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual([
+      "Boundary",
+      "Load case ▾",
+      "Symmetry",
+      "Control point",
+      "Rigid surface",
+      "Constraints ▾",
+      // a button of its own, for what comes of contacts
+      "Contact",
+      "Point load",
+      "Pressure",
+    ]);
+    // the variants of one command, and three commands in one menu
+    const labels = (name: string) => {
+      fireEvent.click(command(name));
+      const menu = screen.getByRole("menu", { name });
+      return within(menu)
+        .getAllByRole("menuitem")
+        .map((i) => [
+          i.querySelector(".menu-label")?.textContent,
+          i.getAttribute("aria-disabled"),
+        ]);
+    };
+    expect(labels("Load case")).toEqual([
+      ["Uniaxial", null],
+      ["Biaxial", null],
+      ["Planar", null],
+      ["Shear", null],
+    ]);
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    // a constraint that cannot be created yet is disabled, as a button is
+    expect(labels("Constraints")).toEqual([
+      ["Multi-point constraint", "true"],
+      ["Cartesian constraint", "true"],
+      ["Cylindrical constraint", "true"],
+    ]);
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: /^Cartesian constraint/ }),
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    cleanup();
+
+    const model = setup(new ModelStore(fixture as CommandList));
+    model.tab("Loads & BCs");
+    fireEvent.click(model.command("Constraints"));
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: /^Cartesian constraint/ }),
+    );
+    expect(within(model.dialog()).getByRole("heading").textContent).toBe(
+      "New Cartesian constraint",
+    );
+  });
+
   it("explain why a command is not available yet", () => {
     const { tab, command } = setup();
     const cells = command("Cell set of a mesh");

@@ -47,7 +47,10 @@ export function currentVariant(spec: FieldSpec, value: unknown): string {
     .value;
 }
 
-/** Consecutive options of the same group, e.g. the kinds of materials (#259). */
+/**
+ * Consecutive options of the same group, e.g. the kinds of materials (#259); no
+ * group of all options, e.g. the types of a load case of the menu *Load case* (#454).
+ */
 function optionGroups<T extends { group?: string }>(options: readonly T[]) {
   const groups: { group?: string; options: T[] }[] = [];
   for (const option of options) {
@@ -56,7 +59,7 @@ function optionGroups<T extends { group?: string }>(options: readonly T[]) {
       last.options.push(option);
     else groups.push({ group: option.group, options: [option] });
   }
-  return groups;
+  return groups.length === 1 ? [{ options: groups[0].options }] : groups;
 }
 
 /** The props of a control for assistive tools: its id, label and descriptions. */

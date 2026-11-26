@@ -99,12 +99,46 @@ describe("ribbonGroups", () => {
       ["Symmetry"],
       ["Control point"],
       ["Rigid surface"],
-      ["Multi-point constraint"],
-      ["Cartesian constraint"],
-      ["Cylindrical constraint"],
+      // three commands in the menu Constraints (#454)
+      [
+        "Multi-point constraint",
+        "Cartesian constraint",
+        "Cylindrical constraint",
+      ],
       ["Contact"],
       ["Point load"],
       ["Pressure"],
+    ]);
+    // the menus Load case of the variants of x-group, and Constraints of the
+    // commands of a menu of the registry (#454)
+    const loads = ribbonGroups("loads");
+    expect(loads[1].map((i) => [i.id, i.group])).toEqual([
+      ["loadcase.add:uniaxial", "Load case"],
+      ["loadcase.add:biaxial", "Load case"],
+      ["loadcase.add:planar", "Load case"],
+      ["loadcase.add:shear", "Load case"],
+    ]);
+    expect(loads[5].map((i) => [i.id, i.preset, i.group])).toEqual([
+      ["mpc.add", {}, "Constraints"],
+      ["cartesian.add", {}, "Constraints"],
+      ["cylindrical.add", {}, "Constraints"],
+    ]);
+    expect(
+      loads.flatMap((group) =>
+        ribbonEntries(group).map((e) =>
+          e.kind === "menu" ? `${e.group} ▾` : e.item.label,
+        ),
+      ),
+    ).toEqual([
+      "Boundary",
+      "Load case ▾",
+      "Symmetry",
+      "Control point",
+      "Rigid surface",
+      "Constraints ▾",
+      "Contact",
+      "Point load",
+      "Pressure",
     ]);
     expect(labels("steps")).toEqual([["Step"], ["Job"]]);
   });
@@ -172,8 +206,11 @@ describe("ribbonGroups", () => {
 
   it("covers every command exactly once", () => {
     const tabs: Tab[] = ["mesh", "materials", "sections", "loads", "steps"];
+    // the commands of a menu of the registry are one group, e.g. the constraints
     const types = tabs.flatMap((tab) =>
-      ribbonGroups(tab).map((group) => group[0].type),
+      ribbonGroups(tab).flatMap((group) => [
+        ...new Set(group.map((item) => item.type)),
+      ]),
     );
     expect(types.sort()).toEqual(
       (Object.keys(REGISTRY) as CommandType[]).sort(),
