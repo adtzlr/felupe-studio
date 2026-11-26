@@ -412,16 +412,17 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     fields: {
       // the kinds of user-defined materials, with the labels of the schema (#424)
       kind: { label: "Kind", default: "constitutive" },
+      // Download template of the hint is a link that saves the template (#453)
       file: {
         label: "Script",
         hint: "A Python file opened with the project, e.g. of Download template",
-        placeholder: "e.g. soft.py",
+        placeholder: "e.g. material.py",
       },
       // a function of a file (#424, #425): its arguments are fields of their own,
       // from the run of the file; the placeholder is its default name of the schema
       function: {
         label: "Function",
-        hint: "The function of the file, e.g. of Download template",
+        hint: "The function of the file, e.g. of the template",
       },
       mullins: {
         label: "Mullins effect",

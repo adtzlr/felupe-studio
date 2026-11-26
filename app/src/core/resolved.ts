@@ -1255,7 +1255,7 @@ export interface MaterialScriptConstitutive {
   name: Name;
   kind: "constitutive";
   /**
-   * File name of the script, e.g. soft.py. It makes a variable umat.
+   * File name of the script, e.g. material.py. It makes a variable umat.
    */
   file: string;
   /**
@@ -1278,7 +1278,7 @@ export interface MaterialScriptHyperelastic {
   name: Name;
   kind: "hyperelastic";
   /**
-   * File name of the script, e.g. soft.py. It defines the function.
+   * File name of the script, e.g. material.py. It defines the function.
    */
   file: string;
   /**

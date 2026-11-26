@@ -10,6 +10,7 @@ import type { Save } from "../core/save";
 import type { ModelStore } from "../core/store";
 import { KINDS } from "../core/validate";
 import { CommandForm } from "./CommandForm";
+import { formActions } from "./formActions";
 import { Icon, type IconName } from "./icons";
 import { FileStatus } from "./FileStatus";
 
@@ -113,6 +114,7 @@ export function Properties({
         submitLabel="Apply"
         requireChange
         issues={fieldIssues}
+        actions={formActions(command.command, save)}
         onSubmit={(next) => {
           store.update(command.name, next);
           onSelect(next.name);

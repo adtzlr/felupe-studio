@@ -32,6 +32,19 @@ export interface RawText {
   parse: (text: string) => unknown;
 }
 
+/**
+ * An action of the hint of a field (#453): its words in the hint are a link that
+ * runs it, e.g. *Download template* in the hint of *Script* of a material of a file.
+ */
+export interface FieldAction {
+  /** The words of the hint that are the link. */
+  label: string;
+  /** The tooltip of the link. */
+  title?: string;
+  /** Runs the action with the form; its error is shown below the hint. */
+  run: (form: Form, spec: FieldSpec) => void | Promise<void>;
+}
+
 const fieldId = (key: string) => `field-${key.replace(/\./g, "-")}`;
 
 /** The values of a field as a list. */
@@ -45,6 +58,8 @@ interface Options {
   onSubmit: (command: Command) => void;
   issues: Readonly<Record<string, string>>;
   idPrefix: string;
+  /** The actions of the hints of fields by their key (#453). */
+  actions?: Readonly<Record<string, FieldAction>>;
 }
 
 export function useCommandForm({
@@ -55,6 +70,7 @@ export function useCommandForm({
   onSubmit,
   issues,
   idPrefix,
+  actions = {},
 }: Options) {
   const idOf = (key: string) => idPrefix + fieldId(key);
   const [start] = useState(
@@ -206,6 +222,8 @@ export function useCommandForm({
     numberField,
     reset,
     submit,
+    /** The action of the hint of a field, if it has one (#453). */
+    actionOf: (spec: FieldSpec): FieldAction | undefined => actions[spec.key],
   };
 }
 

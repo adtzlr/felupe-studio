@@ -1,6 +1,7 @@
 // The rows of a command form (#312): a field with its label, control, value,
 // hint and message, a boolean, an optional object (a toggle) and a table of rows.
 import { Fragment } from "preact";
+import { useState } from "preact/hooks";
 import {
   addRow,
   cells,
@@ -55,6 +56,43 @@ const Hint = ({ id, hint }: { id: string; hint?: string }) =>
       {hint}
     </small>
   ) : null;
+
+/**
+ * The hint of a field whose words of its action are a link that runs it, e.g.
+ * *Download template* of the script of a material (#453), with its error below.
+ */
+function ActionHint({ form, spec, id }: FieldProps & { id: string }) {
+  const [error, setError] = useState<string>();
+  const action = form.actionOf(spec);
+  const hint = spec.hint ?? "";
+  const at = action ? hint.indexOf(action.label) : -1;
+  if (!action || at < 0) return <Hint id={id} hint={spec.hint} />;
+  const run = async () => {
+    setError(undefined);
+    try {
+      await action.run(form, spec);
+    } catch (failure) {
+      setError((failure as Error).message);
+    }
+  };
+  return (
+    <>
+      <small id={`${id}-hint`} class="muted">
+        {hint.slice(0, at)}
+        <button
+          type="button"
+          class="link"
+          title={action.title}
+          onClick={() => void run()}
+        >
+          {action.label}
+        </button>
+        {hint.slice(at + action.label.length)}
+      </small>
+      {error && <small class="field-error">{error}</small>}
+    </>
+  );
+}
 
 /** A boolean: a checkbox with its label. */
 export function BooleanField({ form, spec }: FieldProps) {
@@ -258,7 +296,7 @@ export function FieldRow({ form, spec }: FieldProps) {
             {hint}
           </small>
         )}
-        <Hint id={id} hint={spec.hint} />
+        <ActionHint form={form} spec={spec} id={id} />
         <Message id={id} error={error} issue={form.issueOf(spec)} />
       </div>
     </div>

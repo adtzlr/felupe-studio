@@ -6,7 +6,7 @@ import type { Command } from "../core/commands";
 import type { Context, Draft, FieldSpec } from "../core/form";
 import type { CommandType } from "../core/validate";
 import { BooleanField, FieldRow, RowsField, ToggleField } from "./FormRows";
-import { type Form, useCommandForm } from "./useCommandForm";
+import { type FieldAction, type Form, useCommandForm } from "./useCommandForm";
 
 interface Props {
   type: CommandType;
@@ -30,6 +30,11 @@ interface Props {
    * point to its own fields while the properties show another form (#181).
    */
   idPrefix?: string;
+  /**
+   * The actions of the hints of fields by their key, e.g. *Download template* of the
+   * script of a material (#453).
+   */
+  actions?: Readonly<Record<string, FieldAction>>;
 }
 
 /** The row of a field in the form, by the type of its input. */
@@ -57,6 +62,7 @@ export function CommandForm({
   children,
   issues = {},
   idPrefix = "",
+  actions,
 }: Props) {
   const form = useCommandForm({
     type,
@@ -66,6 +72,7 @@ export function CommandForm({
     onSubmit,
     issues,
     idPrefix,
+    actions,
   });
   const { changed, reset } = form;
   return (

@@ -2350,7 +2350,7 @@
           "const": "constitutive"
         },
         "file": {
-          "description": "File name of the script, e.g. soft.py. It makes a variable umat.",
+          "description": "File name of the script, e.g. material.py. It makes a variable umat.",
           "type": "string",
           "pattern": "\\.py$"
         },
@@ -2387,7 +2387,7 @@
           "const": "hyperelastic"
         },
         "file": {
-          "description": "File name of the script, e.g. soft.py. It defines the function.",
+          "description": "File name of the script, e.g. material.py. It defines the function.",
           "type": "string",
           "pattern": "\\.py$"
         },

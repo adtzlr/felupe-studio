@@ -500,7 +500,7 @@ A strain energy density function of a Python file, e.g. def strain_energy(C, mu)
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
 | `kind` | `hyperelastic` | yes |  |
-| `file` | string | yes | File name of the script, e.g. soft.py. It defines the function. |
+| `file` | string | yes | File name of the script, e.g. material.py. It defines the function. |
 | `function` | string |  | The name of the strain energy function of the file (default: strain_energy). Default `strain_energy`. |
 | `arguments` | object: name → number (or an expression) |  | The values of the arguments of the function after C (and statevars) by their names, numbers or expressions of the parameters of the model. An argument with a default value in the function may be left out. |
 | `bulk` | number > 0 (or an expression) |  | Bulk modulus. Without it, the material is incompressible and needs the u-p-J formulation. |

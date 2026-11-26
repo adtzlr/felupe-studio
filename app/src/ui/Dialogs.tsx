@@ -4,6 +4,7 @@ import { REGISTRY } from "../core/registry";
 import type { RibbonItem } from "../core/ribbon";
 import type { MeshFiles } from "../core/meshfiles";
 import type { Sample } from "../core/samples";
+import type { Save } from "../core/save";
 import type { ModelStore } from "../core/store";
 import type { RuntimeClient } from "../worker/client";
 import type { CommandType } from "../core/validate";
@@ -71,6 +72,8 @@ interface Props {
   exports: Exports;
   /** Files are saved with the save dialog of the system (#400). */
   saveDialog?: boolean;
+  /** Saves a file of an action of a form, e.g. the template of a material (#453). */
+  save: Save;
   script?: ScriptRequest;
   /** The samples of the app (#350). */
   samples: readonly Sample[];
@@ -87,6 +90,7 @@ export function Dialogs({
   project,
   exports,
   saveDialog,
+  save,
   script,
   samples,
   onOpenSample,
@@ -188,6 +192,7 @@ export function Dialogs({
           store={store}
           onClose={() => dialogs.setCreating(undefined)}
           onCreated={created}
+          save={save}
         />
       )}
     </>
