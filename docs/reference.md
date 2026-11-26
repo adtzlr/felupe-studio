@@ -510,6 +510,24 @@ A strain energy density function of a Python file, e.g. def strain_energy(C, mu)
 | `mullins.beta` | number ≥ 0 (or an expression) | yes | The part of the softening modulus that grows with the maximum strain energy density of the load history (m + β ψmax). Default `0.1`. |
 | `nstatevars` | integer ≥ 1 |  | The number of the state variables of a function with the argument statevars. |
 
+#### Strain-based function (Python) (`kind: "strain"`)
+
+A strain-based function of a Python file, e.g. def material(dε, εn, σn, ζn, E, nu, **kwargs): a function of the increment of the strain dε, the strain εn, the stress σn and the state variables ζn of the last state, which returns the tangent dσdε (if its keyword argument tangent is true), the new stress σ and the new state variables ζ, like the strain-based models of the registry. The material is fem.MaterialStrain of the function in a framework, with the values of its other arguments. It has a volumetric part, so it needs the displacement formulation u, or the three-field variation u-p-J-three-field.
+
+Framework (`framework`): `small-strain`, `total-lagrange`, `co-rotational`, `seth-hill`, default `small-strain`.
+
+Strain exponent (`strain_exponent`): The strain exponent m of the Seth-Hill strain (only, and required, with the framework seth-hill): 0 for the logarithmic (Hencky) strain, 1 for the Biot strain (like co-rotational), 2 for the Green-Lagrange strain (like total-lagrange), -2 for the Euler-Almansi strain.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `kind` | `strain` | yes |  |
+| `file` | string | yes | File name of the script, e.g. steel.py. It defines the function. |
+| `function` | string |  | The name of the strain-based function of the file (default: material). Default `material`. |
+| `arguments` | object: name → number (or an expression) |  | The values of the arguments of the function after dε, εn, σn and ζn by their names, numbers or expressions of the parameters of the model, e.g. E and nu of the template. An argument with a default value in the function may be left out. |
+| `statevars` | list of shapes, an integer ≥ 0 or a list of integers ≥ 1 each (at least 1) |  | The shapes of the state variables of the function, like statevars of fem.MaterialStrain: per state variable its number of values, or the lengths of the axes of an array, e.g. [1, [3, 3]] for the equivalent plastic strain and the plastic strain tensor. The function gets them as the list ζn and returns their new values as the list ζ. Without them, the function has none. |
+| `framework` | `small-strain`, `total-lagrange`, `co-rotational` or `seth-hill` |  | The framework of the strain and the stress of the material (fem.MaterialStrain): small-strain (the symmetric part of the displacement gradient and the Cauchy stress), total-lagrange (the Green-Lagrange strain and the second Piola-Kirchhoff stress, for large rotations with small strains), co-rotational (the Biot strain of the right stretch tensor and the Biot stress) or seth-hill (a Seth-Hill strain with the strain_exponent m, e.g. 0 for the logarithmic Hencky strain). The frameworks of large deformations have exact tangents. Default `small-strain`. |
+| `strain_exponent` | number (or an expression) | if `framework` is `seth-hill` | The strain exponent m of the Seth-Hill strain (only, and required, with the framework seth-hill): 0 for the logarithmic (Hencky) strain, 1 for the Biot strain (like co-rotational), 2 for the Green-Lagrange strain (like total-lagrange), -2 for the Euler-Almansi strain. Default `0`. |
+
 ### `section.add`
 
 Assign a material and a formulation to a cell set. Each section becomes a solid body. Every formulation is a definition below (the formulation registry, ADR 0024): its label, the solid body and the fields of FElupe, the cell types and the material that it takes, and its properties.
@@ -650,7 +668,7 @@ The points at the given coordinates, one point each, e.g. picked nodes. A coordi
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `select.points` | list of three numbers `[x, y, z]` (at least 1) | yes |  |
+| `select.points` | list of shapes, an integer ≥ 0 or a list of integers ≥ 1 each (at least 1) | yes |  |
 | `select.atol` | number > 0 (or an expression) |  | Absolute tolerance (default 1e-8). |
 
 #### `section`
@@ -736,7 +754,7 @@ The faces of the boundary with the given centers (the mean of the points of a fa
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
-| `select.centers` | list of three numbers `[x, y, z]` (at least 1) | yes |  |
+| `select.centers` | list of shapes, an integer ≥ 0 or a list of integers ≥ 1 each (at least 1) | yes |  |
 | `select.atol` | number > 0 (or an expression) |  | Absolute tolerance of the centers (default 1e-6 of the size of the section). |
 
 ### `boundary.add`
