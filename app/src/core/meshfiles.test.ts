@@ -8,6 +8,7 @@ import type {
   MeshScript,
 } from "./commands";
 import {
+  contactNotes,
   faceSetNotes,
   fileNotes,
   formulationNotes,
@@ -115,6 +116,33 @@ describe("the cells of a formulation and the mesh files (#420)", () => {
 
   it("are no problem of a formulation of all cells", async () => {
     expect(formulationNotes(commands, await files("tetra")).size).toBe(0);
+  });
+});
+
+describe("the cells of a contact between bodies (#462)", () => {
+  const model = [
+    ...commands,
+    {
+      command: "bodycontact.add",
+      name: "touch",
+      section: "section_soft",
+      primary: "section_hard",
+    },
+  ] as Command[];
+
+  it("are hexahedrons or quads, linear or quadratic", async () => {
+    for (const type of ["hexahedron", "hexahedron27", "quad", "quad8"])
+      expect(contactNotes(model, await files(type)).size).toBe(0);
+    expect(
+      Object.fromEntries(contactNotes(model, await files("tetra"))),
+    ).toEqual({
+      touch: [
+        "Contact 'touch' between bodies: the tetra cells of 'section_soft' have no faces for a contact in felupe-contact. Use hexahedrons or quads, linear or quadratic.",
+        "Contact 'touch' between bodies: the tetra cells of 'section_hard' have no faces for a contact in felupe-contact. Use hexahedrons or quads, linear or quadratic.",
+      ],
+    });
+    // without the mesh file, nothing is known
+    expect(contactNotes(model, new MeshFiles()).size).toBe(0);
   });
 });
 

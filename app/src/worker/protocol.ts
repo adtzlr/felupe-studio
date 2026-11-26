@@ -268,6 +268,8 @@ export type JobEvent =
       xnorm: number | null;
     }
   | { event: "failed"; step: number; substep: number; message: string }
+  /** A warning of the run, e.g. of a contact between bodies (#462). */
+  | { event: "warning"; message: string }
   | {
       event: "converged";
       step: number;

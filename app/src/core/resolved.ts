@@ -29,6 +29,7 @@ export type Command =
   | CartesianAdd
   | CylindricalAdd
   | ContactAdd
+  | BodyContactAdd
   | LoadAdd
   | PressureAdd
   | StepAdd
@@ -1873,6 +1874,72 @@ export interface ContactAdd {
   elastic_slip?: number;
 }
 /**
+ * A contact between the surfaces of solid bodies (felupe_contact.SolidBodyContact of felupe-contact, #462, ADR 0026): of two sections, of the bodies of the mesh of one section, or of a body with itself. A penalty contact of the faces on the outline of the meshes, an item of the steps like the constraints; off in a step that leaves out one of its sections. The points of the secondary surface are projected onto the faces of the primary surface. The sections need hexahedrons or quads, linear or quadratic.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "BodyContactAdd".
+ */
+export interface BodyContactAdd {
+  command: "bodycontact.add";
+  name: Name;
+  /**
+   * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
+   */
+  section: string;
+  /**
+   * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
+   */
+  primary?: string;
+  /**
+   * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
+   */
+  points?: string;
+  /**
+   * Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
+   */
+  points_primary?: string;
+  /**
+   * The penalty stiffness, a contact pressure per unit penetration (default: estimated from the stiffness of the solid bodies at the surfaces, times the scale).
+   */
+  penalty?: number;
+  /**
+   * The factor of the estimated penalty stiffness (default 10). Increase it to reduce the penetration, decrease it if the Newton-Raphson method does not converge. Not used with a penalty.
+   */
+  penalty_scale?: number;
+  /**
+   * The length of the transition of the regularized penalty law (default 1 % of the size of the faces); 0 turns the regularization off.
+   */
+  smoothing?: number;
+  /**
+   * Evaluate the contact twice with the roles of the surfaces exchanged, each with half of the contact potential (default false): no bias of the choice of the secondary surface, in twice the time. Redundant if both surfaces have all faces on the outline of their sections.
+   */
+  two_pass?: boolean;
+  /**
+   * The largest distance between a point of the secondary surface and a face of the primary surface that the contact search considers (default 5 times the size of the faces): the largest penetration that it detects. Smaller than the thickness of a body.
+   */
+  max_distance?: number;
+  /**
+   * The number of faces of the primary surface that the contact search evaluates per point of the secondary surface (default 8).
+   */
+  candidates?: number;
+  /**
+   * The relative tolerance of the natural coordinates of a valid projection (default 0.1).
+   */
+  tolerance?: number;
+  /**
+   * The least opposition of the outward normals of two faces that may touch (default 0.1); -1 turns it off.
+   */
+  facing?: number;
+  /**
+   * Faces of the same body may touch each other (default false), e.g. the walls of a tube squeezed flat. The largest distance must be smaller than the thickness of a body.
+   */
+  self_contact?: boolean;
+  /**
+   * The geometric part of the stiffness of the contact (default true), for the quadratic convergence of the Newton-Raphson method.
+   */
+  geometric_stiffness?: boolean;
+}
+/**
  * A point load (fem.PointLoad): a force at every point of a point set or at a control point, an item of the steps. A ramp of a step scales the force.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
@@ -1921,7 +1988,7 @@ export interface StepAdd {
    */
   sections?: [Name, ...Name[]];
   /**
-   * Multi-point constraints, Cartesian and cylindrical constraints and contacts that are items of the step (default: all).
+   * Multi-point constraints, Cartesian and cylindrical constraints and contacts that are items of the step (default: all, without the contacts between bodies of a section that the step leaves out).
    *
    * @minItems 1
    */

@@ -688,6 +688,49 @@ export function faceSetNotes(
 }
 
 /**
+ * The cells whose faces are a contact surface of felupe-contact (#462): it has the
+ * boundary regions of linear and quadratic hexahedrons and quads, like
+ * `CONTACT_CELLS` of felupe_studio.checks.
+ */
+const CONTACT_CELL_TYPES = [
+  "hexahedron",
+  "hexahedron20",
+  "hexahedron27",
+  "quad",
+  "quad8",
+  "quad9",
+];
+
+/**
+ * Problems of contacts between bodies that need the mesh data (#462): a section of
+ * cells without a contact surface in felupe-contact, e.g. tetrahedrons. Like
+ * `formulationNotes()`, an issue of the model that blocks Solve, with the message
+ * of `contact_problem()` of felupe_studio.checks.
+ */
+export function contactNotes(
+  commands: readonly Command[],
+  files: MeshFiles,
+): Map<string, string[]> {
+  const notes = new Map<string, string[]>();
+  for (const command of commands) {
+    if (command.command !== "bodycontact.add") continue;
+    const sections = [
+      ...new Set([command.section, command.primary ?? command.section]),
+    ];
+    const problems = sections.flatMap((section) => {
+      const type = sectionCellType(commands, section, files);
+      return type && !CONTACT_CELL_TYPES.includes(type)
+        ? [
+            `Contact '${command.name}' between bodies: the ${type} cells of '${section}' have no faces for a contact in felupe-contact. Use hexahedrons or quads, linear or quadratic.`,
+          ]
+        : [];
+    });
+    if (problems.length) notes.set(command.name, problems);
+  }
+  return notes;
+}
+
+/**
  * Problems of the formulations of sections that need the mesh data (#420): a
  * formulation that takes some cell types only, e.g. condensed per cell of
  * hexahedrons and quads, and a section of other cells. Like `faceSetNotes()`, an

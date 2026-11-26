@@ -912,7 +912,7 @@ A contact between the surfaces of solid bodies (felupe_contact.SolidBodyContact 
 | `tolerance` | number ≥ 0 (or an expression) |  | The relative tolerance of the natural coordinates of a valid projection (default 0.1). |
 | `facing` | number ≥ -1, ≤ 1 (or an expression) |  | The least opposition of the outward normals of two faces that may touch (default 0.1); -1 turns it off. |
 | `self_contact` | boolean |  | Faces of the same body may touch each other (default false), e.g. the walls of a tube squeezed flat. The largest distance must be smaller than the thickness of a body. |
-| `geometric_stiffness` | boolean |  | The geometric part of the stiffness of the contact (default true), for the quadratic convergence of the Newton-Raphson method. |
+| `geometric_stiffness` | boolean |  | The geometric part of the stiffness of the contact (default true), for the quadratic convergence of the Newton-Raphson method. Default `true`. |
 
 ### `load.add`
 

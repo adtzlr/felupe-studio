@@ -3606,7 +3606,8 @@
         },
         "geometric_stiffness": {
           "description": "The geometric part of the stiffness of the contact (default true), for the quadratic convergence of the Newton-Raphson method.",
-          "type": "boolean"
+          "type": "boolean",
+          "default": true
         }
       }
     },

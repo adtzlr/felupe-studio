@@ -157,6 +157,21 @@ function initialContact(
   };
 }
 
+/**
+ * A new contact between bodies (#462) takes the last section as its section and the
+ * section before it as its primary one, e.g. a rubber pad meshed after the plate.
+ */
+function initialBodyContact(
+  draft: Record<string, unknown>,
+  commands: readonly Command[],
+): Record<string, unknown> {
+  const sections = commands.filter((c) => c.command === "section.add");
+  const [primary, section] = sections.slice(-2).map((s) => s.name);
+  if (section === undefined)
+    return primary ? { ...draft, section: primary } : draft;
+  return { ...draft, section, primary };
+}
+
 /** A new pressure takes the last face set. */
 function initialPressure(
   draft: Record<string, unknown>,
@@ -888,10 +903,14 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         ? "An axisymmetric model has no direction around its axis: a boundary holds or moves its points radially (y) or axially (x)."
         : undefined,
   },
+  // a contact with a rigid surface (#220) and a contact between bodies (#462): the
+  // menu Contact of the ribbon
   "contact.add": {
-    label: "Contact",
+    label: "Rigid surface contact",
     tab: "loads",
+    menu: "Contact",
     prefix: "contact",
+    noun: "contact",
     fields: {
       points: {
         label: "Points",
@@ -915,6 +934,84 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       },
     },
     initial: initialContact,
+  },
+  // a contact between the surfaces of sections (felupe-contact, #462): the
+  // arguments of SolidBodyContact, with the hints of its documentation
+  "bodycontact.add": {
+    label: "Contact between bodies",
+    tab: "loads",
+    menu: "Contact",
+    prefix: "contact",
+    noun: "contact between bodies",
+    fields: {
+      section: {
+        label: "Section",
+        hint: "Of the secondary surface: the softer and finer meshed one, e.g. the rubber",
+      },
+      primary: {
+        label: "Primary section",
+        hint: "Of the primary surface; the same section if empty, so its bodies touch each other",
+        placeholder: "the same section",
+      },
+      points: {
+        label: "Points",
+        hint: "Limit the faces of the section to those of a point set",
+        placeholder: "all faces on the outline",
+      },
+      points_primary: {
+        label: "Primary points",
+        hint: "Limit the faces of the primary section to those of a point set",
+        placeholder: "all faces on the outline",
+      },
+      penalty: {
+        label: "Penalty",
+        hint: "Contact pressure per unit penetration",
+        placeholder: "estimated",
+      },
+      penalty_scale: {
+        label: "Penalty scale",
+        hint: "Factor of the estimated penalty: increase it to reduce the penetration, decrease it if the Newton-Raphson method does not converge",
+        placeholder: "10",
+      },
+      smoothing: {
+        label: "Smoothing",
+        hint: "Length of the transition of the penalty; 0 turns it off",
+        placeholder: "1 % of a face",
+      },
+      two_pass: {
+        label: "Two-pass",
+        hint: "Evaluate both surfaces as secondary ones, each with half of the contact: no bias of the choice, in twice the time",
+      },
+      max_distance: {
+        label: "Max. distance",
+        hint: "Largest distance of the contact search, the largest detectable penetration; smaller than the thickness of a body",
+        placeholder: "5 faces",
+      },
+      candidates: {
+        label: "Candidates",
+        hint: "Faces of the primary surface searched per point",
+        placeholder: "8",
+      },
+      tolerance: {
+        label: "Tolerance",
+        hint: "Of the natural coordinates of a valid projection",
+        placeholder: "0.1",
+      },
+      facing: {
+        label: "Facing",
+        hint: "Least opposition of the normals of faces that touch; -1 turns it off",
+        placeholder: "0.1",
+      },
+      self_contact: {
+        label: "Self-contact",
+        hint: "Faces of one body may touch each other, e.g. the walls of a tube squeezed flat",
+      },
+      geometric_stiffness: {
+        label: "Geometric stiffness",
+        hint: "For the quadratic convergence of the Newton-Raphson method",
+      },
+    },
+    initial: initialBodyContact,
   },
   "load.add": {
     label: "Point load",

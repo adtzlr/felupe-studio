@@ -33,6 +33,11 @@ export interface JobProgress {
   fnorm: number | null;
   /** Failed attempts of substeps (retried with a cutback, if enabled). */
   failed: string[];
+  /**
+   * The warnings of the run, e.g. of felupe-contact that no contact will be
+   * detected (#462), also of the script before the start of the jobs.
+   */
+  warnings: string[];
   /** Times of the finished jobs, in seconds. */
   times: Record<string, number>;
 }
@@ -49,6 +54,7 @@ export const startProgress = (): JobProgress => ({
   iteration: 0,
   fnorm: null,
   failed: [],
+  warnings: [],
   times: {},
 });
 
@@ -58,6 +64,8 @@ export function advance(progress: JobProgress, event: JobEvent): JobProgress {
     case "start":
       return {
         ...startProgress(),
+        // the warnings of the script, before the start of the jobs (#462)
+        warnings: progress.warnings,
         jobs: event.jobs,
         plan: event.substeps,
       };
@@ -88,6 +96,8 @@ export function advance(progress: JobProgress, event: JobEvent): JobProgress {
           `Step ${event.step + 1}, substep ${event.substep + 1}: ${event.message}`,
         ],
       };
+    case "warning":
+      return { ...progress, warnings: [...progress.warnings, event.message] };
     case "converged":
       return { ...progress, done: Math.min(progress.done + 1, progress.total) };
     case "finished":

@@ -5,7 +5,7 @@ import {
   sectionsWithoutVolume,
   sectionVolume,
 } from "../core/meshfiles";
-import { KIND_LABELS } from "../core/registry";
+import { KIND_LABELS, REGISTRY } from "../core/registry";
 import type { Save } from "../core/save";
 import type { ModelStore } from "../core/store";
 import { KINDS } from "../core/validate";
@@ -61,14 +61,15 @@ export function Properties({
       ? sectionVolume(store.commands, command.name, files)
       : undefined;
   // a control point is a point set of one point, with a label of its own (#95), and
-  // so are a rigid surface (#219) and a contact (#220)
+  // so are a rigid surface (#219) and the contacts (#220, #462)
   const head: { icon: IconName; label: string } | undefined =
     command.command === "point.add"
       ? { icon: "point", label: "Control point" }
       : command.command === "rigid.add"
         ? { icon: "rigid", label: "Rigid surface" }
-        : command.command === "contact.add"
-          ? { icon: "contact", label: "Contact" }
+        : command.command === "contact.add" ||
+            command.command === "bodycontact.add"
+          ? { icon: "contact", label: REGISTRY[command.command].label }
           : undefined;
   // the values of a rotation point are rotations (#98)
   const rotation =
