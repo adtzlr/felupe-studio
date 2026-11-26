@@ -296,6 +296,19 @@ Container with 2 cores (x86_64), CPython 3.13, FElupe 12.1.1, SuperLU. Best of t
 
 The forces are those of double precision (four digits). Without Python and FElupe, the model in single precision takes 188 MB at n = 17 instead of 317 MB in double precision (and 257 MB with the linear system in single precision). The cube with u-p-J of the section above (n = 21, 27,783 DOF) takes 17 s and 575 MB with FElupe 12.1.1, instead of 45 s and 1083 MB.
 
+### Elastic-plastic materials (#345)
+
+FElupe 12.1.2 returns the tangent of the elastic-plastic material in the precision of the strain (adtzlr/felupe#1301). Before, it was in double precision, and so were the matrix and the factorization of a model in single precision. A cube of steel (`fem.MaterialStrain` of `fem.linear_elastic_plastic_isotropic_hardening`, E = 210000, ν = 0.3, σy = 250, K = 1000, small strain), clamped and pulled to 0.5 % in five increments into the plastic range, tolerance 0.01, SuperLU.
+
+Container with 4 cores (x86_64), CPython 3.13.18, NumPy 2.5.3, SciPy 1.18.1. Every configuration in a fresh process, best of two runs, times in seconds; peak memory of a process:
+
+|   n |   DOF | Double | Model in single, FElupe 12.1.1 | Model in single, FElupe 12.1.2 | Peak memory, double / single 12.1.1 / single 12.1.2 |
+| --: | ----: | -----: | -----------------------------: | -----------------------------: | --------------------------------------------------: |
+|  17 | 14739 |   28.0 |                           26.4 |                           14.7 |                           392 MB / 372 MB / 294 MB |
+|  21 | 27783 |  125.7 |                          105.9 |                           55.0 |                           866 MB / 799 MB / 556 MB |
+
+With FElupe 12.1.2 the model in single precision is 2.3 times faster than double precision and takes 0.64 times its memory at n = 21. With FElupe 12.1.1 it was 1.2 times faster with 0.92 times the memory, since only the regions, the fields and the stresses were halved. The Newton iterations are the same with both versions (17 at n = 21, one fewer than in double precision), and the forces agree with double precision within 5e-4 at this tolerance. The golden case `plasticity_cube` agrees within 7e-5 of double precision, also at its tight tolerance 1.49e-8. The sample *Elastic-plastic plate with a hole* agrees within 2e-3 at its tolerance of 0.01 and within 3e-5 at 1e-6, as with FElupe 12.1.1. The strain-based linear elastic material still returns its stress and its tangent in double precision (adtzlr/felupe#1308).
+
 ### Phone
 
 Android 17, Firefox 160 (mobile), 8 cores, Pyodide 314.0.7, FElupe 12.1.1, warm (service worker cache active, bytecode cache *hit*). Solve times in seconds:

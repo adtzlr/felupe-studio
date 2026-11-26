@@ -822,9 +822,10 @@ LARGE_ROUNDOFF = {
     "tube_revolved_profile",
 }
 # the three-field variation of steel on quadratic tetrahedrons (#420): the residual
-# of float32 stalls at about 2.5 times the estimate of its round-off by FElupe 12.1.1,
-# above the tight tolerance of the case (the estimate of mixed fields misses the
-# isochoric part, adtzlr/felupe#1305); with the default tolerance of the app, it
+# of float32 stalls above the tight tolerance of the case, at about 2.5 times the
+# estimate of its round-off by FElupe 12.1.1, and also with 12.1.2, whose
+# elastic-plastic tangent is in float32 (#345). The estimate of mixed fields misses
+# the isochoric part (adtzlr/felupe#1305). With the default tolerance of the app, it
 # converges (test_three_field_variation_in_single_precision)
 NOT_CONVERGED = {"block_contact_friction", "plasticity_cube_three_field"}
 

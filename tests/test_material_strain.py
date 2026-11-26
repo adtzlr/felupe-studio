@@ -97,6 +97,41 @@ def test_the_template_in_single_precision():
     assert umat.hessian(x)[0].dtype == np.float32
 
 
+@pytest.mark.parametrize(
+    ("model", "dtype"),
+    [("LinearElasticPlasticIsotropicHardening", np.float32), ("LinearElastic", float)],
+)
+def test_the_models_of_the_registry_in_single_precision(
+    model, dtype, tmp_path, monkeypatch
+):
+    # the plasticity cube with the model in single precision (#345): FElupe 12.1.2
+    # returns the tangent of the elastic-plastic model in the precision of the strain
+    # (adtzlr/felupe#1301), so its linear equation system is in float32 too. The
+    # linear elastic model returns it in float64 (adtzlr/felupe#1308), and does not
+    # reach a tight tolerance: if this changes, its notes in the guide (Model
+    # settings, Limits) change too. The default tolerance of a job converges.
+    for path in (GOLDEN / "plasticity_cube").iterdir():
+        if path.suffix == ".vtu":
+            shutil.copy(path, tmp_path)
+    document = json.loads(
+        (GOLDEN / "plasticity_cube" / "commands.json").read_text(encoding="utf-8")
+    )
+    for c in document["commands"]:
+        if c["command"] == "model.settings":
+            c["precision"] = "single"
+        if c["command"] == "material.add":
+            c["model"] = model
+            if model == "LinearElastic":
+                c["parameters"] = {"E": 210000, "nu": 0.3}
+        if c["command"] == "job.add":
+            del c["tol"]
+    monkeypatch.chdir(tmp_path)
+    runner.run(document)
+    solid, field = runner.LAST["solid_body"], runner.LAST["field_body"]
+    assert field[0].values.dtype == np.float32
+    assert solid.assemble.matrix(field).dtype == dtype
+
+
 def plasticity(folder):
     """The golden case of the elastic-plastic model of the registry, with the
     plasticity of FElupe as a file instead."""

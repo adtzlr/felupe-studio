@@ -107,15 +107,25 @@ def test_substeps_restore_the_fields(two_materials):
     assert results.substeps("job_1") == 6
 
 
-def test_stresses_of_nearly_incompressible_substeps(two_materials):
+@pytest.mark.parametrize("volumetric", ["volume-ratio", "log", "stretch"])
+def test_stresses_of_nearly_incompressible_substeps(volumetric, monkeypatch):
     # the u-p-J section of hexahedrons is a fem.SolidBodyNearlyIncompressible (#226):
     # its pressure and volume ratio are a state of the solid body, but the stresses
     # of a substep do not depend on the substep shown before. The pressure is in the
-    # principal stresses, not in the von Mises stress.
-    assert isinstance(
-        two_materials["solid_soft_body"], fem.SolidBodyNearlyIncompressible
-    )
-    assert len(two_materials["field_soft_body"].fields) == 1
+    # principal stresses, not in the von Mises stress. Since FElupe 12.1.2, an
+    # evaluation updates the pressure by a linearization at the state before
+    # (adtzlr/felupe#1306): after two evaluations, the pressure of a volumetric part
+    # with a non-linear U'(J) was off, by 2 % for log in bar_volumetric_log after a
+    # jump from the first substep to the last. Now it is U'(v/V) of the substep, bit
+    # for bit
+    document = load("bar_two_materials")
+    [soft] = [c for c in document["commands"] if c.get("name") == "soft_body"]
+    soft["volumetric"] = volumetric
+    monkeypatch.chdir(GOLDEN / "bar_two_materials")
+    run(document)
+    solid, field = LAST["solid_soft_body"], LAST["field_soft_body"]
+    assert isinstance(solid, fem.SolidBodyNearlyIncompressible)
+    assert len(field.fields) == 1
 
     def stress(substep, before):
         results.scene("job_1", before, "displacement")
@@ -123,8 +133,13 @@ def test_stresses_of_nearly_incompressible_substeps(two_materials):
         surface = next(s for s in surfaces if s["name"] == "soft_body")
         return arrays(surface)["values"]
 
-    np.testing.assert_allclose(stress(3, before=6), stress(3, before=3), rtol=1e-6)
-    np.testing.assert_allclose(stress(6, before=1), stress(6, before=6), rtol=1e-6)
+    np.testing.assert_array_equal(stress(3, before=6), stress(3, before=3))
+    np.testing.assert_array_equal(stress(6, before=1), stress(6, before=6))
+    # the pressure and the volume ratio of the converged substep
+    state = solid.results.state
+    J = state.volume() / solid.V
+    np.testing.assert_array_equal(state.J, J)
+    np.testing.assert_array_equal(state.p, solid.volumetric.dUdJ(J))
 
 
 @pytest.mark.parametrize("quantity", ["displacement_x", "stress_mises", "strain_min"])
