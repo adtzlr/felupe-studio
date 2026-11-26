@@ -116,10 +116,11 @@ def points_at(points, coordinates, atol=1e-8):
 
 
 def material_function(file, name):
-    """Return the strain energy density function ``name`` of a Python file (#424): a
-    function of the right Cauchy-Green deformation tensor ``C``, a tensor of
-    tensortrax, and of its arguments, e.g. ``strain_energy(C, mu)``, which
-    ``fem.Hyperelastic`` differentiates."""
+    """Return the function ``name`` of a material of a Python file: a strain energy
+    density function of the right Cauchy-Green deformation tensor ``C``, a tensor of
+    tensortrax, e.g. ``strain_energy(C, mu)``, which ``fem.Hyperelastic``
+    differentiates (#424), or a strain-based function of ``fem.MaterialStrain``,
+    e.g. ``material(dε, εn, σn, ζn, E, nu, **kwargs)`` (#425)."""
     import inspect
     import runpy
 

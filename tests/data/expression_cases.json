@@ -1373,6 +1373,130 @@
     },
     {
       "command": {
+        "command": "parameter.add",
+        "name": "E",
+        "value": "210000.0",
+        "quantity": "stress",
+        "description": "Young's modulus"
+      },
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "parameter.add",
+        "name": "nu",
+        "value": "0.3",
+        "description": "Poisson's ratio"
+      },
+      "fields": [
+        {
+          "path": [
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "material.script",
+        "name": "steel",
+        "kind": "strain",
+        "file": "material_strain.py",
+        "arguments": {
+          "E": "E",
+          "nu": "nu"
+        },
+        "framework": "total-lagrange"
+      },
+      "fields": [
+        {
+          "path": [
+            "arguments",
+            "E"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "arguments",
+            "nu"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "body",
+        "cellset": "all_cells",
+        "material": "steel",
+        "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "step_1",
+        "ramp": {
+          "num": "5",
+          "items": [
+            {
+              "target": "move",
+              "start": "0",
+              "end": "0.03"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "start"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
         "command": "mesh.import",
         "name": "half",
         "file": "half.vtu"
@@ -5862,16 +5986,6 @@
           }
         }
       ]
-    },
-    {
-      "command": {
-        "command": "section.add",
-        "name": "body",
-        "cellset": "all_cells",
-        "material": "steel",
-        "formulation": "u"
-      },
-      "fields": []
     },
     {
       "command": {

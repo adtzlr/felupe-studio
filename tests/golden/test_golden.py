@@ -402,6 +402,43 @@ def test_template_of_a_strain_energy_function_in_the_golden_case():
     )
 
 
+def test_strain_based_function_like_the_registry(tmp_path, monkeypatch):
+    # the template of a strain-based function of a file (#425), linear elastic of E
+    # and nu, in the Total-Lagrange framework: the curve of LinearElastic of the
+    # registry in the same framework
+    document = load("bar_material_strain")
+    commands = document["commands"]
+    [i] = [i for i, c in enumerate(commands) if c["command"] == "material.script"]
+    commands[i] = {
+        "command": "material.add",
+        "name": "steel",
+        "model": "LinearElastic",
+        "framework": "total-lagrange",
+        "parameters": {"E": "E", "nu": "nu"},
+    }
+    registry = evaluate("bar_material_strain", tmp_path, monkeypatch, document)
+    function = json.loads(
+        (HERE / "bar_material_strain" / "results.json").read_text(encoding="utf-8")
+    )
+    for key in ("displacement", "force"):
+        np.testing.assert_allclose(
+            function["jobs"]["job_1"][key], registry["jobs"]["job_1"][key], rtol=1e-12
+        )
+    lines = (HERE / "bar_material_strain" / "script.py").read_text("utf-8")
+    assert 'material_function("material_strain.py", "material"),\n' in lines
+
+
+def test_template_of_a_strain_based_function_in_the_golden_case():
+    # the golden case runs the template that Download template gives (#425)
+    template = files("felupe_studio").joinpath("templates/material_strain.py")
+    copy = HERE / "bar_material_strain" / "material_strain.py"
+    assert copy.read_text("utf-8") == template.read_text("utf-8"), (
+        "Copy python/felupe_studio/templates/material_strain.py into "
+        "tests/golden/bar_material_strain and run pytest tests/golden "
+        "--update-golden."
+    )
+
+
 def test_pardiso_like_superlu():
     # the bar of two materials with PARDISO of Intel oneMKL (#308): the curve of
     # SuperLU, stored where pypardiso is installed

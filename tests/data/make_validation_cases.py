@@ -1082,6 +1082,22 @@ CHANGES = {
     "strain energy function with an unknown parameter": lambda d: function_script(
         d, arguments={"mu": "shear / 2"}
     ),
+    # a strain-based function of a file (#425): its arguments, not those that
+    # fem.MaterialStrain gives or takes, the shapes of its state variables and its
+    # framework
+    "strain-based function": lambda d: (
+        parameters(d),
+        strain_script(
+            d,
+            arguments={"E": "length * 70000", "nu": 0.3, "σy": 250.0, "K": 1000.0},
+            statevars=[1, [3, 3]],
+            framework="seth-hill",
+            strain_exponent=0,
+        ),
+    ),
+    "strain-based function with given arguments": lambda d: strain_script(
+        d, arguments={"dε": 1, "tangent": 2, "framework": 3, "λ": 1.0, "beta": 1.0}
+    ),
     "parameter with a name of the script": lambda d: d["commands"].insert(
         0, {"command": "parameter.add", "name": "field", "value": 1}
     ),
@@ -1696,6 +1712,8 @@ SCRIPT_KINDS = {
         "arguments": {"mu": 1.0},
         "bulk": 5000,
     },
+    # a strain-based function of a file (#425), with a volumetric part
+    "a strain-based function of a file": {"kind": "strain", "arguments": {"E": 1.0}},
 }
 
 
@@ -1715,6 +1733,11 @@ def material_script(document, **fields):
 def function_script(document, **fields):
     """The material umat_soft of a strain energy function of a file (#424)."""
     material_script(document, kind="hyperelastic", **fields)
+
+
+def strain_script(document, **fields):
+    """The material umat_soft of a strain-based function of a file (#425)."""
+    material_script(document, kind="strain", **fields)
 
 
 def formulation(document, name, model, parameters):

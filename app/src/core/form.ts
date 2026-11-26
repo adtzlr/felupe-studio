@@ -54,6 +54,11 @@ export type Input =
   | { type: "variant"; options: Option[]; seeds: Record<string, unknown> }
   | { type: "multichoice"; options: Option[]; minItems: number }
   | { type: "integers"; minItems: number; min?: number }
+  /**
+   * The shapes of the state variables of a strain-based function (#425), a tuple of
+   * Python, e.g. `(1, (3, 3))`: a number or the lengths of the axes of an array each.
+   */
+  | { type: "shapes" }
   /** Points, one per line: three coordinates each. */
   | { type: "coordinates"; minItems: number; expressions?: boolean }
   /** A list of numbers, e.g. the coordinates x, y, z of a point. */
@@ -393,6 +398,11 @@ interface Leaf {
   required?: boolean;
   described?: boolean;
   labelled?: boolean;
+  /**
+   * The default of a text of the schema, its placeholder without one of the
+   * registry, e.g. the name of the function of a file by its kind (#424, #425).
+   */
+  placeholder?: string;
 }
 
 /** The input of a property that is not an array, an object or variants. */
@@ -428,7 +438,13 @@ function scalarLeaf(
     return { input, described: true, labelled: true };
   }
   if (property.type === "string")
-    return { input: { type: "text" }, described: true };
+    return {
+      input: { type: "text" },
+      described: true,
+      ...(typeof property.default === "string"
+        ? { placeholder: property.default }
+        : {}),
+    };
   if (property.type === "boolean")
     return {
       input: { type: "boolean", default: raw.default === true },
@@ -453,6 +469,9 @@ function scalarLeaf(
 function arrayLeaf(type: CommandType, key: string, property: Node): Leaf {
   const items = resolve(property.items!);
   const minItems = property.minItems ?? 0;
+  // a number or a list of numbers per item: the shapes of state variables (#425)
+  if (Array.isArray(items.type) && items.type.includes("array"))
+    return { input: { type: "shapes" }, described: true };
   // whole numbers that may be expressions, e.g. the points per axis of a mesh tool
   // (ADR 0019); ids without expressions are integers below
   const integer = items.type === "integer" && !!items["x-expressions"];
@@ -735,6 +754,7 @@ export function fieldSpecs(
         leaf.described ? raw.description : undefined,
         leaf.labelled ? raw : undefined,
       );
+      if (leaf.placeholder) specs.at(-1)!.placeholder ??= leaf.placeholder;
     }
   };
 
@@ -1226,6 +1246,21 @@ const integersError: FieldError<"integers"> = (_, input, value) => {
 };
 
 /**
+ * The shapes of state variables (#425): per state variable a whole number from 0,
+ * or the lengths of the axes of an array, whole numbers from 1.
+ */
+const shapesError: FieldError<"shapes"> = (_, __, value) => {
+  if (value === undefined) return undefined;
+  const length = (n: unknown) => Number.isInteger(n) && (n as number) >= 1;
+  const shape = (s: unknown) =>
+    (Number.isInteger(s) && (s as number) >= 0) ||
+    (Array.isArray(s) && s.length > 0 && s.every(length));
+  return Array.isArray(value) && value.length > 0 && value.every(shape)
+    ? undefined
+    : "Enter a tuple of whole numbers, a number or the lengths of the axes per state variable, e.g. (1, (3, 3)).";
+};
+
+/**
  * A reference to several objects: at least one, existing, and each once, unless the
  * list may repeat one (#331).
  */
@@ -1381,6 +1416,7 @@ const FIELD_ERRORS: { [T in Input["type"]]?: FieldError<T> } = {
   choice: choiceError,
   multichoice: multichoiceError,
   integers: integersError,
+  shapes: shapesError,
   reference: referenceError,
   numbers: numbersError,
   coordinates: coordinatesError,

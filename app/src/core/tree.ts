@@ -16,7 +16,7 @@ import {
   unitsText,
   valueWithUnit,
 } from "./units";
-import { MATERIAL_MODELS } from "./materials";
+import { functionName, MATERIAL_MODELS } from "./materials";
 import { describeParameter } from "./parameters";
 import { isConstruction, tagNames, usersOf } from "./meshtools";
 
@@ -254,15 +254,15 @@ const DETAILS: { [C in Command["command"]]: Detail<C> } = {
       "mullins" in cmd && "Mullins",
     ),
   // a material of a file (ADR 0025): its file, and if it has no volumetric part;
-  // of a strain energy function (#424) its function and the Mullins effect
-  "material.script": (cmd) =>
-    cmd.kind === "hyperelastic"
-      ? joined(
-          cmd.file,
-          cmd.function ?? "strain_energy",
-          cmd.mullins && "Mullins",
-        )
-      : joined(cmd.file, cmd.volumetric === false && "no volumetric part"),
+  // of a strain energy function (#424) its function and the Mullins effect, of a
+  // strain-based function (#425) its function and its framework
+  "material.script": (cmd) => {
+    if (cmd.kind === "hyperelastic")
+      return joined(cmd.file, functionName(cmd), cmd.mullins && "Mullins");
+    if (cmd.kind === "strain")
+      return joined(cmd.file, functionName(cmd), cmd.framework);
+    return joined(cmd.file, cmd.volumetric === false && "no volumetric part");
+  },
   "section.add": (cmd) =>
     joined(
       cmd.material,

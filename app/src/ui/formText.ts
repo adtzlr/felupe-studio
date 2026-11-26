@@ -51,6 +51,49 @@ export const parseIntegers = (text: string) =>
     .filter((part) => part !== "")
     .map(Number);
 
+/**
+ * The shapes of the state variables of a strain-based function of a file (#425) as
+ * typed: a tuple of Python like `statevars` of fem.MaterialStrain, e.g. `(1, (3, 3))`
+ * for a scalar and a tensor, also with brackets or without the outer parentheses. As
+ * in Python, `(3, 3)` are two state variables of 3 values, `((3, 3),)` one tensor.
+ * Undefined if empty; the text if it is no tuple, for the error of the field.
+ */
+export function parseShapes(text: string): unknown {
+  const trimmed = text.trim();
+  if (trimmed === "") return undefined;
+  const json = trimmed
+    .replace(/\(/g, "[")
+    .replace(/\)/g, "]")
+    .replace(/,\s*(?=\])/g, "")
+    .replace(/,\s*$/, "");
+  for (const candidate of [json, `[${json}]`]) {
+    try {
+      const value: unknown = JSON.parse(candidate);
+      if (typeof value === "number") return [value];
+      if (Array.isArray(value)) return value;
+    } catch {
+      // not a list of JSON: the next candidate
+    }
+  }
+  return trimmed;
+}
+
+/** A tuple of Python, with the comma of one item, e.g. `(1,)`. */
+const tuple = (items: string[]) =>
+  items.length === 1 ? `(${items[0]},)` : `(${items.join(", ")})`;
+
+/** The shapes of state variables as a tuple of Python (#425), e.g. `(1, (3, 3))`. */
+export const shapesText = (value: unknown): string =>
+  Array.isArray(value)
+    ? tuple(
+        value.map((shape) =>
+          Array.isArray(shape) ? tuple(shape.map(String)) : String(shape),
+        ),
+      )
+    : typeof value === "string"
+      ? value
+      : "";
+
 /** Points, one per line (or separated by ;), three numbers each. */
 export const parseCoordinates = (text: string, expressions = false) =>
   text

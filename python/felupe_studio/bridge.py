@@ -191,8 +191,9 @@ def agent_server(bridge):  # noqa: C901
         Python script that makes a FElupe mesh `mesh`, or a dict of meshes, with the
         parameters of the model as variables), a material script (a Python script
         that makes a FElupe material `umat`, with the parameters of the model as
-        variables) or a mesh file in a text format. A Python script runs after the
-        user agrees in the app."""
+        variables, or defines a strain energy function or a strain-based function)
+        or a mesh file in a text format. A Python script runs after the user agrees
+        in the app."""
         return await bridge.call("write_file", {"name": name, "content": content})
 
     @mcp.tool(description=DESCRIPTIONS["inspect_material"])

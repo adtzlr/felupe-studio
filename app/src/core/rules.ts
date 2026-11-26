@@ -50,6 +50,7 @@ import {
   isMaterial,
   MATERIAL_MODELS,
   type MaterialCommand,
+  type MaterialFunction,
   materialProblems,
   MULLINS,
   strainBased,
@@ -626,8 +627,9 @@ function misfit(formulation: Formulation, material: MaterialCommand): string {
 /**
  * Why a formulation does not take a material of a file (ADR 0025), by whether it
  * has a volumetric part of its own (`volumetric` of a constitutive model, the bulk
- * modulus of a strain energy function, #424), and the formulations that take it,
- * like `misfit()` (like `script_misfit` in Python).
+ * modulus of a strain energy function, #424, always of a strain-based function,
+ * #425), and the formulations that take it, like `misfit()` (like `script_misfit` in
+ * Python).
  */
 function scriptMisfit(
   formulation: Formulation,
@@ -645,46 +647,80 @@ function scriptMisfit(
       `'${other ?? first("isochoric")}' with the bulk modulus of the section, ` +
       `or ${fn ? "add 'bulk' to the material" : "set 'volumetric' to true if its umat has one"}.`
     );
-  const remedy = fn
-    ? "remove 'bulk' from the material"
-    : "set 'volumetric' to false if its umat has none";
+  // a strain-based function has a volumetric part, like a strain-based model (#425)
+  const strain = strainBased(material);
+  const remedy = strain
+    ? ""
+    : fn
+      ? ", or remove 'bulk' from the material"
+      : ", or set 'volumetric' to false if its umat has none";
   if (formulation.material === "none")
     return (
       `the formulation ${name} with ${what}, which has a volumetric part. Use ` +
-      `'${first("volumetric")}', or ${remedy}.`
+      `'${first("volumetric")}'${remedy}.`
     );
   const displacement =
     `the displacement formulation '${first("volumetric")}'` +
     (other ? ` or '${other}'` : "");
+  if (strain)
+    return `the ${name} formulation with the strain-based material '${material.name}' of '${material.file}'. Use ${displacement}.`;
   return (
     `the ${name} formulation with ${what}, which has a volumetric part. Use ` +
-    `${displacement}, or ${remedy}.`
+    `${displacement}${remedy}.`
   );
 }
 
-// the arguments that fem.Hyperelastic gives a strain energy function of a file or
-// takes itself (#424), and those of the Mullins effect (#346)
-const GIVEN = ["C", "statevars", "fun", "nstatevars", "parallel"];
+// the arguments that the material of a function of a file gives it or takes itself,
+// and the message, by its kind: fem.Hyperelastic of a strain energy function (#424)
+// and fem.MaterialStrain of a strain-based function (#425) (like `GIVEN` of
+// felupe_studio.rules); and the arguments of the Mullins effect (#346)
+const GIVEN: Record<
+  MaterialFunction["kind"],
+  { names: readonly string[]; message: string }
+> = {
+  hyperelastic: {
+    names: ["C", "statevars", "fun", "nstatevars", "parallel"],
+    message:
+      "fem.Hyperelastic gives C and statevars, and takes fun, nstatevars and " +
+      "parallel itself.",
+  },
+  strain: {
+    names: [
+      "dε",
+      "εn",
+      "σn",
+      "ζn",
+      "tangent",
+      "material",
+      "dim",
+      "statevars",
+    ].concat(["framework", "symmetry", "strain_exponent"]),
+    message:
+      "fem.MaterialStrain gives dε, εn, σn, ζn and tangent, and takes material, " +
+      "dim, statevars, framework, symmetry and strain_exponent itself.",
+  },
+};
 const SOFTENING: readonly string[] = [...MULLINS, "material"];
 
 /**
- * The arguments of a strain energy function of a file (#424): not those that
- * fem.Hyperelastic gives or takes itself, nor a keyword of Python, nor those of
- * fem.ogden_roxburgh with the Mullins effect, which has a state variable of its own,
- * so the function has none.
+ * The arguments of a function of a file (#424, #425): not those that its material
+ * (fem.Hyperelastic or fem.MaterialStrain) gives or takes itself, nor a keyword of
+ * Python, nor those of fem.ogden_roxburgh with the Mullins effect, which has a state
+ * variable of its own, so the function has none.
  */
 const functionArguments: Rule<CommandOf<"material.script">> = (_, cmd) => {
-  if (cmd.kind !== "hyperelastic") return [];
+  if (!isFunction(cmd)) return [];
   const what = `material '${cmd.name}'`;
+  const given = GIVEN[cmd.kind];
+  const mullins = cmd.kind === "hyperelastic" ? cmd.mullins : undefined;
   const problems: Problem[] = [];
   for (const key of Object.keys(cmd.arguments ?? {})) {
     const field = `arguments.${key}`;
-    if (GIVEN.includes(key))
+    if (given.names.includes(key))
       problems.push({
         message:
           `${what}: '${key}' is not an argument of the function to give: ` +
-          "fem.Hyperelastic gives C and statevars, and takes fun, nstatevars " +
-          "and parallel itself.",
+          given.message,
         field,
       });
     else if (RESERVED_KEYWORDS.has(key))
@@ -692,7 +728,7 @@ const functionArguments: Rule<CommandOf<"material.script">> = (_, cmd) => {
         message: `${what}: the argument '${key}' is a keyword of Python.`,
         field,
       });
-    else if (cmd.mullins && SOFTENING.includes(key))
+    else if (mullins && SOFTENING.includes(key))
       problems.push({
         message:
           `${what}: the argument '${key}' is one of the Mullins effect ` +
@@ -701,7 +737,7 @@ const functionArguments: Rule<CommandOf<"material.script">> = (_, cmd) => {
         field,
       });
   }
-  if (cmd.mullins && cmd.nstatevars !== undefined)
+  if (mullins && cmd.kind === "hyperelastic" && cmd.nstatevars !== undefined)
     problems.push({
       message:
         `${what}: a function with state variables has no Mullins effect, which ` +

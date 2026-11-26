@@ -1,13 +1,11 @@
-// The fields of the arguments of a strain energy function of a file (#424) in the
-// form of its material: the arguments of its function after C (and statevars), from
-// the run of the file before a job (`functionsOf` of MeshFiles), with their default
-// values. A value of an argument that the function does not have stays a field, to
-// clear it.
+// The fields of the arguments of a function of a file in the form of its material:
+// the arguments of a strain energy function after C (and statevars, #424) or of a
+// strain-based function after dε, εn, σn and ζn (#425), from the run of the file
+// before a job (`functionsOf` of MeshFiles), with their default values. A value of an
+// argument that the function does not have stays a field, to clear it.
 import type { Context, KeyField } from "./form";
+import { FUNCTIONS } from "./materials";
 import type { MeshFiles } from "./meshfiles";
-
-/** The function of a strain energy function of a file without `function`. */
-export const DEFAULT_FUNCTION = "strain_energy";
 
 /** The fields of the arguments of the function of a material of a file (#424). */
 export function argumentFields(files: MeshFiles): NonNullable<Context["keys"]> {
@@ -15,14 +13,15 @@ export function argumentFields(files: MeshFiles): NonNullable<Context["keys"]> {
     if (
       type !== "material.script" ||
       key !== "arguments" ||
-      draft.kind !== "hyperelastic" ||
+      typeof draft.kind !== "string" ||
+      !(draft.kind in FUNCTIONS) ||
       typeof draft.file !== "string"
     )
       return undefined;
     const name =
       typeof draft.function === "string" && draft.function
         ? draft.function
-        : DEFAULT_FUNCTION;
+        : FUNCTIONS[draft.kind as keyof typeof FUNCTIONS];
     const signature = files.functionsOf(draft.file)?.[name];
     if (!signature) return undefined;
     const fields: KeyField[] = signature.arguments.map((argument) =>

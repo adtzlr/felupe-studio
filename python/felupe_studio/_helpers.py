@@ -455,12 +455,13 @@ def run_material_script(file, parameters):
     return umat
 
 
-# --- embedded in generated scripts with strain energy functions of files ---
+# --- embedded in generated scripts with functions of files ---
 def material_function(file, name):
-    """Return the strain energy density function ``name`` of a Python file (#424): a
-    function of the right Cauchy-Green deformation tensor ``C``, a tensor of
-    tensortrax, and of its arguments, e.g. ``strain_energy(C, mu)``, which
-    ``fem.Hyperelastic`` differentiates."""
+    """Return the function ``name`` of a material of a Python file: a strain energy
+    density function of the right Cauchy-Green deformation tensor ``C``, a tensor of
+    tensortrax, e.g. ``strain_energy(C, mu)``, which ``fem.Hyperelastic``
+    differentiates (#424), or a strain-based function of ``fem.MaterialStrain``,
+    e.g. ``material(dε, εn, σn, ζn, E, nu, **kwargs)`` (#425)."""
     import inspect
     import runpy
 

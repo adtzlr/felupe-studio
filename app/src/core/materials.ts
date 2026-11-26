@@ -105,35 +105,52 @@ export const isMaterial = (c: Command): c is MaterialCommand =>
  * model). The u-p-J formulation adds the volumetric part of the section, so it takes
  * a material without one (like `has_volumetric` of felupe_studio.materials). A
  * material of a file says so with `volumetric` (ADR 0025, by default it has one), a
- * strain energy function of a file with its bulk modulus (#424).
+ * strain energy function of a file with its bulk modulus (#424); a strain-based
+ * function of a file has one (#425).
  */
-export const hasVolumetric = (material: MaterialCommand): boolean =>
-  material.command === "material.add"
-    ? !needsBulk(material)
-    : material.kind === "hyperelastic"
-      ? material.bulk !== undefined
-      : material.volumetric !== false;
+export const hasVolumetric = (material: MaterialCommand): boolean => {
+  if (material.command === "material.add") return !needsBulk(material);
+  if (material.kind === "hyperelastic") return material.bulk !== undefined;
+  if (material.kind === "strain") return true;
+  return material.volumetric !== false;
+};
 
-/** A strain energy function of a file (`material.script` of the kind `hyperelastic`, #424). */
+/**
+ * The kinds of user-defined materials that are a function of a file, with the name
+ * of their function by default (like `FUNCTIONS` of felupe_studio.materials): a
+ * strain energy function (#424) and a strain-based function (#425).
+ */
+export const FUNCTIONS = {
+  hyperelastic: "strain_energy",
+  strain: "material",
+} as const;
+
+/** A function of a file: a strain energy function (#424) or a strain-based one (#425). */
 export type MaterialFunction = Extract<
   MaterialCommand,
-  { command: "material.script"; kind: "hyperelastic" }
+  { command: "material.script"; kind: keyof typeof FUNCTIONS }
 >;
 
-/** True if a material is a strain energy function of a file (#424). */
+/** True if a material is a function of a file (#424, #425). */
 export const isFunction = (material: Command): material is MaterialFunction =>
-  material.command === "material.script" && material.kind === "hyperelastic";
+  material.command === "material.script" && material.kind in FUNCTIONS;
+
+/** The name of the function of a material of a file (#424, #425). */
+export const functionName = (material: MaterialFunction): string =>
+  material.function ?? FUNCTIONS[material.kind];
 
 /** The parameters of the Mullins effect, arguments of fem.ogden_roxburgh (#346). */
 export const MULLINS = ["r", "m", "beta"] as const;
 
 /**
- * True if a material is strain-based (#191): it needs the formulation u. A
- * constitutive model of a file is not (ADR 0025).
+ * True if a material is strain-based (#191): a strain-based model, or a
+ * strain-based function of a file (#425). It needs the formulation u, or the
+ * three-field variation (#420). A constitutive model of a file is not (ADR 0025).
  */
 export const strainBased = (material: MaterialCommand): boolean =>
-  material.command === "material.add" &&
-  !!MATERIAL_MODELS.find((m) => m.name === material.model)?.strain;
+  material.command === "material.add"
+    ? !!MATERIAL_MODELS.find((m) => m.name === material.model)?.strain
+    : material.kind === "strain";
 
 /**
  * True if a command list has a material with state variables, e.g. the equivalent

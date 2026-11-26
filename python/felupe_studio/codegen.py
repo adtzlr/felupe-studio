@@ -34,7 +34,7 @@ from .expressions import names, resolve
 from .formatting import call, wrap
 from .jobs import TOL, evaluate_options, solver_rtol, solver_source
 from .lines import object_lines
-from .materials import uses_functools
+from .materials import FUNCTIONS, uses_functools
 from .sections import rigid_comment
 
 __all__ = [
@@ -78,7 +78,7 @@ def _blocks(markers):
 # sections with mixed fields (#428), of face sets (#142), of point sets on the
 # surface (#222), of meshes made by scripts (#182) with the steps that leave out
 # sections without volume (#429), of user-defined materials (ADR 0025) and of the
-# strain energy functions of files (#424), and of the linear solvers of jobs other
+# functions of files (#424, #425), and of the linear solvers of jobs other
 # than SuperLU (#203) and in single precision (ADR 0016), of steps that switch
 # boundaries on and off (#393), of Cartesian constraints (#421), of the curves of
 # cylindrical constraints (#422), and of the cell tags of made meshes (#438)
@@ -108,8 +108,7 @@ BLOCKS = _blocks(
             "\n\n# --- embedded in generated scripts with user-defined materials ---\n"
         ),
         "functions": (
-            "\n\n# --- embedded in generated scripts with strain energy functions of "
-            "files ---\n"
+            "\n\n# --- embedded in generated scripts with functions of files ---\n"
         ),
         "solvers": "\n\n# --- embedded in generated scripts with linear solvers ---\n",
         "embed": "\n\n# --- embedded in generated scripts with embedded meshes ---\n",
@@ -142,7 +141,7 @@ HELPERS = (
     ("surfaces", lambda context: context.surface_points),
     ("scripts", lambda context: bool(context.get("mesh.script"))),
     ("materials", lambda context: "constitutive" in context.material_kinds),
-    ("functions", lambda context: "hyperelastic" in context.material_kinds),
+    ("functions", lambda context: bool(FUNCTIONS.keys() & context.material_kinds)),
     ("solvers", lambda context: jobs.uses_solver_helpers(context.get("job.add"))),
     ("embed", lambda context: meshtools.uses_embed(context.commands)),
     ("tags", lambda context: meshtools.uses_tags(context.commands)),
@@ -335,7 +334,8 @@ class Context:
     @cached_property
     def material_kinds(self):
         """The kinds of the user-defined materials (ADR 0025), e.g. ``hyperelastic``
-        of a strain energy function of a file (#424)."""
+        of a strain energy function of a file (#424) or ``strain`` of a strain-based
+        function (#425)."""
         return {m["kind"] for m in self.get("material.script")}
 
     @cached_property

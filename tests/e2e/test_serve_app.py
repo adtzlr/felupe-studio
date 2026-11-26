@@ -1633,3 +1633,94 @@ def test_a_strain_energy_function_of_a_script_solved(url, page):
     # the force of the golden case bar_material_function, that of NeoHooke
     assert "Last substep: ux = 0.5, Fx = 0.4725" in summary
     assert page.errors == []
+
+
+def test_a_strain_based_function_of_a_script_solved(url, page):
+    """A strain-based function of a Python file (#425): the template, created with
+    the ribbon in the Total-Lagrange framework, downloaded and chosen in its
+    properties, whose arguments E and nu are fields of the material once the file
+    ran, expressions of parameters; solved: the curve of the golden case."""
+    page.context.add_init_script(RECORD_SAVES)
+    page.goto(url)
+    page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
+
+    def command(text):
+        name = text.split('"name": "')[1].split('"')[0]
+        line = page.get_by_label("Command", exact=True)
+        line.fill(text)
+        line.press("Enter")
+        page.get_by_text(f"Created {name}.").first.wait_for(timeout=60_000)
+
+    for text in [
+        'parameter.add {"name": "E", "value": 210000.0}',
+        'parameter.add {"name": "nu", "value": 0.3}',
+        'mesh.generate {"name": "bar", "tool": "Cube", '
+        '"parameters": {"a": [0, 0, 0], "b": [3, 1, 1], "n": [13, 5, 5]}}',
+        'cellset.from_file {"name": "cells", "mesh": "bar"}',
+    ]:
+        command(text)
+
+    page.get_by_role("tab", name="Materials").click()
+    page.get_by_role("button", name="User-defined").click()
+    page.get_by_role("menuitem", name="Strain-based function (Python)").click()
+    dialog = page.get_by_role("dialog")
+    dialog.get_by_label("Name", exact=True).fill("steel")
+    dialog.get_by_label("Script", exact=True).fill("material_strain.py")
+    assert dialog.get_by_label("Function", exact=True).get_attribute("placeholder") == (
+        "material"
+    )
+    dialog.get_by_label("Framework").select_option(
+        label="Total Lagrange (large rotations)"
+    )
+    dialog.get_by_role("button", name="Create").click()
+    properties = page.get_by_role("region", name="Properties")
+    properties.get_by_text("not loaded").wait_for()
+    template = (
+        Path(__file__).parents[2]
+        / "python"
+        / "felupe_studio"
+        / "templates"
+        / "material_strain.py"
+    )
+    download = properties.get_by_role("button", name="Download template")
+    name, data = saved(page, download.click)
+    assert (name, data) == ("material_strain.py", template.read_bytes())
+
+    # the file runs: its arguments E and nu are fields, which need values
+    page.get_by_test_id("mesh-file").set_input_files(str(template))
+    properties.get_by_text(
+        "material_strain.py: The function material needs a value of its arguments "
+        "'E' and 'nu'."
+    ).wait_for(timeout=60_000)
+    properties.get_by_label("E", exact=True).fill("E")
+    properties.get_by_label("nu", exact=True).fill("nu")
+    # the shapes of the state variables as a tuple of Python: none of the template
+    properties.get_by_label("State variables", exact=True).fill("(1, (3, 3)")
+    properties.get_by_text("Enter a tuple of whole numbers").wait_for()
+    properties.get_by_label("State variables", exact=True).fill("")
+    properties.get_by_role("button", name="Apply").click()
+    properties.get_by_text(
+        "umat: MaterialStrain(material) · no state variables"
+    ).wait_for(timeout=60_000)
+
+    for text in [
+        'section.add {"name": "body", "cellset": "cells", "material": "steel", '
+        '"formulation": "u"}',
+        'pointset.add {"name": "left", "select": {"axis": "x", "value": 0}}',
+        'pointset.add {"name": "right", "select": {"axis": "x", "value": 3}}',
+        'boundary.add {"name": "fixed", "pointset": "left", '
+        '"constrained": ["x", "y", "z"]}',
+        'boundary.add {"name": "move", "pointset": "right", "constrained": ["x"]}',
+        'step.add {"name": "step_1", "ramp": {"num": 5, '
+        '"items": [{"target": "move", "end": 0.03}]}}',
+        'job.add {"name": "job_1", "steps": ["step_1"], "curve": "move"}',
+    ]:
+        command(text)
+    page.get_by_text("0 issues", exact=True).wait_for(timeout=60_000)
+
+    page.get_by_role("button", name="Solve").click()
+    page.get_by_role("button", name="Show results").wait_for(timeout=120_000)
+    summary = page.get_by_text("substeps in").first.inner_text()
+    # the force of the golden case bar_material_strain, that of LinearElastic
+    assert "Last substep: ux = 0.03, Fx = 2161" in summary
+    assert page.errors == []
