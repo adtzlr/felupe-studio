@@ -260,10 +260,11 @@ describe("ribbon commands", () => {
     expect(
       within(properties).getByRole("button", { name: "Choose file…" }),
     ).toBeTruthy();
-    // a minimal script to edit and choose (#423)
+    // a minimal script to edit and choose (#423): the button beside Choose file…,
+    // and the link in the hint of Script (#453)
     expect(
-      within(properties).getByRole("button", { name: "Download template" }),
-    ).toBeTruthy();
+      within(properties).getAllByRole("button", { name: "Download template" }),
+    ).toHaveLength(2);
   });
 
   it("create a strain energy function of a script (#424)", () => {
@@ -293,8 +294,8 @@ describe("ribbon commands", () => {
     ]);
     const properties = screen.getByRole("region", { name: "Properties" });
     expect(
-      within(properties).getByRole("button", { name: "Download template" }),
-    ).toBeTruthy();
+      within(properties).getAllByRole("button", { name: "Download template" }),
+    ).toHaveLength(2);
   });
 
   it("create a section of the formulation of a button (ADR 0024)", () => {

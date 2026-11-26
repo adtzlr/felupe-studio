@@ -12,7 +12,7 @@ import {
   meshStatus,
 } from "../core/meshfiles";
 import type { Save } from "../core/save";
-import { TEMPLATES } from "../core/templates";
+import { saveTemplate } from "../core/templates";
 import type { MaterialInfo } from "../worker/protocol";
 import { useMeshFiles } from "./hooks";
 import { Icon } from "./icons";
@@ -55,10 +55,7 @@ export function FileStatus({
   const downloadTemplate = async (material: MaterialScript) => {
     setSaveError(undefined);
     try {
-      await save(
-        { name: material.file, kind: "project" },
-        () => new Blob([TEMPLATES[material.kind]], { type: "text/x-python" }),
-      );
+      await saveTemplate(save, material.kind, material.file);
     } catch (error) {
       setSaveError(`The template was not saved: ${(error as Error).message}`);
     }

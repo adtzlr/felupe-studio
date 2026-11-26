@@ -550,6 +550,7 @@ export function App({
         project={project}
         exports={exports}
         saveDialog={saving.dialog}
+        save={save}
         script={agent.script}
         samples={samples.list}
         onOpenSample={openSample}

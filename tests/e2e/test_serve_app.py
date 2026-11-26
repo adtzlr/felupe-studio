@@ -1508,8 +1508,10 @@ def test_a_material_of_a_script_solved(url, page, tmp_path):
         / "material_constitutive.py"
     )
     # the template of the package, under the name of the file of the material
-    download = properties.get_by_role("button", name="Download template")
-    name, data = saved(page, download.click)
+    # the button beside Choose file…, and the link in the hint of Script (#453)
+    downloads = properties.get_by_role("button", name="Download template")
+    assert downloads.count() == 2
+    name, data = saved(page, downloads.first.click)
     assert (name, data) == ("material_constitutive.py", template.read_bytes())
 
     # a file with an error: an issue of the material before a job, with its traceback
@@ -1601,8 +1603,10 @@ def test_a_strain_energy_function_of_a_script_solved(url, page):
         / "templates"
         / "material_hyperelastic.py"
     )
-    download = properties.get_by_role("button", name="Download template")
-    name, data = saved(page, download.click)
+    # the button beside Choose file…, and the link in the hint of Script (#453)
+    downloads = properties.get_by_role("button", name="Download template")
+    assert downloads.count() == 2
+    name, data = saved(page, downloads.first.click)
     assert (name, data) == ("material_hyperelastic.py", template.read_bytes())
 
     # the file runs: its argument mu is a field, which needs a value
@@ -1641,11 +1645,12 @@ def test_a_strain_energy_function_of_a_script_solved(url, page):
     assert page.errors == []
 
 
-def test_a_strain_based_function_of_a_script_solved(url, page):
-    """A strain-based function of a Python file (#425): the template, created with
-    the ribbon in the Total-Lagrange framework, downloaded and chosen in its
-    properties, whose arguments E and nu are fields of the material once the file
-    ran, expressions of parameters; solved: the curve of the golden case."""
+def test_a_strain_based_function_of_a_script_solved(url, page, tmp_path):
+    """A strain-based function of a Python file (#425): its template saved from the
+    dialog of the ribbon as material.py (#453), created in the Total-Lagrange
+    framework and the file chosen in its properties, whose arguments E and nu are
+    fields of the material once the file ran, expressions of parameters; solved: the
+    curve of the golden case."""
     page.context.add_init_script(RECORD_SAVES)
     page.goto(url)
     page.wait_for_selector("text=/ready, local Python/", timeout=60_000)
@@ -1671,16 +1676,11 @@ def test_a_strain_based_function_of_a_script_solved(url, page):
     page.get_by_role("menuitem", name="Strain-based function (Python)").click()
     dialog = page.get_by_role("dialog")
     dialog.get_by_label("Name", exact=True).fill("steel")
-    dialog.get_by_label("Script", exact=True).fill("material_strain.py")
     assert dialog.get_by_label("Function", exact=True).get_attribute("placeholder") == (
         "material"
     )
-    dialog.get_by_label("Framework").select_option(
-        label="Total Lagrange (large rotations)"
-    )
-    dialog.get_by_role("button", name="Create").click()
-    properties = page.get_by_role("region", name="Properties")
-    properties.get_by_text("not loaded").wait_for()
+    # the template of the kind from the link in the hint of Script (#453), saved as
+    # material.py, which Script takes
     template = (
         Path(__file__).parents[2]
         / "python"
@@ -1688,14 +1688,24 @@ def test_a_strain_based_function_of_a_script_solved(url, page):
         / "templates"
         / "material_strain.py"
     )
-    download = properties.get_by_role("button", name="Download template")
+    script = dialog.get_by_label("Script", exact=True)
+    assert script.get_attribute("placeholder") == "e.g. material.py"
+    download = dialog.get_by_role("button", name="Download template")
     name, data = saved(page, download.click)
-    assert (name, data) == ("material_strain.py", template.read_bytes())
+    assert (name, data) == ("material.py", template.read_bytes())
+    assert script.input_value() == "material.py"
+    dialog.get_by_label("Framework").select_option(
+        label="Total Lagrange (large rotations)"
+    )
+    dialog.get_by_role("button", name="Create").click()
+    properties = page.get_by_role("region", name="Properties")
+    properties.get_by_text("not loaded").wait_for()
 
-    # the file runs: its arguments E and nu are fields, which need values
-    page.get_by_test_id("mesh-file").set_input_files(str(template))
+    # the saved file runs: its arguments E and nu are fields, which need values
+    (tmp_path / name).write_bytes(data)
+    page.get_by_test_id("mesh-file").set_input_files(str(tmp_path / name))
     properties.get_by_text(
-        "material_strain.py: The function material needs a value of its arguments "
+        "material.py: The function material needs a value of its arguments "
         "'E' and 'nu'."
     ).wait_for(timeout=60_000)
     properties.get_by_label("E", exact=True).fill("E")
