@@ -12,6 +12,8 @@ __all__ = ["__version__", "codegen", "versions"]
 
 def versions():
     """Return the versions of felupe-studio and of the packages it builds on."""
+    from importlib.metadata import version
+
     import felupe
     import numpy
     import scipy
@@ -19,6 +21,8 @@ def versions():
     return {
         "felupe-studio": __version__,
         "felupe": felupe.__version__,
+        # the contact between bodies (#461), without importing it
+        "felupe-contact": version("felupe-contact"),
         "numpy": numpy.__version__,
         "scipy": scipy.__version__,
     }

@@ -63,6 +63,13 @@ describe("service worker", () => {
       family: "wheel:felupe",
       version: "12.0.0",
     });
+    // the normalized name of a package with a hyphen (#461, scripts/wheels.js)
+    expect(
+      sw.runtimeFile(
+        `${SCOPE}wheels/felupe_contact-0.1.0-py3-none-any.whl`,
+        SCOPE,
+      ),
+    ).toEqual({ family: "wheel:felupe_contact", version: "0.1.0" });
     expect(sw.runtimeFile(`${SCOPE}index.html`, SCOPE)).toBeUndefined();
     expect(
       sw.runtimeFile("https://other.org/wheels/x-1-py3-none-any.whl", SCOPE),

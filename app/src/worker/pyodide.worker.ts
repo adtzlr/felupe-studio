@@ -23,7 +23,10 @@ const ctx = self as unknown as DedicatedWorkerGlobalScope;
 let pyodide: PyodideInterface | undefined;
 /** `handle_frame()` of felupe_studio.requests: answers a request. */
 let handleFrame: PyCallable | undefined;
-/** Wheels that are loaded only when they are needed (e.g. tensortrax). */
+/**
+ * Wheels that are loaded only when they are needed, by the names of their packages
+ * (tensortrax, felupe-contact; `runner.LAZY_WHEELS` of felupe_studio).
+ */
 let lazyWheels: Record<string, string> = {};
 /** Writes the bytecode cache back to IndexedDB (ADR 0017), if it is enabled. */
 let persist: (() => Promise<void>) | undefined;
@@ -160,24 +163,29 @@ function schedulePersist(delay = 2000) {
 }
 
 /**
- * Load the wheels of a request that are loaded only when they are needed: the
- * tensortrax wheel for its models, and for the script of a material (ADR 0025),
- * which may use `fem.Hyperelastic`.
+ * Load the wheels of a request that are loaded only when they are needed: of a run,
+ * those that its command list needs (`runner.lazy_wheels()`: tensortrax for its
+ * models, felupe-contact for the contact between bodies, #461); of the script of a
+ * material (ADR 0025) tensortrax, since it may use `fem.Hyperelastic`.
  */
 async function loadLazyWheels(message: Exclude<ToWorker, { type: "init" }>) {
-  if (!lazyWheels.tensortrax) return;
   if (message.type !== "run" && message.type !== "inspect-material") return;
   const py = python();
+  let names = ["tensortrax"];
   if (message.type === "run") {
     const runner = py.pyimport("felupe_studio.runner");
     try {
-      if (!runner.uses_tensortrax(message.document)) return;
+      const needed = runner.lazy_wheels(message.document) as PyProxy;
+      names = needed.toJs() as string[];
+      needed.destroy();
     } finally {
       runner.destroy();
     }
   }
-  await py.loadPackage([lazyWheels.tensortrax]);
-  // its bytecode in the cache too (ADR 0017)
+  const urls = names.flatMap((name) => lazyWheels[name] ?? []);
+  if (urls.length === 0) return;
+  await py.loadPackage(urls);
+  // their bytecode in the cache too (ADR 0017)
   py.runPython(REFIX_SOURCE);
 }
 

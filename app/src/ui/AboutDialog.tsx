@@ -17,15 +17,20 @@ interface Props {
   onClose: () => void;
 }
 
-/** The version of a wheel of the app, e.g. "5.3.5" of "wheels/meshio-5.3.5-py3…". */
+/**
+ * The version of a wheel of the app, e.g. "5.3.5" of "wheels/meshio-5.3.5-py3…". The
+ * name of the package is normalized like in the file name of its wheel, e.g.
+ * felupe-contact of "wheels/felupe_contact-0.1.0-py3…" (#461).
+ */
 export function wheelVersion(
   name: string,
   wheels: string[] = [...__WHEELS__, ...Object.values(__LAZY_WHEELS__)],
 ): string | undefined {
+  const normalized = name.toLowerCase().replace(/[-_.]+/g, "_");
   for (const wheel of wheels) {
     const file = wheel.split("/").pop() ?? "";
     const [package_, version] = file.split("-");
-    if (package_ === name) return version;
+    if (package_ === normalized) return version;
   }
   return undefined;
 }
@@ -46,6 +51,8 @@ export function AboutDialog({ runtime, onClose }: Props) {
         ["Runtime", "Python of this computer (felupe-studio serve)"],
         ["felupe-studio", ready?.versions.felupe_studio],
         ["FElupe", ready?.versions.felupe],
+        // the contact between bodies (#461)
+        ["felupe-contact", ready?.versions.felupe_contact],
         ["Python", ready?.versions.python],
         ["NumPy", ready?.versions.numpy],
         ["SciPy", ready?.versions.scipy],
@@ -60,6 +67,8 @@ export function AboutDialog({ runtime, onClose }: Props) {
         ["SciPy", ready?.versions.scipy],
         ["meshio", wheelVersion("meshio")],
         ["tensortrax", wheelVersion("tensortrax")],
+        // loaded for the contact between bodies only (#461), like tensortrax
+        ["felupe-contact", wheelVersion("felupe-contact")],
       ];
   return (
     <Dialog

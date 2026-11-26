@@ -10,7 +10,9 @@ failed substeps. The fields of every substep are recorded for the results, see
 The hyperelastic models of tensortrax (e.g. Mooney-Rivlin) need the package
 tensortrax, which the app loads only for these models and for the materials of files
 (ADR 0025): :func:`load_tensortrax` makes it available to FElupe after FElupe was
-imported without it.
+imported without it. The contact between bodies needs felupe-contact (#461), which the
+app loads only for a model with one. :func:`lazy_wheels` names the wheels that a
+command list needs.
 """
 
 import importlib
@@ -51,6 +53,28 @@ def uses_tensortrax(document):
         or c["command"] == "material.script"
         for c in document["commands"]
     )
+
+
+def uses_contact(document):
+    """True if a command list (or its JSON text) has a contact between bodies
+    (``bodycontact.add``, #462), whose script imports felupe-contact (#461)."""
+    if isinstance(document, str):
+        document = json.loads(document)
+    return any(c["command"] == "bodycontact.add" for c in document["commands"])
+
+
+# the wheels that the app loads only for a command list that needs them (`lazy` in
+# config.wheels of app/package.json), by the names of their packages
+LAZY_WHEELS = {"tensortrax": uses_tensortrax, "felupe-contact": uses_contact}
+
+
+def lazy_wheels(document):
+    """Return the names of the lazy wheels of the app (``LAZY_WHEELS``) that a command
+    list (or its JSON text) needs, e.g. ``["felupe-contact"]`` for a contact between
+    bodies. The worker loads them before it runs the command list."""
+    if isinstance(document, str):
+        document = json.loads(document)
+    return [name for name, uses in LAZY_WHEELS.items() if uses(document)]
 
 
 def load_tensortrax():

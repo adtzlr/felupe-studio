@@ -55,6 +55,9 @@ describe("RuntimeClient", () => {
         lazyWheels: {
           tensortrax:
             "https://example.org/app/wheels/tensortrax-0.30.0-py3-none-any.whl",
+          // the file name of a wheel has the normalized name (#461)
+          "felupe-contact":
+            "https://example.org/app/wheels/felupe_contact-0.1.0-py3-none-any.whl",
         },
         // the bytecode cache of the brand (ADR 0020), of FElupe Studio here
         cache: "/pycache",

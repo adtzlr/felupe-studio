@@ -20,6 +20,11 @@ export interface Versions {
   runtime?: "pyodide" | "python";
   /** The version of the package of the local runtime. */
   felupe_studio?: string;
+  /**
+   * The version of felupe-contact of the local runtime (#461); in the browser, the
+   * pinned wheel, loaded for the contact between bodies only.
+   */
+  felupe_contact?: string;
 }
 
 /** Load times in milliseconds: Pyodide, NumPy and SciPy, the wheels of the app. */

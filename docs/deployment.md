@@ -143,7 +143,7 @@ The app runs Python in the browser with Pyodide, about 30 MB with NumPy and SciP
 - **`cdn`** (the default): Pyodide comes from `cdn.jsdelivr.net`, like for FElupe Studio. The deployment stays small. Keep it wherever the browsers of your users reach the CDN.
 - **`self-hosted`**: the build copies Pyodide into `pyodide/v<version>/` of the app: the core of the npm package `pyodide`, which felupe-studio pins, and NumPy, SciPy and rich, downloaded from `cdn.jsdelivr.net` and checked against the SHA-256 of `pyodide-lock.json`. The app then loads nothing from another host, for an intranet without internet access or a policy against third-party hosts. Only the build needs internet access. Behind a proxy, Node needs `NODE_USE_ENV_PROXY=1` to use `HTTPS_PROXY`; the message of a failed download says so.
 
-The files of FElupe, meshio and tensortrax are always served by the app itself. The users of either way download the same files once.
+The files of FElupe, meshio, tensortrax and felupe-contact are always served by the app itself. The users of either way download the same files once.
 
 ### Try a brand
 

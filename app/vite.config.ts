@@ -4,14 +4,17 @@ import { fileURLToPath } from "node:url";
 import { brand, brandOptions, pageBrand } from "./src/vite/brand";
 import { pyodide } from "./src/vite/pyodide";
 import { samples } from "./src/vite/samples";
+import { wheelFile } from "./scripts/wheels.js";
 
-// pure-Python wheels served from public/wheels (#40); the FElupe version must match
-// FELUPE_VERSION in .github/workflows/ci.yml
+// pure-Python wheels served from public/wheels (#40); the versions of FElupe and
+// felupe-contact must match FELUPE_VERSION and FELUPE_CONTACT_VERSION in
+// .github/workflows/ci.yml
 const wheel = (name: string, version: string) =>
-  `wheels/${name}-${version}-py3-none-any.whl`;
+  `wheels/${wheelFile(name, version)}`;
 type Wheel = { version: string; lazy?: boolean };
 const entries = Object.entries(pkg.config.wheels as Record<string, Wheel>);
-// loaded at startup, and loaded when needed (tensortrax for its material models)
+// loaded at startup, and loaded when needed (tensortrax for its material models,
+// felupe-contact for the contact between bodies, #461)
 const WHEELS = entries
   .filter(([, w]) => !w.lazy)
   .map(([name, w]) => wheel(name, w.version));

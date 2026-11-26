@@ -11,7 +11,7 @@ The web app and the Python package `felupe_studio` are released together with on
 - [ ] The issues of the milestone are closed and CI is green on `main`.
 - [ ] The version is set in `app/package.json`, `app/package-lock.json` (run `npm install` in `app/`) and `python/felupe_studio/__about__.py`.
 - [ ] `CHANGELOG.md` has the section of the version with its date.
-- [ ] The pinned wheels (`config.wheels` in `app/package.json`) are the versions of the golden tests (`FELUPE_VERSION` in `.github/workflows/ci.yml`).
+- [ ] The pinned wheels (`config.wheels` in `app/package.json`) are the versions of the golden tests (`FELUPE_VERSION` and `FELUPE_CONTACT_VERSION` in `.github/workflows/ci.yml`; `tests/test_versions.py` checks felupe-contact).
 - [ ] The CI files of a brand build the release: `FELUPE_STUDIO_VERSION` in `brands/gitlab-ci.yml` and `brands/github-actions.yml`, and the versions in `docs/deployment.md` (`tests/test_brands.py` checks that they agree, the release workflow that they are the version of the tag).
 
 ### Smoke test of the deployed page
@@ -23,6 +23,7 @@ With real Pyodide, after the deployment of `main` has finished. Use the cases in
 - [ ] The results on the phone, in portrait and in landscape: the contour, *Play* and the substep are one row (in landscape beside *Model* and *Results*), and *More controls* opens the others; the toolbar of the view scrolls to *Points*; the curve is off at first, and turned on it takes the bottom of the view in portrait and its right side in landscape, without covering the model or the scalar bar.
 - [ ] `bar_two_materials` (`u` and `u-p-J`): Solve shows progress, then Show results; the contours of displacement, strain and stress change with the substep; the curve matches `results.json` of the case.
 - [ ] `bar_mooney_rivlin`: Solve loads tensortrax first and runs.
+- [ ] *About* names the versions of tensortrax and felupe-contact; a model without a contact between bodies does not load felupe-contact (the network panel of the browser has no `felupe_contact-…whl`).
 - [ ] `bar_cell_types` (hexahedrons and tetrahedrons in one mesh file) shows results; with the formulation of a section changed to `u-p-J`, the tetrahedrons use the MINI element.
 - [ ] Every sample (File ▸ Samples…) opens, solves and shows results. *Hyperelastic block with a rigid plate*: the top face stays plane and tilts with the plate; the control points show the force at `plate` and the moment at `tilt`; Export ▸ Control points (CSV) has all substeps.
 - [ ] A project file of the previous schema version (e.g. saved with the previous release) opens and is migrated; saved again, it has the current schema version.
