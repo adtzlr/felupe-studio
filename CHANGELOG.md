@@ -2,7 +2,51 @@
 
 All notable changes of FElupe Studio (the web app and the Python package `felupe_studio`, released together with the same version).
 
-## [Unreleased]
+## [0.11.0] - 2026-11-26
+
+The physics of a section: how it is solved, with which material and how its points are held:
+- **The ways of a nearly incompressible section** (#419, #420): the Sections tab has a button per formulation and the menu *Nearly incompressible ▾* with four ways:
+  - *Automatic*;
+  - *Condensed per cell*;
+  - *Mixed fields*;
+  - the *Three-field variation*, which takes any material with a volumetric part of its own, e.g. an elastic-plastic one.
+
+  The formulations are a registry in the command schema, like the material models.
+- **Constraints in local coordinates** (#421, #422):
+  - a *Cartesian constraint* holds or moves points in a rotated coordinate system, e.g. on an inclined plane;
+  - a *Cylindrical constraint* holds or moves them radially, around and along an axis, e.g. a turned sleeve of a bushing.
+
+  Each is the curve of a job in its own directions. The tab *Loads & BCs* has them in the menu *Constraints ▾*, and the load cases in *Load case ▾* (#454).
+- **User-defined materials of a Python file** (#423, #424, #425, ADR 0025): a constitutive model, a strain energy function of tensortrax or a strain-based function, in a file next to the project like a mesh script.
+  - Each has a template to download from the dialog of the new material (#453).
+  - The arguments of a function are fields of the material.
+  - An error of the file is an issue before a job.
+- **Mesh tools for every mesh** (#438): a mesh of a file or of a script is an input of the mesh tools. Examples are the half of a model from Gmsh, mirrored and stacked into the whole with its cell sets, or a 2D profile of a file revolved into a body.
+- **The results of an XDMF file** exported before (#414).
+- **Sections without volume** (#418, #429): an empty part of a mesh script is one degenerate cell, whose section is off in every step.
+- **FElupe 12.1.2** (#345): an elastic-plastic model in single precision has its linear equation system in single precision too. That makes it about twice as fast as before, with 0.7 times the memory.
+- **Bugs fixed:**
+  - a section `u-p-J` counted the volumetric part of its material twice (#417);
+  - a step that leaves out a section with mixed fields failed (#428);
+  - saving failed where the browser refuses the save dialog (#439);
+  - in the browser, the cut left large meshes whole (#442);
+  - in a new tab of the browser, the run of a material of a file failed (#451).
+
+**The schema version stays 3:** projects of v0.10 open unchanged.
+- The formulations `u-p-J-condensed`, `u-p-J-mixed` and `u-p-J-three-field` and the commands `cartesian.add`, `cylindrical.add` and `material.script` are additive.
+  - A project that uses them does not open in v0.8 to v0.10, which name them, e.g. *This project uses `cylindrical.add`, which FElupe Studio 0.10.0 does not know* or *This project uses the formulation `u-p-J-mixed` of `section.add`, …*.
+  - Nor does it open in v0.7 and earlier, which list the errors of the schema.
+- A mesh tool that takes a mesh of a file or of a script changes no schema. So v0.10 opens such a project, and its validation rejects the tool: *mesh 'other': mirror takes meshes made by tools; 'half' is not.*
+
+**Brands:** `brand.json` is unchanged, so a brand of v0.10 builds with `FELUPE_STUDIO_VERSION: "0.11.0"`.
+
+**Python:**
+- the modules `felupe_studio.formulations`, `directions`, `cartesian`, `cylindrical`, `scripts` and `resultfile`;
+- the templates of the materials in `felupe_studio/templates`;
+- the tool `inspect_material` of the MCP server and of the agent bridge;
+- the names `run_material_script`, `material_function`, `base_vectors`, `CylindricalCurve`, `tags_of`, `hold_dual_fields`, `with_volume` and the other new helpers are reserved in the script.
+
+FElupe 12.1.2 (`felupe>=12.1.2`), Pyodide 314.0.7.
 
 ### Added
 
@@ -427,6 +471,7 @@ The first release: a model of hyperelastic solids, from mesh files to results, i
 - `felupe_studio.codegen()`: the command list as a readable FElupe script, checked by golden tests against reference curves.
 - JSON schema of the command list (schema version 1) as the single source of the app and of the package.
 
+[0.11.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.11.0
 [0.10.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.10.0
 [0.9.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.9.0
 [0.8.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.8.0
