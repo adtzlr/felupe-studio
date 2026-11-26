@@ -226,10 +226,7 @@ def capture(context, url, out, theme="dark"):
     open_sample("Engine mount (FElupe ex07)", "engine-mount.felupe.zip")
     page.wait_for_selector("text=engine-mount.felupe.zip")
     solve(substep=9, quantity="stress_mises", job="horizontal")
-    page.get_by_role("button", name="Contour settings").click()
-    page.get_by_role("dialog", name="Contour settings").get_by_label(
-        "Values at"
-    ).select_option("mean")
+    contour_settings(page).get_by_label("Values at").select_option("mean")
     page.keyboard.press("Escape")
     page.get_by_label("Curve", exact=True).set_checked(True)
     shot("engine-mount")
@@ -278,10 +275,7 @@ def capture(context, url, out, theme="dark"):
     ).click()
     page.wait_for_selector("text=plastic-plate.felupe.zip")
     solve(quantity="plastic_strain")
-    page.get_by_role("button", name="Contour settings").click()
-    page.get_by_role("dialog", name="Contour settings").get_by_label(
-        "Values at"
-    ).select_option("cells")
+    contour_settings(page).get_by_label("Values at").select_option("cells")
     page.keyboard.press("Escape")
     page.get_by_label("Curve", exact=True).set_checked(True)
     shot("plasticity")
@@ -315,8 +309,7 @@ def capture(context, url, out, theme="dark"):
     page.get_by_label("Undeformed", exact=True).set_checked(False)
     # the extremes of the rubber, which match the scale
     set_pressed(page.get_by_role("button", name="Min/Max"), True)
-    page.get_by_role("button", name="Contour settings").click()
-    settings = page.get_by_role("dialog", name="Contour settings")
+    settings = contour_settings(page)
     settings.get_by_label("soft_body", exact=True).check()
     shot("range-of-sections")
 
@@ -421,7 +414,7 @@ def shot_material_script(page, shot):
     ).wait_for(timeout=60_000)
     folder.cleanup()
     # the whole properties, from what the file made to the framework
-    page.set_viewport_size({**SIZE, "height": 960})
+    page.set_viewport_size({**SIZE, "height": 1120})
     properties.hover()
     page.mouse.wheel(0, -5000)
     page.mouse.move(500, 20)
@@ -459,8 +452,7 @@ def shot_torsion(page, shot, solve):
         toggle = page.get_by_role("button", name=name, exact=True)
         if toggle.count():
             set_pressed(toggle, False)
-    page.get_by_role("button", name="Contour settings").click()
-    settings = page.get_by_role("dialog", name="Contour settings")
+    settings = contour_settings(page)
     settings.get_by_label("soft_body", exact=True).check()
     page.keyboard.press("Escape")
     others(page, "One color")
@@ -549,12 +541,23 @@ def shot_cut(page, shot):
         set_pressed(toggle, was)
 
 
+def contour_settings(page):
+    """Open the contour settings, once they close with Escape: they take the focus
+    when they listen for it, also when what follows changes nothing, e.g. the range
+    of a section that an earlier picture chose."""
+    page.get_by_role("button", name="Contour settings").click()
+    settings = page.get_by_role("dialog", name="Contour settings")
+    page.wait_for_function(
+        "document.activeElement?.closest('[role=dialog]')?.getAttribute('aria-label')"
+        " === 'Contour settings'"
+    )
+    return settings
+
+
 def others(page, mode):
     """Draw the other sections of a range of chosen sections with their contour, in
     one color or not at all (*Other sections* of the contour settings, #396)."""
-    page.get_by_role("button", name="Contour settings").click()
-    settings = page.get_by_role("dialog", name="Contour settings")
-    group = settings.get_by_role("group", name="Other sections")
+    group = contour_settings(page).get_by_role("group", name="Other sections")
     group.get_by_role("radio", name=mode).check()
     page.keyboard.press("Escape")
 
