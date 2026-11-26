@@ -229,6 +229,27 @@ export const KIND_LABELS: Record<Kind, string> = {
 
 const AXES = { x: "x", y: "y", z: "z" };
 
+// the framework of a strain-based material (#191), of the registry or of a file
+// (#425)
+const FRAMEWORK: Record<string, FieldInfo> = {
+  framework: {
+    label: "Framework",
+    hint: "The strain and the stress of a strain-based material, fem.MaterialStrain",
+    placeholder: "small-strain",
+  },
+  strain_exponent: {
+    label: "Strain exponent m",
+    hint: "Of the Seth-Hill strain: 0 logarithmic (Hencky), 1 Biot, 2 Green-Lagrange",
+    default: 0,
+  },
+};
+const FRAMEWORKS = {
+  "small-strain": "Small strain",
+  "total-lagrange": "Total Lagrange (large rotations)",
+  "co-rotational": "Co-rotational (Biot strain)",
+  "seth-hill": "Seth-Hill (strain exponent m)",
+};
+
 export const REGISTRY: Record<CommandType, CommandInfo> = {
   "mesh.import": {
     label: "Import mesh",
@@ -367,30 +388,14 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
     // material registry of the schema (x-label, description, default)
     fields: {
       model: { label: "Model", default: "NeoHooke" },
-      framework: {
-        label: "Framework",
-        hint: "The strain and the stress of a strain-based material, fem.MaterialStrain",
-        placeholder: "small-strain",
-      },
-      strain_exponent: {
-        label: "Strain exponent m",
-        hint: "Of the Seth-Hill strain: 0 logarithmic (Hencky), 1 Biot, 2 Green-Lagrange",
-        default: 0,
-      },
+      ...FRAMEWORK,
       // an option of the hyperelastic materials (#346)
       mullins: {
         label: "Mullins effect",
         hint: "Softer after the first loading, up to the largest strain energy density of the load history (Ogden-Roxburgh)",
       },
     },
-    options: {
-      framework: {
-        "small-strain": "Small strain",
-        "total-lagrange": "Total Lagrange (large rotations)",
-        "co-rotational": "Co-rotational (Biot strain)",
-        "seth-hill": "Seth-Hill (strain exponent m)",
-      },
-    },
+    options: { framework: FRAMEWORKS },
   },
   // a user-defined material of a Python file (ADR 0025): the label of its kind is
   // in the schema (x-label), like the models of the registry
@@ -406,12 +411,11 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         hint: "A Python file opened with the project, e.g. of Download template",
         placeholder: "e.g. soft.py",
       },
-      // a strain energy function of a file (#424): its arguments are fields of
-      // their own, from the run of the file
+      // a function of a file (#424, #425): its arguments are fields of their own,
+      // from the run of the file; the placeholder is its default name of the schema
       function: {
         label: "Function",
-        hint: "The strain energy function of the file, of C and its arguments",
-        placeholder: "strain_energy",
+        hint: "The function of the file, e.g. of Download template",
       },
       mullins: {
         label: "Mullins effect",
@@ -421,6 +425,14 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         label: "State variables",
         hint: "Their number, of a function with the argument statevars",
       },
+      // a strain-based function of a file (#425): the shapes of its state
+      // variables and its framework, like a strain-based model of the registry
+      statevars: {
+        label: "State variables",
+        hint: "Their shapes, like statevars of fem.MaterialStrain, e.g. (1, (3, 3)) for a scalar and a tensor",
+        placeholder: "none",
+      },
+      ...FRAMEWORK,
       parameters: {
         label: "Parameters",
         hint: "The parameters the script gets as variables",
@@ -431,6 +443,7 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
         hint: "The umat has a volumetric part of its own, e.g. a bulk modulus: the displacement formulation u takes it, u-p-J one without",
       },
     },
+    options: { framework: FRAMEWORKS },
   },
   "section.add": {
     label: "Section",

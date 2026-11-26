@@ -95,7 +95,9 @@ export type MaterialAdd =
  * via the `definition` "MaterialScript".
  */
 export type MaterialScript =
-  MaterialScriptConstitutive | MaterialScriptHyperelastic;
+  | MaterialScriptConstitutive
+  | MaterialScriptHyperelastic
+  | MaterialScriptStrain;
 /**
  * Assign a material and a formulation to a cell set. Each section becomes a solid body. Every formulation is a definition below (the formulation registry, ADR 0024): its label, the solid body and the fields of FElupe, the cell types and the material that it takes, and its properties.
  *
@@ -1308,6 +1310,48 @@ export interface MaterialScriptHyperelastic {
    * The number of the state variables of a function with the argument statevars.
    */
   nstatevars?: number;
+}
+/**
+ * A strain-based function of a Python file, e.g. def material(dε, εn, σn, ζn, E, nu, **kwargs): a function of the increment of the strain dε, the strain εn, the stress σn and the state variables ζn of the last state, which returns the tangent dσdε (if its keyword argument tangent is true), the new stress σ and the new state variables ζ, like the strain-based models of the registry. The material is fem.MaterialStrain of the function in a framework, with the values of its other arguments. It has a volumetric part, so it needs the displacement formulation u, or the three-field variation u-p-J-three-field.
+ *
+ * This interface was referenced by `CommandList`'s JSON-Schema
+ * via the `definition` "MaterialScriptStrain".
+ */
+export interface MaterialScriptStrain {
+  command: "material.script";
+  name: Name;
+  kind: "strain";
+  /**
+   * File name of the script, e.g. steel.py. It defines the function.
+   */
+  file: string;
+  /**
+   * The name of the strain-based function of the file (default: material).
+   */
+  function?: string;
+  /**
+   * The values of the arguments of the function after dε, εn, σn and ζn by their names, numbers or expressions of the parameters of the model, e.g. E and nu of the template. An argument with a default value in the function may be left out.
+   */
+  arguments?: {
+    [k: string]: number | string;
+  };
+  /**
+   * The shapes of the state variables of the function, like statevars of fem.MaterialStrain: per state variable its number of values, or the lengths of the axes of an array, e.g. [1, [3, 3]] for the equivalent plastic strain and the plastic strain tensor. The function gets them as the list ζn and returns their new values as the list ζ. Without them, the function has none.
+   *
+   * @minItems 1
+   */
+  statevars?: [
+    number | [number, ...number[]],
+    ...(number | [number, ...number[]])[],
+  ];
+  /**
+   * The framework of the strain and the stress of the material (fem.MaterialStrain): small-strain (the symmetric part of the displacement gradient and the Cauchy stress), total-lagrange (the Green-Lagrange strain and the second Piola-Kirchhoff stress, for large rotations with small strains), co-rotational (the Biot strain of the right stretch tensor and the Biot stress) or seth-hill (a Seth-Hill strain with the strain_exponent m, e.g. 0 for the logarithmic Hencky strain). The frameworks of large deformations have exact tangents.
+   */
+  framework?: "small-strain" | "total-lagrange" | "co-rotational" | "seth-hill";
+  /**
+   * The strain exponent m of the Seth-Hill strain (only, and required, with the framework seth-hill): 0 for the logarithmic (Hencky) strain, 1 for the Biot strain (like co-rotational), 2 for the Green-Lagrange strain (like total-lagrange), -2 for the Euler-Almansi strain.
+   */
+  strain_exponent?: number | string;
 }
 /**
  * The displacement formulation u: a field of the displacements only (fem.SolidBody). The material has a volumetric part of its own: its bulk modulus, or a compressible or a strain-based model.

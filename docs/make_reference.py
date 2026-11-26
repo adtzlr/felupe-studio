@@ -128,6 +128,9 @@ def _array(node, command, key):
         item = f"names of {_kinds(command, key, plural=True)}"
     elif _resolve(items).get("type") == "object":
         item = "list of objects"
+    elif "array" in (_resolve(items).get("type") or []):
+        # the shapes of the state variables of a strain-based function (#425)
+        item = "list of shapes, an integer ≥ 0 or a list of integers ≥ 1 each"
     elif _resolve(items).get("type") in ("number", ["number", "string"]):
         item = "numbers"
     elif _resolve(items).get("type") in ("integer", ["integer", "string"]):

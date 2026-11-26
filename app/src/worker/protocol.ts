@@ -126,17 +126,26 @@ export interface MaterialInfo {
   functions?: Record<string, Signature>;
 }
 
-/** The signature of a strain energy function of a file (#424). */
+/**
+ * The signature of a function of a file: of a strain energy function (#424) or of a
+ * strain-based function (#425).
+ */
 export interface Signature {
   /**
-   * The arguments after C (and statevars), with their default value if they have
-   * one (null if it is not a number).
+   * The arguments after C (and statevars) of a strain energy function, after dε, εn,
+   * σn and ζn of a strain-based function, with their default value if they have one
+   * (null if it is not a number).
    */
   arguments: { name: string; default?: number | null }[];
-  /** The function takes state variables, its second argument `statevars`. */
-  statevars: boolean;
-  /** The function takes any keyword argument (`**kwargs`). */
+  /** A strain energy function takes state variables, its second argument `statevars`. */
+  statevars?: boolean;
+  /** A strain energy function takes any keyword argument (`**kwargs`). */
   kwargs?: boolean;
+  /**
+   * A strain-based function takes the keyword argument `tangent` of
+   * fem.MaterialStrain, also by `**kwargs`: its arguments are those above.
+   */
+  tangent?: boolean;
 }
 
 /**

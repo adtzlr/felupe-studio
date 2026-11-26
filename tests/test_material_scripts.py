@@ -90,8 +90,9 @@ def test_what_a_script_makes(tmp_path):
     )
     info = inspect_material(path, {})
     assert info["type"] == "MaterialStrain(linear_elastic_plastic_isotropic_hardening)"
-    # the 10 of its function and those that fem.MaterialStrain keeps itself
-    assert info["statevars"] == 28
+    # the 10 of its function, without the strain and the stress of the last state
+    # that fem.MaterialStrain keeps with them (#425)
+    assert info["statevars"] == 10
     # an object of a class of its own, without x: no state variables
     path.write_text(
         "class Soft:\n"

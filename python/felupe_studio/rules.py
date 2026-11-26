@@ -497,8 +497,8 @@ def misfit(formulation, material):
 def script_misfit(formulation, material):
     """Why a formulation does not take a material of a file (ADR 0025), by whether
     it has a volumetric part of its own (``volumetric`` of a constitutive model, the
-    bulk modulus of a strain energy function, #424), and the formulations that take
-    it, like :func:`misfit`."""
+    bulk modulus of a strain energy function, #424, always of a strain-based
+    function, #425), and the formulations that take it, like :func:`misfit`."""
     name = formulation.name
     what = f"the material '{material['name']}' of '{material['file']}'"
     other = sibling(formulation, material)
@@ -520,47 +520,66 @@ def script_misfit(formulation, material):
             f"'{other or first('isochoric')}' with the bulk modulus of the section, "
             f"or {remedy}."
         )
-    remedy = (
-        "remove 'bulk' from the material"
-        if function
-        else "set 'volumetric' to false if its umat has none"
-    )
+    # a strain-based function has a volumetric part, like a strain-based model (#425)
+    strain = strain_based(material)
+    if strain:
+        remedy = ""
+    elif function:
+        remedy = ", or remove 'bulk' from the material"
+    else:
+        remedy = ", or set 'volumetric' to false if its umat has none"
     if formulation.material == "none":
         return (
             f"the formulation {name} with {what}, which has a volumetric part. Use "
-            f"'{first('volumetric')}', or {remedy}."
+            f"'{first('volumetric')}'{remedy}."
         )
     displacement = f"the displacement formulation '{first('volumetric')}'"
     if other is not None:
         displacement += f" or '{other}'"
+    if strain:
+        what = what.replace("the material", "the strain-based material", 1)
+        return f"the {name} formulation with {what}. Use {displacement}."
     return (
         f"the {name} formulation with {what}, which has a volumetric part. Use "
-        f"{displacement}, or {remedy}."
+        f"{displacement}{remedy}."
     )
 
 
-# the arguments that fem.Hyperelastic gives a strain energy function of a file or
-# takes itself (#424), and those of the Mullins effect (#346)
-GIVEN = ("C", "statevars", "fun", "nstatevars", "parallel")
+# the arguments that the material of a function of a file gives it or takes itself,
+# and the message, by its kind: fem.Hyperelastic of a strain energy function (#424)
+# and fem.MaterialStrain of a strain-based function (#425); and the arguments of the
+# Mullins effect (#346)
+GIVEN = {
+    "hyperelastic": (
+        ("C", "statevars", "fun", "nstatevars", "parallel"),
+        "fem.Hyperelastic gives C and statevars, and takes fun, nstatevars and "
+        "parallel itself.",
+    ),
+    "strain": (
+        ("dε", "εn", "σn", "ζn", "tangent", "material", "dim", "statevars")
+        + ("framework", "symmetry", "strain_exponent"),
+        "fem.MaterialStrain gives dε, εn, σn, ζn and tangent, and takes material, "
+        "dim, statevars, framework, symmetry and strain_exponent itself.",
+    ),
+}
 SOFTENING = (*MULLINS, "material")
 
 
 def function_arguments(model, cmd):
-    """The arguments of a strain energy function of a file (#424): not those that
-    ``fem.Hyperelastic`` gives or takes itself, nor a keyword of Python, nor those of
-    ``fem.ogden_roxburgh`` with the Mullins effect, which has a state variable of its
-    own, so the function has none."""
+    """The arguments of a function of a file (#424, #425): not those that its
+    material (``fem.Hyperelastic`` or ``fem.MaterialStrain``) gives or takes itself,
+    nor a keyword of Python, nor those of ``fem.ogden_roxburgh`` with the Mullins
+    effect, which has a state variable of its own, so the function has none."""
     if not is_function(cmd):
         return []
     what = f"material '{cmd['name']}'"
     keywords, _, _ = reserved()
+    given, message = GIVEN[cmd["kind"]]
     problems = []
     for key in cmd.get("arguments", {}):
-        if key in GIVEN:
+        if key in given:
             problems.append(
-                f"{what}: '{key}' is not an argument of the function to give: "
-                "fem.Hyperelastic gives C and statevars, and takes fun, nstatevars "
-                "and parallel itself."
+                f"{what}: '{key}' is not an argument of the function to give: {message}"
             )
         elif key in keywords:
             problems.append(f"{what}: the argument '{key}' is a keyword of Python.")

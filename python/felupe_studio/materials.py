@@ -32,9 +32,10 @@ the function, e.g. ``σy``. A strain-based material needs the displacement
 formulation ``u``.
 
 A user-defined material of a Python file (``material.script``, ADR 0025) is not a
-model of the registry: a constitutive model that the file makes, or a strain energy
-function of the file (#424), which is a ``fem.Hyperelastic`` like a model of
-tensortrax (:func:`script_call`).
+model of the registry: a constitutive model that the file makes, or a function of the
+file (:func:`script_call`): a strain energy function (#424), which is a
+``fem.Hyperelastic`` like a model of tensortrax, or a strain-based function (#425),
+which is a ``fem.MaterialStrain`` in a framework like a strain-based model.
 """
 
 from dataclasses import dataclass
@@ -208,11 +209,35 @@ def _softening(mullins):
     return [f"{key}={mullins[key]!r}" for key in MULLINS]
 
 
+# the kinds of user-defined materials that are a function of a file, with the name
+# of their function by default: a strain energy function (#424) and a strain-based
+# function (#425)
+FUNCTIONS = {"hyperelastic": "strain_energy", "strain": "material"}
+
+
+def function_name(material):
+    """The name of the function of a material of a file (#424, #425)."""
+    return material.get("function", FUNCTIONS[material["kind"]])
+
+
+def shapes(statevars):
+    """The shapes of the state variables of a strain-based material (#425) as a tuple,
+    ``statevars`` of ``fem.MaterialStrain``.
+
+    Examples
+    --------
+    >>> shapes([1, [3, 3]]), shapes([0]), shapes([[3, 3]])
+    ((1, (3, 3)), (0,), ((3, 3),))
+    """
+    return tuple(tuple(s) if isinstance(s, list) else s for s in statevars)
+
+
 def script_call(material):
-    """Return how a strain energy function of a file (``material.script`` of the kind
-    ``hyperelastic``, #424) creates its material, like :func:`material_call`: the
-    function of the file (``material_function()``) in ``fem.Hyperelastic`` with the
-    values of its arguments, and the arguments of an added ``fem.Volumetric``.
+    """Return how a function of a file (``material.script`` of the kind
+    ``hyperelastic`` or ``strain``) creates its material, like :func:`material_call`:
+    the function of the file (``material_function()``) in ``fem.Hyperelastic`` (#424)
+    or ``fem.MaterialStrain`` (#425, :func:`_strain_call`) with the values of its
+    arguments, and the arguments of an added ``fem.Volumetric``.
 
     Examples
     --------
@@ -238,9 +263,11 @@ def script_call(material):
     >>> args[1:]
     ['r=3', 'm=1', 'beta=0.1', 'nstatevars=1']
     """
-    name = material.get("function", "strain_energy")
+    name = function_name(material)
     function = Call("material_function", [quote(material["file"]), quote(name)])
     args = [f"{k}={v!r}" for k, v in material.get("arguments", {}).items()]
+    if material["kind"] == "strain":
+        return _strain_call(material, function, args)
     volumetric = [f"bulk={material['bulk']!r}"] if "bulk" in material else []
     if "mullins" in material:
         # fem.ogden_roxburgh with the function as its material, as of a model of
@@ -253,6 +280,38 @@ def script_call(material):
     nstatevars = material.get("nstatevars")
     statevars = [f"nstatevars={nstatevars}"] if nstatevars else []
     return "fem.Hyperelastic", [function, *statevars, *args], volumetric
+
+
+def _strain_call(material, function, args):
+    """The material of a strain-based function of a file (#425): the function in
+    ``fem.MaterialStrain`` with the shapes of its state variables and its framework,
+    like a strain-based model of the registry (#191), without a volumetric part of
+    its own.
+
+    Examples
+    --------
+    >>> func, args, volumetric = script_call(
+    ...     {"file": "steel.py", "kind": "strain", "statevars": [1, [3, 3]],
+    ...      "framework": "seth-hill", "strain_exponent": 0,
+    ...      "arguments": {"E": 210000.0, "nu": 0.3}}
+    ... )
+    >>> func, volumetric
+    ('fem.MaterialStrain', [])
+    >>> args[1:4]
+    ['statevars=(1, (3, 3))', 'framework="seth-hill"', 'strain_exponent=0']
+    >>> args[4:]
+    ['E=210000.0', 'nu=0.3']
+    >>> print(args[0])
+    material_function("steel.py", "material")
+    """
+    statevars = material.get("statevars")
+    options = [f"statevars={shapes(statevars)!r}"] if statevars else []
+    options.append(f'framework="{material.get("framework", "small-strain")}"')
+    # the strain exponent of a Seth-Hill strain (FElupe 12.1)
+    exponent = material.get("strain_exponent")
+    if exponent is not None:
+        options.append(f"strain_exponent={exponent!r}")
+    return "fem.MaterialStrain", [function, *options, *args], []
 
 
 def uses_functools(materials):
@@ -291,15 +350,19 @@ def is_script(material):
 
 
 def is_function(material):
-    """True if a material is a strain energy function of a file (``material.script``
-    of the kind ``hyperelastic``, #424)."""
-    return is_script(material) and material["kind"] == "hyperelastic"
+    """True if a material is a function of a file (``material.script``): a strain
+    energy function (#424) or a strain-based function (#425)."""
+    return is_script(material) and material["kind"] in FUNCTIONS
 
 
 def strain_based(material):
-    """True if a material is strain-based (#191): it needs the displacement
-    formulation ``u`` of a section. A constitutive model of a file is not."""
-    return not is_script(material) and models()[material["model"]].strain
+    """True if a material is strain-based (#191): a strain-based model, or a
+    strain-based function of a file (#425). It needs the displacement formulation
+    ``u`` of a section, or the three-field variation (#420). A constitutive model of a
+    file is not."""
+    if is_script(material):
+        return material["kind"] == "strain"
+    return models()[material["model"]].strain
 
 
 def needs_bulk(material):
@@ -326,12 +389,18 @@ def has_volumetric(material):
     ...                 "volumetric": False})
     False
 
-    A strain energy function of a file has one with its bulk modulus (#424):
+    A strain energy function of a file has one with its bulk modulus (#424), a
+    strain-based function always (#425):
 
     >>> has_volumetric({"command": "material.script", "name": "soft",
     ...                 "kind": "hyperelastic", "file": "soft.py"})
     False
+    >>> has_volumetric({"command": "material.script", "name": "steel",
+    ...                 "kind": "strain", "file": "steel.py"})
+    True
     """
+    if strain_based(material):
+        return True
     if is_function(material):
         return "bulk" in material
     if is_script(material):

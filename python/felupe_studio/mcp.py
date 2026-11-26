@@ -106,10 +106,11 @@ DESCRIPTIONS = {
     "inspect_material": (
         "Run the file of a user-defined material of the model (material.script) once "
         "with the parameters of the model, changed by `parameters`, like a job: a "
-        "script that makes a FElupe material `umat`, or a strain energy function, "
-        "evaluated at a deformation. Returns the type of the material and its number "
-        "of state variables, or the error with the traceback of the file; of a "
-        "strain energy function also the functions of the file with their arguments."
+        "script that makes a FElupe material `umat`, or a strain energy function or a "
+        "strain-based function, evaluated at a deformation. Returns the type of the "
+        "material and its number of state variables, or the error with the traceback "
+        "of the file; of a function also the functions of the file with their "
+        "arguments."
     ),
     "check": (
         "The checks that need the mesh data: cells in no or in two sections, "
@@ -686,7 +687,8 @@ def server(session=None):  # noqa: C901
         script that makes a FElupe mesh `mesh`, or a dict of meshes, with the
         parameters of the model as variables), a material script (a Python script
         that makes a FElupe material `umat`, with the parameters of the model as
-        variables) or a mesh file in a text format."""
+        variables, or defines a strain energy function or a strain-based function)
+        or a mesh file in a text format."""
         return session.write_file(name, content)
 
     @mcp.tool()

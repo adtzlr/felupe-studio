@@ -18,8 +18,10 @@ import {
   numberText,
   parseCoordinates,
   parseIntegers,
+  parseShapes,
   parseValue,
   parseValues,
+  shapesText,
   valueOf,
 } from "./formText";
 import type { Form } from "./useCommandForm";
@@ -172,6 +174,24 @@ function IntegersControl({ form, spec, common, value }: Args<"integers">) {
       onInput={(event) => {
         const text = event.currentTarget.value;
         form.change(spec, parseIntegers(text), { text, parse: parseIntegers });
+      }}
+    />
+  );
+}
+
+/** The shapes of the state variables of a strain-based function (#425). */
+function ShapesControl({ form, spec, common, value }: Args<"shapes">) {
+  return (
+    <input
+      {...common}
+      type="text"
+      value={form.texts[spec.key]?.text ?? shapesText(value)}
+      placeholder={spec.placeholder}
+      autocomplete="off"
+      spellcheck={false}
+      onInput={(event) => {
+        const text = event.currentTarget.value;
+        form.change(spec, parseShapes(text), { text, parse: parseShapes });
       }}
     />
   );
@@ -562,6 +582,7 @@ const CONTROLS: {
   color: ColorControl,
   number: NumberControl,
   integers: IntegersControl,
+  shapes: ShapesControl,
   numbers: NumbersControl,
   coordinates: CoordinatesControl,
   choice: ChoiceControl,

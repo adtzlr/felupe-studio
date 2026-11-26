@@ -122,26 +122,35 @@ describe("the script of a material in its properties (#423)", () => {
     expect(content).toContain("umat = fem.NeoHooke(mu=mu, bulk=bulk)");
   });
 
-  it("downloads the template of a strain energy function (#424)", async () => {
-    let content: string | undefined;
-    const save = vi.fn<Save>(async (request, make) => {
-      content = await (make(request.name) as Blob).text();
-      return { name: request.name };
-    });
-    const files = new MeshFiles();
-    render(
-      <FileStatus
-        command={{ ...material, kind: "hyperelastic" }}
-        commands={commands}
-        files={files}
-        save={save}
-      />,
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Download template" }));
-    await waitFor(() => expect(save).toHaveBeenCalledOnce());
-    expect(content).toBe(TEMPLATES.hyperelastic);
-    expect(content).toContain("def strain_energy(C, mu):");
-  });
+  it.each([
+    // a strain energy function (#424) and a strain-based function (#425)
+    ["hyperelastic", "def strain_energy(C, mu):"],
+    ["strain", "def material(dε, εn, σn, ζn, E, nu, **kwargs):"],
+  ] as const)(
+    "downloads the template of a function of the kind %s",
+    async (kind, line) => {
+      let content: string | undefined;
+      const save = vi.fn<Save>(async (request, make) => {
+        content = await (make(request.name) as Blob).text();
+        return { name: request.name };
+      });
+      const files = new MeshFiles();
+      render(
+        <FileStatus
+          command={{ ...material, kind }}
+          commands={commands}
+          files={files}
+          save={save}
+        />,
+      );
+      fireEvent.click(
+        screen.getByRole("button", { name: "Download template" }),
+      );
+      await waitFor(() => expect(save).toHaveBeenCalledOnce());
+      expect(content).toBe(TEMPLATES[kind]);
+      expect(content).toContain(line);
+    },
+  );
 
   it("says why its template was not saved", async () => {
     const save = vi.fn<Save>(async () => {

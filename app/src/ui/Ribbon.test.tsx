@@ -171,6 +171,8 @@ describe("ribbon commands", () => {
       "Constitutive model (Python)",
       // a strain energy function of a file (#424)
       "Strain energy function (Python)",
+      // a strain-based function of a file (#425)
+      "Strain-based function (Python)",
     ]);
     fireEvent.click(
       within(menu).getByRole("menuitem", {

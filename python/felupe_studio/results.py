@@ -23,6 +23,7 @@ or a file of results exported before (#414, :mod:`felupe_studio.resultfile`), wh
 :func:`show` shows instead of the results of the last run.
 """
 
+import inspect
 import json
 import os
 import tempfile
@@ -179,22 +180,33 @@ def _history(section):
     own, e.g. the plastic strains of an elastic-plastic material (#191, see
     :func:`_plastic`) or the maximum strain energy density of the Mullins effect
     (#346), also in a ``fem.CompositeMaterial`` with a ``fem.Volumetric`` or in a
-    nearly incompressible solid body. The stress of a restored substep needs them."""
-    if isinstance(_material(section), fem.MaterialStrain):
-        return _plastic(section)
+    nearly incompressible solid body. The stress of a restored substep needs them.
+    ``fem.MaterialStrain`` keeps the strain and the stress of the last substep with
+    them, which only ``fem.linear_elastic`` does not need: another strain-based
+    function, e.g. of a file (#425), may depend on them."""
+    umat = _material(section)
+    if isinstance(umat, fem.MaterialStrain):
+        return umat.nstatevars > 0 or _function(umat) is not fem.linear_elastic
     statevars = _state["namespace"][f"solid_{section}"].results.statevars
     return statevars is not None and len(statevars) > 0
 
 
+def _function(umat):
+    """The function of a strain-based material, e.g. ``fem.linear_elastic``."""
+    return inspect.unwrap(umat.material)
+
+
 def _plastic(section):
-    """True if the material of a section has state variables of its own (#191), e.g.
-    the equivalent plastic strain (the first one) and the plastic strain tensor of
-    ``fem.linear_elastic_plastic_isotropic_hardening``, also in the three-field
-    variation (#420). ``fem.MaterialStrain`` adds the strain and the stress of the
-    last substep, which a linear-elastic material does not need to evaluate the
-    stress of a restored substep."""
+    """True if the material of a section is elastic-plastic (#191): of
+    ``fem.linear_elastic_plastic_isotropic_hardening``, whose first state variable is
+    the equivalent plastic strain, also in the three-field variation (#420). The
+    state variables of another strain-based function, e.g. of a file (#425), are no
+    quantity."""
     umat = _material(section)
-    return isinstance(umat, fem.MaterialStrain) and umat.nstatevars > 0
+    return (
+        isinstance(umat, fem.MaterialStrain)
+        and _function(umat) is fem.linear_elastic_plastic_isotropic_hardening
+    )
 
 
 def _mullins(section):
