@@ -11,7 +11,7 @@ concurrency:
 
 env:
   # FElupe version the golden tests and the browser runtime are pinned to
-  FELUPE_VERSION: "12.1.1"
+  FELUPE_VERSION: "12.1.2"
 
 jobs:
   # a job that hangs fails after its timeout, not after the 6 hours of GitHub;

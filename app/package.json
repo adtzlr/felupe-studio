@@ -1,14 +1,14 @@
 {
   "name": "felupe-studio",
   "private": true,
-  "version": "0.10.0",
+  "version": "0.11.0",
   "type": "module",
   "license": "GPL-3.0-or-later",
   "config": {
     "wheels": {
       "felupe": {
-        "version": "12.1.1",
-        "sha256": "28042406e2b3f467620c98296ccb0e98fd3c4b3e6c74f38421bcf33177a0938d"
+        "version": "12.1.2",
+        "sha256": "396abbb1c160618c751b742b7bdc393310746d2d8af44000db8f57be44b176f1"
       },
       "meshio": {
         "version": "5.3.5",

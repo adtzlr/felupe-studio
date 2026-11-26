@@ -2,7 +2,51 @@
 
 All notable changes of FElupe Studio (the web app and the Python package `felupe_studio`, released together with the same version).
 
-## [Unreleased]
+## [0.11.0] - 2026-11-26
+
+The physics of a section: how it is solved, with which material and how its points are held:
+- **The ways of a nearly incompressible section** (#419, #420): the Sections tab has a button per formulation and the menu *Nearly incompressible ▾* with four ways:
+  - *Automatic*;
+  - *Condensed per cell*;
+  - *Mixed fields*;
+  - the *Three-field variation*, which takes any material with a volumetric part of its own, e.g. an elastic-plastic one.
+
+  The formulations are a registry in the command schema, like the material models.
+- **Constraints in local coordinates** (#421, #422):
+  - a *Cartesian constraint* holds or moves points in a rotated coordinate system, e.g. on an inclined plane;
+  - a *Cylindrical constraint* holds or moves them radially, around and along an axis, e.g. a turned sleeve of a bushing.
+
+  Each is the curve of a job in its own directions. The tab *Loads & BCs* has them in the menu *Constraints ▾*, and the load cases in *Load case ▾* (#454).
+- **User-defined materials of a Python file** (#423, #424, #425, ADR 0025): a constitutive model, a strain energy function of tensortrax or a strain-based function, in a file next to the project like a mesh script.
+  - Each has a template to download from the dialog of the new material (#453).
+  - The arguments of a function are fields of the material.
+  - An error of the file is an issue before a job.
+- **Mesh tools for every mesh** (#438): a mesh of a file or of a script is an input of the mesh tools. Examples are the half of a model from Gmsh, mirrored and stacked into the whole with its cell sets, or a 2D profile of a file revolved into a body.
+- **The results of an XDMF file** exported before (#414).
+- **Sections without volume** (#418, #429): an empty part of a mesh script is one degenerate cell, whose section is off in every step.
+- **FElupe 12.1.2** (#345): an elastic-plastic model in single precision has its linear equation system in single precision too. That makes it about twice as fast as before, with 0.7 times the memory.
+- **Bugs fixed:**
+  - a section `u-p-J` counted the volumetric part of its material twice (#417);
+  - a step that leaves out a section with mixed fields failed (#428);
+  - saving failed where the browser refuses the save dialog (#439);
+  - in the browser, the cut left large meshes whole (#442);
+  - in a new tab of the browser, the run of a material of a file failed (#451).
+
+**The schema version stays 3:** projects of v0.10 open unchanged.
+- The formulations `u-p-J-condensed`, `u-p-J-mixed` and `u-p-J-three-field` and the commands `cartesian.add`, `cylindrical.add` and `material.script` are additive.
+  - A project that uses them does not open in v0.8 to v0.10, which name them, e.g. *This project uses `cylindrical.add`, which FElupe Studio 0.10.0 does not know* or *This project uses the formulation `u-p-J-mixed` of `section.add`, …*.
+  - Nor does it open in v0.7 and earlier, which list the errors of the schema.
+- A mesh tool that takes a mesh of a file or of a script changes no schema. So v0.10 opens such a project, and its validation rejects the tool: *mesh 'other': mirror takes meshes made by tools; 'half' is not.*
+
+**Brands:** `brand.json` is unchanged, so a brand of v0.10 builds with `FELUPE_STUDIO_VERSION: "0.11.0"`.
+
+**Python:**
+- the modules `felupe_studio.formulations`, `directions`, `cartesian`, `cylindrical`, `scripts` and `resultfile`;
+- the templates of the materials in `felupe_studio/templates`;
+- the tool `inspect_material` of the MCP server and of the agent bridge;
+- the names `run_material_script`, `material_function`, `base_vectors`, `CylindricalCurve`, `tags_of`, `hold_dual_fields`, `with_volume` and the other new helpers are reserved in the script.
+
+FElupe 12.1.2 (`felupe>=12.1.2`), Pyodide 314.0.7.
 
 ### Added
 
@@ -44,6 +88,11 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 
 ### Changed
 
+- FElupe 12.1.2 (#345): the wheel of the app, the golden tests and `felupe>=12.1.2` of the package.
+  - **Elastic-plastic materials in single precision:** a model in single precision with the elastic-plastic material has its linear equation system in single precision too, since FElupe returns its tangent in the precision of the strain (adtzlr/felupe#1301). Before, the matrix and its factorization were in double precision. A cube of steel of 27,783 degrees of freedom solves in 55 s with 556 MB instead of 106 s with 799 MB (double precision: 126 s, 866 MB). The curves are those of before: the golden case `plasticity_cube` is within 7e-5 of double precision, and the sample *Elastic-plastic plate with a hole* within 2e-3 at its tolerance.
+  - **The strain-based linear elastic model** still returns its stress and its tangent in double precision (adtzlr/felupe#1308). The guide says so, with the consequence: in single precision, the estimate of its round-off is too small, and it does not reach a tight tolerance, e.g. 1e-6.
+  - **The condensed `u-p-J` with the volumetric part `stretch` or `log`** has the consistent linearization of FElupe (adtzlr/felupe#1306). The curve of the golden case `bar_volumetric_log` changes by 6e-7 at its tolerance of 0.01, and its reference is of FElupe 12.1.2; the other golden cases are unchanged.
+  - **The stresses of a section condensed per cell** in the results are evaluated three times instead of twice. FElupe 12.1.2 linearizes the pressure at the volume ratio of the evaluation before, so with two evaluations the pressure of `log` was off by 2 % after a jump from the first substep to the last. Now the stresses do not depend on the substep shown before, bit for bit.
 - *Download template* in the hint of *Script* of a user-defined material is a link (#453), also in the dialog *New material*, where there was no template to download before the material existed. It saves the template of the chosen *Kind* under the name in *Script*, or as `material.py` if *Script* is empty, with the save dialog where the browser has one; *Script* then takes the name of the saved file, also one changed in the save dialog. The example of the name of the file is `material.py` instead of `soft.py`, in the placeholder of *Script* and in the descriptions of `file` of `material.script` in the schema, and the hint of *Function* says *e.g. of the template*. The properties keep their button *Download template* beside *Choose file…*.
 - The tab *Loads & BCs* of the ribbon has the load cases and the constraints in two menus (#454), like the menus of the Materials and Sections tabs: *Load case ▾* with *Uniaxial*, *Biaxial*, *Planar* and *Shear*, and *Constraints ▾* with the multi-point, the Cartesian and the cylindrical constraint. So the tab has nine entries instead of fourteen and fits a window of 1280 px without scrolling. *Contact* stays a button of its own. The select *Type* of a load case shows no group of all of its options. A menu of several commands is new: the commands of the registry with the same `menu` of a tab, e.g. `menu: "Constraints"`, are one menu of the ribbon.
 - The documentation of v0.11 (#426): the user guide has the pictures of the menu *Nearly incompressible* with the section of the rubber of the bushing, of the plasticity of FElupe as a strain-based function of a file `plasticity.py` (its code is in the guide, and the picture shows the arguments of its function as fields of the material and its state variables) and of the bushing with steel sleeves turned by 30° about its axis by a cylindrical constraint of its inner sleeve, and the limits of version 0.11: the formulations of the Sections tab and no others, the penalties and the fixed directions of the constraints, the files of the user-defined materials without an editor, a check and contours of their state variables, a free rotation of a multi-point constraint in small substeps (#430), and a project of 0.11 in versions 0.10 to 0.8. A section with a strain-based material takes `u` or the three-field variation, no longer only `u`. The examples of the errors of a strain energy function name `material.py`. The README lists what 0.11 adds, with the picture of the turned bushing, and names the user-defined materials and the mesh tools of every mesh. The release checklist has the smoke tests of v0.11: a section switched between the four ways of `u-p-J`, a material script of each kind made from the template of the link in its dialog and run before any job, a Cartesian and a cylindrical constraint and the menus *Load case* and *Constraints* of the Loads & BCs tab, imported meshes mirrored and stacked with the cell sets of their tags and a profile of a file revolved, a part of a mesh script as a degenerate cell and back, *Import results…* in a new project, and a project of 0.11 in 0.10. `docs/make_screenshots.py` also makes `formulations.png`, `material-script.png` (with the code of the guide) and `torsion.png`, and all pictures were made again with the real Pyodide. The roadmap links go to #416.
@@ -422,6 +471,7 @@ The first release: a model of hyperelastic solids, from mesh files to results, i
 - `felupe_studio.codegen()`: the command list as a readable FElupe script, checked by golden tests against reference curves.
 - JSON schema of the command list (schema version 1) as the single source of the app and of the package.
 
+[0.11.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.11.0
 [0.10.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.10.0
 [0.9.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.9.0
 [0.8.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.8.0

@@ -369,9 +369,13 @@ def _cauchy_stress(solid, field):
     nearly incompressible solid body (``fem.SolidBodyNearlyIncompressible``, #226)
     keeps the pressure and the volume ratio of its cells as a state, which an
     evaluation updates by a linearization at the previous one, e.g. of another
-    substep. The first evaluation takes over the deformation, the second one has the
-    exact volume ratio of the cells."""
+    substep: the first evaluation takes over the deformation, the second one has the
+    exact volume ratio v/V of the cells, and the third one the exact pressure U'(v/V),
+    since FElupe 12.1.2 linearizes the pressure at the volume ratio before, too
+    (adtzlr/felupe#1306). So the stress of a substep does not depend on the substep
+    shown before, also for a volumetric part with a non-linear U'(J)."""
     if isinstance(solid, fem.SolidBodyNearlyIncompressible):
+        solid.evaluate.cauchy_stress(field)
         solid.evaluate.cauchy_stress(field)
     return solid.evaluate.cauchy_stress(field)
 
