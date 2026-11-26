@@ -681,3 +681,11 @@ class CylindricalCurve(fem.CharacteristicCurve):
 
     x = property(lambda self: self.cylindrical.x)
     y = property(lambda self: self.cylindrical.y)
+
+
+# --- embedded in generated scripts with contacts and meshes of scripts ---
+def present(*items):
+    """Return the items of a step that the script made: a contact between bodies of
+    a section without volume is None (#429, #462), since a section of one degenerate
+    cell has no faces to touch."""
+    return [item for item in items if item is not None]

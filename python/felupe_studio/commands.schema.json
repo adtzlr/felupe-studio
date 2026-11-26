@@ -75,6 +75,7 @@
           "Held",
           "REGIONS",
           "SimpleNamespace",
+          "SolidBodyContact",
           "base_vectors",
           "boundaries",
           "boundary_faces",
@@ -98,6 +99,7 @@
           "pick",
           "points",
           "points_at",
+          "present",
           "pypardiso",
           "run_material_script",
           "run_mesh_script",
@@ -211,6 +213,9 @@
         },
         {
           "$ref": "#/$defs/ContactAdd"
+        },
+        {
+          "$ref": "#/$defs/BodyContactAdd"
         },
         {
           "$ref": "#/$defs/LoadAdd"
@@ -3525,6 +3530,86 @@
         }
       }
     },
+    "BodyContactAdd": {
+      "description": "A contact between the surfaces of solid bodies (felupe_contact.SolidBodyContact of felupe-contact, #462, ADR 0026): of two sections, of the bodies of the mesh of one section, or of a body with itself. A penalty contact of the faces on the outline of the meshes, an item of the steps like the constraints; off in a step that leaves out one of its sections. The points of the secondary surface are projected onto the faces of the primary surface. The sections need hexahedrons or quads, linear or quadratic.",
+      "type": "object",
+      "required": ["command", "name", "section"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "bodycontact.add"
+        },
+        "name": {
+          "$ref": "#/$defs/Name"
+        },
+        "section": {
+          "description": "The section of the secondary surface, on whose faces the contact is integrated: the softer and finer meshed one, e.g. the rubber of a rubber-to-metal contact.",
+          "$ref": "#/$defs/Name"
+        },
+        "primary": {
+          "description": "The section of the primary surface (default: the same section, so all bodies of its mesh may touch each other).",
+          "$ref": "#/$defs/Name"
+        },
+        "points": {
+          "description": "A point set that limits the faces of the secondary surface: those on the outline of the section with all their points in the set (default: all faces on the outline).",
+          "$ref": "#/$defs/Name"
+        },
+        "points_primary": {
+          "description": "A point set that limits the faces of the primary surface, like points.",
+          "$ref": "#/$defs/Name"
+        },
+        "penalty": {
+          "description": "The penalty stiffness, a contact pressure per unit penetration (default: estimated from the stiffness of the solid bodies at the surfaces, times the scale).",
+          "type": ["number", "string"],
+          "exclusiveMinimum": 0
+        },
+        "penalty_scale": {
+          "description": "The factor of the estimated penalty stiffness (default 10). Increase it to reduce the penetration, decrease it if the Newton-Raphson method does not converge. Not used with a penalty.",
+          "type": ["number", "string"],
+          "exclusiveMinimum": 0
+        },
+        "smoothing": {
+          "description": "The length of the transition of the regularized penalty law (default 1 % of the size of the faces); 0 turns the regularization off.",
+          "x-quantity": "length",
+          "type": ["number", "string"],
+          "minimum": 0
+        },
+        "two_pass": {
+          "description": "Evaluate the contact twice with the roles of the surfaces exchanged, each with half of the contact potential (default false): no bias of the choice of the secondary surface, in twice the time. Redundant if both surfaces have all faces on the outline of their sections.",
+          "type": "boolean"
+        },
+        "max_distance": {
+          "description": "The largest distance between a point of the secondary surface and a face of the primary surface that the contact search considers (default 5 times the size of the faces): the largest penetration that it detects. Smaller than the thickness of a body.",
+          "x-quantity": "length",
+          "type": ["number", "string"],
+          "exclusiveMinimum": 0
+        },
+        "candidates": {
+          "description": "The number of faces of the primary surface that the contact search evaluates per point of the secondary surface (default 8).",
+          "type": ["integer", "string"],
+          "minimum": 1
+        },
+        "tolerance": {
+          "description": "The relative tolerance of the natural coordinates of a valid projection (default 0.1).",
+          "type": ["number", "string"],
+          "minimum": 0
+        },
+        "facing": {
+          "description": "The least opposition of the outward normals of two faces that may touch (default 0.1); -1 turns it off.",
+          "type": ["number", "string"],
+          "minimum": -1,
+          "maximum": 1
+        },
+        "self_contact": {
+          "description": "Faces of the same body may touch each other (default false), e.g. the walls of a tube squeezed flat. The largest distance must be smaller than the thickness of a body.",
+          "type": "boolean"
+        },
+        "geometric_stiffness": {
+          "description": "The geometric part of the stiffness of the contact (default true), for the quadratic convergence of the Newton-Raphson method.",
+          "type": "boolean"
+        }
+      }
+    },
     "PressureAdd": {
       "description": "A pressure on the faces of a face set (fem.SolidBodyPressure), an item of the steps: a force per deformed area, normal to the faces. A positive pressure pushes onto the faces, a negative one pulls. A ramp of a step scales the pressure.",
       "type": "object",
@@ -3593,7 +3678,7 @@
           }
         },
         "constraints": {
-          "description": "Multi-point constraints, Cartesian and cylindrical constraints and contacts that are items of the step (default: all).",
+          "description": "Multi-point constraints, Cartesian and cylindrical constraints and contacts that are items of the step (default: all, without the contacts between bodies of a section that the step leaves out).",
           "type": "array",
           "minItems": 1,
           "uniqueItems": true,

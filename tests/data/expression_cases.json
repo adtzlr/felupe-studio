@@ -4148,6 +4148,501 @@
     },
     {
       "command": {
+        "command": "mesh.generate",
+        "name": "base",
+        "tool": "Cube",
+        "parameters": {
+          "a": [
+            "0",
+            "-0.5",
+            "-0.5"
+          ],
+          "b": [
+            "0.98",
+            "1.5",
+            "1.5"
+          ],
+          "n": [
+            "4",
+            "9",
+            "9"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "a",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            0
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            1
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            2
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "block",
+        "tool": "Cube",
+        "parameters": {
+          "a": [
+            "1",
+            "0",
+            "0"
+          ],
+          "b": [
+            "2",
+            "1",
+            "1"
+          ],
+          "n": [
+            "6",
+            "6",
+            "6"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "a",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            0
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            1
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            2
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "base_cells",
+        "mesh": "base"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "block_cells",
+        "mesh": "block"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "steel",
+        "model": "LinearElasticLargeStrain",
+        "parameters": {
+          "E": "100000",
+          "nu": "0.3"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "E"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "nu"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": -1,
+            "exclusiveMaximum": 0.5
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "material.add",
+        "name": "rubber",
+        "model": "NeoHooke",
+        "parameters": {
+          "mu": "1",
+          "bulk": "50"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "mu"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "plate",
+        "cellset": "base_cells",
+        "material": "steel",
+        "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "rubber_block",
+        "cellset": "block_cells",
+        "material": "rubber",
+        "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "back",
+        "select": {
+          "axis": "x",
+          "value": "0"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "end",
+        "select": {
+          "axis": "x",
+          "value": "2"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "fixed",
+        "pointset": "back",
+        "constrained": [
+          "x",
+          "y",
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "clamped",
+        "pointset": "end",
+        "constrained": [
+          "y",
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "move",
+        "pointset": "end",
+        "constrained": [
+          "x"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "bodycontact.add",
+        "name": "contact",
+        "section": "rubber_block",
+        "primary": "plate",
+        "penalty_scale": "100"
+      },
+      "fields": [
+        {
+          "path": [
+            "penalty_scale"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "press",
+        "ramp": {
+          "num": "8",
+          "items": [
+            {
+              "target": "move",
+              "start": "0",
+              "end": "-0.32"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "start"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "press"
+        ],
+        "curve": "move",
+        "tol": "1e-08"
+      },
+      "fields": [
+        {
+          "path": [
+            "tol"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
         "command": "model.settings",
         "name": "settings",
         "units": {
@@ -5890,6 +6385,278 @@
     },
     {
       "command": {
+        "command": "mesh.generate",
+        "name": "disc_mesh",
+        "tool": "Rectangle",
+        "parameters": {
+          "a": [
+            "0",
+            "0"
+          ],
+          "b": [
+            "0.5",
+            "2"
+          ],
+          "n": [
+            "4",
+            "11"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "a",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            0
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            1
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "cylinder_mesh",
+        "tool": "Rectangle",
+        "parameters": {
+          "a": [
+            "0.52",
+            "0"
+          ],
+          "b": [
+            "1.52",
+            "1"
+          ],
+          "n": [
+            "6",
+            "6"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "a",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            0
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            1
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "disc_cells",
+        "mesh": "disc_mesh"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "cylinder_cells",
+        "mesh": "cylinder_mesh"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "disc",
+        "cellset": "disc_cells",
+        "material": "steel",
+        "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "cylinder",
+        "cellset": "cylinder_cells",
+        "material": "rubber",
+        "formulation": "u-p-J-mixed",
+        "bulk": "50"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "end",
+        "select": {
+          "axis": "x",
+          "value": "1.52"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "fixed",
+        "pointset": "back",
+        "constrained": [
+          "x",
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "clamped",
+        "pointset": "end",
+        "constrained": [
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "bodycontact.add",
+        "name": "contact",
+        "section": "cylinder",
+        "primary": "disc",
+        "penalty_scale": "100"
+      },
+      "fields": [
+        {
+          "path": [
+            "penalty_scale"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
         "command": "faceset.add",
         "name": "end",
         "section": "body",
@@ -6228,6 +6995,297 @@
         "analysis": "plane-strain"
       },
       "fields": []
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "plate_mesh",
+        "tool": "Rectangle",
+        "parameters": {
+          "a": [
+            "0",
+            "0"
+          ],
+          "b": [
+            "1",
+            "2"
+          ],
+          "n": [
+            "6",
+            "11"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "a",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            0
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            1
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "pad_mesh",
+        "tool": "Rectangle",
+        "parameters": {
+          "a": [
+            "1.02",
+            "0.4"
+          ],
+          "b": [
+            "2.02",
+            "1.6"
+          ],
+          "n": [
+            "6",
+            "7"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "a",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            0
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            1
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "plate_cells",
+        "mesh": "plate_mesh"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "pad_cells",
+        "mesh": "pad_mesh"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "plate",
+        "cellset": "plate_cells",
+        "material": "steel",
+        "formulation": "u"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "pad",
+        "cellset": "pad_cells",
+        "material": "rubber",
+        "formulation": "u-p-J-condensed",
+        "bulk": "50"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "end",
+        "select": {
+          "axis": "x",
+          "value": "2.02"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "pad_face",
+        "select": {
+          "axis": "x",
+          "value": "1.02"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "plate_face",
+        "select": {
+          "axis": "x",
+          "value": "1"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "bodycontact.add",
+        "name": "contact",
+        "section": "pad",
+        "primary": "plate",
+        "points": "pad_face",
+        "points_primary": "plate_face",
+        "penalty_scale": "100"
+      },
+      "fields": [
+        {
+          "path": [
+            "penalty_scale"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
     },
     {
       "command": {
@@ -7802,6 +8860,492 @@
           "bounds": {}
         }
       ]
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "base",
+        "tool": "Rectangle",
+        "parameters": {
+          "a": [
+            "0.4",
+            "0"
+          ],
+          "b": [
+            "1.6",
+            "0.5"
+          ],
+          "n": [
+            "7",
+            "3"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "a",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            0
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            1
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "left_arm",
+        "tool": "Rectangle",
+        "parameters": {
+          "a": [
+            "0",
+            "0.5"
+          ],
+          "b": [
+            "0.8",
+            "2"
+          ],
+          "n": [
+            "5",
+            "7"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "a",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            0
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            1
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "right_arm",
+        "tool": "Rectangle",
+        "parameters": {
+          "a": [
+            "1.2",
+            "0.5"
+          ],
+          "b": [
+            "2",
+            "2"
+          ],
+          "n": [
+            "5",
+            "7"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "a",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            0
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            1
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "slotted",
+        "tool": "stack",
+        "inputs": [
+          "base",
+          "left_arm",
+          "right_arm"
+        ],
+        "parameters": {
+          "decimals": "10"
+        }
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "all_cells",
+        "mesh": "slotted"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "body",
+        "cellset": "all_cells",
+        "material": "rubber",
+        "formulation": "u-p-J",
+        "bulk": "50"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "bottom",
+        "select": {
+          "axis": "y",
+          "value": "0"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "left_side",
+        "select": {
+          "axis": "x",
+          "value": "0"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "right_side",
+        "select": {
+          "axis": "x",
+          "value": "2"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "fixed",
+        "pointset": "bottom",
+        "constrained": [
+          "x",
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "push_left",
+        "pointset": "left_side",
+        "constrained": [
+          "x"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "push_right",
+        "pointset": "right_side",
+        "constrained": [
+          "x"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "bodycontact.add",
+        "name": "slit",
+        "section": "body",
+        "self_contact": true,
+        "max_distance": "0.3"
+      },
+      "fields": [
+        {
+          "path": [
+            "max_distance"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "squeeze",
+        "ramp": {
+          "num": "12",
+          "items": [
+            {
+              "target": "push_left",
+              "start": "0",
+              "end": "0.25"
+            },
+            {
+              "target": "push_right",
+              "start": "0",
+              "end": "-0.25"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "start"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            1,
+            "start"
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            1,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job_1",
+        "steps": [
+          "squeeze"
+        ],
+        "curve": "push_left"
+      },
+      "fields": []
     },
     {
       "command": {
@@ -10758,14 +12302,6 @@
     },
     {
       "command": {
-        "command": "cellset.from_file",
-        "name": "plate_cells",
-        "mesh": "plate_mesh"
-      },
-      "fields": []
-    },
-    {
-      "command": {
         "command": "material.add",
         "name": "steel",
         "model": "LinearElasticPlasticIsotropicHardening",
@@ -10819,16 +12355,6 @@
           }
         }
       ]
-    },
-    {
-      "command": {
-        "command": "section.add",
-        "name": "plate",
-        "cellset": "plate_cells",
-        "material": "steel",
-        "formulation": "u"
-      },
-      "fields": []
     },
     {
       "command": {

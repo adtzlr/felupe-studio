@@ -15,10 +15,12 @@ app loads only for a model with one. :func:`lazy_wheels` names the wheels that a
 command list needs.
 """
 
+import contextlib
 import importlib
 import json
 import sys
 import time
+import warnings
 
 import felupe as fem
 import numpy as np
@@ -86,6 +88,25 @@ def load_tensortrax():
     importlib.reload(sys.modules["felupe.constitution.tensortrax"])
     importlib.reload(sys.modules["felupe.constitution"])
     importlib.reload(fem)
+
+
+@contextlib.contextmanager
+def contact_warnings(report):
+    """Report the warnings of felupe-contact (#462) as events ``warning`` of a run,
+    once each, e.g. that no contact will be detected or of self-contact in the
+    undeformed configuration. Other warnings are warned as before."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        yield
+    reported = set()
+    for warning in caught:
+        if "felupe_contact" not in warning.filename:
+            warnings.warn_explicit(
+                warning.message, warning.category, warning.filename, warning.lineno
+            )
+        elif str(warning.message) not in reported:
+            reported.add(str(warning.message))
+            report({"event": "warning", "message": str(warning.message)})
 
 
 class Progress(fem.Plugin):
@@ -402,7 +423,9 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
     if unavailable:
         raise ValidationError(unavailable)
     namespace = {"__name__": "felupe_studio_model"}
-    exec(compile(script, "model.py", "exec"), namespace)
+    # the contacts between bodies warn when they are made (#462)
+    with contact_warnings(report):
+        exec(compile(script, "model.py", "exec"), namespace)
     LAST.clear()
     LAST.update(namespace)
     sections = [
@@ -467,7 +490,8 @@ def run(document, report=lambda event: None, live=None, clock=time.perf_counter)
         solver = solver_source(commands[name])
         if solver is not None:
             options["solver"] = eval(solver, namespace)  # noqa: S307
-        job.evaluate(x0=namespace["field"], verbose=False, **options)
+        with contact_warnings(report):
+            job.evaluate(x0=namespace["field"], verbose=False, **options)
         result = {
             "substeps": sum(substeps[name]),
             "time": time.perf_counter() - started,

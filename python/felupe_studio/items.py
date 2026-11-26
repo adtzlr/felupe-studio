@@ -1,12 +1,13 @@
 """The parts of the script of the items besides the solid bodies (ADR 0018).
 
 The multi-point constraints, the Cartesian and cylindrical constraints, the contacts
-with rigid surfaces, the point loads and the pressures on face sets.
+with rigid surfaces and between bodies, the point loads and the pressures on face
+sets.
 """
 
 from .cartesian import E2
 from .directions import components, skip
-from .formatting import Call, List, call, quote, vector
+from .formatting import LINE_LENGTH, Call, List, call, quote, vector
 
 
 def single_point(name):
@@ -119,6 +120,62 @@ def contact(context, command):
     return [call(command["name"], func, args)]
 
 
+# the arguments of felupe_contact.SolidBodyContact after its surfaces (#462), in the
+# order of its signature: the fields of bodycontact.add have their names
+BODYCONTACT_ARGUMENTS = (
+    "penalty",
+    "penalty_scale",
+    "smoothing",
+    "two_pass",
+    "max_distance",
+    "candidates",
+    "tolerance",
+    "facing",
+    "self_contact",
+    "geometric_stiffness",
+)
+
+
+def bodycontact_solids(command):
+    """The names of the solid bodies of the surfaces of a contact between bodies: of
+    its section, and of its primary section if it is another one (#462)."""
+    solids = ["solid_" + command["section"]]
+    if command.get("primary", command["section"]) != command["section"]:
+        solids.append("solid_" + command["primary"])
+    return solids
+
+
+def conditional(target, expression, condition):
+    """Return an assignment of an expression if a condition holds, else of None,
+    wrapped like ruff format would wrap it."""
+    line = f"{target} = {expression} if {condition} else None"
+    if len(line) <= LINE_LENGTH:
+        return line
+    inner = f"    {expression}"
+    if len(inner) > LINE_LENGTH and isinstance(expression, Call):
+        inner = f"    {expression.exploded(1)}"
+    return f"{target} = (\n{inner}\n    if {condition}\n    else None\n)"
+
+
+def bodycontact(context, command):
+    """A contact between the surfaces of solid bodies (felupe-contact, #462): of the
+    solid bodies of its sections, on the faces on the outline of their meshes within
+    its point sets. In a script with meshes of scripts, None if a section has no
+    volume (#429)."""
+    solids = bodycontact_solids(command)
+    args = list(solids)
+    for key, mask in (("points", "mask"), ("points_primary", "mask_primary")):
+        if key in command:
+            args.append(f"{mask}={command[key]}")
+    for key in BODYCONTACT_ARGUMENTS:
+        if key in command:
+            args.append(f"{key}={command[key]!r}")
+    if not context.volumes:
+        return [call(command["name"], "SolidBodyContact", args)]
+    condition = " and ".join(f"has_volume({solid})" for solid in solids)
+    return [conditional(command["name"], Call("SolidBodyContact", args), condition)]
+
+
 def load(context, command):
     """A point load: the force at every point of a point set, scaled by the ramps."""
     force = vector(context.components(command["force"], command["points"]))
@@ -136,6 +193,7 @@ CONSTRAINTS = {"mpc.add": constraint}
 CARTESIANS = {"cartesian.add": cartesian}
 CYLINDRICALS = {"cylindrical.add": cylindrical}
 CONTACTS = {"contact.add": contact}
+BODYCONTACTS = {"bodycontact.add": bodycontact}
 LOADS = {"load.add": load}
 PRESSURES = {"pressure.add": pressure}
 
@@ -187,6 +245,18 @@ def contacts(context):
             "sections)\n# or of a face set",
         ),
     ]
+
+
+def bodycontacts(context):
+    """The part of the contacts between bodies (#462)."""
+    comment = (
+        "# contacts between bodies (felupe-contact, #462): of the faces on the outline "
+        "of the\n# sections, the points of the secondary surface projected onto the "
+        "primary one"
+    )
+    if context.volumes:
+        comment += "; off\n# with a section without volume (#429)"
+    return context.emit(BODYCONTACTS, comment)
 
 
 def loads(context):

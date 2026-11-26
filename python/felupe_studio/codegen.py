@@ -1,8 +1,9 @@
 """Turn a command list into a readable FElupe script (ADR 0003, ADR 0018).
 
 The generated script only needs FElupe, NumPy and meshio (and tensortrax for the
-hyperelastic models of tensortrax, e.g. Mooney-Rivlin), so an exported script runs
-outside of FElupe Studio as well. It is a fixed sequence of parts (:data:`PARTS`), in
+hyperelastic models of tensortrax, e.g. Mooney-Rivlin, and felupe-contact for the
+contact between bodies), so an exported script runs outside of FElupe Studio as
+well. It is a fixed sequence of parts (:data:`PARTS`), in
 the order in which FElupe needs its objects and independent of the order of the
 commands:
 
@@ -13,8 +14,8 @@ commands:
    the solid bodies (created after the merge, see :func:`felupe.field.merge`)
 3. point sets, face sets, load cases and symmetry planes (``fem.dof``) and the
    boundaries on the merged field (:mod:`.sets`)
-4. multi-point, Cartesian and cylindrical constraints, contacts, point loads and
-   pressures (:mod:`.items`)
+4. multi-point, Cartesian and cylindrical constraints, contacts with rigid surfaces
+   and between bodies, point loads and pressures (:mod:`.items`)
 5. steps and jobs (:mod:`.jobs`)
 
 Every part is a function of a :class:`Context` that returns its lines. Within a part,
@@ -57,9 +58,12 @@ HEADER = '''\
 
 {stdlib}import felupe as fem
 {meshio}import numpy as np
-{imports}'''
+{imports}{contact}'''
 
 MARKER = "# --- embedded in generated scripts ---\n"
+
+# the import of a script with a contact between bodies (#462)
+CONTACT_IMPORT = "from felupe_contact import SolidBodyContact\n"
 
 
 def _blocks(markers):
@@ -81,7 +85,8 @@ def _blocks(markers):
 # functions of files (#424, #425), and of the linear solvers of jobs other
 # than SuperLU (#203) and in single precision (ADR 0016), of steps that switch
 # boundaries on and off (#393), of Cartesian constraints (#421), of the curves of
-# cylindrical constraints (#422), and of the cell tags of made meshes (#438)
+# cylindrical constraints (#422), of the cell tags of made meshes (#438), and of
+# the contacts between bodies of a script with meshes of scripts (#462)
 BLOCKS = _blocks(
     {
         "mixed": "\n\n# --- embedded in generated scripts with mixed fields ---\n",
@@ -127,6 +132,10 @@ BLOCKS = _blocks(
             "\n\n# --- embedded in generated scripts with the curve of a cylindrical "
             "constraint ---\n"
         ),
+        "present": (
+            "\n\n# --- embedded in generated scripts with contacts and meshes of "
+            "scripts ---\n"
+        ),
     }
 )
 
@@ -148,6 +157,7 @@ HELPERS = (
     ("switch", lambda context: jobs.switches(context.get("step.add"))),
     ("cartesian", lambda context: bool(context.get("cartesian.add"))),
     ("cylindrical", lambda context: jobs.cylindrical_curves(context)),
+    ("present", lambda context: context.volumes and bool(context.bodycontacts)),
 )
 
 AXES = ("x", "y", "z")
@@ -397,6 +407,11 @@ class Context:
         return self.get("mpc.add", "cartesian.add", "cylindrical.add")
 
     @cached_property
+    def bodycontacts(self):
+        """The contacts between bodies (felupe-contact, #462)."""
+        return self.get("bodycontact.add")
+
+    @cached_property
     def moved(self):
         """The constraints in local coordinates by their names, which a step ramps
         and which may be the curve of a job: the Cartesian and the cylindrical
@@ -448,6 +463,8 @@ def header(context):
             stdlib="import functools\n\n" if partial else "",
             meshio="import meshio\n" if files else "",
             imports="import pypardiso\n" if pardiso else "",
+            # felupe-contact only in scripts with a contact between bodies (#462)
+            contact=CONTACT_IMPORT if context.bodycontacts else "",
         )
     ]
     if context.units:
@@ -502,6 +519,7 @@ PARTS = (
     items.cartesians,
     items.cylindricals,
     items.contacts,
+    items.bodycontacts,
     items.loads,
     items.pressures,
     jobs.steps,

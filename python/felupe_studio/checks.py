@@ -12,6 +12,9 @@
 - **Formulations:** the formulation of every section takes the cells of its mesh,
   e.g. condensed per cell hexahedrons and quads only (#420), like
   ``formulationNotes()`` of the app.
+- **Contacts between bodies:** the sections of a contact between bodies have faces
+  that felupe-contact takes, of hexahedrons and quads (#462), like
+  ``contactNotes()`` of the app.
 
 :func:`check` returns a JSON-serializable report.
 """
@@ -295,6 +298,55 @@ def _formulations(meshes, cellsets, sections, messages):
     return problems
 
 
+# the cells whose faces are a contact surface of felupe-contact (#462): it has the
+# boundary regions of linear and quadratic hexahedrons and quads
+CONTACT_CELLS = ("hexahedron", "hexahedron20", "hexahedron27", "quad", "quad8", "quad9")
+
+
+def contact_problem(contact, section, cell_type):
+    """Return why the cells of a section of a contact between bodies have no contact
+    surface, or None (#462): the message of ``contactNotes()`` of the app.
+
+    Examples
+    --------
+    >>> print(contact_problem("contact", "rubber", "tetra"))  # doctest: +ELLIPSIS
+    Contact 'contact' between bodies: the tetra cells of 'rubber' have no faces ...
+    >>> print(contact_problem("contact", "rubber", "hexahedron20"))
+    None
+    """
+    if cell_type in CONTACT_CELLS:
+        return None
+    return (
+        f"Contact '{contact}' between bodies: the {cell_type} cells of '{section}' "
+        "have no faces for a contact in felupe-contact. Use hexahedrons or quads, "
+        "linear or quadratic."
+    )
+
+
+def _contacts(commands, meshes, cellsets, sections, messages):
+    """The contacts between bodies of sections of cells without a contact surface in
+    felupe-contact (#462), e.g. tetrahedrons."""
+    by_name = {sec["name"]: sec for sec in sections}
+    problems = []
+    for contact in commands:
+        if contact["command"] != "bodycontact.add":
+            continue
+        names = dict.fromkeys([contact["section"], contact.get("primary")])
+        for name in filter(None, names):
+            cell_type = meshes[cellsets[by_name[name]["cellset"]][0]].cell_type
+            problem = contact_problem(contact["name"], name, cell_type)
+            if problem is not None:
+                problems.append(
+                    {
+                        "contact": contact["name"],
+                        "section": name,
+                        "cell_type": cell_type,
+                    }
+                )
+                messages.append(problem)
+    return problems
+
+
 def check(document, directory="."):
     """Check the cell assignment and the interfaces of the sections of a model.
 
@@ -312,7 +364,9 @@ def check(document, directory="."):
         ``unassigned`` and ``multiple`` per mesh, ``interfaces`` with the
         number of ``shared`` and ``hanging`` points per pair of sections, and
         ``formulations`` with the sections of cells that their formulation does not
-        take (``section``, ``formulation`` and ``cell_type``, #420).
+        take (``section``, ``formulation`` and ``cell_type``, #420), and
+        ``contacts`` with the sections of contacts between bodies of cells without
+        a contact surface (``contact``, ``section`` and ``cell_type``, #462).
     """
     validate(document)
     # the values of the expressions of the parameters (#242)
@@ -335,11 +389,13 @@ def check(document, directory="."):
     cells = _assignment(assigned, cellsets, sections, messages)
     interfaces = _interfaces(commands, meshes, cellsets, sections, dim, messages)
     formulations = _formulations(meshes, cellsets, sections, messages)
+    contacts = _contacts(commands, meshes, cellsets, sections, messages)
     ok = (
         not cells["unassigned"]
         and not cells["multiple"]
         and all(face["hanging"] == 0 for face in interfaces)
         and not formulations
+        and not contacts
     )
     return {
         "ok": ok,
@@ -347,4 +403,5 @@ def check(document, directory="."):
         "cells": cells,
         "interfaces": interfaces,
         "formulations": formulations,
+        "contacts": contacts,
     }

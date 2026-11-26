@@ -827,7 +827,21 @@ LARGE_ROUNDOFF = {
 # elastic-plastic tangent is in float32 (#345). The estimate of mixed fields misses
 # the isochoric part (adtzlr/felupe#1305). With the default tolerance of the app, it
 # converges (test_three_field_variation_in_single_precision)
-NOT_CONVERGED = {"block_contact_friction", "plasticity_cube_three_field"}
+# a steel body (E = 1e5) in contact with rubber (#462): felupe-contact 0.1.0 assembles
+# the contact in float64, so FElupe estimates the round-off of the float32 forces of
+# the solid bodies with the epsilon of float64, and the residual stalls above it, also
+# at the default tolerance (adtzlr/felupe-contact#16). The self-contact of rubber
+# converges
+CONTACT_IN_FLOAT64 = {
+    "blocks_contact_bodies",
+    "plate_contact_bodies_plane_strain",
+    "cylinder_contact_bodies_axisymmetric",
+}
+NOT_CONVERGED = {
+    "block_contact_friction",
+    "plasticity_cube_three_field",
+    *CONTACT_IN_FLOAT64,
+}
 
 
 @pytest.mark.parametrize("case", CASES)

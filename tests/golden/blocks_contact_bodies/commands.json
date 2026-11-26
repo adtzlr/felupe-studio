@@ -1,0 +1,164 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "mesh.generate",
+      "name": "base",
+      "tool": "Cube",
+      "parameters": {
+        "a": [
+          0,
+          -0.5,
+          -0.5
+        ],
+        "b": [
+          0.98,
+          1.5,
+          1.5
+        ],
+        "n": [
+          4,
+          9,
+          9
+        ]
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "block",
+      "tool": "Cube",
+      "parameters": {
+        "a": [
+          1,
+          0,
+          0
+        ],
+        "b": [
+          2,
+          1,
+          1
+        ],
+        "n": [
+          6,
+          6,
+          6
+        ]
+      }
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "base_cells",
+      "mesh": "base"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "block_cells",
+      "mesh": "block"
+    },
+    {
+      "command": "material.add",
+      "name": "steel",
+      "model": "LinearElasticLargeStrain",
+      "parameters": {
+        "E": 100000,
+        "nu": 0.3
+      }
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 1,
+        "bulk": 50
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "plate",
+      "cellset": "base_cells",
+      "material": "steel",
+      "formulation": "u"
+    },
+    {
+      "command": "section.add",
+      "name": "rubber_block",
+      "cellset": "block_cells",
+      "material": "rubber",
+      "formulation": "u"
+    },
+    {
+      "command": "pointset.add",
+      "name": "back",
+      "select": {
+        "axis": "x",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "end",
+      "select": {
+        "axis": "x",
+        "value": 2
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "back",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "clamped",
+      "pointset": "end",
+      "constrained": [
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "move",
+      "pointset": "end",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "bodycontact.add",
+      "name": "contact",
+      "section": "rubber_block",
+      "primary": "plate",
+      "penalty_scale": 100
+    },
+    {
+      "command": "step.add",
+      "name": "press",
+      "ramp": {
+        "num": 8,
+        "items": [
+          {
+            "target": "move",
+            "start": 0,
+            "end": -0.32
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "press"
+      ],
+      "curve": "move",
+      "tol": 1e-08
+    }
+  ]
+}

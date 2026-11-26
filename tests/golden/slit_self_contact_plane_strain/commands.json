@@ -1,0 +1,184 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "model.settings",
+      "name": "settings",
+      "analysis": "plane-strain"
+    },
+    {
+      "command": "mesh.generate",
+      "name": "base",
+      "tool": "Rectangle",
+      "parameters": {
+        "a": [
+          0.4,
+          0
+        ],
+        "b": [
+          1.6,
+          0.5
+        ],
+        "n": [
+          7,
+          3
+        ]
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "left_arm",
+      "tool": "Rectangle",
+      "parameters": {
+        "a": [
+          0,
+          0.5
+        ],
+        "b": [
+          0.8,
+          2
+        ],
+        "n": [
+          5,
+          7
+        ]
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "right_arm",
+      "tool": "Rectangle",
+      "parameters": {
+        "a": [
+          1.2,
+          0.5
+        ],
+        "b": [
+          2,
+          2
+        ],
+        "n": [
+          5,
+          7
+        ]
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "slotted",
+      "tool": "stack",
+      "inputs": [
+        "base",
+        "left_arm",
+        "right_arm"
+      ],
+      "parameters": {
+        "decimals": 10
+      }
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "all_cells",
+      "mesh": "slotted"
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 1
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "body",
+      "cellset": "all_cells",
+      "material": "rubber",
+      "formulation": "u-p-J",
+      "bulk": 50
+    },
+    {
+      "command": "pointset.add",
+      "name": "bottom",
+      "select": {
+        "axis": "y",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "left_side",
+      "select": {
+        "axis": "x",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "right_side",
+      "select": {
+        "axis": "x",
+        "value": 2
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "bottom",
+      "constrained": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "push_left",
+      "pointset": "left_side",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "push_right",
+      "pointset": "right_side",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "bodycontact.add",
+      "name": "slit",
+      "section": "body",
+      "self_contact": true,
+      "max_distance": 0.3
+    },
+    {
+      "command": "step.add",
+      "name": "squeeze",
+      "ramp": {
+        "num": 12,
+        "items": [
+          {
+            "target": "push_left",
+            "start": 0,
+            "end": 0.25
+          },
+          {
+            "target": "push_right",
+            "start": 0,
+            "end": -0.25
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "squeeze"
+      ],
+      "curve": "push_left"
+    }
+  ]
+}

@@ -1,0 +1,179 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "model.settings",
+      "name": "settings",
+      "analysis": "plane-strain"
+    },
+    {
+      "command": "mesh.generate",
+      "name": "plate_mesh",
+      "tool": "Rectangle",
+      "parameters": {
+        "a": [
+          0,
+          0
+        ],
+        "b": [
+          1,
+          2
+        ],
+        "n": [
+          6,
+          11
+        ]
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "pad_mesh",
+      "tool": "Rectangle",
+      "parameters": {
+        "a": [
+          1.02,
+          0.4
+        ],
+        "b": [
+          2.02,
+          1.6
+        ],
+        "n": [
+          6,
+          7
+        ]
+      }
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "plate_cells",
+      "mesh": "plate_mesh"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "pad_cells",
+      "mesh": "pad_mesh"
+    },
+    {
+      "command": "material.add",
+      "name": "steel",
+      "model": "LinearElasticLargeStrain",
+      "parameters": {
+        "E": 100000,
+        "nu": 0.3
+      }
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 1
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "plate",
+      "cellset": "plate_cells",
+      "material": "steel",
+      "formulation": "u"
+    },
+    {
+      "command": "section.add",
+      "name": "pad",
+      "cellset": "pad_cells",
+      "material": "rubber",
+      "formulation": "u-p-J-condensed",
+      "bulk": 50
+    },
+    {
+      "command": "pointset.add",
+      "name": "back",
+      "select": {
+        "axis": "x",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "end",
+      "select": {
+        "axis": "x",
+        "value": 2.02
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "pad_face",
+      "select": {
+        "axis": "x",
+        "value": 1.02
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "plate_face",
+      "select": {
+        "axis": "x",
+        "value": 1
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "back",
+      "constrained": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "clamped",
+      "pointset": "end",
+      "constrained": [
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "move",
+      "pointset": "end",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "bodycontact.add",
+      "name": "contact",
+      "section": "pad",
+      "primary": "plate",
+      "points": "pad_face",
+      "points_primary": "plate_face",
+      "penalty_scale": 100
+    },
+    {
+      "command": "step.add",
+      "name": "press",
+      "ramp": {
+        "num": 8,
+        "items": [
+          {
+            "target": "move",
+            "start": 0,
+            "end": -0.32
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "press"
+      ],
+      "curve": "move",
+      "tol": 1e-08
+    }
+  ]
+}
