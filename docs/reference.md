@@ -894,7 +894,7 @@ A contact of points with a rigid surface (#220): fem.ContactRigidPlane or fem.Co
 
 ### `bodycontact.add`
 
-A contact between the surfaces of solid bodies (felupe_contact.SolidBodyContact of felupe-contact, #462, ADR 0026): of two sections, of the bodies of the mesh of one section, or of a body with itself. A penalty contact of the faces on the outline of the meshes, an item of the steps like the constraints; off in a step that leaves out one of its sections. The points of the secondary surface are projected onto the faces of the primary surface. The sections need hexahedrons or quads, linear or quadratic.
+A contact between the surfaces of solid bodies (felupe_contact.SolidBodyContact of felupe-contact, #462, ADR 0026): of two sections, of the bodies of the mesh of one section, or of a body with itself. A penalty contact of the faces on the outline of the meshes, with an optional Coulomb friction (#463), an item of the steps like the constraints; off in a step that leaves out one of its sections. The points of the secondary surface are projected onto the faces of the primary surface. The sections need hexahedrons or quads, linear or quadratic.
 
 | Property | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -913,6 +913,10 @@ A contact between the surfaces of solid bodies (felupe_contact.SolidBodyContact 
 | `facing` | number ≥ -1, ≤ 1 (or an expression) |  | The least opposition of the outward normals of two faces that may touch (default 0.1); -1 turns it off. |
 | `self_contact` | boolean |  | Faces of the same body may touch each other (default false), e.g. the walls of a tube squeezed flat. The largest distance must be smaller than the thickness of a body. |
 | `geometric_stiffness` | boolean |  | The geometric part of the stiffness of the contact (default true), for the quadratic convergence of the Newton-Raphson method. Default `true`. |
+| `friction` | number ≥ 0 (or an expression) |  | The Coulomb friction coefficient (default 0, without friction): a point of the secondary surface sticks to the primary surface until its tangential traction reaches the friction coefficient times the contact pressure, then it slides. A frictional contact depends on the path of the load. |
+| `elastic_slip` | number > 0 (or an expression) |  | The allowable elastic slip of sticking points (default 1 % of the size of the faces): a point starts to slide at this slip, independent of the contact pressure. Decrease it to reduce the slip of sticking points, increase it if the Newton-Raphson method does not converge. Only with friction, not with a tangential penalty. |
+| `penalty_tangential` | number > 0 (or an expression) |  | A constant tangential penalty stiffness, a tangential traction per unit elastic slip, instead of the elastic slip. Only with friction. |
+| `symmetric` | boolean |  | The symmetric part of the stiffness matrix of the friction (default false), for the iterative methods minres and cg, which need a symmetric matrix. The consistent stiffness matrix of the friction is not symmetric, and its symmetric part converges more slowly. Only with friction. |
 
 ### `load.add`
 

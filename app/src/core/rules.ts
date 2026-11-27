@@ -829,6 +829,79 @@ const bodycontactSections: Rule<CommandOf<"bodycontact.add">> = (model, cmd) =>
   });
 
 /**
+ * The tangential penalty of the friction of a contact between bodies replaces its
+ * elastic slip, so they are not both given (#463).
+ */
+const bodycontactSlip: Rule<CommandOf<"bodycontact.add">> = (_, cmd) =>
+  cmd.elastic_slip !== undefined && cmd.penalty_tangential !== undefined
+    ? [
+        {
+          message: `contact '${cmd.name}' has an elastic slip and a tangential penalty: the tangential penalty replaces the elastic slip, so give one of them.`,
+          field: "penalty_tangential",
+        },
+      ]
+    : [];
+
+type Contact = CommandOf<"contact.add"> | CommandOf<"bodycontact.add">;
+
+/**
+ * The contacts of a step: of its constraints, by default all contacts, without the
+ * contacts between bodies of a section that it leaves out (#462).
+ */
+function contactsOf(model: Model, step: CommandOf<"step.add">): Contact[] {
+  const contacts = new Map<string, Contact>();
+  for (const c of model.commands)
+    if (c.command === "contact.add" || c.command === "bodycontact.add")
+      contacts.set(c.name, c);
+  if (step.constraints)
+    return step.constraints.flatMap((name) => contacts.get(name) ?? []);
+  const sections = step.sections;
+  return [...contacts.values()].filter(
+    (c) =>
+      sections === undefined ||
+      c.command === "contact.add" ||
+      bodycontactNames(c).every((s) => sections.includes(s)),
+  );
+}
+
+/**
+ * Whether the stiffness of a contact is not symmetric: of its friction, unless the
+ * symmetric part of the friction of a contact between bodies (#463).
+ */
+const unsymmetric = (contact: Contact) =>
+  (contact.friction ?? 0) > 0 &&
+  !(contact.command === "bodycontact.add" && contact.symmetric);
+
+/** The iterative methods of symmetric matrices (#203). */
+const SYMMETRIC_METHODS: readonly string[] = ["minres", "cg"];
+
+/**
+ * The iterative methods minres and cg need a symmetric matrix, which the friction of
+ * a contact does not have (#463).
+ */
+const solverSymmetry: Rule<CommandOf<"job.add">> = (model, cmd) => {
+  const method = cmd.solver?.method;
+  if (method === undefined || !SYMMETRIC_METHODS.includes(method)) return [];
+  const contacts = new Map<string, Contact>();
+  for (const name of cmd.steps) {
+    const step = model.before(name);
+    if (step?.command === "step.add")
+      for (const c of contactsOf(model, step)) contacts.set(c.name, c);
+  }
+  return [...contacts.values()].filter(unsymmetric).map((contact) => {
+    const solvers = "gmres, bicgstab or a direct solver";
+    const remedy =
+      contact.command === "bodycontact.add"
+        ? `the symmetric part of its friction, or ${solvers}`
+        : solvers;
+    return {
+      message: `job '${cmd.name}' solves with ${method}, which needs a symmetric matrix, but the stiffness of the friction of the contact '${contact.name}' is not symmetric: take ${remedy}.`,
+      field: "solver.method",
+    };
+  });
+};
+
+/**
  * A step that leaves out a section has no contact between bodies of it (#462): the
  * contact acts on both of its sections.
  */
@@ -969,7 +1042,7 @@ export const LAST: readonly Rule[] = [single, reservedName, duplicateName];
 /** The rules of a command type, in this order. */
 export const RULES: Rules = {
   "step.add": [rampTargets, rampTwice, rampValues, rampOff, stepContacts],
-  "job.add": [curveKind],
+  "job.add": [curveKind, solverSymmetry],
   "boundary.add": [boundaryValues],
   "cartesian.add": [cartesianVectors, directionValues],
   "cylindrical.add": [cylindricalAxis, directionValues],
@@ -981,7 +1054,7 @@ export const RULES: Rules = {
   "point.add": [vertexCoordinates],
   "rigid.add": [vertexCoordinates, rigidShape],
   "contact.add": [contactPoints],
-  "bodycontact.add": [bodycontactPoints, bodycontactSections],
+  "bodycontact.add": [bodycontactPoints, bodycontactSections, bodycontactSlip],
   "mpc.add": [rotationComponents],
   "material.add": [material],
   "material.script": [functionArguments],

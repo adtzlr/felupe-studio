@@ -1874,7 +1874,7 @@ export interface ContactAdd {
   elastic_slip?: number;
 }
 /**
- * A contact between the surfaces of solid bodies (felupe_contact.SolidBodyContact of felupe-contact, #462, ADR 0026): of two sections, of the bodies of the mesh of one section, or of a body with itself. A penalty contact of the faces on the outline of the meshes, an item of the steps like the constraints; off in a step that leaves out one of its sections. The points of the secondary surface are projected onto the faces of the primary surface. The sections need hexahedrons or quads, linear or quadratic.
+ * A contact between the surfaces of solid bodies (felupe_contact.SolidBodyContact of felupe-contact, #462, ADR 0026): of two sections, of the bodies of the mesh of one section, or of a body with itself. A penalty contact of the faces on the outline of the meshes, with an optional Coulomb friction (#463), an item of the steps like the constraints; off in a step that leaves out one of its sections. The points of the secondary surface are projected onto the faces of the primary surface. The sections need hexahedrons or quads, linear or quadratic.
  *
  * This interface was referenced by `CommandList`'s JSON-Schema
  * via the `definition` "BodyContactAdd".
@@ -1938,6 +1938,22 @@ export interface BodyContactAdd {
    * The geometric part of the stiffness of the contact (default true), for the quadratic convergence of the Newton-Raphson method.
    */
   geometric_stiffness?: boolean;
+  /**
+   * The Coulomb friction coefficient (default 0, without friction): a point of the secondary surface sticks to the primary surface until its tangential traction reaches the friction coefficient times the contact pressure, then it slides. A frictional contact depends on the path of the load.
+   */
+  friction?: number;
+  /**
+   * The allowable elastic slip of sticking points (default 1 % of the size of the faces): a point starts to slide at this slip, independent of the contact pressure. Decrease it to reduce the slip of sticking points, increase it if the Newton-Raphson method does not converge. Only with friction, not with a tangential penalty.
+   */
+  elastic_slip?: number;
+  /**
+   * A constant tangential penalty stiffness, a tangential traction per unit elastic slip, instead of the elastic slip. Only with friction.
+   */
+  penalty_tangential?: number;
+  /**
+   * The symmetric part of the stiffness matrix of the friction (default false), for the iterative methods minres and cg, which need a symmetric matrix. The consistent stiffness matrix of the friction is not symmetric, and its symmetric part converges more slowly. Only with friction.
+   */
+  symmetric?: boolean;
 }
 /**
  * A point load (fem.PointLoad): a force at every point of a point set or at a control point, an item of the steps. A ramp of a step scales the force.

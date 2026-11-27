@@ -9253,6 +9253,352 @@
     "notes": []
   },
   {
+    "name": "friction of contacts between bodies",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "bodycontact.add",
+          "name": "touch",
+          "section": "section_soft",
+          "primary": "section_hard",
+          "friction": 0.3,
+          "elastic_slip": 0.01,
+          "symmetric": true
+        },
+        {
+          "command": "bodycontact.add",
+          "name": "folds",
+          "section": "section_soft",
+          "self_contact": true,
+          "friction": 0.2,
+          "penalty_tangential": 100
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move",
+          "solver": {
+            "type": "iterative",
+            "method": "gmres"
+          }
+        }
+      ]
+    },
+    "errors": [],
+    "notes": []
+  },
+  {
+    "name": "friction with an iterative method of symmetric matrices",
+    "document": {
+      "schema_version": 3,
+      "commands": [
+        {
+          "command": "mesh.import",
+          "name": "specimen",
+          "file": "specimen.vtu",
+          "tag": "material"
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "hard",
+          "mesh": "specimen",
+          "value": 1
+        },
+        {
+          "command": "cellset.from_tag",
+          "name": "soft",
+          "mesh": "specimen",
+          "value": 2
+        },
+        {
+          "command": "material.add",
+          "name": "umat_hard",
+          "model": "LinearElasticLargeStrain",
+          "parameters": {
+            "E": 10,
+            "nu": 0.3
+          }
+        },
+        {
+          "command": "material.add",
+          "name": "umat_soft",
+          "model": "NeoHooke",
+          "parameters": {
+            "mu": 1
+          }
+        },
+        {
+          "command": "section.add",
+          "name": "section_hard",
+          "cellset": "hard",
+          "material": "umat_hard",
+          "formulation": "u"
+        },
+        {
+          "command": "section.add",
+          "name": "section_soft",
+          "cellset": "soft",
+          "material": "umat_soft",
+          "formulation": "u-p-J",
+          "bulk": 5000
+        },
+        {
+          "command": "pointset.add",
+          "name": "left",
+          "select": {
+            "axis": "x",
+            "value": 0
+          }
+        },
+        {
+          "command": "pointset.add",
+          "name": "right",
+          "select": {
+            "axis": "x",
+            "value": 3
+          }
+        },
+        {
+          "command": "rigid.add",
+          "name": "plate",
+          "coordinates": [
+            4,
+            0.5,
+            0.5
+          ],
+          "shape": {
+            "normal": [
+              -1,
+              0,
+              0
+            ]
+          }
+        },
+        {
+          "command": "boundary.add",
+          "name": "push",
+          "pointset": "plate",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "contact.add",
+          "name": "rough",
+          "points": "right",
+          "surface": "plate",
+          "friction": 0.5
+        },
+        {
+          "command": "bodycontact.add",
+          "name": "touch",
+          "section": "section_soft",
+          "primary": "section_hard",
+          "friction": 0.3,
+          "elastic_slip": 0.01,
+          "penalty_tangential": 100
+        },
+        {
+          "command": "bodycontact.add",
+          "name": "smooth",
+          "section": "section_soft",
+          "primary": "section_hard",
+          "friction": 0.3,
+          "symmetric": true
+        },
+        {
+          "command": "bodycontact.add",
+          "name": "frictionless",
+          "section": "section_soft",
+          "primary": "section_hard"
+        },
+        {
+          "command": "boundary.add",
+          "name": "fixed",
+          "pointset": "left",
+          "constrained": [
+            "x",
+            "y",
+            "z"
+          ]
+        },
+        {
+          "command": "boundary.add",
+          "name": "move",
+          "pointset": "right",
+          "constrained": [
+            "x"
+          ]
+        },
+        {
+          "command": "step.add",
+          "name": "step_2",
+          "sections": [
+            "section_hard"
+          ],
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "step.add",
+          "name": "step_1",
+          "ramp": {
+            "num": 5,
+            "items": [
+              {
+                "target": "move",
+                "start": 0,
+                "end": 0.5
+              }
+            ]
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_1",
+          "steps": [
+            "step_1"
+          ],
+          "curve": "move",
+          "solver": {
+            "type": "iterative",
+            "method": "minres"
+          }
+        },
+        {
+          "command": "job.add",
+          "name": "job_2",
+          "steps": [
+            "step_2"
+          ],
+          "solver": {
+            "type": "iterative",
+            "method": "cg"
+          }
+        }
+      ]
+    },
+    "errors": [
+      "commands/12: contact 'touch' has an elastic slip and a tangential penalty: the tangential penalty replaces the elastic slip, so give one of them.",
+      "commands/19: job 'job_1' solves with minres, which needs a symmetric matrix, but the stiffness of the friction of the contact 'rough' is not symmetric: take gmres, bicgstab or a direct solver.",
+      "commands/19: job 'job_1' solves with minres, which needs a symmetric matrix, but the stiffness of the friction of the contact 'touch' is not symmetric: take the symmetric part of its friction, or gmres, bicgstab or a direct solver.",
+      "commands/20: job 'job_2' solves with cg, which needs a symmetric matrix, but the stiffness of the friction of the contact 'rough' is not symmetric: take gmres, bicgstab or a direct solver."
+    ],
+    "notes": []
+  },
+  {
     "name": "2d model with a contact",
     "document": {
       "schema_version": 3,
