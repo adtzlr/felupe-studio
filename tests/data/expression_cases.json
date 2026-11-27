@@ -10280,6 +10280,495 @@
     },
     {
       "command": {
+        "command": "mesh.generate",
+        "name": "plate_mesh",
+        "tool": "Cube",
+        "parameters": {
+          "a": [
+            "0",
+            "0",
+            "0"
+          ],
+          "b": [
+            "40",
+            "40",
+            "1"
+          ],
+          "n": [
+            "17",
+            "17",
+            "3"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "a",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "a",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "b",
+            2
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            0
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            1
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "n",
+            2
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "profile",
+        "tool": "Circle",
+        "parameters": {
+          "radius": "10",
+          "centerpoint": [
+            "0",
+            "0"
+          ],
+          "n": "5",
+          "sections": [
+            "0"
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "radius"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "centerpoint",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "centerpoint",
+            1
+          ],
+          "integer": false,
+          "bounds": {}
+        },
+        {
+          "path": [
+            "parameters",
+            "n"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "sections",
+            0
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "cylinder",
+        "tool": "expand",
+        "inputs": [
+          "profile"
+        ],
+        "parameters": {
+          "n": "7",
+          "z": "12"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "n"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 2
+          }
+        },
+        {
+          "path": [
+            "parameters",
+            "z"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "mesh.generate",
+        "name": "buffer_mesh",
+        "tool": "translate",
+        "inputs": [
+          "cylinder"
+        ],
+        "parameters": {
+          "move": "1.2",
+          "axis": "z"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "parameters",
+            "move"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "cellset.from_file",
+        "name": "buffer_cells",
+        "mesh": "buffer_mesh"
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "section.add",
+        "name": "buffer",
+        "cellset": "buffer_cells",
+        "material": "rubber",
+        "formulation": "u-p-J",
+        "bulk": "5000"
+      },
+      "fields": [
+        {
+          "path": [
+            "bulk"
+          ],
+          "integer": false,
+          "bounds": {
+            "exclusiveMinimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "symmetry.add",
+        "name": "symmetry",
+        "axes": [
+          "x",
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "edge_x",
+        "select": {
+          "axis": "x",
+          "value": "40"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "edge_y",
+        "select": {
+          "axis": "y",
+          "value": "40"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "plate_top",
+        "select": {
+          "axis": "z",
+          "value": "1"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "buffer_bottom",
+        "select": {
+          "axis": "z",
+          "value": "1.2"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "pointset.add",
+        "name": "top",
+        "select": {
+          "axis": "z",
+          "value": "13.2"
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "select",
+            "value"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "clamped_x",
+        "pointset": "edge_x",
+        "constrained": [
+          "x",
+          "y",
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "clamped_y",
+        "pointset": "edge_y",
+        "constrained": [
+          "x",
+          "y",
+          "z"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "boundary.add",
+        "name": "held",
+        "pointset": "top",
+        "constrained": [
+          "x",
+          "y"
+        ]
+      },
+      "fields": []
+    },
+    {
+      "command": {
+        "command": "bodycontact.add",
+        "name": "contact",
+        "section": "buffer",
+        "primary": "plate",
+        "points": "buffer_bottom",
+        "points_primary": "plate_top",
+        "friction": "0.3"
+      },
+      "fields": [
+        {
+          "path": [
+            "friction"
+          ],
+          "integer": false,
+          "bounds": {
+            "minimum": 0
+          }
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "step.add",
+        "name": "pressing",
+        "ramp": {
+          "num": "6",
+          "items": [
+            {
+              "target": "press",
+              "end": "-3.2"
+            }
+          ]
+        }
+      },
+      "fields": [
+        {
+          "path": [
+            "ramp",
+            "num"
+          ],
+          "integer": true,
+          "bounds": {
+            "minimum": 1
+          }
+        },
+        {
+          "path": [
+            "ramp",
+            "items",
+            0,
+            "end"
+          ],
+          "integer": false,
+          "bounds": {}
+        }
+      ]
+    },
+    {
+      "command": {
+        "command": "job.add",
+        "name": "job",
+        "steps": [
+          "pressing"
+        ],
+        "curve": "press",
+        "cutback": {}
+      },
+      "fields": []
+    },
+    {
+      "command": {
         "command": "parameter.add",
         "name": "runout",
         "value": "0.2",

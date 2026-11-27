@@ -1,0 +1,10 @@
+{
+  "title": "Rubber buffer on a plate",
+  "description": "A rubber buffer pressed onto a thin steel plate that is clamped at its edges, a quarter with two symmetry planes. The buffer touches the plate by a contact between bodies with friction: the plate bends under it, and the bulging buffer slides outwards on the plate.",
+  "topics": [
+    "contact between bodies",
+    "friction",
+    "mesh tools",
+    "symmetry"
+  ]
+}

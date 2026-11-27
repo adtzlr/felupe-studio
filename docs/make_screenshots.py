@@ -26,7 +26,10 @@ revolved, and the bushing with steel sleeves cut through its axis, with the slee
 in one color, and three of version 0.11: the elastic-plastic plate with a hole with
 the plasticity of FElupe as a strain-based function of a file (the code of the
 guide), the menu *Nearly incompressible* of the bushing with steel sleeves, and the
-bushing turned about its axis by a cylindrical constraint of its inner sleeve.
+bushing turned about its axis by a cylindrical constraint of its inner sleeve, and two
+of version 0.12: the contact between bodies of the rubber buffer on a plate, selected
+with its two surfaces, its form and the menu *Contact*, and its results, the plate
+bent under the buffer.
 
 A second browser context of a phone in portrait (390 × 844) makes the picture of the
 compact layout of version 0.9: the model and the results with the curve, side by
@@ -363,6 +366,12 @@ def capture(context, url, out, theme="dark"):
     page.keyboard.press("Escape")
     shot_torsion(page, shot, solve)
 
+    # v0.12: a contact between bodies (#462) with friction (#463), the rubber buffer
+    # pressed onto a plate
+    open_sample("Rubber buffer on a plate", "buffer-on-plate.felupe.zip")
+    page.wait_for_selector("text=buffer-on-plate.felupe.zip")
+    shot_buffer(page, shot, solve)
+
     if errors:
         raise RuntimeError(f"Errors of the page: {errors}")
 
@@ -462,6 +471,39 @@ def shot_torsion(page, shot, solve):
     page.keyboard.press("1")
     page.mouse.move(500, 20)
     shot("torsion")
+
+
+def shot_buffer(page, shot, solve):
+    """The rubber buffer pressed onto a plate that bends (#464): its contact between
+    bodies selected, with its form and the faces of its two surfaces, the bottom of
+    the buffer and the top of the plate, and the menu *Contact* of Loads & BCs with
+    both kinds of contact (``contact-bodies.png``). Then the von Mises stress at the
+    end, of the plate bent under the buffer, and the force-displacement curve
+    (``buffer.png``). The point sets and the boundaries are hidden, so that the
+    surfaces show; the bottom of the buffer is beneath it."""
+    page.get_by_role("button", name="Model", exact=True).click()
+    browser = page.get_by_role("navigation", name="Model browser")
+    hidden = ["edge_x", "edge_y", "plate_top", "buffer_bottom", "top"]
+    for name in [*hidden, "clamped_x", "clamped_y", "held", "press"]:
+        browser.get_by_role("button", name=f"Hide {name}", exact=True).click()
+    browser.get_by_text("contact", exact=True).click()
+    page.get_by_role("tab", name="Loads & BCs").click()
+    page.get_by_role("button", name="Contact", exact=True).click()
+    page.get_by_role("menu", name="Contact").wait_for()
+    shot("contact-bodies")
+    page.keyboard.press("Escape")
+    page.keyboard.press("Escape")
+    solve(quantity="stress_mises")
+    page.get_by_label("Curve", exact=True).set_checked(True)
+    page.get_by_label("Undeformed", exact=True).set_checked(False)
+    for name in ["Min/Max", "Constraints", "Points"]:
+        toggle = page.get_by_role("button", name=name, exact=True)
+        if toggle.count():
+            set_pressed(toggle, False)
+    page.evaluate("document.activeElement.blur()")
+    page.keyboard.press("1")
+    page.mouse.move(500, 20)
+    shot("buffer")
 
 
 def shot_stack(page, shot):

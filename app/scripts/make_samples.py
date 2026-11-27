@@ -160,6 +160,20 @@ SAMPLES = [
         ],
     },
     {
+        "id": "buffer-on-plate",
+        "title": "Rubber buffer on a plate",
+        "description": "A rubber buffer pressed onto a thin steel plate that is "
+        "clamped at its edges, a quarter with two symmetry planes. The buffer touches "
+        "the plate by a contact between bodies with friction: the plate bends under "
+        "it, and the bulging buffer slides outwards on the plate.",
+        "topics": [
+            "contact between bodies",
+            "friction",
+            "mesh tools",
+            "symmetry",
+        ],
+    },
+    {
         "id": "metacone",
         "title": "Metacone (FElupe ex15)",
         "description": "A conical rubber-metal spring as an axisymmetric model: two "
@@ -1592,6 +1606,136 @@ def hyperelastic_spring():
     write("hyperelastic-spring", commands, {"spring.vtu": mesh})
 
 
+def buffer_on_plate():
+    """A rubber buffer pressed onto a plate that bends (#464): a contact between
+    bodies (felupe-contact, #462) with friction (#463), the meshes made by the mesh
+    tools. A quarter of a steel plate of 80 x 80 x 1 mm, clamped at its edges, and of
+    a buffer of a diameter of 20 mm and a height of 12 mm, 0.2 mm above the plate
+    (meshes that touch would share their points). The top of the buffer is held in
+    x and y and pressed down by 3 mm after the gap is closed, in 6 substeps; the
+    curve is the force of the quarter. The bulging buffer slides outwards on the plate
+    (Coulomb friction of 0.3), by up to 0.44 mm at its rim, and only its middle
+    sticks; the plate bends by about 0.23 mm."""
+    thickness, gap, height = 1, 0.2, 12
+    bottom = thickness + gap
+    commands = [
+        {
+            "command": "model.settings",
+            "name": "settings",
+            "units": {"length": "mm", "force": "N"},
+        },
+        made("plate_mesh", "Cube", a=[0, 0, 0], b=[40, 40, thickness], n=[17, 17, 3]),
+        made("profile", "Circle", radius=10, centerpoint=[0, 0], n=5, sections=[0]),
+        made("cylinder", "expand", ["profile"], n=7, z=height),
+        made("buffer_mesh", "translate", ["cylinder"], move=bottom, axis="z"),
+        {"command": "cellset.from_file", "name": "plate_cells", "mesh": "plate_mesh"},
+        {
+            "command": "cellset.from_file",
+            "name": "buffer_cells",
+            "mesh": "buffer_mesh",
+        },
+        {
+            "command": "material.add",
+            "name": "steel",
+            "model": "LinearElasticLargeStrain",
+            "parameters": {"E": 210000, "nu": 0.3},
+        },
+        {
+            "command": "material.add",
+            "name": "rubber",
+            "model": "NeoHooke",
+            "parameters": {"mu": 1},
+        },
+        {
+            "command": "section.add",
+            "name": "plate",
+            "cellset": "plate_cells",
+            "material": "steel",
+            "formulation": "u",
+        },
+        {
+            "command": "section.add",
+            "name": "buffer",
+            "cellset": "buffer_cells",
+            "material": "rubber",
+            "formulation": "u-p-J",
+            "bulk": 5000,
+        },
+        {"command": "symmetry.add", "name": "symmetry", "axes": ["x", "y"]},
+        {
+            "command": "pointset.add",
+            "name": "edge_x",
+            "select": {"axis": "x", "value": 40},
+        },
+        {
+            "command": "pointset.add",
+            "name": "edge_y",
+            "select": {"axis": "y", "value": 40},
+        },
+        {
+            "command": "pointset.add",
+            "name": "plate_top",
+            "select": {"axis": "z", "value": thickness},
+        },
+        {
+            "command": "pointset.add",
+            "name": "buffer_bottom",
+            "select": {"axis": "z", "value": bottom},
+        },
+        {
+            "command": "pointset.add",
+            "name": "top",
+            "select": {"axis": "z", "value": bottom + height},
+        },
+        {
+            "command": "boundary.add",
+            "name": "clamped_x",
+            "pointset": "edge_x",
+            "constrained": ["x", "y", "z"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "clamped_y",
+            "pointset": "edge_y",
+            "constrained": ["x", "y", "z"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "held",
+            "pointset": "top",
+            "constrained": ["x", "y"],
+        },
+        {
+            "command": "boundary.add",
+            "name": "press",
+            "pointset": "top",
+            "constrained": ["z"],
+        },
+        {
+            "command": "bodycontact.add",
+            "name": "contact",
+            "section": "buffer",
+            "primary": "plate",
+            "points": "buffer_bottom",
+            "points_primary": "plate_top",
+            "friction": 0.3,
+        },
+        {
+            "command": "step.add",
+            "name": "pressing",
+            "ramp": {"num": 6, "items": [{"target": "press", "end": -3 - gap}]},
+        },
+        {
+            "command": "job.add",
+            "name": "job",
+            "steps": ["pressing"],
+            "curve": "press",
+            "cutback": {},
+        },
+    ]
+    write("buffer-on-plate", commands, {})
+
+
 def two_materials():
     """A bar with a stiff and a soft half, from the cell tag "material"."""
     mesh = fem.Cube(b=(30, 10, 10), n=(13, 5, 5))
@@ -2109,6 +2253,7 @@ def main():
     bushing_tools()
     bushing_mullins()
     hyperelastic_spring()
+    buffer_on_plate()
     metacone()
     engine_mount()
 
