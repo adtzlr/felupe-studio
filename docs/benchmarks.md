@@ -338,7 +338,7 @@ Both runs hit the bytecode cache. `import felupe` takes 0.14 s instead of 0.34 s
 
 ## The contact between bodies (#462)
 
-The golden cases of `bodycontact.add` with FElupe 12.1.2 and felupe-contact 0.1.0, the time of a run of the runner (`runner.run`), in CPython 3.13 and in Pyodide 314.0.7 in Node 22 with the wheels of the app (felupe-contact loaded lazily). The forces of Pyodide agree with those of CPython within 2.5e-14.
+The golden cases of `bodycontact.add` (with the friction of #463) with FElupe 12.1.2 and felupe-contact 0.1.0, the time of a run of the runner (`runner.run`), in CPython 3.13 and in Pyodide 314.0.7 in Node 22 with the wheels of the app (felupe-contact loaded lazily). The forces of Pyodide agree with those of CPython within 2.5e-14 (3.2e-15 with friction).
 
 | Case | Points | Substeps | CPython | Pyodide |
 | --- | --: | --: | --: | --: |
@@ -346,6 +346,7 @@ The golden cases of `bodycontact.add` with FElupe 12.1.2 and felupe-contact 0.1.
 | `plate_contact_bodies_plane_strain` (point sets) | 108 | 8 | 0.2 s | 0.3 s |
 | `cylinder_contact_bodies_axisymmetric` (mixed fields) | 80 | 8 | 0.3 s | 0.5 s |
 | `slit_self_contact_plane_strain` (self-contact) | 85 | 12 | 0.2 s | 0.2 s |
+| `block_sliding_bodies` (friction, 3D) | 375 | 2 + 8 | 1.3 s | 2.8 s |
 
 ## PARDISO of Intel oneMKL (#308)
 
