@@ -1,0 +1,161 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "model.settings",
+      "name": "settings",
+      "analysis": "axisymmetric"
+    },
+    {
+      "command": "mesh.generate",
+      "name": "disc_mesh",
+      "tool": "Rectangle",
+      "parameters": {
+        "a": [
+          0,
+          0
+        ],
+        "b": [
+          0.5,
+          2
+        ],
+        "n": [
+          4,
+          11
+        ]
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "cylinder_mesh",
+      "tool": "Rectangle",
+      "parameters": {
+        "a": [
+          0.52,
+          0
+        ],
+        "b": [
+          1.52,
+          1
+        ],
+        "n": [
+          6,
+          6
+        ]
+      }
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "disc_cells",
+      "mesh": "disc_mesh"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "cylinder_cells",
+      "mesh": "cylinder_mesh"
+    },
+    {
+      "command": "material.add",
+      "name": "steel",
+      "model": "LinearElasticLargeStrain",
+      "parameters": {
+        "E": 100000,
+        "nu": 0.3
+      }
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 1
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "disc",
+      "cellset": "disc_cells",
+      "material": "steel",
+      "formulation": "u"
+    },
+    {
+      "command": "section.add",
+      "name": "cylinder",
+      "cellset": "cylinder_cells",
+      "material": "rubber",
+      "formulation": "u-p-J-mixed",
+      "bulk": 50
+    },
+    {
+      "command": "pointset.add",
+      "name": "back",
+      "select": {
+        "axis": "x",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "end",
+      "select": {
+        "axis": "x",
+        "value": 1.52
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "back",
+      "constrained": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "clamped",
+      "pointset": "end",
+      "constrained": [
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "move",
+      "pointset": "end",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "bodycontact.add",
+      "name": "contact",
+      "section": "cylinder",
+      "primary": "disc",
+      "penalty_scale": 100
+    },
+    {
+      "command": "step.add",
+      "name": "press",
+      "ramp": {
+        "num": 8,
+        "items": [
+          {
+            "target": "move",
+            "start": 0,
+            "end": -0.32
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "press"
+      ],
+      "curve": "move",
+      "tol": 1e-08
+    }
+  ]
+}

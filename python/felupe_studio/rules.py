@@ -30,7 +30,7 @@ from .commands import (
 )
 from .cylindrical import axis
 from .directions import DIRECTIONS, NAMES, directions
-from .formulations import first, formulations, sibling
+from .formulations import first, formulation_of, formulations, sibling
 from .loadcases import problems as loadcase_problems
 from .materials import MULLINS, is_function, is_script, models, strain_based
 from .materials import problems as material_problems
@@ -206,6 +206,7 @@ CONSTRAINTS = {
     "mpc.add": "multi-point constraint",
     **NAMES,
     "contact.add": "contact",
+    "bodycontact.add": "contact between bodies",
 }
 
 # what a step ramps, and what a curve is of, in the messages (#421, #422)
@@ -627,6 +628,60 @@ def contact_points(model, cmd):
     ]
 
 
+def bodycontact_names(cmd):
+    """The sections of a contact between bodies, its section first (#462)."""
+    return list(dict.fromkeys([cmd["section"], cmd.get("primary", cmd["section"])]))
+
+
+def bodycontact_points(model, cmd):
+    """The point sets of a contact between bodies limit the faces of its sections, so
+    they are points of the sections (#462)."""
+    problems = []
+    for key in ("points", "points_primary"):
+        other = model.before(cmd.get(key, ""))
+        if other is not None and other["command"] == "point.add":
+            problems.append(
+                f"contact '{cmd['name']}' takes the control point '{other['name']}': "
+                "a contact between bodies needs points of its sections."
+            )
+    return problems
+
+
+def bodycontact_sections(model, cmd):
+    """A section of the third medium is no surface of a contact between bodies
+    (#462): the third medium fills the gap between bodies instead of a contact."""
+    problems = []
+    for name in bodycontact_names(cmd):
+        other = model.before(name)
+        if other is None or other["command"] != "section.add":
+            continue
+        if formulation_of(other).group == "Third medium":
+            problems.append(
+                f"contact '{cmd['name']}' takes the section '{name}' of the third "
+                "medium, which fills the gap between bodies instead of a contact."
+            )
+    return problems
+
+
+def step_contacts(model, cmd):
+    """A step that leaves out a section has no contact between bodies of it (#462):
+    the contact acts on both of its sections."""
+    if "sections" not in cmd:
+        return []
+    problems = []
+    for name in cmd.get("constraints", []):
+        other = model.before(name)
+        if other is None or other["command"] != "bodycontact.add":
+            continue
+        off = [s for s in bodycontact_names(other) if s not in cmd["sections"]]
+        if off:
+            problems.append(
+                f"step '{cmd['name']}' has the contact '{name}' between bodies, but "
+                f"not its section '{off[0]}'."
+            )
+    return problems
+
+
 def rigid_shape(model, cmd):
     """The normal of a plane and the axis of a cylinder of a rigid surface."""
     problems = []
@@ -714,7 +769,7 @@ LAST = (single, reserved_name, duplicate_name)
 
 # the rules of a command type, in this order
 RULES = {
-    "step.add": (ramp_targets, ramp_twice, ramp_values, ramp_off),
+    "step.add": (ramp_targets, ramp_twice, ramp_values, ramp_off, step_contacts),
     "job.add": (curve_kind,),
     "boundary.add": (boundary_values,),
     "cartesian.add": (cartesian_vectors, direction_values),
@@ -727,6 +782,7 @@ RULES = {
     "point.add": (vertex_coordinates,),
     "rigid.add": (vertex_coordinates, rigid_shape),
     "contact.add": (contact_points,),
+    "bodycontact.add": (bodycontact_points, bodycontact_sections),
     "mpc.add": (rotation_components,),
     "material.add": (material,),
     "material.script": (function_arguments,),

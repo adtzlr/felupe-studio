@@ -250,19 +250,40 @@ def items(context, solids, others):
     return List([Call("*with_volume", solids), *others], prefix="items=")
 
 
+def bodycontact_sections(command):
+    """The sections of the surfaces of a contact between bodies (#462)."""
+    return {command["section"], command.get("primary", command["section"])}
+
+
 def step_items(context, step):
     """The items of a step: the solid bodies of its sections, its constraints and
-    its loads, all of them by default."""
+    its loads, all of them by default. A contact between bodies is not a default
+    constraint of a step that leaves out one of its sections (#462); in a script with
+    meshes of scripts, the contacts between bodies are those that the script made,
+    without those of a section without volume (#429)."""
+    sections = step_sections(context, step)
     constraints = [
         c["name"]
         for c in context.get(
-            "mpc.add", "cartesian.add", "cylindrical.add", "contact.add"
+            "mpc.add",
+            "cartesian.add",
+            "cylindrical.add",
+            "contact.add",
+            "bodycontact.add",
         )
+        if c["command"] != "bodycontact.add" or bodycontact_sections(c) <= set(sections)
     ]
     others = step.get("constraints", constraints) + step.get(
         "loads", [*context.loads, *context.pressures]
     )
-    return items(context, ["solid_" + n for n in step_sections(context, step)], others)
+    if context.volumes:
+        contacts = {c["name"] for c in context.bodycontacts}
+        made = [name for name in others if name in contacts]
+        if made:
+            first = others.index(made[0])
+            others = [name for name in others if name not in contacts]
+            others.insert(first, Call("*present", made))
+    return items(context, ["solid_" + n for n in sections], others)
 
 
 def switches(steps):

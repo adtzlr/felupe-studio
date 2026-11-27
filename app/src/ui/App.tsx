@@ -3,6 +3,7 @@ import { mediaType } from "../core/files";
 import type { SavePicker } from "../core/save";
 import { JobRunner, solveBlocker } from "../core/jobs";
 import {
+  contactNotes,
   faceSetNotes,
   formulationNotes,
   fileNotes,
@@ -193,13 +194,20 @@ export function App({
     inspectMaterials(store.commands, files);
   }, [store.commands, files, files.revision, dialogs.parameters]);
   // notes about the mesh files, about face sets on cells without faces (#142), about
-  // sections of cells that their formulation does not take (#420), about repeated
+  // sections of cells that their formulation does not take (#420), about contacts
+  // between bodies of cells without a contact surface (#462), about repeated
   // symmetry planes (#186) and about curves that are off in a step (#393); the
   // last two do not block Solve
   const meshNotes = fileNotes(store.commands, files);
   const faceNotes = faceSetNotes(store.commands, files);
   const cellNotes = formulationNotes(store.commands, files);
-  const notes = new Map([...meshNotes, ...faceNotes, ...cellNotes]);
+  const surfaceNotes = contactNotes(store.commands, files);
+  const notes = new Map([
+    ...meshNotes,
+    ...faceNotes,
+    ...cellNotes,
+    ...surfaceNotes,
+  ]);
   for (const note of modelNotes(store.resolved)) {
     notes.set(note.name, [...(notes.get(note.name) ?? []), note.message]);
   }
@@ -236,9 +244,11 @@ export function App({
 
   const blocker = solveBlocker({
     commands: store.commands,
-    // a face set on cells without faces (#142) and a section of cells that its
-    // formulation does not take (#420) are issues of the model
-    issues: store.issues.length + faceNotes.size + cellNotes.size,
+    // a face set on cells without faces (#142), a section of cells that its
+    // formulation does not take (#420) and a contact between bodies of cells
+    // without a contact surface (#462) are issues of the model
+    issues:
+      store.issues.length + faceNotes.size + cellNotes.size + surfaceNotes.size,
     notes: meshNotes.size,
     runtime: runtime.state,
   });

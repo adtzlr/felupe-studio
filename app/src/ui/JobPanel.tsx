@@ -112,6 +112,22 @@ function Running({
   );
 }
 
+/**
+ * The warnings of the run, e.g. of a contact between bodies that detects no contact
+ * (#462): notes, not errors, while it runs and after it.
+ */
+function Warnings({ progress }: { progress: JobProgress }) {
+  return (
+    <>
+      {progress.warnings.map((warning) => (
+        <p key={warning} class="warning" role="note">
+          {warning}
+        </p>
+      ))}
+    </>
+  );
+}
+
 /** Failed attempts of substeps, retried with smaller increments (cutback). */
 function Cutbacks({ progress }: { progress: JobProgress }) {
   const n = progress.failed.length;
@@ -182,6 +198,7 @@ export function JobPanel({
           </button>
         )}
       </div>
+      <Warnings progress={run.progress} />
       {run.state === "running" && (
         <Running
           progress={run.progress}

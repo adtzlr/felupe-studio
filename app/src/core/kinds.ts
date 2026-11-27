@@ -89,6 +89,9 @@ export const KINDS: Record<CommandType, Kind> = {
   "cylindrical.add": "constraint",
   // a contact with a rigid surface (#220): an item of the steps like a constraint
   "contact.add": "constraint",
+  // a contact between bodies (felupe-contact, #462): an item of the steps like a
+  // constraint
+  "bodycontact.add": "constraint",
   "load.add": "load",
   "pressure.add": "pressure",
   "step.add": "step",
@@ -182,6 +185,14 @@ export const REFERENCES: Partial<
   "contact.add": {
     points: [["pointset", "faceset"], false],
     surface: ["rigid", false],
+  },
+  // the sections of the surfaces of a contact between bodies (#462) and the point
+  // sets that limit their faces
+  "bodycontact.add": {
+    section: ["section", false],
+    primary: ["section", false],
+    points: ["pointset", false],
+    points_primary: ["pointset", false],
   },
   "pressure.add": { faces: ["faceset", false] },
   "step.add": {

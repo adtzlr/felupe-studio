@@ -285,6 +285,14 @@ const DETAILS: { [C in Command["command"]]: Detail<C> } = {
       `${cmd.points} → ${cmd.surface}`,
       cmd.friction && `μ = ${cmd.friction}`,
     ),
+  // the sections of a contact between bodies (#462), or one section with itself
+  "bodycontact.add": (cmd) =>
+    joined(
+      cmd.primary && cmd.primary !== cmd.section
+        ? `${cmd.section} → ${cmd.primary}`
+        : cmd.section,
+      cmd.self_contact && "self-contact",
+    ),
   "mpc.add": (cmd) =>
     joined(
       `${cmd.points} → ${cmd.center}`,
@@ -345,7 +353,8 @@ function messagesOf(issues: readonly Issue[], report?: CheckReport) {
 /** The group of an object: its kind, unless it has a group of its own. */
 function groupOf(cmd: Command, kind: Kind): Kind | "point" | "contact" {
   if (cmd.command === "point.add") return "point";
-  if (cmd.command === "contact.add") return "contact";
+  if (cmd.command === "contact.add" || cmd.command === "bodycontact.add")
+    return "contact";
   // cell sets without a valid mesh are shown at the top of the mesh group
   if (kind === "cellset") return "mesh";
   // symmetry planes are boundaries of all steps (#186)
@@ -382,7 +391,9 @@ export function deriveTree(
     label: cmd.name,
     kind: KINDS[cmd.command],
     ...(cmd.command === "point.add" ? { icon: "point" } : {}),
-    ...(cmd.command === "contact.add" ? { icon: "contact" } : {}),
+    ...(cmd.command === "contact.add" || cmd.command === "bodycontact.add"
+      ? { icon: "contact" }
+      : {}),
     detail: detail(cmd, commands),
     issues: messages.get(cmd.name) ?? [],
     children: [],

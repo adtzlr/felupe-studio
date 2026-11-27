@@ -22,7 +22,7 @@ Control points (ADR 0006) are vertices of their own mesh, merged into the field,
 - A surface is drawn, moved, hidden and plotted as one thing; a contact only says which points touch which surface with which friction.
 - The golden cases compare contacts with prescribed displacements: a block pressed by a plane without and with friction, a plate in plane strain and an axisymmetric cylinder pressed by a line (within 1e-3, the penetration of the penalty), and check the points of a roller on a block and on a plate. The sample *Hyperelastic spring with end stops* agrees with the example ex06 of FElupe within 1e-3.
 - A plate that is bonded to a face and is an end stop at the same time is one rigid surface whose reference point is on the plane of the face: the boundaries of the face move it, and the curve of the face is the force of the whole plate.
-- Not supported: contact between two deformable bodies or of a body with itself (general contact, e.g. felupe-contact), rotating rigid surfaces, other shapes than planes and cylinders, and a contact whose friction or multiplier changes from step to step.
+- Not supported: rotating rigid surfaces, other shapes than planes and cylinders, and a contact whose friction or multiplier changes from step to step. The contact between two deformable bodies or of a body with itself is `bodycontact.add` of felupe-contact (ADR 0026).
 
 ## Alternatives
 

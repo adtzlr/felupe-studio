@@ -514,9 +514,17 @@ class Session:
             later = set(jobs[jobs.index(job) + 1 :])
             commands = [c for c in self.commands if c["name"] not in later]
             document = {**self.document, "commands": commands}
+        # the warnings of the run, e.g. of a contact between bodies (#462)
+        warned = []
+
+        def reporter(event):
+            if event["event"] == "warning":
+                warned.append(event["message"])
+            report(event)
+
         with self.lock, contextlib.chdir(self.folder):
             try:
-                results = runner.run(document, report)
+                results = runner.run(document, reporter)
             except Exception as error:
                 trace = traceback.format_exc(limit=-6)
                 self.solved = None
@@ -524,7 +532,7 @@ class Session:
                     f"The job failed: {type(error).__name__}: {error}\n{trace}"
                 ) from error
         self.solved = results
-        return {
+        solved = {
             name: {
                 "substeps": r["substeps"],
                 "time": round(r["time"], 3),
@@ -532,6 +540,7 @@ class Session:
             }
             for name, r in results.items()
         }
+        return {**solved, "warnings": warned} if warned else solved
 
     def _need_results(self, job):
         if not self.solved:

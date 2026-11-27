@@ -1596,6 +1596,7 @@ def test_every_command_type_has_its_emitter():
         items.CARTESIANS,
         items.CYLINDRICALS,
         items.CONTACTS,
+        items.BODYCONTACTS,
         items.LOADS,
         items.PRESSURES,
         jobs.STEPS,

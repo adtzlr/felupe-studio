@@ -105,7 +105,8 @@ describe("ribbonGroups", () => {
         "Cartesian constraint",
         "Cylindrical constraint",
       ],
-      ["Contact"],
+      // the contacts with rigid surfaces and between bodies (#462)
+      ["Rigid surface contact", "Contact between bodies"],
       ["Point load"],
       ["Pressure"],
     ]);
@@ -123,6 +124,10 @@ describe("ribbonGroups", () => {
       ["cartesian.add", {}, "Constraints"],
       ["cylindrical.add", {}, "Constraints"],
     ]);
+    expect(loads[6].map((i) => [i.id, i.group])).toEqual([
+      ["contact.add", "Contact"],
+      ["bodycontact.add", "Contact"],
+    ]);
     expect(
       loads.flatMap((group) =>
         ribbonEntries(group).map((e) =>
@@ -136,7 +141,7 @@ describe("ribbonGroups", () => {
       "Control point",
       "Rigid surface",
       "Constraints ▾",
-      "Contact",
+      "Contact ▾",
       "Point load",
       "Pressure",
     ]);

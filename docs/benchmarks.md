@@ -336,6 +336,17 @@ The start of the same run with FElupe 12.1.1, which imports `scipy.interpolate` 
 
 Both runs hit the bytecode cache. `import felupe` takes 0.14 s instead of 0.34 s; without the cache and with FElupe 12.1.0 (#296) the FElupe step took 3.60 s, now 1.25 s.
 
+## The contact between bodies (#462)
+
+The golden cases of `bodycontact.add` with FElupe 12.1.2 and felupe-contact 0.1.0, the time of a run of the runner (`runner.run`), in CPython 3.13 and in Pyodide 314.0.7 in Node 22 with the wheels of the app (felupe-contact loaded lazily). The forces of Pyodide agree with those of CPython within 2.5e-14.
+
+| Case | Points | Substeps | CPython | Pyodide |
+| --- | --: | --: | --: | --: |
+| `blocks_contact_bodies` (3D, two sections) | 540 | 8 | 0.9 s | 1.9 s |
+| `plate_contact_bodies_plane_strain` (point sets) | 108 | 8 | 0.2 s | 0.3 s |
+| `cylinder_contact_bodies_axisymmetric` (mixed fields) | 80 | 8 | 0.3 s | 0.5 s |
+| `slit_self_contact_plane_strain` (self-contact) | 85 | 12 | 0.2 s | 0.2 s |
+
 ## PARDISO of Intel oneMKL (#308)
 
 `solver.type: "pardiso"` of a job solves with `pypardiso.spsolve` in Python on the computer (`felupe-studio serve`); MKL has no build for WebAssembly, so not in the browser. The benchmark of the spike runs it with `solver="pardiso"` in CPython (`felupe_studio.benchmark.benchmark(n, precision=..., solver=...)`).

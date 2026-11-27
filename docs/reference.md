@@ -11,7 +11,7 @@ A project file is a JSON document `{"schema_version": 3, "commands": [...]}`. Ev
 
 Name of an object, unique within the command list. Used as a Python identifier in the generated script; at most 24 characters keep the script readable.
 
-A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `BoundarySwitch`, `CONDENSED`, `CORNERS`, `CylindricalCurve`, `CylindricalCurvePlugin`, `DIMENSIONS`, `EDGES`, `Held`, `REGIONS`, `SimpleNamespace`, `base_vectors`, `boundaries`, `boundary_faces`, `boundary_switch`, `cell_volumes`, `condensed_region`, `control_points`, `embed`, `fem`, `field`, `fields_without_volume`, `has_volume`, `hold_dual_fields`, `iterative_solver`, `material_function`, `meshio`, `mixed_field`, `mixed_region`, `nearly_incompressible`, `np`, `pick`, `points`, `points_at`, `pypardiso`, `run_material_script`, `run_mesh_script`, `script_mesh`, `single_point`, `single_precision`, `solid_points`, `solid_types`, `spsolve`, `surface_points`, `tags_of`, `vertex_region`, `volume_cells`, `with_volume`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
+A name matches `^[A-Za-z_][A-Za-z0-9_]*$` and has at most 24 characters. Reserved, because the script uses them: `BOUNDARY_REGIONS`, `BoundarySwitch`, `CONDENSED`, `CORNERS`, `CylindricalCurve`, `CylindricalCurvePlugin`, `DIMENSIONS`, `EDGES`, `Held`, `REGIONS`, `SimpleNamespace`, `SolidBodyContact`, `base_vectors`, `boundaries`, `boundary_faces`, `boundary_switch`, `cell_volumes`, `condensed_region`, `control_points`, `embed`, `fem`, `field`, `fields_without_volume`, `has_volume`, `hold_dual_fields`, `iterative_solver`, `material_function`, `meshio`, `mixed_field`, `mixed_region`, `nearly_incompressible`, `np`, `pick`, `points`, `points_at`, `present`, `pypardiso`, `run_material_script`, `run_mesh_script`, `script_mesh`, `single_point`, `single_precision`, `solid_points`, `solid_types`, `spsolve`, `surface_points`, `tags_of`, `vertex_region`, `volume_cells`, `with_volume`; names starting with `field_`, `solid_`, `region_`, `ramp_`; and the keywords of Python.
 
 ## Expressions
 
@@ -41,6 +41,7 @@ A number of a command (*or an expression* below) may be an expression of the par
 - [`cartesian.add`](#cartesianadd): A Cartesian constraint (fem.CartesianConstraint, #421): the points of a point set held or moved in the directions of a rotated coordinate system by a penalty, the other directions free, e.g. points that slide on an inclined plane.
 - [`cylindrical.add`](#cylindricaladd): A cylindrical constraint (fem.CylindricalConstraint, #422): the points of a point set held or moved radially, around and along an axis by a penalty, the other directions free, e.g. points that slide in a rigid sleeve (radially only) or the end of a bushing that is turned (around the axis).
 - [`contact.add`](#contactadd): A contact of points with a rigid surface (#220): fem.ContactRigidPlane or fem.ContactRigidCylinder, an item of the steps like the constraints.
+- [`bodycontact.add`](#bodycontactadd): A contact between the surfaces of solid bodies (felupe_contact.SolidBodyContact of felupe-contact, #462, ADR 0026): of two sections, of the bodies of the mesh of one section, or of a body with itself.
 - [`load.add`](#loadadd): A point load (fem.PointLoad): a force at every point of a point set or at a control point, an item of the steps.
 - [`pressure.add`](#pressureadd): A pressure on the faces of a face set (fem.SolidBodyPressure), an item of the steps: a force per deformed area, normal to the faces.
 - [`step.add`](#stepadd): A step with its items and boundaries (all by default), optionally ramping items, each with its own values (fem.Step).
@@ -891,6 +892,28 @@ A contact of points with a rigid surface (#220): fem.ContactRigidPlane or fem.Co
 | `multiplier` | number > 0 (or an expression) |  | The factor of the penalty of the contact, times the mean stiffness of the solid bodies at the points (default 1). |
 | `elastic_slip` | number > 0 (or an expression) |  | The allowable elastic slip of sticking points (default none: a constant tangential penalty), e.g. 0.5 % to 1 % of the size of a cell. |
 
+### `bodycontact.add`
+
+A contact between the surfaces of solid bodies (felupe_contact.SolidBodyContact of felupe-contact, #462, ADR 0026): of two sections, of the bodies of the mesh of one section, or of a body with itself. A penalty contact of the faces on the outline of the meshes, an item of the steps like the constraints; off in a step that leaves out one of its sections. The points of the secondary surface are projected onto the faces of the primary surface. The sections need hexahedrons or quads, linear or quadratic.
+
+| Property | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | name | yes | Name of the object. |
+| `section` | name of a section | yes | The section of the secondary surface, on whose faces the contact is integrated: the softer and finer meshed one, e.g. the rubber of a rubber-to-metal contact. |
+| `primary` | name of a section |  | The section of the primary surface (default: the same section, so all bodies of its mesh may touch each other). |
+| `points` | name of a point set or control point |  | A point set that limits the faces of the secondary surface: those on the outline of the section with all their points in the set (default: all faces on the outline). |
+| `points_primary` | name of a point set or control point |  | A point set that limits the faces of the primary surface, like points. |
+| `penalty` | number > 0 (or an expression) |  | The penalty stiffness, a contact pressure per unit penetration (default: estimated from the stiffness of the solid bodies at the surfaces, times the scale). |
+| `penalty_scale` | number > 0 (or an expression) |  | The factor of the estimated penalty stiffness (default 10). Increase it to reduce the penetration, decrease it if the Newton-Raphson method does not converge. Not used with a penalty. |
+| `smoothing` | number ≥ 0 (or an expression) |  | The length of the transition of the regularized penalty law (default 1 % of the size of the faces); 0 turns the regularization off. |
+| `two_pass` | boolean |  | Evaluate the contact twice with the roles of the surfaces exchanged, each with half of the contact potential (default false): no bias of the choice of the secondary surface, in twice the time. Redundant if both surfaces have all faces on the outline of their sections. |
+| `max_distance` | number > 0 (or an expression) |  | The largest distance between a point of the secondary surface and a face of the primary surface that the contact search considers (default 5 times the size of the faces): the largest penetration that it detects. Smaller than the thickness of a body. |
+| `candidates` | integer ≥ 1 (or an expression) |  | The number of faces of the primary surface that the contact search evaluates per point of the secondary surface (default 8). |
+| `tolerance` | number ≥ 0 (or an expression) |  | The relative tolerance of the natural coordinates of a valid projection (default 0.1). |
+| `facing` | number ≥ -1, ≤ 1 (or an expression) |  | The least opposition of the outward normals of two faces that may touch (default 0.1); -1 turns it off. |
+| `self_contact` | boolean |  | Faces of the same body may touch each other (default false), e.g. the walls of a tube squeezed flat. The largest distance must be smaller than the thickness of a body. |
+| `geometric_stiffness` | boolean |  | The geometric part of the stiffness of the contact (default true), for the quadratic convergence of the Newton-Raphson method. Default `true`. |
+
 ### `load.add`
 
 A point load (fem.PointLoad): a force at every point of a point set or at a control point, an item of the steps. A ramp of a step scales the force.
@@ -919,7 +942,7 @@ A step with its items and boundaries (all by default), optionally ramping items,
 | --- | --- | --- | --- |
 | `name` | name | yes | Name of the object. |
 | `sections` | names of sections (at least 1, unique) |  | Sections whose solid bodies are items of the step (default: all). |
-| `constraints` | names of multi-point constraints, Cartesian constraints, cylindrical constraints or contacts (at least 1, unique) |  | Multi-point constraints, Cartesian and cylindrical constraints and contacts that are items of the step (default: all). |
+| `constraints` | names of multi-point constraints, Cartesian constraints, cylindrical constraints or contacts (at least 1, unique) |  | Multi-point constraints, Cartesian and cylindrical constraints and contacts that are items of the step (default: all, without the contacts between bodies of a section that the step leaves out). |
 | `loads` | names of point loads or pressures (at least 1, unique) |  | Point loads and pressures that are items of the step (default: all). |
 | `boundaries` | names of boundaries, load cases or symmetry planes (at least 1, unique) |  | Boundaries, load cases and symmetry planes of the step (default: all). A boundary that the step does not have is off in it: its points are free, and its reaction force is released at once. |
 | `switched_on` | `step` or `job` |  | The values of the boundaries that the step switches on, those that the step evaluated before it does not have: the displacements of their points at the start of the step (default), or at the start of the job (of a boundary that was on then, its values then). A ramp of such a boundary is relative to these values. |

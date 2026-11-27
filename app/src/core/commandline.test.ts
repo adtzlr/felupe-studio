@@ -245,7 +245,9 @@ describe("complete", () => {
     expect(labels("de")).toEqual(["delete", "model.settings"]); // contained
     expect(labels("tag")).toEqual(["cellset.from_tag"]); // contained
     expect(labels("undo")).toEqual([]); // complete already
-    expect(labels("")).toHaveLength(31);
+    expect(labels("")).toHaveLength(32);
+    // the contacts with rigid surfaces and between bodies (#462)
+    expect(labels("contact")).toEqual(["contact.add", "bodycontact.add"]);
     expect(labels("gen")).toEqual(["mesh.generate"]); // the mesh tools (ADR 0019)
     expect(labels("param")).toEqual(["parameter.add"]);
     expect(labels("sym")).toEqual(["symmetry.add"]);

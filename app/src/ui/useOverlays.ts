@@ -51,6 +51,7 @@ import {
   selectsNothing,
 } from "../viewer/pointsets";
 import { pressureLines } from "../viewer/pressures";
+import { bodyContactFaces } from "../viewer/bodycontacts";
 import { contactPoints, rigidShapes } from "../viewer/rigid";
 import type { Highlight, Markers } from "../viewer/scene";
 import type { Picking } from "./usePicking";
@@ -130,6 +131,9 @@ export function useOverlays({
   // what is off in the selected step, and the rigid surfaces of its contacts that are
   // off: drawn faded (#393)
   const step = choice?.command === "step.add" ? choice : undefined;
+  // the selected contact between bodies, whose surfaces are highlighted (#462)
+  const bodyContact =
+    choice?.command === "bodycontact.add" ? choice : undefined;
   const off = useMemo(
     () => (step ? offIn(step, commands) : []),
     [step, commands],
@@ -165,8 +169,34 @@ export function useOverlays({
       }),
       ...picks(combined.faces, colors.highlight, 0.6),
       ...picks(combined.excluded, EXCLUDED_COLOR, 0.75),
+      // the surfaces of the selected contact between bodies (#462): the secondary
+      // one in the color of the selection, the primary one in that of the rigid
+      // surfaces, which a contact touches too
+      ...(bodyContact
+        ? bodyContactFaces(bodyContact, sections, (name) => {
+            const set = commands.find((c) => c.name === name);
+            return set && isPointSet(set)
+              ? selectedPoints(set.select, nodes, outer, ofSection)
+              : undefined;
+          }).flatMap(({ section, indices, primary }) => {
+            const of = sections.get(section);
+            const color = primary ? colors.rigid : colors.highlight;
+            return of ? highlight(content, of, indices, color, 0.6) : [];
+          })
+        : []),
     ];
-  }, [commands, hidden, selected, sections, content, combined, colors]);
+  }, [
+    commands,
+    hidden,
+    selected,
+    sections,
+    content,
+    combined,
+    colors,
+    bodyContact,
+    nodes,
+    outer,
+  ]);
 
   const controls = useMemo(
     () => commands.filter(isControl).filter((c) => !hidden.has(c.name)),

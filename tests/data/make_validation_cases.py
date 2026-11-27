@@ -888,6 +888,88 @@ CHANGES = {
             },
         ),
     ),
+    # contacts between bodies (felupe-contact, #462): of two sections with point sets
+    # and all arguments, and of the bodies of one section with itself
+    "contacts between bodies": lambda d: (
+        d["commands"].insert(
+            9,
+            {
+                "command": "bodycontact.add",
+                "name": "touch",
+                "section": "section_soft",
+                "primary": "section_hard",
+                "points": "right",
+                "points_primary": "left",
+                "penalty_scale": 100,
+                "smoothing": 0.01,
+                "two_pass": True,
+                "max_distance": 0.5,
+                "candidates": 10,
+                "tolerance": 0.2,
+                "facing": 0.0,
+                "geometric_stiffness": False,
+            },
+        ),
+        d["commands"].insert(
+            10,
+            {
+                "command": "bodycontact.add",
+                "name": "folds",
+                "section": "section_soft",
+                "self_contact": True,
+                "penalty": 1000,
+            },
+        ),
+    ),
+    "contact between bodies problems": lambda d: (
+        d["commands"].insert(
+            9, {"command": "point.add", "name": "pin", "coordinates": [5, 0.5, 0.5]}
+        ),
+        d["commands"].insert(
+            10,
+            {
+                "command": "boundary.add",
+                "name": "pin_fixed",
+                "pointset": "pin",
+                "constrained": ["x", "y", "z"],
+            },
+        ),
+        d["commands"].insert(
+            11,
+            {
+                "command": "bodycontact.add",
+                "name": "wrong_points",
+                "section": "section_soft",
+                "primary": "section_hard",
+                "points_primary": "pin",
+            },
+        ),
+        d["commands"].insert(
+            12,
+            {
+                "command": "bodycontact.add",
+                "name": "unknown",
+                "section": "section_soft",
+                "primary": "wall",
+            },
+        ),
+        find(d, "step_1").update(
+            sections=["section_hard"], constraints=["wrong_points"]
+        ),
+    ),
+    "contact between bodies of the third medium": lambda d: (
+        find(d, "section_soft").update(formulation="u-isochoric"),
+        find(d, "section_soft").pop("bulk"),
+        d["commands"].insert(
+            9,
+            {
+                "command": "bodycontact.add",
+                "name": "touch",
+                "section": "section_soft",
+                "primary": "section_hard",
+            },
+        ),
+    ),
     "2d model with a contact": lambda d: (
         d["commands"].insert(
             0,

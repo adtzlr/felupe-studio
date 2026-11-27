@@ -54,6 +54,9 @@ KINDS = {
     "cylindrical.add": "constraint",
     # a contact with a rigid surface (#220): an item of the steps like a constraint
     "contact.add": "constraint",
+    # a contact between bodies (felupe-contact, #462): an item of the steps like a
+    # constraint
+    "bodycontact.add": "constraint",
     "load.add": "load",
     "pressure.add": "pressure",
     "step.add": "step",
@@ -102,6 +105,14 @@ REFERENCES = {
     "contact.add": {
         "points": (("pointset", "faceset"), False),
         "surface": ("rigid", False),
+    },
+    # the sections of the surfaces of a contact between bodies (#462) and the point
+    # sets that limit their faces
+    "bodycontact.add": {
+        "section": ("section", False),
+        "primary": ("section", False),
+        "points": ("pointset", False),
+        "points_primary": ("pointset", False),
     },
     "pressure.add": {"faces": ("faceset", False)},
     "step.add": {

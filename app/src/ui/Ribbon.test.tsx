@@ -119,8 +119,8 @@ describe("ribbon commands", () => {
       "Control point",
       "Rigid surface",
       "Constraints ▾",
-      // a button of its own, for what comes of contacts
-      "Contact",
+      // the contacts with rigid surfaces and between bodies (#462)
+      "Contact ▾",
       "Point load",
       "Pressure",
     ]);
@@ -152,6 +152,13 @@ describe("ribbon commands", () => {
       screen.getByRole("menuitem", { name: /^Cartesian constraint/ }),
     );
     expect(screen.queryByRole("dialog")).toBeNull();
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    // the contacts with rigid surfaces and between bodies (#462): a contact between
+    // bodies needs a section
+    expect(labels("Contact")).toEqual([
+      ["Rigid surface contact", "true"],
+      ["Contact between bodies", "true"],
+    ]);
     cleanup();
 
     const model = setup(new ModelStore(fixture as CommandList));

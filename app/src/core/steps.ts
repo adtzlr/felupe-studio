@@ -20,26 +20,56 @@ const CHOSEN: readonly [Chosen, readonly string[]][] = [
   ["boundaries", ["boundary.add", "loadcase.add", "symmetry.add"]],
   [
     "constraints",
-    ["mpc.add", "cartesian.add", "cylindrical.add", "contact.add"],
+    [
+      "mpc.add",
+      "cartesian.add",
+      "cylindrical.add",
+      "contact.add",
+      "bodycontact.add",
+    ],
   ],
   ["loads", ["load.add", "pressure.add"]],
 ];
 
+/** A command of a model as far as the steps need it. */
+type Item = {
+  command: string;
+  name: string;
+  section?: string;
+  primary?: string;
+};
+
+/**
+ * Whether a contact between bodies is off in a step that leaves out one of its
+ * sections (#462): not a default constraint of the step.
+ */
+function withoutSections(step: Pick<Step, "sections">, c: Item): boolean {
+  if (c.command !== "bodycontact.add" || !step.sections || !c.section)
+    return false;
+  const sections: readonly string[] = step.sections;
+  return [c.section, c.primary ?? c.section].some((s) => !sections.includes(s));
+}
+
 /**
  * The boundaries, load cases, symmetry planes, constraints, contacts, point loads
- * and pressures that are off in a step, in the order of the model (#393). The
- * sections are not among them: they are cells of the meshes.
+ * and pressures that are off in a step, in the order of the model (#393), and the
+ * contacts between bodies of the sections that it leaves out (#462). The sections
+ * are not among them: they are cells of the meshes.
  */
 export function offIn(
-  step: Pick<Step, Chosen>,
-  commands: readonly { command: string; name: string }[],
+  step: Pick<Step, Chosen | "sections">,
+  commands: readonly Item[],
 ): string[] {
   return commands
-    .filter((c) =>
-      CHOSEN.some(([field, types]) => {
-        const names: readonly string[] | undefined = step[field];
-        return types.includes(c.command) && !!names && !names.includes(c.name);
-      }),
+    .filter(
+      (c) =>
+        withoutSections(step, c) ||
+        CHOSEN.some(([field, types]) => {
+          const names: readonly string[] | undefined = step[field];
+          return (
+            types.includes(c.command) && !!names && !names.includes(c.name)
+          );
+        }),
     )
     .map((c) => c.name);
 }
@@ -49,7 +79,7 @@ export function offIn(
  * rigid surfaces whose contacts are all off in it.
  */
 export function fadedIn(
-  step: Pick<Step, Chosen>,
+  step: Pick<Step, Chosen | "sections">,
   commands: readonly ResolvedCommand[],
 ): Set<string> {
   const off = new Set(offIn(step, commands));

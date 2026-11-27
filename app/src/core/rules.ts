@@ -278,6 +278,7 @@ const CONSTRAINTS: Partial<Record<CommandType, string>> = {
   "mpc.add": "multi-point constraint",
   ...NAMES,
   "contact.add": "contact",
+  "bodycontact.add": "contact between bodies",
 };
 
 /** What a step ramps, and what a curve is of, in the messages (#421, #422). */
@@ -787,6 +788,68 @@ const contactPoints: Rule<CommandOf<"contact.add">> = (model, cmd) => {
     : [];
 };
 
+/** The sections of a contact between bodies, its section first (#462). */
+const bodycontactNames = (cmd: CommandOf<"bodycontact.add">) => [
+  ...new Set([cmd.section, cmd.primary ?? cmd.section]),
+];
+
+/**
+ * The point sets of a contact between bodies limit the faces of its sections, so
+ * they are points of the sections (#462).
+ */
+const bodycontactPoints: Rule<CommandOf<"bodycontact.add">> = (model, cmd) =>
+  (["points", "points_primary"] as const).flatMap((key) => {
+    const name = cmd[key];
+    const other = name === undefined ? undefined : model.before(name);
+    return other?.command === "point.add"
+      ? [
+          {
+            message: `contact '${cmd.name}' takes the control point '${other.name}': a contact between bodies needs points of its sections.`,
+            field: key,
+          },
+        ]
+      : [];
+  });
+
+/**
+ * A section of the third medium is no surface of a contact between bodies (#462):
+ * the third medium fills the gap between bodies instead of a contact.
+ */
+const bodycontactSections: Rule<CommandOf<"bodycontact.add">> = (model, cmd) =>
+  bodycontactNames(cmd).flatMap((name) => {
+    const other = model.before(name);
+    if (other?.command !== "section.add") return [];
+    if (formulationOf(other.formulation)?.group !== "Third medium") return [];
+    return [
+      {
+        message: `contact '${cmd.name}' takes the section '${name}' of the third medium, which fills the gap between bodies instead of a contact.`,
+        field: name === cmd.section ? "section" : "primary",
+      },
+    ];
+  });
+
+/**
+ * A step that leaves out a section has no contact between bodies of it (#462): the
+ * contact acts on both of its sections.
+ */
+const stepContacts: Rule<CommandOf<"step.add">> = (model, cmd) => {
+  const sections = cmd.sections;
+  if (sections === undefined) return [];
+  return (cmd.constraints ?? []).flatMap((name) => {
+    const other = model.before(name);
+    if (other?.command !== "bodycontact.add") return [];
+    const off = bodycontactNames(other).filter((s) => !sections.includes(s));
+    return off.length
+      ? [
+          {
+            message: `step '${cmd.name}' has the contact '${name}' between bodies, but not its section '${off[0]}'.`,
+            field: "constraints",
+          },
+        ]
+      : [];
+  });
+};
+
 /** The normal of a plane and the axis of a cylinder of a rigid surface. */
 const rigidShape: Rule<CommandOf<"rigid.add">> = (_, cmd) => {
   const shape = cmd.shape as { normal?: number[]; axis?: number[] };
@@ -905,7 +968,7 @@ export const LAST: readonly Rule[] = [single, reservedName, duplicateName];
 
 /** The rules of a command type, in this order. */
 export const RULES: Rules = {
-  "step.add": [rampTargets, rampTwice, rampValues, rampOff],
+  "step.add": [rampTargets, rampTwice, rampValues, rampOff, stepContacts],
   "job.add": [curveKind],
   "boundary.add": [boundaryValues],
   "cartesian.add": [cartesianVectors, directionValues],
@@ -918,6 +981,7 @@ export const RULES: Rules = {
   "point.add": [vertexCoordinates],
   "rigid.add": [vertexCoordinates, rigidShape],
   "contact.add": [contactPoints],
+  "bodycontact.add": [bodycontactPoints, bodycontactSections],
   "mpc.add": [rotationComponents],
   "material.add": [material],
   "material.script": [functionArguments],
