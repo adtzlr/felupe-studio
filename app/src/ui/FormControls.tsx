@@ -600,7 +600,7 @@ function describedBy(form: Form, spec: FieldSpec, id: string) {
   const issue = form.issueOf(spec);
   return (
     [
-      spec.hint && `${id}-hint`,
+      (spec.off ?? spec.hint) && `${id}-hint`,
       (error || issue) && `${id}-error`,
       !error && form.valueHint(spec) && `${id}-value`,
     ]

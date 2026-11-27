@@ -133,6 +133,11 @@ BODYCONTACT_ARGUMENTS = (
     "facing",
     "self_contact",
     "geometric_stiffness",
+    # the friction (#463)
+    "friction",
+    "elastic_slip",
+    "penalty_tangential",
+    "symmetric",
 )
 
 

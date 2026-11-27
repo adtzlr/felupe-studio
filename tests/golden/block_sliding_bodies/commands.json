@@ -1,0 +1,205 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "mesh.generate",
+      "name": "base",
+      "tool": "Cube",
+      "parameters": {
+        "a": [
+          -1,
+          0,
+          0
+        ],
+        "b": [
+          2,
+          1,
+          0.5
+        ],
+        "n": [
+          13,
+          5,
+          3
+        ]
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "block",
+      "tool": "Cube",
+      "parameters": {
+        "a": [
+          0.15,
+          0.15,
+          0.52
+        ],
+        "b": [
+          0.85,
+          0.85,
+          1.12
+        ],
+        "n": [
+          6,
+          6,
+          5
+        ]
+      }
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "base_cells",
+      "mesh": "base"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "block_cells",
+      "mesh": "block"
+    },
+    {
+      "command": "material.add",
+      "name": "stiff",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 1000,
+        "bulk": 5000
+      }
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 1,
+        "bulk": 5
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "plate",
+      "cellset": "base_cells",
+      "material": "stiff",
+      "formulation": "u"
+    },
+    {
+      "command": "section.add",
+      "name": "rubber_block",
+      "cellset": "block_cells",
+      "material": "rubber",
+      "formulation": "u"
+    },
+    {
+      "command": "pointset.add",
+      "name": "bottom",
+      "select": {
+        "axis": "z",
+        "value": 0
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "plate_top",
+      "select": {
+        "axis": "z",
+        "value": 0.5
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "block_bottom",
+      "select": {
+        "axis": "z",
+        "value": 0.52
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "top",
+      "select": {
+        "axis": "z",
+        "value": 1.12
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "fixed",
+      "pointset": "bottom",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "slide",
+      "pointset": "top",
+      "constrained": [
+        "x"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "guide",
+      "pointset": "top",
+      "constrained": [
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "press",
+      "pointset": "top",
+      "constrained": [
+        "z"
+      ]
+    },
+    {
+      "command": "bodycontact.add",
+      "name": "contact",
+      "section": "rubber_block",
+      "primary": "plate",
+      "points": "block_bottom",
+      "points_primary": "plate_top",
+      "friction": 0.3
+    },
+    {
+      "command": "step.add",
+      "name": "pressing",
+      "ramp": {
+        "num": 2,
+        "items": [
+          {
+            "target": "press",
+            "start": 0,
+            "end": -0.1
+          }
+        ]
+      }
+    },
+    {
+      "command": "step.add",
+      "name": "sliding",
+      "ramp": {
+        "num": 8,
+        "items": [
+          {
+            "target": "slide",
+            "start": 0,
+            "end": 0.4
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job_1",
+      "steps": [
+        "pressing",
+        "sliding"
+      ],
+      "curve": "slide",
+      "tol": 1e-08,
+      "cutback": {}
+    }
+  ]
+}

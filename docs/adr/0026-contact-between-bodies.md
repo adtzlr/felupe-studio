@@ -26,7 +26,10 @@ A spike (#460) ran `SolidBodyContact` in a script like the generated one. The co
   - `points` and `points_primary` are point sets that limit the faces (`mask`, `mask_primary`).
   - The others are as in felupe-contact, e.g. `penalty_scale`, not `multiplier` of `contact.add`, so the script and the documentation of felupe-contact read alike.
   - `items` is not a field: felupe-contact estimates the penalty from the solid bodies of the sections.
-  - The friction (`friction`, `elastic_slip`, `penalty_tangential`, `symmetric`) follows in #463.
+- **The friction** (#463) is `friction`, `elastic_slip`, `penalty_tangential` and `symmetric`, also with the names and defaults of felupe-contact:
+  - `elastic_slip` and `penalty_tangential` are not both given. Without friction, the form grays out the three fields of the slip, with their values.
+  - The anchors of the points are state variables of the contact. `fem.CutbackPlugin` restores them by `checkpoint()` and `restore()` of the contact, so a substep that is retried with smaller increments starts from those of the last converged one.
+  - The iterative methods `minres` and `cg` need a symmetric matrix. A job with one of them and a contact with friction without `symmetric` is an issue, also with the friction of a `contact.add`, whose stiffness is not symmetric either.
 - **The script** imports `SolidBodyContact` only if it has a contact between bodies, so the other scripts are unchanged. The contact is made after the solid bodies: `SolidBodyContact(solid_rubber, solid_steel, mask=..., penalty_scale=100)`.
 - **The steps:**
   - The contact is a constraint of the steps (`constraints`, default all), but not by default of a step that leaves out one of its sections. A step that names it and leaves out one of its sections is an issue.
@@ -42,11 +45,13 @@ A spike (#460) ran `SolidBodyContact` in a script like the generated one. The co
   - 4.7e-3 for a block on a steel plate in 3D, and 4.6e-3 for a pad in plane strain, with `penalty_scale=100`, and 2.2e-2 with the default 10;
   - 1.6e-2 for a cylinder on a disc, axisymmetric with mixed fields, with `penalty_scale=100`.
 - **Self-contact:** `slit_self_contact_plane_strain` closes the slit of one body with `self_contact`; without the contact, its arms pass through each other.
-- **Single precision:** felupe-contact 0.1.0 assembles the contact in `float64`. FElupe then estimates the round-off of the `float32` forces of the solid bodies with the epsilon of `float64`, and the residual of a steel body in contact with rubber stalls above it, also at the default tolerance (adtzlr/felupe-contact#16). Such a model is solved in double precision; the self-contact of rubber converges.
+- **Friction:** `block_sliding_bodies` presses a rubber block onto a stiff base and slides it. In gross sliding, the tangential force is the friction coefficient (0.3) times the normal force within 1e-3. With a cutback, one increment of the whole slide gives the force of two increments, so the anchors are restored.
+- **Single precision:** felupe-contact 0.1.0 assembles the contact in `float64`. FElupe then estimates the round-off of the `float32` forces of the solid bodies with the epsilon of `float64`, and the residual of a steel body (or of the stiff base of the friction) in contact with rubber stalls above it, also at the default tolerance (adtzlr/felupe-contact#16). Such a model is solved in double precision; the self-contact of rubber converges.
 - **Not supported:**
   - the Nitsche contact;
   - results of the contact, e.g. the contact pressure;
   - contact surfaces of tetrahedrons and triangles, and of face sets;
+  - an infinite friction coefficient (`np.inf`, no sliding), since JSON has no infinity;
   - arguments that change from step to step.
 
 ## Alternatives

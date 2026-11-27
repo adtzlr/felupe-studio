@@ -11,6 +11,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
   - `penalty`, `penalty_scale`, `smoothing`, `two_pass`, `max_distance`, `candidates`, `tolerance`, `facing`, `self_contact` and `geometric_stiffness`.
 
   The script imports felupe-contact only with such a contact. A step that leaves out one of its sections leaves out the contact too; a step that names it needs its sections. The sections need hexahedrons or quads: tetrahedrons and triangles are an issue before *Solve*. The warnings of felupe-contact are notes of the job panel and of the tool `solve` of the MCP server. A selected contact highlights its two surfaces in the viewport. The golden cases press rubber onto steel in 3D, in plane strain and axisymmetric, and close a slit by self-contact; the forces agree with the rubber held by boundaries within the penetration of the penalty. The contact with a rigid surface is *Rigid surface contact* in the same menu.
+- Friction of contacts between bodies (#463, [ADR 0026](docs/adr/0026-contact-between-bodies.md)): *Friction*, the Coulomb friction coefficient, and `elastic_slip`, `penalty_tangential` and `symmetric` of `SolidBodyContact`. The form grays out the fields of the slip without friction, and the tree shows the friction coefficient. A cutback restores the anchors of the friction. The golden case `block_sliding_bodies` presses a rubber block onto a stiff base and slides it: in gross sliding, the tangential force is the friction coefficient times the normal force.
 - felupe-contact as a dependency (#461), for the contact between bodies of v0.12 (#462, roadmap #460):
   - The package depends on `felupe-contact>=0.1,<0.2`, so the local runtime and the MCP server have it. The upper bound protects against a change of its API: felupe-contact is in alpha.
   - CI pins its version with `FELUPE_CONTACT_VERSION`, like FElupe, and `tests/test_versions.py` checks that the wheel of the app has it.
@@ -20,6 +21,7 @@ All notable changes of FElupe Studio (the web app and the Python package `felupe
 ### Changed
 
 - The warnings of a run (`runner.contact_warnings()`, events `warning`) are kept with the job, also those of the script before the start of the jobs (#462).
+- A job that solves with the iterative methods `minres` or `cg` and has a contact with friction is an issue: they need a symmetric matrix, and the stiffness of the friction is not symmetric (#463). This holds for a rigid surface contact with friction too; a contact between bodies may take the symmetric part of its friction (`symmetric`).
 - The worker loads the lazy wheels that the runner names for a command list (`runner.lazy_wheels()`), instead of tensortrax alone.
 - The file name of a wheel of the app has the normalized name of its package, e.g. `felupe_contact-0.1.0-py3-none-any.whl` (`app/scripts/wheels.js`). The names of the other wheels are unchanged.
 

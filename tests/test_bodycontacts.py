@@ -1,6 +1,7 @@
 """Contacts between bodies (felupe-contact, #462, ADR 0026): the script of
 ``bodycontact.add``, the steps, the rules, the checks of the cells, the warnings of
-felupe-contact and the forces against models without a contact."""
+felupe-contact and the forces against models without a contact; the friction (#463):
+the Coulomb limit of a sliding block and its anchors on a cutback."""
 
 import contextlib
 import io
@@ -84,6 +85,9 @@ def test_script_of_all_arguments_passes_ruff(tmp_path):
         facing=0.0,
         self_contact=False,
         geometric_stiffness=False,
+        friction=0.3,
+        penalty_tangential=100,
+        symmetric=True,
     )
     del command(doc, "contact")["penalty_scale"]
     assert errors(doc) == []
@@ -93,6 +97,7 @@ def test_script_of_all_arguments_passes_ruff(tmp_path):
         "    penalty=5000,\n    smoothing=0.001,\n    two_pass=True,\n"
         "    max_distance=0.2,\n    candidates=10,\n    tolerance=0.2,\n"
         "    facing=0.0,\n    self_contact=False,\n    geometric_stiffness=False,\n"
+        "    friction=0.3,\n    penalty_tangential=100,\n    symmetric=True,\n"
     ) in script
     ruff = shutil.which("ruff")
     if ruff is None:
@@ -216,6 +221,61 @@ def test_rules_of_the_contact_between_bodies():
         "commands/14: contact 'contact' takes the section 'rubber_block' of the third "
         "medium, which fills the gap between bodies instead of a contact."
     ) in problems
+
+
+def sliding(doc, num=8, cutback=True):
+    """The block of the golden case slid over its base in a number of increments,
+    with or without a cutback (#463)."""
+    command(doc, "sliding")["ramp"]["num"] = num
+    if not cutback:
+        del command(doc, "job_1")["cutback"]
+    return doc
+
+
+def test_sliding_block_at_the_coulomb_limit():
+    # pressed on the base, the rubber block sticks first; moved further, the whole
+    # contact zone slides, and the tangential force is the friction coefficient times
+    # the normal force (as in the example 7 of felupe-contact)
+    doc = document("block_sliding_bodies")
+    assert errors(doc) == []
+    assert "    mask_primary=plate_top,\n    friction=0.3,\n)" in codegen(doc)
+    result = runner.run(doc)["job_1"]
+    x, force = np.array(result["x"])[:, 0], np.array(result["y"])
+    moved = x > 0
+    ratio = force[moved, 0] / -force[moved, 2]
+    # sticking: the force increases with the displacement, by the elastic slip and
+    # the shear of the block, below the Coulomb limit; sliding: at the limit (0.2999
+    # to 0.3000 from a displacement of 0.25 on)
+    assert np.all(np.diff(force[moved, 0][:3]) > 0)
+    assert np.all(ratio < 0.3 * (1 + 1e-4))
+    np.testing.assert_allclose(ratio[x[moved] >= 0.25], 0.3, rtol=1e-3)
+    # all points in contact slide at the end
+    contact = runner.LAST["contact"]
+    assert contact.results.npoints_in_contact == sum(
+        s.sum() for s in contact.results.slip
+    )
+    # without the friction, the block slides without a tangential force
+    del command(doc, "contact")["friction"]
+    force = np.array(runner.run(doc)["job_1"]["y"])
+    assert abs(force[-1, 0]) < 1e-4 * abs(force[-1, 2])
+
+
+@pytest.mark.filterwarnings("ignore:invalid value encountered:RuntimeWarning")
+@pytest.mark.filterwarnings("ignore:Matrix is exactly singular")
+def test_cutback_restores_the_anchors_of_the_friction():
+    # one increment of the whole slide does not converge; the cutback subdivides it
+    # and restores the anchors of the failed attempts (checkpoint() and restore() of
+    # the contact), so the curve is the one of two increments
+    with pytest.raises(fem.NewtonConvergenceError):
+        runner.run(sliding(document("block_sliding_bodies"), 1, cutback=False))
+    events = []
+    cut = runner.run(sliding(document("block_sliding_bodies"), 1), events.append)
+    halves = runner.run(sliding(document("block_sliding_bodies"), 2, cutback=False))
+    assert any(e["event"] == "failed" for e in events)
+    assert max(e.get("increments", 1) for e in events if e["event"] == "converged") > 1
+    np.testing.assert_allclose(
+        cut["job_1"]["y"][-1], halves["job_1"]["y"][-1], rtol=1e-10, atol=1e-12
+    )
 
 
 def test_the_warnings_of_felupe_contact_are_events_of_the_run():

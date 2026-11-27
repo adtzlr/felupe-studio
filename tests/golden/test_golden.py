@@ -827,15 +827,17 @@ LARGE_ROUNDOFF = {
 # elastic-plastic tangent is in float32 (#345). The estimate of mixed fields misses
 # the isochoric part (adtzlr/felupe#1305). With the default tolerance of the app, it
 # converges (test_three_field_variation_in_single_precision)
-# a steel body (E = 1e5) in contact with rubber (#462): felupe-contact 0.1.0 assembles
-# the contact in float64, so FElupe estimates the round-off of the float32 forces of
-# the solid bodies with the epsilon of float64, and the residual stalls above it, also
-# at the default tolerance (adtzlr/felupe-contact#16). The self-contact of rubber
+# a steel body (E = 1e5) in contact with rubber (#462), and a stiff base (mu = 1000)
+# with the friction of a rubber block (#463): felupe-contact 0.1.0 assembles the
+# contact in float64, so FElupe estimates the round-off of the float32 forces of the
+# solid bodies with the epsilon of float64, and the residual stalls above it, also at
+# the default tolerance (adtzlr/felupe-contact#16). The self-contact of rubber
 # converges
 CONTACT_IN_FLOAT64 = {
     "blocks_contact_bodies",
     "plate_contact_bodies_plane_strain",
     "cylinder_contact_bodies_axisymmetric",
+    "block_sliding_bodies",
 }
 NOT_CONVERGED = {
     "block_contact_friction",

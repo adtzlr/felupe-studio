@@ -663,6 +663,75 @@ def bodycontact_sections(model, cmd):
     return problems
 
 
+def bodycontact_slip(model, cmd):
+    """The tangential penalty of the friction of a contact between bodies replaces
+    its elastic slip, so they are not both given (#463)."""
+    if "elastic_slip" in cmd and "penalty_tangential" in cmd:
+        return [
+            f"contact '{cmd['name']}' has an elastic slip and a tangential penalty: "
+            "the tangential penalty replaces the elastic slip, so give one of them."
+        ]
+    return []
+
+
+def contacts_of(model, step):
+    """The contacts of a step: of its constraints, by default all contacts, without
+    the contacts between bodies of a section that it leaves out (#462)."""
+    contacts = {
+        c["name"]: c
+        for c in model.commands
+        if c["command"] in ("contact.add", "bodycontact.add")
+    }
+    if "constraints" in step:
+        return [contacts[name] for name in step["constraints"] if name in contacts]
+    sections = step.get("sections")
+    return [
+        c
+        for c in contacts.values()
+        if sections is None
+        or c["command"] == "contact.add"
+        or set(bodycontact_names(c)) <= set(sections)
+    ]
+
+
+def unsymmetric(contact):
+    """Whether the stiffness of a contact is not symmetric: of its friction, unless
+    the symmetric part of the friction of a contact between bodies (#463)."""
+    friction = contact.get("friction", 0)
+    frictional = isinstance(friction, (int, float)) and friction > 0
+    return frictional and not contact.get("symmetric", False)
+
+
+# the iterative methods of symmetric matrices (#203)
+SYMMETRIC_METHODS = ("minres", "cg")
+
+
+def solver_symmetry(model, cmd):
+    """The iterative methods minres and cg need a symmetric matrix, which the
+    friction of a contact does not have (#463)."""
+    method = cmd.get("solver", {}).get("method")
+    if method not in SYMMETRIC_METHODS:
+        return []
+    contacts = {}
+    for name in cmd["steps"]:
+        step = model.before(name)
+        if step is not None and step["command"] == "step.add":
+            contacts.update((c["name"], c) for c in contacts_of(model, step))
+    problems = []
+    for name, contact in contacts.items():
+        if not unsymmetric(contact):
+            continue
+        remedy = "gmres, bicgstab or a direct solver"
+        if contact["command"] == "bodycontact.add":
+            remedy = f"the symmetric part of its friction, or {remedy}"
+        problems.append(
+            f"job '{cmd['name']}' solves with {method}, which needs a symmetric "
+            f"matrix, but the stiffness of the friction of the contact '{name}' is "
+            f"not symmetric: take {remedy}."
+        )
+    return problems
+
+
 def step_contacts(model, cmd):
     """A step that leaves out a section has no contact between bodies of it (#462):
     the contact acts on both of its sections."""
@@ -770,7 +839,7 @@ LAST = (single, reserved_name, duplicate_name)
 # the rules of a command type, in this order
 RULES = {
     "step.add": (ramp_targets, ramp_twice, ramp_values, ramp_off, step_contacts),
-    "job.add": (curve_kind,),
+    "job.add": (curve_kind, solver_symmetry),
     "boundary.add": (boundary_values,),
     "cartesian.add": (cartesian_vectors, direction_values),
     "cylindrical.add": (cylindrical_axis, direction_values),
@@ -782,7 +851,7 @@ RULES = {
     "point.add": (vertex_coordinates,),
     "rigid.add": (vertex_coordinates, rigid_shape),
     "contact.add": (contact_points,),
-    "bodycontact.add": (bodycontact_points, bodycontact_sections),
+    "bodycontact.add": (bodycontact_points, bodycontact_sections, bodycontact_slip),
     "mpc.add": (rotation_components,),
     "material.add": (material,),
     "material.script": (function_arguments,),

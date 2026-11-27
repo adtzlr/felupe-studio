@@ -970,6 +970,119 @@ CHANGES = {
             },
         ),
     ),
+    # the friction of contacts between bodies (#463): an elastic slip, a tangential
+    # penalty and the symmetric part, with an iterative method of matrices that are
+    # not symmetric
+    "friction of contacts between bodies": lambda d: (
+        d["commands"].insert(
+            9,
+            {
+                "command": "bodycontact.add",
+                "name": "touch",
+                "section": "section_soft",
+                "primary": "section_hard",
+                "friction": 0.3,
+                "elastic_slip": 0.01,
+                "symmetric": True,
+            },
+        ),
+        d["commands"].insert(
+            10,
+            {
+                "command": "bodycontact.add",
+                "name": "folds",
+                "section": "section_soft",
+                "self_contact": True,
+                "friction": 0.2,
+                "penalty_tangential": 100,
+            },
+        ),
+        find(d, "job_1").update(solver={"type": "iterative", "method": "gmres"}),
+    ),
+    # minres and cg need a symmetric matrix (#463): not with the
+    # friction of a contact between bodies without its symmetric part, nor with the
+    # friction of a rigid surface; a step without a section has no contact between
+    # bodies of it
+    "friction with an iterative method of symmetric matrices": lambda d: (
+        d["commands"].insert(
+            9,
+            {
+                "command": "rigid.add",
+                "name": "plate",
+                "coordinates": [4, 0.5, 0.5],
+                "shape": {"normal": [-1, 0, 0]},
+            },
+        ),
+        d["commands"].insert(
+            10,
+            {
+                "command": "boundary.add",
+                "name": "push",
+                "pointset": "plate",
+                "constrained": ["x", "y", "z"],
+            },
+        ),
+        d["commands"].insert(
+            11,
+            {
+                "command": "contact.add",
+                "name": "rough",
+                "points": "right",
+                "surface": "plate",
+                "friction": 0.5,
+            },
+        ),
+        d["commands"].insert(
+            12,
+            {
+                "command": "bodycontact.add",
+                "name": "touch",
+                "section": "section_soft",
+                "primary": "section_hard",
+                "friction": 0.3,
+                "elastic_slip": 0.01,
+                "penalty_tangential": 100,
+            },
+        ),
+        d["commands"].insert(
+            13,
+            {
+                "command": "bodycontact.add",
+                "name": "smooth",
+                "section": "section_soft",
+                "primary": "section_hard",
+                "friction": 0.3,
+                "symmetric": True,
+            },
+        ),
+        d["commands"].insert(
+            14,
+            {
+                "command": "bodycontact.add",
+                "name": "frictionless",
+                "section": "section_soft",
+                "primary": "section_hard",
+            },
+        ),
+        d["commands"].insert(
+            17,
+            {
+                "command": "step.add",
+                "name": "step_2",
+                "sections": ["section_hard"],
+                "ramp": ramp(end=0.5, num=5),
+            },
+        ),
+        find(d, "job_1").update(solver={"type": "iterative", "method": "minres"}),
+        d["commands"].append(
+            {
+                "command": "job.add",
+                "name": "job_2",
+                "steps": ["step_2"],
+                "solver": {"type": "iterative", "method": "cg"},
+            }
+        ),
+    ),
     "2d model with a contact": lambda d: (
         d["commands"].insert(
             0,

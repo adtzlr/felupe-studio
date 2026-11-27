@@ -94,6 +94,19 @@ function ActionHint({ form, spec, id }: FieldProps & { id: string }) {
   );
 }
 
+/**
+ * The class of the row of a field: nested in an object, or grayed out without the
+ * value of another field (#463).
+ */
+const rowClass = (spec: FieldSpec) =>
+  [
+    "form-row",
+    spec.path.length > 1 ? "nested" : undefined,
+    spec.off ? "off" : undefined,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
 /** A boolean: a checkbox with its label. */
 export function BooleanField({ form, spec }: FieldProps) {
   if (spec.input.type !== "boolean") return null;
@@ -101,7 +114,7 @@ export function BooleanField({ form, spec }: FieldProps) {
   const value = getValue(form.draft, spec.path);
   const checked = typeof value === "boolean" ? value : spec.input.default;
   return (
-    <div class={spec.path.length > 1 ? "form-row nested" : "form-row"}>
+    <div class={rowClass(spec)}>
       <span class="form-label" />
       <div class="form-control">
         <label class="check" title={spec.description}>
@@ -109,12 +122,14 @@ export function BooleanField({ form, spec }: FieldProps) {
             id={id}
             type="checkbox"
             checked={checked}
-            aria-describedby={spec.hint ? `${id}-hint` : undefined}
+            aria-describedby={
+              (spec.off ?? spec.hint) ? `${id}-hint` : undefined
+            }
             onChange={(event) => form.change(spec, event.currentTarget.checked)}
           />
           {spec.label}
         </label>
-        <Hint id={id} hint={spec.hint} />
+        <Hint id={id} hint={spec.off ?? spec.hint} />
       </div>
     </div>
   );
@@ -279,7 +294,7 @@ export function FieldRow({ form, spec }: FieldProps) {
     spec.input.type === "multichoice" ||
     (spec.input.type === "reference" && spec.input.multiple);
   return (
-    <div class={spec.path.length > 1 ? "form-row nested" : "form-row"}>
+    <div class={rowClass(spec)}>
       {group ? (
         <span id={`${id}-label`} class="form-label" title={tooltip(spec)}>
           {label}
@@ -296,7 +311,12 @@ export function FieldRow({ form, spec }: FieldProps) {
             {hint}
           </small>
         )}
-        <ActionHint form={form} spec={spec} id={id} />
+        {/* a field without an effect says why instead of its hint (#463) */}
+        {spec.off ? (
+          <Hint id={id} hint={spec.off} />
+        ) : (
+          <ActionHint form={form} spec={spec} id={id} />
+        )}
         <Message id={id} error={error} issue={form.issueOf(spec)} />
       </div>
     </div>

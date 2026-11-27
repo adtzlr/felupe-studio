@@ -1,9 +1,10 @@
 // The contact between bodies in the app (felupe-contact, #462): the tree, a new
-// contact, the steps that leave out its sections and the warnings of a run.
+// contact, the steps that leave out its sections and the warnings of a run; the
+// fields of its friction (#463).
 import { describe, expect, it } from "vitest";
 import fixture from "../../../tests/data/two_sections.json";
 import type { Command, CommandList } from "./commands";
-import { initialDraft } from "./form";
+import { fieldSpecs, initialDraft } from "./form";
 import { advance, startProgress } from "./jobs";
 import { offIn } from "./steps";
 import { deriveTree } from "./tree";
@@ -27,6 +28,41 @@ describe("a contact between bodies", () => {
     expect(group?.children.map((c) => [c.label, c.detail, c.icon])).toEqual([
       ["touch", "section_soft → section_hard · self-contact", "contact"],
     ]);
+  });
+
+  it("has its friction in the tree (#463)", () => {
+    const model = [...commands, { ...contact, friction: 0.3 } as Command];
+    const group = deriveTree(model).find((n) => n.id === "group:contact");
+    expect(group?.children[0].detail).toBe(
+      "section_soft → section_hard · self-contact · μ = 0.3",
+    );
+  });
+
+  it("has the fields of the slip off without friction (#463)", () => {
+    // the parameters of the friction (#242)
+    const parameters = [
+      { command: "parameter.add", name: "mu", value: 0.3 },
+      { command: "parameter.add", name: "smooth", value: 0 },
+    ] as Command[];
+    const off = (friction: unknown) =>
+      fieldSpecs(
+        "bodycontact.add",
+        { ...contact, friction },
+        { commands: [...parameters, ...commands] },
+      )
+        .filter((spec) => spec.off)
+        .map((spec) => [spec.key, spec.off]);
+    const slip = ["elastic_slip", "penalty_tangential", "symmetric"].map(
+      (key) => [key, "Only with friction"],
+    );
+    expect(off(undefined)).toEqual(slip);
+    expect(off(0)).toEqual(slip);
+    expect(off("0")).toEqual(slip);
+    expect(off(0.3)).toEqual([]);
+    // the value of a parameter, and an expression that is not valid yet
+    expect(off("mu")).toEqual([]);
+    expect(off("smooth")).toEqual(slip);
+    expect(off("2 *")).toEqual([]);
   });
 
   it("takes the last section and the one before as its primary one", () => {

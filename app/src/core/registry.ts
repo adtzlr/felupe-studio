@@ -21,6 +21,12 @@ export interface FieldInfo {
    * e.g. a step ramps a boundary only once.
    */
   unique?: boolean;
+  /**
+   * The key of a field without which this one has no effect, e.g. the friction of
+   * the elastic slip (#463): grayed out while that field is empty or zero, with its
+   * value kept.
+   */
+  needs?: string;
 }
 
 export type Tab = "mesh" | "materials" | "sections" | "loads" | "steps";
@@ -1009,6 +1015,29 @@ export const REGISTRY: Record<CommandType, CommandInfo> = {
       geometric_stiffness: {
         label: "Geometric stiffness",
         hint: "For the quadratic convergence of the Newton-Raphson method",
+      },
+      // the friction (#463)
+      friction: {
+        label: "Friction",
+        hint: "Coulomb friction coefficient: a point sticks until its tangential traction reaches it times the contact pressure, then it slides",
+        placeholder: "0, frictionless",
+      },
+      elastic_slip: {
+        label: "Elastic slip",
+        hint: "Slip of a sticking point at which it starts to slide: decrease it to reduce the slip, increase it if the Newton-Raphson method does not converge",
+        placeholder: "1 % of a face",
+        needs: "friction",
+      },
+      penalty_tangential: {
+        label: "Tangential penalty",
+        hint: "Tangential traction per unit slip, constant instead of the elastic slip",
+        placeholder: "by the elastic slip",
+        needs: "friction",
+      },
+      symmetric: {
+        label: "Symmetric",
+        hint: "The symmetric part of the stiffness of the friction, for minres and cg; it converges more slowly",
+        needs: "friction",
       },
     },
     initial: initialBodyContact,
