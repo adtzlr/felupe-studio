@@ -167,7 +167,7 @@ The CI files of `brands/` build a release of felupe-studio with the brand folder
 
 **GitHub:** copy [`brands/github-actions.yml`](../brands/github-actions.yml) to `.github/workflows/brand.yml`, and set *Settings ▸ Pages ▸ Source* to *GitHub Actions*.
 
-Both files set the release in one line, `FELUPE_STUDIO_VERSION: "0.11.0"`. **A new release** of FElupe Studio is a change of this line: read its [changelog](../CHANGELOG.md) first, and try the brand with it. The fields `accent_light` and `defaults.theme` of `brand.json` need 0.9.0 or newer; an older release does not build a brand with them. Projects saved with a newer release open in an older one only if they use nothing new; the older app then says that the project may be of a newer version.
+Both files set the release in one line, `FELUPE_STUDIO_VERSION: "0.12.0"`. **A new release** of FElupe Studio is a change of this line: read its [changelog](../CHANGELOG.md) first, and try the brand with it. The fields `accent_light` and `defaults.theme` of `brand.json` need 0.9.0 or newer; an older release does not build a brand with them. Projects saved with a newer release open in an older one only if they use nothing new; the older app then says that the project may be of a newer version.
 
 ### What stays FElupe Studio
 
@@ -185,7 +185,7 @@ The wheel of a brand is the Python package `felupe-studio` with the app and the 
 Give your users the file, e.g. as a download of the pipeline, and they install it with its extras:
 
 ```bash
-pip install "felupe_studio-0.11.0-py3-none-any.whl[serve,mcp]"
+pip install "felupe_studio-0.12.0-py3-none-any.whl[serve,mcp]"
 felupe-studio serve
 ```
 
