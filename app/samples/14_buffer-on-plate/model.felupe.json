@@ -1,0 +1,233 @@
+{
+  "schema_version": 3,
+  "commands": [
+    {
+      "command": "model.settings",
+      "name": "settings",
+      "units": {
+        "length": "mm",
+        "force": "N"
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "plate_mesh",
+      "tool": "Cube",
+      "parameters": {
+        "a": [
+          0,
+          0,
+          0
+        ],
+        "b": [
+          40,
+          40,
+          1
+        ],
+        "n": [
+          17,
+          17,
+          3
+        ]
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "profile",
+      "tool": "Circle",
+      "parameters": {
+        "radius": 10,
+        "centerpoint": [
+          0,
+          0
+        ],
+        "n": 5,
+        "sections": [
+          0
+        ]
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "cylinder",
+      "tool": "expand",
+      "inputs": [
+        "profile"
+      ],
+      "parameters": {
+        "n": 7,
+        "z": 12
+      }
+    },
+    {
+      "command": "mesh.generate",
+      "name": "buffer_mesh",
+      "tool": "translate",
+      "inputs": [
+        "cylinder"
+      ],
+      "parameters": {
+        "move": 1.2,
+        "axis": "z"
+      }
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "plate_cells",
+      "mesh": "plate_mesh"
+    },
+    {
+      "command": "cellset.from_file",
+      "name": "buffer_cells",
+      "mesh": "buffer_mesh"
+    },
+    {
+      "command": "material.add",
+      "name": "steel",
+      "model": "LinearElasticLargeStrain",
+      "parameters": {
+        "E": 210000,
+        "nu": 0.3
+      }
+    },
+    {
+      "command": "material.add",
+      "name": "rubber",
+      "model": "NeoHooke",
+      "parameters": {
+        "mu": 1
+      }
+    },
+    {
+      "command": "section.add",
+      "name": "plate",
+      "cellset": "plate_cells",
+      "material": "steel",
+      "formulation": "u"
+    },
+    {
+      "command": "section.add",
+      "name": "buffer",
+      "cellset": "buffer_cells",
+      "material": "rubber",
+      "formulation": "u-p-J",
+      "bulk": 5000
+    },
+    {
+      "command": "symmetry.add",
+      "name": "symmetry",
+      "axes": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "command": "pointset.add",
+      "name": "edge_x",
+      "select": {
+        "axis": "x",
+        "value": 40
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "edge_y",
+      "select": {
+        "axis": "y",
+        "value": 40
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "plate_top",
+      "select": {
+        "axis": "z",
+        "value": 1
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "buffer_bottom",
+      "select": {
+        "axis": "z",
+        "value": 1.2
+      }
+    },
+    {
+      "command": "pointset.add",
+      "name": "top",
+      "select": {
+        "axis": "z",
+        "value": 13.2
+      }
+    },
+    {
+      "command": "boundary.add",
+      "name": "clamped_x",
+      "pointset": "edge_x",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "clamped_y",
+      "pointset": "edge_y",
+      "constrained": [
+        "x",
+        "y",
+        "z"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "held",
+      "pointset": "top",
+      "constrained": [
+        "x",
+        "y"
+      ]
+    },
+    {
+      "command": "boundary.add",
+      "name": "press",
+      "pointset": "top",
+      "constrained": [
+        "z"
+      ]
+    },
+    {
+      "command": "bodycontact.add",
+      "name": "contact",
+      "section": "buffer",
+      "primary": "plate",
+      "points": "buffer_bottom",
+      "points_primary": "plate_top",
+      "friction": 0.3
+    },
+    {
+      "command": "step.add",
+      "name": "pressing",
+      "ramp": {
+        "num": 6,
+        "items": [
+          {
+            "target": "press",
+            "end": -3.2
+          }
+        ]
+      }
+    },
+    {
+      "command": "job.add",
+      "name": "job",
+      "steps": [
+        "pressing"
+      ],
+      "curve": "press",
+      "cutback": {}
+    }
+  ]
+}

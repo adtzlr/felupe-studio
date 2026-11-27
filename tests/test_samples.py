@@ -150,6 +150,27 @@ def test_glued_plate_moves_and_tilts(monkeypatch):
     assert abs(points["tilt"]["force"][1]) > 0
 
 
+def test_buffer_bends_the_plate_and_slides(monkeypatch):
+    """The rubber buffer pressed onto a plate (#464), by a contact between bodies with
+    friction (#462, #463): the plate bends under it, and the bulging buffer slides
+    outwards on the plate, except in its middle."""
+    from felupe_studio import runner
+
+    folder = folder_of("buffer-on-plate")
+    monkeypatch.chdir(folder)
+    result = run(loads((folder / "model.felupe.json").read_text()))["job"]
+    force = np.array(result["y"])[:, 2]
+    # the gap of 0.2 mm is closed in the first substep, then the force increases
+    assert np.all(np.diff(force) < 0) and round(force[-1]) == -98
+    field = runner.LAST["field"][0]
+    points, z = field.region.mesh.points, field.values[:, 2]
+    center = np.isclose(points, [0, 0, 0]).all(axis=1)
+    assert -0.24 < z[center][0] < -0.2
+    contact = runner.LAST["contact"]
+    sliding = sum(int(s.sum()) for s in contact.results.slip)
+    assert 0 < sliding < contact.results.npoints_in_contact
+
+
 def test_sandwich_spring_follows_its_parameters(monkeypatch):
     """The sandwich spring (#184) with 3 and 5 soft layers: the same project with
     another value of a parameter. The top follows the height of the stack (z ==
