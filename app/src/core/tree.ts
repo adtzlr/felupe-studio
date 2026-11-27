@@ -285,13 +285,15 @@ const DETAILS: { [C in Command["command"]]: Detail<C> } = {
       `${cmd.points} → ${cmd.surface}`,
       cmd.friction && `μ = ${cmd.friction}`,
     ),
-  // the sections of a contact between bodies (#462), or one section with itself
+  // the sections of a contact between bodies (#462), or one section with itself,
+  // and its friction (#463)
   "bodycontact.add": (cmd) =>
     joined(
       cmd.primary && cmd.primary !== cmd.section
         ? `${cmd.section} → ${cmd.primary}`
         : cmd.section,
       cmd.self_contact && "self-contact",
+      cmd.friction && `μ = ${cmd.friction}`,
     ),
   "mpc.add": (cmd) =>
     joined(

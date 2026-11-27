@@ -125,6 +125,11 @@ export interface FieldSpec {
   unique?: boolean;
   /** The physical quantity of the value, for its unit (`x-quantity`, #132). */
   quantity?: Quantity;
+  /**
+   * Why the field has no effect, e.g. *Only with friction* (registry `needs`,
+   * #463): grayed out, its value kept.
+   */
+  off?: string;
 }
 
 /**
@@ -759,7 +764,37 @@ export function fieldSpecs(
   };
 
   walk(node, draft, []);
-  return specs;
+  return specs.map((spec) => offSpec(type, spec, draft, context));
+}
+
+/**
+ * Whether the value of a field is empty or zero, also as the value of an expression
+ * of the parameters (#242), so that it has no effect.
+ */
+function unset(value: unknown, context?: Context): boolean {
+  if (value === undefined || value === "" || value === false) return true;
+  if (typeof value === "string" && context && Number.isNaN(Number(value))) {
+    const result = expressionValue(value, context);
+    return "value" in result && result.value === 0;
+  }
+  return Number(value) === 0;
+}
+
+/**
+ * A field without an effect without the value of another one (registry `needs`,
+ * #463), e.g. the elastic slip without friction: *Only with friction*.
+ */
+function offSpec(
+  type: CommandType,
+  spec: FieldSpec,
+  draft: Draft,
+  context?: Context,
+): FieldSpec {
+  const needs = info(type, spec.key)?.needs;
+  if (needs === undefined || !unset(getValue(draft, needs.split(".")), context))
+    return spec;
+  const label = info(type, needs)?.label ?? needs;
+  return { ...spec, off: `Only with ${label.toLowerCase()}` };
 }
 
 /**

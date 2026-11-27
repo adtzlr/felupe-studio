@@ -968,3 +968,45 @@ describe("expressions of parameters (#242)", () => {
     expect(parameter.field("Minimum")).toBeTruthy();
   });
 });
+
+describe("the friction of a contact between bodies (#463)", () => {
+  const contact = {
+    command: "bodycontact.add",
+    name: "touch",
+    section: "section_soft",
+    primary: "section_hard",
+  } as Command;
+  const model = {
+    ...(fixture as CommandList),
+    commands: [...(fixture as CommandList).commands, contact],
+  };
+
+  it("grays out the fields of the slip without friction, with their values", () => {
+    const { store, properties, field, button, type } = edit("touch", model);
+    const row = (label: string) => field(label).closest(".form-control")!;
+    // the labels of the grayed out rows: of a field, or of a checkbox
+    const grayed = () =>
+      [...properties.querySelectorAll(".form-row.off")].map(
+        (r) =>
+          (r.querySelector("label.check") ?? r.firstElementChild)!.textContent,
+      );
+    const slip = ["Elastic slip", "Tangential penalty", "Symmetric"];
+    expect(grayed()).toEqual(slip);
+    expect(row("Elastic slip").textContent).toContain("Only with friction");
+    expect(row("Symmetric").textContent).toContain("Only with friction");
+    // the value of a grayed out field is kept
+    type("Elastic slip", "0.01");
+    type("Friction", "0.3");
+    expect(grayed()).toEqual([]);
+    expect(row("Elastic slip").textContent).toContain("starts to slide");
+    fireEvent.click(button("Apply"));
+    expect(store.get("touch")).toMatchObject({
+      friction: 0.3,
+      elastic_slip: 0.01,
+    });
+    // a friction of zero has no effect either
+    type("Friction", "0");
+    expect(grayed()).toEqual(slip);
+    expect(field("Elastic slip").value).toBe("0.01");
+  });
+});

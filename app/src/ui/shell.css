@@ -938,6 +938,16 @@ button {
   padding-left: var(--space-10);
 }
 
+/* a field without an effect without the value of another one, e.g. the elastic slip
+   without friction (#463): grayed out, and as usual while it is edited */
+.form-row.off > * {
+  opacity: 0.55;
+}
+
+.form-row.off > :focus-within {
+  opacity: 1;
+}
+
 .form-control {
   display: flex;
   flex-direction: column;
