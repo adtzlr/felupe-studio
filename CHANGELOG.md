@@ -2,7 +2,23 @@
 
 All notable changes of FElupe Studio (the web app and the Python package `felupe_studio`, released together with the same version).
 
-## [Unreleased]
+## [0.12.0] - 2026-11-27
+
+The contact between deformable bodies, with `SolidBodyContact` of [felupe-contact](https://github.com/adtzlr/felupe-contact):
+- **Contacts between bodies** (#462, ADR 0026): two sections pressed onto each other, the bodies of one section, or a body with itself. *Contact between bodies* of the menu *Contact ▾* has the arguments of `SolidBodyContact` in its form.
+- **Friction** (#463): a Coulomb friction coefficient, with the elastic slip, the tangential penalty and its symmetric part. A cutback restores the anchors of the friction.
+- **The sample *Rubber buffer on a plate*** (#464): a rubber buffer bends a thin steel plate and slides outwards on it.
+- **felupe-contact as a dependency** (#461): the app loads its wheel only before the run of a model with a contact between bodies.
+
+**The schema version stays 3:** projects of v0.11 open unchanged. The command `bodycontact.add` is additive; a project that uses it does not open in v0.8 to v0.11, which name it: *This project uses `bodycontact.add`, which FElupe Studio 0.11.0 does not know*.
+
+**A limit:** a contact between bodies of a stiff section, e.g. steel, and rubber does not converge in single precision until a release of felupe-contact with adtzlr/felupe-contact#16. Solve such a model in double precision.
+
+**Brands:** `brand.json` is unchanged, so a brand of v0.11 builds with `FELUPE_STUDIO_VERSION: "0.12.0"`.
+
+**Python:** the names `SolidBodyContact` and `present` are reserved in the script.
+
+FElupe 12.1.2 (`felupe>=12.1.2`), felupe-contact 0.1.0 (`felupe-contact>=0.1,<0.2`), Pyodide 314.0.7.
 
 ### Added
 
@@ -496,6 +512,7 @@ The first release: a model of hyperelastic solids, from mesh files to results, i
 - `felupe_studio.codegen()`: the command list as a readable FElupe script, checked by golden tests against reference curves.
 - JSON schema of the command list (schema version 1) as the single source of the app and of the package.
 
+[0.12.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.12.0
 [0.11.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.11.0
 [0.10.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.10.0
 [0.9.0]: https://github.com/adtzlr/felupe-studio/releases/tag/v0.9.0
